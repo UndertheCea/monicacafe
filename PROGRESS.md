@@ -110,19 +110,116 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ---
 
+## Iteration 3 — Read API, `/coffees` page, structured errors
+
+**Completed (three slices)**
+
+### Slice 1 (backend): all read queries wired to PostgreSQL
+
+- `internal/store/` — raw `pgx` queries on `*pgxpool.Pool` (no sqlc yet). UUIDs are cast to
+  `::text` at the SQL boundary; prices scan into `money.TWD`.
+- `graph.Resolver` now holds `Store *store.Store`; `cmd/server` connects via `db.New(cfg.DatabaseURL)`.
+- Implemented: `me`, `shop(slug)`, `shops(city, limit, offset)`, `shopsForMap`, `coffee(id)`,
+  `coffees(filter, limit, offset)`, `popularCoffees`, `originCountries`, `coffeeVarieties`,
+  `processingMethods`, plus field resolvers `Shop.coffees`, `Coffee.variants`, `Coffee.comments`,
+  `Coffee.commentCount`, `User.shop`.
+- `gqlgen.yml` gained field-resolver config for those nested fields; `Coffee.shop`,
+  `originCountry`, `variety`, `processingMethod` are filled by JOIN in the parent query.
+  Generated code was regenerated (`go run github.com/99designs/gqlgen@v0.17.73 generate`);
+  **the schema is unchanged**.
+- Filter semantics: all filters AND together; `flavorNote` is a case-insensitive substring match
+  over `flavor_notes` (LIKE metacharacters escaped); `min/maxPriceTwd` must be satisfied by the
+  *same available* variant. Pagination: default 20, max 100.
+- Public listings show published coffees only. `coffee(id)` returns a draft only to the owning seller.
+- `popularCoffees` = published coffees ranked by comment count, then newest.
+- Unknown slug / id → `null` (nullable fields), malformed UUID → `BAD_USER_INPUT`.
+- **Privacy:** comment authors are returned without email (`User.email` = `""`) — contact info
+  must never be public.
+
+### Slice 2 (frontend): `/coffees` listing with filter sidebar + bilingual shell
+
+- `lib/i18n/dict.ts` — `t(locale, key, vars)` with a type-checked zh-TW/EN dictionary, `pick()`
+  for bilingual DB fields; `lib/i18n/server.ts` reads the `locale` cookie (default zh-TW).
+- `LanguageToggle` (client, sets cookie + `router.refresh()`), `SiteHeader`, `SiteFooter` in root
+  layout; `<html lang>` follows the locale.
+- `lib/graphql.ts` — typed documents (`typed<TData, TVars>()` + `query()`), `ApiError` /
+  `toApiError()` reading the backend's `extensions.code/messageZh/messageEn`.
+  Server components use `GRAPHQL_URL_INTERNAL` (compose: `http://backend:4000/graphql`).
+- `/coffees` — server-rendered; GET-form sidebar (origin grouped by region, variety, process,
+  roast radio, flavor search, NT$ price range), coffee cards (roast badge, origin/process/variety,
+  flavor chips, "NT$X 起" from cheapest available variant), pagination (12/page), bilingual
+  empty and error states. Works without JS; filters live in the URL.
+- `formatPrice` (USD) replaced by `formatTWD` (whole NT$).
+
+### Slice 3 (cross-cutting): structured GraphQL errors + tests + dev seed
+
+- `internal/apperr` — bilingual `*apperr.Error` with codes `NOT_FOUND`, `UNAUTHENTICATED`,
+  `FORBIDDEN`, `BAD_USER_INPUT`, `NOT_IMPLEMENTED`, `INTERNAL`. `apperr.Presenter` (gqlgen error
+  presenter) sets `message` = zh-TW and `extensions {code, messageZh, messageEn, field?}`; unknown
+  errors become `INTERNAL` with the cause logged, never leaked. `apperr.Recover` turns resolver
+  panics into `INTERNAL`.
+- **No resolver panics any more.** Mutations not yet built return `NOT_IMPLEMENTED` with a comment
+  naming the roadmap slice that will implement them.
+- Tests: table-driven tests for the presenter, `Page`, `escapeLike`, `buildCoffeeWhere`; DB
+  integration tests for every store method (run when `MONICA_TEST_DATABASE_URL` points at a
+  migrated DB, skipped otherwise — verified this session against Postgres with 001 applied).
+- `scripts/seed_dev.sql` — idempotent demo seller, shop (台北市 with lat/lng) and 3 published
+  coffees with variants. Not in `migrations/` so it never auto-runs. Demo user cannot log in
+  (placeholder hash) until auth lands.
+- `frontend/public/` created (frontend Dockerfile copies it); compose passes `GRAPHQL_URL_INTERNAL`.
+
+**Deferred / notes**
+
+- Coffee cards don't link anywhere yet — the detail page doesn't exist. Add the link with the
+  detail page. The API has `coffee(id)` but no `coffee(slug)`; the detail route will need to use
+  the id (or the schema needs a slug lookup — a schema change, so decide deliberately).
+- N+1: `variants`/`commentCount` are one query per coffee (≤ 12–100 per page). Add a dataloader if
+  it shows up in profiling.
+- `next lint` has no ESLint config yet (interactive prompt); `npm run build` type-checks.
+
+**Next session should start with**
+
+1. Auth mutations (`register`/`login`/`refreshToken`/`logout`, bcrypt) + `/login` `/register` pages.
+2. Coffee detail page with variants and comments, then `addComment`/`deleteComment`.
+3. Update `seed_dev.sql` with a real bcrypt hash once login works.
+
+---
+
 ## Roadmap
 
 ### Stage 1 — Discovery (current focus)
 
-- [ ] Implement database layer with sqlc (query files + generated code)
-- [ ] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
-- [ ] Auth resolvers: register, login, refreshToken (bcrypt + JWT)
-- [ ] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
-- [ ] Frontend: map page (Leaflet.js or Mapbox) with shop pins
-- [ ] Frontend: coffee filters (origin country, variety, processing method, roast level)
-- [ ] Frontend: simple comment section on coffee pages
-- [ ] File upload: seller logo/banner/coffee images (S3-compatible, Stage 1)
-- [ ] Seller dashboard: create shop, add coffees, manage listings
+**Backend (resolvers)**
+- [ ] Auth mutations: `register`, `login`, `refreshToken`, `logout` (bcrypt + JWT)
+- [x] `shops` + `shopsForMap` queries (read from DB)
+- [x] `coffees` + `popularCoffees` queries with filter support
+- [x] `shop(slug)` and `coffee(id)` single-item queries
+- [x] `originCountries`, `coffeeVarieties`, `processingMethods` lookup queries
+- [ ] Seller mutations: `createShop`, `updateShop`
+- [ ] Coffee mutations: `createCoffee`, `updateCoffee`, `publishCoffee`, `unpublishCoffee`
+- [ ] `addComment` + `deleteComment` mutations
+- [x] `me` query (from JWT context)
+
+**Frontend (pages + components)**
+- [x] Bilingual layout shell: `t()` helper, language toggle (zh-TW ↔ EN), Navbar, Footer (minimal; nav grows as pages land)
+- [ ] Home page: hero, featured coffees grid, top origins strip (still the old English-only hero)
+- [x] Coffee listing page `/coffees` with filter sidebar (origin, variety, processing, roast)
+- [ ] Coffee detail page `/coffees/[slug]` with variants, flavor notes, comments section
+- [ ] Shop listing page `/shops` with city grouping
+- [ ] Shop detail page `/shops/[slug]` with banner, logo, coffee grid
+- [ ] Map page `/map` — Leaflet pins for all shops (use CDN Leaflet, not npm)
+- [ ] Seller dashboard `/dashboard` — create/edit shop and coffees (auth-gated)
+- [ ] Auth pages: `/login`, `/register`
+- [x] GraphQL client: typed client wrapping the backend at port 4000 (graphql-request)
+
+**Cross-cutting**
+- [x] DB connection wired into resolvers (`Resolver` struct gets a pgx-backed `Store`)
+- [x] Auth middleware wiring: `UserIDFromContext(ctx)` helper for resolver auth checks
+- [x] Error handling: structured GraphQL errors (not raw `panic`)
+- [ ] Dockerfile for backend (`cmd/server`) and frontend (exist; not yet verified with `docker build`)
+- [ ] `.env.example` with all required env vars documented
+- [x] Seed script: insert one demo shop + 3 demo coffees for local dev
+- [ ] File upload: seller logo/banner/coffee images (S3-compatible)
 
 ### Stage 2 — Transactions
 

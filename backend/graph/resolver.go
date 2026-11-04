@@ -1,7 +1,10 @@
 package graph
 
+import "github.com/underthecea/monicacafe/backend/internal/store"
+
 // This file will not be regenerated automatically.
 //
-// It serves as dependency injection for your app, add any dependencies you require here.
-
-type Resolver struct{}
+// Resolver is the dependency-injection root shared by all resolvers.
+type Resolver struct {
+	Store *store.Store
+}

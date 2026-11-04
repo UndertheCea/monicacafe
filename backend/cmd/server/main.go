@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -15,9 +16,12 @@ import (
 
 	"github.com/underthecea/monicacafe/backend/graph"
 	"github.com/underthecea/monicacafe/backend/graph/generated"
+	"github.com/underthecea/monicacafe/backend/internal/apperr"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
+	"github.com/underthecea/monicacafe/backend/internal/db"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/config"
+	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
 func main() {
@@ -25,14 +29,22 @@ func main() {
 
 	authSvc := auth.NewService(cfg.JWTAccessSecret, cfg.JWTRefreshSecret)
 
+	pool, err := db.New(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
 	schema := generated.NewExecutableSchema(generated.Config{
-		Resolvers: &graph.Resolver{},
+		Resolvers: &graph.Resolver{Store: store.New(pool)},
 	})
 
 	srv := handler.New(schema)
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
+	srv.SetErrorPresenter(apperr.Presenter)
+	srv.SetRecoverFunc(apperr.Recover)
 	srv.Use(extension.Introspection{})
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New[string](100),

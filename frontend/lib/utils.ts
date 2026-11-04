@@ -5,9 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(usd: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(usd);
+/** Format whole New Taiwan Dollars, e.g. 1200 → "1,200". No decimals. */
+export function formatTWD(amount: number): string {
+  return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(amount);
 }

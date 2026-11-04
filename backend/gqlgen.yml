@@ -20,3 +20,21 @@ models:
     model: github.com/99designs/gqlgen/graphql.Time
   TWD:
     model: github.com/underthecea/monicacafe/backend/internal/platform/money.TWD
+  # Nested fields that need a per-parent query get field resolvers.
+  # Coffee.shop and Comment.user are populated eagerly via JOIN instead.
+  Shop:
+    fields:
+      coffees:
+        resolver: true
+  Coffee:
+    fields:
+      variants:
+        resolver: true
+      comments:
+        resolver: true
+      commentCount:
+        resolver: true
+  User:
+    fields:
+      shop:
+        resolver: true

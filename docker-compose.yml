@@ -72,6 +72,8 @@ services:
       dockerfile: Dockerfile
     environment:
       NEXT_PUBLIC_GRAPHQL_URL: http://localhost/graphql
+      # Server components fetch over the compose network, not through nginx.
+      GRAPHQL_URL_INTERNAL: http://backend:4000/graphql
     depends_on:
       - backend
     ports:

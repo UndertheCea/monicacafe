@@ -206,11 +206,36 @@ func TestMarketplaceFlow(t *testing.T) {
 	buyer.expectCode(graph.CodeForbidden, `mutation($id: ID!) { updateShop(id: $id, input: {name: "hijack"}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
 
+	onMap := func() bool {
+		var m struct {
+			ShopsForMap []struct {
+				Slug     string
+				Lat, Lng *float64
+			}
+		}
+		anon.mustDo(`{ shopsForMap { slug lat lng } }`, nil, &m)
+		for _, p := range m.ShopsForMap {
+			if p.Lat == nil || p.Lng == nil {
+				t.Fatalf("shopsForMap returned an unpinnable shop: %+v", p)
+			}
+			if p.Slug == slug {
+				return true
+			}
+		}
+		return false
+	}
+	if onMap() {
+		t.Fatal("shop without coordinates should not be on the map")
+	}
+
 	lat, lng := 25.033, 121.5654
 	seller.mustDo(`mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"lat": lat, "lng": lng, "logoUrl": "https://cdn.example.com/logo.png"}}, nil)
 	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!) { updateShop(id: $id, input: {lat: 91}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
+	if !onMap() {
+		t.Fatal("shop with coordinates should be on the map")
+	}
 
 	// ── Coffee ──────────────────────────────────────────────────────────────
 	var refs struct {

@@ -121,9 +121,15 @@ func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) 
 	return out, total, mapErr(rows.Err())
 }
 
-// AllShops returns every shop ordered by name (used for the map page).
-func (s *Store) AllShops(ctx context.Context) ([]*Shop, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops ORDER BY name, id`)
+// MapShops returns the shops that can be pinned on the map page: both
+// coordinates set and inside the valid WGS84 range. Shops without a location
+// are simply left off the map (they still appear in the /shops directory).
+// The SQL predicate mirrors Pinnable so the two can never disagree.
+func (s *Store) MapShops(ctx context.Context) ([]*Shop, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops
+		WHERE lat IS NOT NULL AND lng IS NOT NULL
+		  AND lat BETWEEN -90 AND 90 AND lng BETWEEN -180 AND 180
+		ORDER BY name, id`)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -137,4 +143,12 @@ func (s *Store) AllShops(ctx context.Context) ([]*Shop, error) {
 		out = append(out, sh)
 	}
 	return out, mapErr(rows.Err())
+}
+
+// Pinnable reports whether a lat/lng pair can be placed on a map.
+func Pinnable(lat, lng *float64) bool {
+	if lat == nil || lng == nil {
+		return false
+	}
+	return *lat >= -90 && *lat <= 90 && *lng >= -180 && *lng <= 180
 }

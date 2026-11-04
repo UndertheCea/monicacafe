@@ -53,7 +53,8 @@ type Mutation {
 
 type User {
   id: ID!
-  email: String!
+  # Only visible to the user themself and to admins; null for everyone else.
+  email: String
   displayName: String!
   role: UserRole!
   shop: Shop
@@ -112,6 +113,7 @@ type Coffee {
   flavorNotes: [String!]!
   imageUrls: [String!]!
   variants: [Variant!]!
+  # Newest first, capped at 100. Use commentCount for the full total.
   comments: [Comment!]!
   commentCount: Int!
   isPublished: Boolean!

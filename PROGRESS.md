@@ -106,7 +106,92 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 - `gqlgen.yml` — `TWD` scalar mapped to `money.TWD`; `Time` scalar to `gqlgen/graphql.Time`
 - `graph/generated/generated.go` and `graph/model/models_gen.go` regenerated from new schema
-- `graph/schema.resolvers.go` — all resolvers stubbed (panic "not implemented") — to be implemented in Iteration 3
+- `graph/schema.resolvers.go` — all resolvers stubbed (panic "not implemented") — implemented in Iteration 3
+
+---
+
+## Iteration 3 — Data layer, resolvers, auth
+
+**Completed**
+
+### Database (`migrations/002_auth_and_constraints.sql`)
+- `refresh_tokens` table — stores only the SHA-256 of each refresh token's JTI; supports rotation + revocation
+- `shops.owner_id` UNIQUE (one shop per seller); slug format CHECKs on `shops` and `coffees`
+- GIN index on `coffees.flavor_notes`, partial index for published-newest listing, `(coffee_id, created_at)` on comments
+- `set_updated_at()` trigger on users / shops / coffees
+- Verified: both migrations apply cleanly on PostgreSQL 16
+
+### Store layer (`backend/internal/store/`)
+- Hand-written pgx v5 data-access layer (chose this over sqlc to avoid a codegen toolchain dependency; all SQL lives in this package)
+- Sentinel errors `ErrNotFound` / `ErrConflict` / `ErrInvalidReference`; `ConstraintError` + `ViolatedConstraint()` to tell conflicts apart
+- `InTx` transaction helper; batch queries (`UsersByIDs`, `ShopsByIDs`, `VariantsByCoffeeIDs`, `CommentCountsByCoffeeIDs`) for dataloaders
+- Coffee filter builder: origin / variety / process / roast / flavor note (case-insensitive) / price range (matches in-stock, available variants only)
+
+### Auth (`backend/internal/auth/`)
+- bcrypt password hashing (8–72 bytes), timing equalisation for unknown emails
+- JWT: issuer + expiry required, HS256 pinned, separate access/refresh secrets, refresh tokens carry a random JTI
+- Refresh-token **rotation**; reuse of a consumed token revokes every session for that user; `logout` revokes all sessions
+- `config.Validate()` refuses to start in production with default / short / identical JWT secrets
+
+### GraphQL (`backend/graph/`)
+- Hand-written models (`graph/model/models.go`) bound via gqlgen `autobind`; relationships resolved by field resolvers
+- Request-scoped dataloaders (`vikstrous/dataloadgen`) for Coffee.shop, Coffee.variants, Coffee.commentCount, Comment.user — no N+1
+- Curated reference data (origins / varieties / processing methods) cached in memory (5-min TTL)
+- **All resolvers implemented** — no `panic("not implemented")` left:
+  - Auth: `register`, `login`, `refreshToken`, `logout`, `me`
+  - Shops: `shop`, `shops` (city filter, paging), `shopsForMap`, `createShop` (promotes BUYER → SELLER), `updateShop` (URL + lat/lng validation)
+  - Coffees: `coffee`, `coffees` (filter + paging), `popularCoffees` (by comment count), `createCoffee` (auto ASCII slug + random suffix, variants in one tx), `updateCoffee`, `publishCoffee` (requires ≥1 variant), `unpublishCoffee`
+  - Comments: `addComment` (published coffees only, 1–500 chars), `deleteComment` (author or admin)
+- Authorisation: drafts visible only to the owning seller / admins; shop & coffee mutations owner-only
+- **Privacy**: `User.email` is now nullable and only returned to the user themself or admins (comment authors' emails never leak)
+- Typed client errors via `extensions.code`: `UNAUTHENTICATED`, `FORBIDDEN`, `NOT_FOUND`, `BAD_USER_INPUT`, `CONFLICT`; unknown errors are logged and masked as `INTERNAL_SERVER_ERROR`
+- Input validation: email, slugs, text lengths (rune-counted for 中文), flavor notes (≤10, dedupe), variants (≤10, ranges, no duplicate grind+weight)
+
+### Server (`backend/cmd/server`)
+- Wires pgx pool → store → resolver; JSON `slog` logging; graceful shutdown on SIGINT/SIGTERM
+- Query complexity limit (500), 1 MiB request cap, HTTP timeouts, introspection disabled in production
+- `/health` now pings the database
+
+### Tooling
+- gqlgen is now a Go 1.24 `tool` dependency: run `go tool gqlgen generate` (old `tools.go` removed)
+
+### Tests
+- Unit: auth (token round-trip, kind separation, expiry, wrong secret, passwords), config validation, graph helpers (slugify, paging, validation)
+- Integration (`graph/integration_test.go`, runs when `TEST_DATABASE_URL` is set): full register → login → refresh-rotation/reuse → shop → coffee → publish → filter → comment → delete → unpublish → logout flow over HTTP
+- `go build ./...`, `go vet ./...`, `go test -race ./...` all pass against PostgreSQL 16
+
+---
+
+## Component Status
+
+| Component | Status |
+|-----------|--------|
+| Repo scaffold & Docker Compose | Done |
+| PostgreSQL schema / migrations | Done (001, 002) |
+| Go data layer (store) | Done |
+| GraphQL API (Stage 1 queries + mutations) | Done |
+| JWT auth (register / login / refresh / logout) | Done |
+| Next.js frontend — home page | Done |
+| Next.js frontend — catalog / shop / coffee pages | Not started |
+| Frontend auth (login / register, token refresh) | Not started |
+| Map page | Not started |
+| Seller dashboard | Not started |
+| File uploads (S3-compatible) | Not started |
+| Cart / orders / ECPay | Not started (Stage 2) |
+| Meilisearch | Not started (Stage 3) |
+
+## Next Iteration Should Tackle
+
+**Iteration 4 — Frontend catalog (Stage 1 browsing UI)**
+1. Typed GraphQL client in `frontend/lib/graphql.ts` (server components fetch from `GRAPHQL_URL`; handle `extensions.code`)
+2. Bilingual layout shell (zh-TW default / EN toggle), header + footer
+3. `/coffees` — listing with filters (origin, variety, process, roast, flavor note, price) driven by URL search params, pagination
+4. `/coffees/[id]` — detail page: images, variants + TWD prices, flavor notes, shop card, comment list
+5. `/shops` and `/shops/[slug]` — shop directory and storefront page
+6. Seed script with demo shops/coffees for local dev (`migrations/` dev-only seed or `cmd/seed`)
+7. Verify with `npm run build` / `npm run lint`
+
+Later: login/register UI + token refresh, comment form, map page, seller dashboard, uploads.
 
 ---
 
@@ -114,9 +199,9 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ### Stage 1 — Discovery (current focus)
 
-- [ ] Implement database layer with sqlc (query files + generated code)
-- [ ] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
-- [ ] Auth resolvers: register, login, refreshToken (bcrypt + JWT)
+- [x] Implement database layer (hand-written pgx store)
+- [x] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
+- [x] Auth resolvers: register, login, refreshToken, logout (bcrypt + JWT, rotation)
 - [ ] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
 - [ ] Frontend: map page (Leaflet.js or Mapbox) with shop pins
 - [ ] Frontend: coffee filters (origin country, variety, processing method, roast level)

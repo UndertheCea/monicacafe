@@ -1,0 +1,219 @@
+scalar Time
+
+type Query {
+  me: User
+  coffees(filter: CoffeeFilter, limit: Int, offset: Int): CoffeeConnection!
+  coffee(id: ID!): Coffee
+  producers(limit: Int, offset: Int): ProducerConnection!
+  producer(id: ID!): Producer
+  orders(limit: Int, offset: Int): OrderConnection!
+  order(id: ID!): Order
+}
+
+type Mutation {
+  register(input: RegisterInput!): AuthPayload!
+  login(input: LoginInput!): AuthPayload!
+  refreshToken(token: String!): AuthPayload!
+  logout: Boolean!
+
+  createOrder(input: CreateOrderInput!): Order!
+  createReview(input: CreateReviewInput!): Review!
+  createSubscription(input: CreateSubscriptionInput!): CoffeeSubscription!
+}
+
+type User {
+  id: ID!
+  email: String!
+  firstName: String!
+  lastName: String!
+  role: UserRole!
+  addresses: [Address!]!
+  orders: [Order!]!
+  createdAt: Time!
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+type Producer {
+  id: ID!
+  name: String!
+  country: String!
+  region: String!
+  altitude: Int
+  description: String!
+  imageURL: String
+  coffees: [Coffee!]!
+  createdAt: Time!
+}
+
+type ProducerConnection {
+  nodes: [Producer!]!
+  total: Int!
+}
+
+type Coffee {
+  id: ID!
+  name: String!
+  slug: String!
+  producer: Producer!
+  origin: String!
+  roastLevel: RoastLevel!
+  processingMethod: String!
+  flavorNotes: [String!]!
+  description: String!
+  imageURL: String
+  variants: [Variant!]!
+  reviews: [Review!]!
+  averageRating: Float
+  createdAt: Time!
+}
+
+type CoffeeConnection {
+  nodes: [Coffee!]!
+  total: Int!
+}
+
+enum RoastLevel {
+  LIGHT
+  MEDIUM
+  MEDIUM_DARK
+  DARK
+}
+
+type Variant {
+  id: ID!
+  coffee: Coffee!
+  grind: GrindOption!
+  weightGrams: Int!
+  priceUSD: Float!
+  stock: Int!
+}
+
+enum GrindOption {
+  WHOLE_BEAN
+  COARSE
+  MEDIUM
+  FINE
+  ESPRESSO
+}
+
+type Order {
+  id: ID!
+  user: User!
+  items: [OrderItem!]!
+  status: OrderStatus!
+  totalUSD: Float!
+  stripePaymentIntentID: String
+  shippingAddress: Address!
+  createdAt: Time!
+}
+
+type OrderConnection {
+  nodes: [Order!]!
+  total: Int!
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+type OrderItem {
+  id: ID!
+  variant: Variant!
+  quantity: Int!
+  unitPriceUSD: Float!
+}
+
+type Review {
+  id: ID!
+  user: User!
+  coffee: Coffee!
+  rating: Int!
+  body: String!
+  createdAt: Time!
+}
+
+type Address {
+  id: ID!
+  line1: String!
+  line2: String
+  city: String!
+  state: String!
+  postalCode: String!
+  country: String!
+}
+
+type CoffeeSubscription {
+  id: ID!
+  user: User!
+  plan: SubscriptionPlan!
+  status: SubscriptionStatus!
+  stripeSubscriptionID: String!
+  currentPeriodEnd: Time!
+}
+
+enum SubscriptionPlan {
+  MONTHLY_250G
+  MONTHLY_500G
+  MONTHLY_1KG
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+type AuthPayload {
+  accessToken: String!
+  refreshToken: String!
+  user: User!
+}
+
+input RegisterInput {
+  email: String!
+  password: String!
+  firstName: String!
+  lastName: String!
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input CoffeeFilter {
+  origin: String
+  roastLevel: RoastLevel
+  flavorNote: String
+  minPrice: Float
+  maxPrice: Float
+}
+
+input CreateOrderInput {
+  items: [OrderItemInput!]!
+  addressID: ID!
+}
+
+input OrderItemInput {
+  variantID: ID!
+  quantity: Int!
+}
+
+input CreateReviewInput {
+  coffeeID: ID!
+  rating: Int!
+  body: String!
+}
+
+input CreateSubscriptionInput {
+  plan: SubscriptionPlan!
+  paymentMethodID: String!
+}

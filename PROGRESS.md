@@ -216,6 +216,44 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ---
 
+## Iteration 5 — Map page, bilingual home, map-pin query
+
+**Completed** (three slices)
+
+### Slice 1 (backend) — dedicated `shopsForMap` query
+- New `Store.ShopPins`: reads only `id, slug, name, city, lat, lng`, ordered by city → name (replaces the unused `AllShops`)
+- `store.PinCoords` sanitises coordinates: half-set, NaN/Inf, out-of-range, or (0, 0) "Null Island" → both `nil`, so the
+  shop is still listed but never plotted in the ocean. Table-driven test `TestPinCoords` (11 cases)
+
+### Slice 2 (frontend) — `/map`
+- Leaflet 1.9.4 + OpenStreetMap tiles; Leaflet is imported inside `useEffect` (never on the server)
+- CSS-only `divIcon` marker (Leaflet's default PNG icons break under bundlers); fits bounds to all pins, Taiwan-centred fallback
+- Side list: clicking a shop flies to its marker and opens the popup; active item highlighted; "view shop" links
+- Popups built with `textContent` (shop names are seller-supplied, no HTML injection)
+- Shops without a location listed separately under the map; bilingual empty / error states
+- Header nav gains 地圖 / Map
+
+### Slice 3 (frontend + cross-cutting) — bilingual home page and test coverage
+- `/` rewritten: bilingual hero (CTAs to `/coffees` and `/map`; the dead `/subscribe` link is gone), live **人氣咖啡 /
+  Popular coffees** (`popularCoffees`, 4) and **精選店家 / Featured shops** (3) in one `Home` query, feature grid.
+  If the API is down, the static sections still render
+- Integration test now checks `shopsForMap`: a new shop shows up with null coords, then with the coords set by `updateShop`
+- ~35 new `t()` keys (`map.*`, `home.*`) in both locales
+- `package-lock.json` resynced (plain `npm ci` had failed on the old lockfile)
+
+### Verification
+- `go build ./...`, `go vet ./...`, `go test ./... -count=1` pass; integration test passes (`-race`) against PostgreSQL 16
+  with migrations 001–002 + seed applied
+- `npm run build` passes (7 routes, `/map` 1.8 kB)
+- Ran the backend + `next start` against the seeded DB: `/`, `/map`, `/coffees`, `/shops` → 200; Playwright: 4 markers,
+  clicking a list item opens the right popup, no console errors (OSM tiles were blocked by the sandbox network)
+- `docker compose up` was **not** re-run this session
+
+### Decisions / deferred
+- Shops without coordinates come back with `lat`/`lng` null (schema unchanged) and are listed off-map, not dropped
+- Map scroll-wheel zoom is off so the page still scrolls normally; use the +/- buttons or pinch
+- Next 16 upgrade is still open (`npm audit`: 1 critical, 2 high, all in `next`, and the fixes need Next 16)
+
 ## Component Status
 
 | Component | Status |
@@ -225,10 +263,10 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 | Go data layer (store) | Done |
 | GraphQL API (Stage 1 queries + mutations) | Done |
 | JWT auth (register / login / refresh / logout) | Done |
-| Next.js frontend — home page | Placeholder (English-only, needs bilingual rewrite) |
+| Next.js frontend — home page | Done — bilingual, live popular coffees + shops (iteration 5) |
 | Next.js frontend — catalog / shop / coffee pages | Done (iteration 4) |
 | Frontend auth (login / register, token refresh) | Not started |
-| Map page | Not started |
+| Map page | Done — Leaflet + OSM (iteration 5) |
 | Seller dashboard | Not started |
 | File uploads (S3-compatible) | Not started |
 | Cart / orders / ECPay | Not started (Stage 2) |
@@ -236,11 +274,11 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ## Next Iteration Should Tackle
 
-**Iteration 5 — Finish the Stage 1 Docker demo checklist**
-1. `/map` page: Leaflet + OSM tiles from `shopsForMap` (seed shops already have lat/lng) — last route of the demo checklist
-2. Bilingual home page: hero + `popularCoffees` strip + featured shops, remove the dead `/subscribe` link
-3. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
-4. Consider Next 16 upgrade to clear the remaining `npm audit` advisories
+**Iteration 6 — Frontend auth + comments**
+1. Re-verify `docker compose up` end to end, including `/map` with real OSM tiles
+2. Frontend auth: login / register pages, token storage (httpOnly cookie via a Next route handler) + refresh
+3. Add-comment form on `/coffees/[id]` (needs #2)
+4. Next 16 upgrade to clear the critical `npm audit` advisory
 
 Later: seller dashboard, uploads (S3-compatible).
 
@@ -254,7 +292,7 @@ Later: seller dashboard, uploads (S3-compatible).
 - [x] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
 - [x] Auth resolvers: register, login, refreshToken, logout (bcrypt + JWT, rotation)
 - [x] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
-- [ ] Frontend: map page (Leaflet.js or Mapbox) with shop pins
+- [x] Frontend: map page (Leaflet.js or Mapbox) with shop pins
 - [x] Frontend: coffee filters (origin country, variety, processing method, roast level)
 - [~] Frontend: simple comment section on coffee pages (read-only list done; add form needs frontend auth)
 - [ ] File upload: seller logo/banner/coffee images (S3-compatible, Stage 1)
@@ -267,7 +305,7 @@ Later: seller dashboard, uploads (S3-compatible).
 - [x] `nginx/nginx.conf` routing `/graphql` → backend:4000, everything else → frontend:3000
 - [x] `scripts/seed_dev.sql` loads cleanly (auto-applied by `scripts/initdb.sh`)
 - [x] `docker compose up` starts all services without manual intervention
-- [ ] Home page, /coffees, /shops, and /map all render at localhost without errors (/map missing)
+- [x] Home page, /coffees, /shops, and /map all render at localhost without errors (verified via `next start`; re-check under compose)
 
 ### Stage 2 — Transactions
 

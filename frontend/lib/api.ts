@@ -189,3 +189,48 @@ export const SHOP = typed<
 export function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
+
+// ---------------------------------------------------------------------------
+// Map
+// ---------------------------------------------------------------------------
+
+/** Lat/lng are null when the shop has no (valid) location; the backend sanitises them. */
+export interface ShopPin {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+export const SHOPS_FOR_MAP = typed<{ shopsForMap: ShopPin[] }>(/* GraphQL */ `
+  query ShopsForMap {
+    shopsForMap { id slug name city lat lng }
+  }
+`);
+
+// ---------------------------------------------------------------------------
+// Home
+// ---------------------------------------------------------------------------
+
+export interface HomeData {
+  popularCoffees: CoffeeCardData[];
+  shops: { nodes: ShopSummary[] };
+}
+
+export const HOME = typed<HomeData, { coffeeLimit: number; shopLimit: number }>(/* GraphQL */ `
+  query Home($coffeeLimit: Int, $shopLimit: Int) {
+    popularCoffees(limit: $coffeeLimit) {
+      id slug name roastLevel flavorNotes imageUrls commentCount
+      shop { slug name city }
+      originCountry { nameEn nameZh }
+      processingMethod { nameEn nameZh }
+      variety { name }
+      variants { priceTwd isAvailable }
+    }
+    shops(limit: $shopLimit) {
+      nodes { id slug name description logoUrl bannerUrl city }
+    }
+  }
+`);

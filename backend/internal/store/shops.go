@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"math"
 )
 
 const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at`
@@ -121,20 +122,57 @@ func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) 
 	return out, total, mapErr(rows.Err())
 }
 
-// AllShops returns every shop ordered by name (used for the map page).
-func (s *Store) AllShops(ctx context.Context) ([]*Shop, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops ORDER BY name, id`)
+// ShopPin is the lightweight projection used by the map page.
+type ShopPin struct {
+	ID   string
+	Slug string
+	Name string
+	City string
+	Lat  *float64
+	Lng  *float64
+}
+
+// ShopPins returns every shop as a map pin, ordered by city then name so the
+// side list on the map page groups naturally. Only the columns the map needs
+// are read. Coordinates are passed through PinCoords, so a shop with a
+// half-set or out-of-range location comes back with both Lat and Lng nil
+// (listed, but not plotted) instead of dropping a marker in the ocean.
+func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, slug, name, city, lat, lng FROM shops
+		ORDER BY city, name, id`)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	defer rows.Close()
-	var out []*Shop
+	var out []*ShopPin
 	for rows.Next() {
-		sh, err := scanShop(rows)
-		if err != nil {
-			return nil, err
+		var p ShopPin
+		if err := rows.Scan(&p.ID, &p.Slug, &p.Name, &p.City, &p.Lat, &p.Lng); err != nil {
+			return nil, mapErr(err)
 		}
-		out = append(out, sh)
+		p.Lat, p.Lng = PinCoords(p.Lat, p.Lng)
+		out = append(out, &p)
 	}
 	return out, mapErr(rows.Err())
+}
+
+// PinCoords returns the coordinates unchanged when both are present, finite
+// and within WGS84 range, and (nil, nil) otherwise. (0, 0) — "Null Island",
+// the usual sign of an unset form field — is also treated as missing.
+func PinCoords(lat, lng *float64) (*float64, *float64) {
+	if lat == nil || lng == nil {
+		return nil, nil
+	}
+	la, ln := *lat, *lng
+	if math.IsNaN(la) || math.IsNaN(ln) || math.IsInf(la, 0) || math.IsInf(ln, 0) {
+		return nil, nil
+	}
+	if la < -90 || la > 90 || ln < -180 || ln > 180 {
+		return nil, nil
+	}
+	if la == 0 && ln == 0 {
+		return nil, nil
+	}
+	return lat, lng
 }

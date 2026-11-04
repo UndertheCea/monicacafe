@@ -206,11 +206,19 @@ func TestMarketplaceFlow(t *testing.T) {
 	buyer.expectCode(graph.CodeForbidden, `mutation($id: ID!) { updateShop(id: $id, input: {name: "hijack"}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
 
+	// A shop with no location is still listed on the map, just without coordinates.
+	if pin := findPin(t, anon, slug); pin.Lat != nil || pin.Lng != nil {
+		t.Fatalf("new shop should have no map coordinates, got (%v, %v)", pin.Lat, pin.Lng)
+	}
+
 	lat, lng := 25.033, 121.5654
 	seller.mustDo(`mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"lat": lat, "lng": lng, "logoUrl": "https://cdn.example.com/logo.png"}}, nil)
 	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!) { updateShop(id: $id, input: {lat: 91}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
+	if pin := findPin(t, anon, slug); pin.Lat == nil || pin.Lng == nil || *pin.Lat != lat || *pin.Lng != lng {
+		t.Fatalf("shopsForMap pin = (%v, %v), want (%v, %v)", pin.Lat, pin.Lng, lat, lng)
+	}
 
 	// ── Coffee ──────────────────────────────────────────────────────────────
 	var refs struct {
@@ -378,4 +386,23 @@ func TestMarketplaceFlow(t *testing.T) {
 	seller.mustDo(`mutation { logout }`, nil, nil)
 	anon.expectCode(graph.CodeUnauthenticated, `mutation($t: String!) { refreshToken(token: $t) { accessToken } }`,
 		map[string]any{"t": sellerAuth.RefreshToken})
+}
+
+type mapPin struct {
+	ID, Slug, Name, City string
+	Lat, Lng             *float64
+}
+
+// findPin fetches shopsForMap and returns the pin for slug, failing if absent.
+func findPin(t *testing.T, c *gqlClient, slug string) mapPin {
+	t.Helper()
+	var out struct{ ShopsForMap []mapPin }
+	c.mustDo(`{ shopsForMap { id slug name city lat lng } }`, nil, &out)
+	for _, p := range out.ShopsForMap {
+		if p.Slug == slug {
+			return p
+		}
+	}
+	t.Fatalf("shop %q missing from shopsForMap (%d pins)", slug, len(out.ShopsForMap))
+	return mapPin{}
 }

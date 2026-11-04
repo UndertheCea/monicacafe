@@ -1,11 +1,11 @@
 -- Moni Cafe — local development seed (NOT a migration; never run in production).
--- One demo seller + shop and three demo coffees with variants.
+-- Three demo sellers/shops (台北, 台中, 台南), six coffees with variants, one comment.
 -- Idempotent: fixed UUIDs + ON CONFLICT DO NOTHING.
 --
 --   psql "$DATABASE_URL" -f scripts/seed_dev.sql
 --
--- The demo user's password hash is a placeholder; log-in is not possible
--- until the auth mutations land and the seed is updated with a bcrypt hash.
+-- Demo sellers have a disabled password hash ("!disabled") and cannot log
+-- in; use the register mutation to create a test account.
 
 BEGIN;
 
@@ -46,6 +46,61 @@ INSERT INTO variants (id, coffee_id, grind, weight_g, price_twd, stock) VALUES
   ('00000000-0000-4000-8000-000000000303', '00000000-0000-4000-8000-000000000202', 'WHOLE_BEAN', 100, 1200, 5),
   ('00000000-0000-4000-8000-000000000304', '00000000-0000-4000-8000-000000000203', 'WHOLE_BEAN', 454, 680, 30),
   ('00000000-0000-4000-8000-000000000305', '00000000-0000-4000-8000-000000000203', 'ESPRESSO',   454, 680, 15)
+ON CONFLICT DO NOTHING;
+
+-- Two more demo shops (Taichung, Tainan) so /shops and the map have
+-- something to show. Each shop needs its own seller (shops.owner_id UNIQUE).
+INSERT INTO users (id, email, password_hash, display_name, role) VALUES
+  ('00000000-0000-4000-8000-000000000002', 'demo-seller-2@monicacafe.dev', '!disabled', '山嵐咖啡', 'SELLER'),
+  ('00000000-0000-4000-8000-000000000003', 'demo-seller-3@monicacafe.dev', '!disabled', '府城焙煎', 'SELLER')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO shops (id, owner_id, slug, name, description, city, lat, lng) VALUES
+  ('00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000002',
+   'mountain-mist-coffee', '山嵐咖啡 Mountain Mist Coffee',
+   '台中審計新村旁的自家烘焙咖啡館，主打東非與中美洲莊園豆。A Taichung café roasting East African and Central American estate lots.',
+   '台中市', 24.1446, 120.6620),
+  ('00000000-0000-4000-8000-000000000103', '00000000-0000-4000-8000-000000000003',
+   'fucheng-roasting', '府城焙煎所 Fucheng Roasting',
+   '台南老屋裡的中深焙專門店，適合手沖與義式。A Tainan old-house roastery specialising in medium-dark roasts for filter and espresso.',
+   '台南市', 22.9917, 120.2027)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO coffees (id, shop_id, name, slug, description, origin_country_id, variety_id,
+                     processing_method_id, roast_level, flavor_notes, is_published)
+SELECT v.id::uuid, v.shop::uuid, v.name, v.slug, v.descr,
+       (SELECT id FROM origin_countries   WHERE name_en = v.origin),
+       (SELECT id FROM coffee_varieties   WHERE name    = v.variety),
+       (SELECT id FROM processing_methods WHERE name_en = v.process),
+       v.roast::roast_level, v.notes::text[], true
+FROM (VALUES
+  ('00000000-0000-4000-8000-000000000204', '00000000-0000-4000-8000-000000000102',
+   '肯亞 涅里 AA 水洗', 'demo-kenya-nyeri-aa',
+   '黑醋栗與番茄般的明亮酸質，尾韻甜感持久。Blackcurrant and bright tomato-like acidity with a long sweet finish.',
+   'Kenya', 'SL28', 'Washed', 'LIGHT', '{黑醋栗,葡萄柚,紅糖}'),
+  ('00000000-0000-4000-8000-000000000205', '00000000-0000-4000-8000-000000000102',
+   '瓜地馬拉 安提瓜 厭氧日曬', 'demo-guatemala-antigua-anaerobic',
+   '酒香發酵感與莓果甜味。Boozy fermentation notes with berry sweetness.',
+   'Guatemala', 'Bourbon', 'Anaerobic Natural', 'MEDIUM', '{紅酒,草莓,可可}'),
+  ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000103',
+   '府城特調 義式配方', 'demo-fucheng-espresso-blend',
+   '巴西與哥倫比亞配方，奶香濃郁適合拿鐵。A Brazil–Colombia blend with a creamy body for lattes.',
+   'Brazil', NULL, 'Natural', 'DARK', '{黑巧克力,烤堅果,黑糖}')
+) AS v(id, shop, name, slug, descr, origin, variety, process, roast, notes)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO variants (id, coffee_id, grind, weight_g, price_twd, stock) VALUES
+  ('00000000-0000-4000-8000-000000000306', '00000000-0000-4000-8000-000000000204', 'WHOLE_BEAN', 227, 560, 12),
+  ('00000000-0000-4000-8000-000000000307', '00000000-0000-4000-8000-000000000205', 'WHOLE_BEAN', 227, 620, 8),
+  ('00000000-0000-4000-8000-000000000308', '00000000-0000-4000-8000-000000000205', 'FINE',       227, 620, 0),
+  ('00000000-0000-4000-8000-000000000309', '00000000-0000-4000-8000-000000000206', 'WHOLE_BEAN', 454, 520, 40),
+  ('00000000-0000-4000-8000-000000000310', '00000000-0000-4000-8000-000000000206', 'ESPRESSO',   454, 520, 25)
+ON CONFLICT DO NOTHING;
+
+-- One demo comment so the comment list renders on a fresh install.
+INSERT INTO comments (id, coffee_id, user_id, body) VALUES
+  ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000201',
+   '00000000-0000-4000-8000-000000000002', '花香非常明顯，冷掉後柑橘感更突出！Lovely florals, even better as it cools.')
 ON CONFLICT DO NOTHING;
 
 COMMIT;

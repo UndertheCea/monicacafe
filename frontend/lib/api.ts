@@ -82,3 +82,110 @@ export function fromPrice(c: Pick<CoffeeCardData, "variants">): number | null {
   const prices = c.variants.filter((v) => v.isAvailable).map((v) => v.priceTwd);
   return prices.length ? Math.min(...prices) : null;
 }
+
+// ---------------------------------------------------------------------------
+// Coffee detail
+// ---------------------------------------------------------------------------
+
+export type GrindOption = "WHOLE_BEAN" | "COARSE" | "MEDIUM" | "FINE" | "ESPRESSO";
+
+export interface Variant {
+  id: string;
+  grind: GrindOption;
+  weightG: number;
+  priceTwd: number;
+  stock: number;
+  isAvailable: boolean;
+}
+
+export interface CommentData {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: { displayName: string };
+}
+
+export interface CoffeeDetail {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  roastLevel: RoastLevel;
+  flavorNotes: string[];
+  imageUrls: string[];
+  isPublished: boolean;
+  commentCount: number;
+  shop: { slug: string; name: string; city: string; description: string; logoUrl: string | null };
+  originCountry: { nameEn: string; nameZh: string; region: string };
+  processingMethod: { nameEn: string; nameZh: string };
+  variety: { name: string } | null;
+  variants: Variant[];
+  comments: CommentData[];
+}
+
+export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* GraphQL */ `
+  query Coffee($id: ID!) {
+    coffee(id: $id) {
+      id slug name description roastLevel flavorNotes imageUrls isPublished commentCount
+      shop { slug name city description logoUrl }
+      originCountry { nameEn nameZh region }
+      processingMethod { nameEn nameZh }
+      variety { name }
+      variants { id grind weightG priceTwd stock isAvailable }
+      comments { id body createdAt user { displayName } }
+    }
+  }
+`);
+
+// ---------------------------------------------------------------------------
+// Shops
+// ---------------------------------------------------------------------------
+
+export interface ShopSummary {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  city: string;
+}
+
+export const SHOPS = typed<
+  { shops: { total: number; nodes: ShopSummary[] } },
+  { city?: string; limit?: number; offset?: number }
+>(/* GraphQL */ `
+  query Shops($city: String, $limit: Int, $offset: Int) {
+    shops(city: $city, limit: $limit, offset: $offset) {
+      total
+      nodes { id slug name description logoUrl bannerUrl city }
+    }
+  }
+`);
+
+export const SHOP = typed<
+  { shop: (ShopSummary & { coffees: { total: number; nodes: CoffeeCardData[] } }) | null },
+  { slug: string; limit?: number; offset?: number }
+>(/* GraphQL */ `
+  query Shop($slug: String!, $limit: Int, $offset: Int) {
+    shop(slug: $slug) {
+      id slug name description logoUrl bannerUrl city
+      coffees(limit: $limit, offset: $offset) {
+        total
+        nodes {
+          id slug name roastLevel flavorNotes imageUrls commentCount
+          shop { slug name city }
+          originCountry { nameEn nameZh }
+          processingMethod { nameEn nameZh }
+          variety { name }
+          variants { priceTwd isAvailable }
+        }
+      }
+    }
+  }
+`);
+
+/** True when `id` looks like a UUID (avoids a backend round-trip on junk URLs). */
+export function isUUID(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}

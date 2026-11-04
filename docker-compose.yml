@@ -1,93 +1,111 @@
+# Moni Cafe — local stack. `docker compose up --build`, then open http://localhost
+#
+# Every value below has a safe *development* default; override any of them by
+# copying .env.example to .env (compose reads it automatically).
+
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: monica
-      POSTGRES_PASSWORD: monica_secret
-      POSTGRES_DB: monicacafe
+      POSTGRES_USER: ${POSTGRES_USER:-monica}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monica_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-monicacafe}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d
+      # initdb.sh applies migrations/*.sql in order, then the demo seed.
+      - ./scripts/initdb.sh:/docker-entrypoint-initdb.d/00_initdb.sh:ro
+      - ./migrations:/monicacafe/migrations:ro
+      - ./scripts/seed_dev.sql:/monicacafe/scripts/seed_dev.sql:ro
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U monica -d monicacafe"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
+  # Stage 3 (search). Not required by the Stage 1 API; started so the
+  # service is ready when the indexer lands.
   meilisearch:
     image: getmeili/meilisearch:v1.14
     environment:
       MEILI_ENV: development
-      MEILI_MASTER_KEY: monica_meili_key
+      MEILI_MASTER_KEY: ${MEILI_KEY:-monica_meili_key}
     volumes:
       - meili_data:/meili_data
-    ports:
-      - "7700:7700"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:7700/health || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
     environment:
       PORT: "4000"
-      APP_ENV: development
-      DATABASE_URL: postgres://monica:monica_secret@postgres:5432/monicacafe
+      APP_ENV: ${APP_ENV:-development}
+      LOCALE: ${LOCALE:-zh-TW}
+      DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
       REDIS_URL: redis://redis:6379
       MEILI_URL: http://meilisearch:7700
-      MEILI_KEY: monica_meili_key
-      JWT_ACCESS_SECRET: dev-access-secret-change-in-prod
-      JWT_REFRESH_SECRET: dev-refresh-secret-change-in-prod
-      CORS_ORIGIN: http://localhost:3000
+      MEILI_KEY: ${MEILI_KEY:-monica_meili_key}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
+      # Comma-separated. Browsers reach the API via nginx (http://localhost)
+      # or `next dev` on :3000.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     ports:
-      - "4000:4000"
+      - "${BACKEND_PORT:-4000}:4000"
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost/graphql}
     environment:
-      NEXT_PUBLIC_GRAPHQL_URL: http://localhost/graphql
       # Server components fetch over the compose network, not through nginx.
       GRAPHQL_URL_INTERNAL: http://backend:4000/graphql
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
+    restart: unless-stopped
 
   nginx:
     image: nginx:1.27-alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     ports:
-      - "80:80"
+      - "${HTTP_PORT:-80}:80"
+    restart: unless-stopped
 
 volumes:
   postgres_data:

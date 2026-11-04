@@ -162,17 +162,71 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ---
 
+## Iteration 4 — Coffee detail, shop pages, Docker demo ready
+
+**Completed** (three slices, verified end to end with `docker compose up`)
+
+### Slice 1 (frontend) — Coffee detail page `/coffees/[id]`
+- Server component: image gallery (gradient + ☕ fallback), shop byline, facts grid (origin / variety / process / roast),
+  flavor-note chips that link back to `/coffees?flavor=…`, description, variant table (grind, weight, NT$ price, stock / sold-out),
+  "online checkout coming soon" notice (Stage 1 = no cart), "sold by" shop card
+- Read-only `CommentList` (author display name + Taipei-local date); add-comment form waits for frontend auth
+- `notFound()` + bilingual `not-found.tsx` → real HTTP 404 for bad / unknown / unpublished IDs (UUID checked client-side first)
+- `react.cache` dedupes the fetch between `generateMetadata` and the page
+- `CoffeeCard` is now a stretched link to the detail page (one tab stop, focus ring)
+
+### Slice 2 (frontend) — Shops `/shops` and storefront `/shops/[slug]`
+- Directory grid of `ShopCard`s (banner, logo, city, description) with pagination
+- Storefront: banner + logo header, description, the shop's published coffees (reusing `CoffeeCard`), pagination, bilingual 404
+- Header nav gains 店家 / Shops
+- Shared components extracted: `Pagination` (base-path aware `pageHref`), `ErrorState`, `NotFoundState`
+- ~40 new `t()` keys in both zh-TW and en (`coffee.*`, `grind.*`, `comments.*`, `shops.*`)
+
+### Slice 3 (cross-cutting) — Docker demo readiness
+- `docker-compose.yml`: every value overridable from `.env` with safe dev defaults; Postgres init via `scripts/initdb.sh`
+  (applies `migrations/*.sql` in order, then `scripts/seed_dev.sql` unless `SEED_DEMO_DATA=false`); backend / frontend
+  healthchecks; `depends_on: service_healthy` chain postgres+redis → backend → frontend → nginx; `restart: unless-stopped`
+- `.env.example` listing every env var with safe defaults
+- `backend/Dockerfile`: non-root user, `-trimpath`, healthcheck on `/health`; runtime stage needs no `apk` downloads
+  (CA roots copied from the builder; `tz.Taipei` is a fixed zone so no tzdata)
+- `frontend/Dockerfile`: fixed missing `public/` (build used to fail at `COPY /app/public`), `HOSTNAME=0.0.0.0`,
+  non-root user, healthcheck, `NEXT_PUBLIC_GRAPHQL_URL` as a build arg; `.dockerignore` for both images
+- Backend: `CORS_ORIGIN` is now a comma-separated list (`config.CORSOrigins()`, table-driven test); default allows
+  `http://localhost` (nginx) and `http://localhost:3000` (`next dev`) — previously browser calls via nginx would be rejected
+- Seed: 3 shops (台北 / 台中 / 台南, with lat/lng for the map), 6 coffees, 10 variants (one sold out), 1 comment; still idempotent
+- **Security**: Next.js 15.3.1 → 15.3.9 (fixes critical RSC RCE CVE-2025-66478)
+- `frontend/tsconfig.tsbuildinfo` untracked, `next-env.d.ts` git-ignored
+
+### Verification
+- `go build ./...`, `go vet ./...`, `go test ./... -count=1` pass; integration test passes against PostgreSQL 16
+- `npm run build` passes (6 routes)
+- `docker compose up --wait`: all 6 services healthy; via nginx on `http://localhost`: `/`, `/coffees`, `/coffees/<id>`,
+  `/shops`, `/shops/<slug>`, `/health` → 200; unknown shop → 404; `/graphql` returns data with
+  `Access-Control-Allow-Origin: http://localhost`; initdb logs show both migrations + seed applied
+  (verified in the build sandbox with its proxy CA injected into a throwaway copy of the Dockerfiles — the committed
+  Dockerfiles need no such step on a normal network)
+
+### Decisions / deferred
+- Not-found pages return HTTP 404 via `notFound()` rather than rendering inline
+- `npm audit` still reports Next.js advisories whose fix is only in Next 16 (image optimizer, middleware, cache
+  poisoning — mostly features we don't use yet). A Next 16 upgrade is its own task; `images.remotePatterns: "**"` should
+  be tightened once uploads land (GHSA-9g9p-9gw9-jx7f)
+- Home page (`/`) is still the English-only placeholder hero with a dead `/subscribe` link
+- `/map` returns 404 — not built yet
+
+---
+
 ## Component Status
 
 | Component | Status |
 |-----------|--------|
-| Repo scaffold & Docker Compose | Done |
+| Repo scaffold & Docker Compose | Done — `docker compose up` verified (iteration 4) |
 | PostgreSQL schema / migrations | Done (001, 002) |
 | Go data layer (store) | Done |
 | GraphQL API (Stage 1 queries + mutations) | Done |
 | JWT auth (register / login / refresh / logout) | Done |
-| Next.js frontend — home page | Done |
-| Next.js frontend — catalog / shop / coffee pages | Not started |
+| Next.js frontend — home page | Placeholder (English-only, needs bilingual rewrite) |
+| Next.js frontend — catalog / shop / coffee pages | Done (iteration 4) |
 | Frontend auth (login / register, token refresh) | Not started |
 | Map page | Not started |
 | Seller dashboard | Not started |
@@ -182,16 +236,13 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ## Next Iteration Should Tackle
 
-**Iteration 4 — Frontend catalog (Stage 1 browsing UI)**
-1. Typed GraphQL client in `frontend/lib/graphql.ts` (server components fetch from `GRAPHQL_URL`; handle `extensions.code`)
-2. Bilingual layout shell (zh-TW default / EN toggle), header + footer
-3. `/coffees` — listing with filters (origin, variety, process, roast, flavor note, price) driven by URL search params, pagination
-4. `/coffees/[id]` — detail page: images, variants + TWD prices, flavor notes, shop card, comment list
-5. `/shops` and `/shops/[slug]` — shop directory and storefront page
-6. Seed script with demo shops/coffees for local dev (`migrations/` dev-only seed or `cmd/seed`)
-7. Verify with `npm run build` / `npm run lint`
+**Iteration 5 — Finish the Stage 1 Docker demo checklist**
+1. `/map` page: Leaflet + OSM tiles from `shopsForMap` (seed shops already have lat/lng) — last route of the demo checklist
+2. Bilingual home page: hero + `popularCoffees` strip + featured shops, remove the dead `/subscribe` link
+3. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
+4. Consider Next 16 upgrade to clear the remaining `npm audit` advisories
 
-Later: login/register UI + token refresh, comment form, map page, seller dashboard, uploads.
+Later: seller dashboard, uploads (S3-compatible).
 
 ---
 
@@ -202,12 +253,21 @@ Later: login/register UI + token refresh, comment form, map page, seller dashboa
 - [x] Implement database layer (hand-written pgx store)
 - [x] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
 - [x] Auth resolvers: register, login, refreshToken, logout (bcrypt + JWT, rotation)
-- [ ] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
+- [x] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
 - [ ] Frontend: map page (Leaflet.js or Mapbox) with shop pins
-- [ ] Frontend: coffee filters (origin country, variety, processing method, roast level)
-- [ ] Frontend: simple comment section on coffee pages
+- [x] Frontend: coffee filters (origin country, variety, processing method, roast level)
+- [~] Frontend: simple comment section on coffee pages (read-only list done; add form needs frontend auth)
 - [ ] File upload: seller logo/banner/coffee images (S3-compatible, Stage 1)
 - [ ] Seller dashboard: create shop, add coffees, manage listings
+
+**Docker demo readiness**
+- [x] `backend/Dockerfile` (multi-stage, runs `cmd/server`)
+- [x] `frontend/Dockerfile` (multi-stage, standalone `server.js`)
+- [x] `.env.example` listing every required env var with safe defaults
+- [x] `nginx/nginx.conf` routing `/graphql` → backend:4000, everything else → frontend:3000
+- [x] `scripts/seed_dev.sql` loads cleanly (auto-applied by `scripts/initdb.sh`)
+- [x] `docker compose up` starts all services without manual intervention
+- [ ] Home page, /coffees, /shops, and /map all render at localhost without errors (/map missing)
 
 ### Stage 2 — Transactions
 

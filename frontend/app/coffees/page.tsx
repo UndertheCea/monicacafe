@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { COFFEES, FILTER_OPTIONS } from "@/lib/api";
-import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
-import { query, toApiError } from "@/lib/graphql";
-import { pick, t } from "@/lib/i18n/dict";
+import { PAGE_SIZE, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
+import { query } from "@/lib/graphql";
+import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FilterSidebar } from "@/components/coffees/FilterSidebar";
+import { ErrorState } from "@/components/ErrorState";
+import { Pagination } from "@/components/Pagination";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -26,16 +27,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
     ]);
     data = { options, list: list.coffees };
   } catch (err) {
-    const e = toApiError(err);
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-24">
-        <div role="alert" className="rounded-2xl bg-red-50 p-6 ring-1 ring-red-200">
-          <h1 className="text-lg font-bold text-red-900">{t(locale, "error.title")}</h1>
-          <p className="mt-2 text-red-800">{pick(locale, e.messageZh, e.messageEn)}</p>
-          <p className="mt-1 text-sm text-red-700">{t(locale, "error.retry")}</p>
-        </div>
-      </main>
-    );
+    return <ErrorState locale={locale} error={err} />;
   }
 
   const { options, list } = data;
@@ -74,21 +66,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
             </div>
           )}
 
-          {pages > 1 && (
-            <nav className="mt-8 flex items-center justify-center gap-4 text-sm" aria-label="pagination">
-              {page > 1 ? (
-                <Link href={pageHref(sp, page - 1)} className="rounded-full border border-stone-300 px-4 py-2 hover:border-stone-500">
-                  {t(locale, "page.prev")}
-                </Link>
-              ) : null}
-              <span className="text-stone-500">{t(locale, "page.of", { page, pages })}</span>
-              {page < pages ? (
-                <Link href={pageHref(sp, page + 1)} className="rounded-full border border-stone-300 px-4 py-2 hover:border-stone-500">
-                  {t(locale, "page.next")}
-                </Link>
-              ) : null}
-            </nav>
-          )}
+          <Pagination locale={locale} sp={sp} page={page} pages={pages} base="/coffees" />
         </section>
       </div>
     </main>

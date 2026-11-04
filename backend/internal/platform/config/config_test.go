@@ -33,3 +33,30 @@ func TestValidate(t *testing.T) {
 		t.Fatal("identical secrets must fail")
 	}
 }
+
+func TestCORSOrigins(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{"empty", "", nil},
+		{"single", "http://localhost:3000", []string{"http://localhost:3000"}},
+		{"list with spaces", "http://localhost, http://localhost:3000", []string{"http://localhost", "http://localhost:3000"}},
+		{"trailing slash and blanks", "https://monicafe.tw/,, ", []string{"https://monicafe.tw"}},
+		{"dedupe", "http://a.tw,http://a.tw/", []string{"http://a.tw"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Config{CORSOrigin: tt.in}.CORSOrigins()
+			if len(got) != len(tt.want) {
+				t.Fatalf("CORSOrigins(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("CORSOrigins(%q) = %v, want %v", tt.in, got, tt.want)
+				}
+			}
+		})
+	}
+}

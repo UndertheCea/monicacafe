@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
@@ -7,7 +8,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
   const img = coffee.imageUrls[0];
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200 transition hover:shadow-md">
+    <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200 transition hover:shadow-md focus-within:ring-2 focus-within:ring-amber-500">
       <div className="relative aspect-[4/3] bg-gradient-to-br from-amber-100 via-stone-100 to-stone-200">
         {img ? (
           // Seller-uploaded images come from arbitrary hosts in Stage 1.
@@ -28,7 +29,12 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
           {coffee.shop.name}
           {coffee.shop.city && ` · ${coffee.shop.city}`}
         </p>
-        <h3 className="mt-1 text-base font-bold leading-snug text-stone-900">{coffee.name}</h3>
+        <h3 className="mt-1 text-base font-bold leading-snug text-stone-900">
+          {/* Stretched link: the whole card is clickable, one tab stop. */}
+          <Link href={`/coffees/${coffee.id}`} className="after:absolute after:inset-0 focus:outline-none">
+            {coffee.name}
+          </Link>
+        </h3>
         <p className="mt-1 text-sm text-stone-600">
           {pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
           {" · "}

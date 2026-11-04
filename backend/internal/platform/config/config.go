@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strings"
 )
 
 type Config struct {
@@ -35,10 +36,27 @@ func Load() Config {
 		MeiliKey:         get("MEILI_KEY", ""),
 		JWTAccessSecret:  get("JWT_ACCESS_SECRET", defaultAccessSecret),
 		JWTRefreshSecret: get("JWT_REFRESH_SECRET", defaultRefreshSecret),
-		CORSOrigin:       get("CORS_ORIGIN", "http://localhost:3000"),
+		CORSOrigin:       get("CORS_ORIGIN", "http://localhost,http://localhost:3000"),
 		AppEnv:           get("APP_ENV", "development"),
 		Locale:           get("LOCALE", "zh-TW"),
 	}
+}
+
+// CORSOrigins splits the comma-separated CORS_ORIGIN value into a clean list,
+// e.g. "http://localhost, http://localhost:3000" → two origins. Blank entries
+// and trailing slashes are dropped; an empty value yields no origins.
+func (c Config) CORSOrigins() []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, o := range strings.Split(c.CORSOrigin, ",") {
+		o = strings.TrimRight(strings.TrimSpace(o), "/")
+		if o == "" || seen[o] {
+			continue
+		}
+		seen[o] = true
+		out = append(out, o)
+	}
+	return out
 }
 
 const (

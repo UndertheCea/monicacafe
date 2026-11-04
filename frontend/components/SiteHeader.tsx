@@ -14,6 +14,9 @@ export function SiteHeader({ locale }: { locale: Locale }) {
           <Link href="/coffees" className="hover:text-amber-700">
             {t(locale, "nav.coffees")}
           </Link>
+          <Link href="/shops" className="hover:text-amber-700">
+            {t(locale, "nav.shops")}
+          </Link>
           <LanguageToggle locale={locale} />
         </nav>
       </div>

@@ -30,12 +30,16 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; pag
   for (const k of Object.keys(filter) as (keyof CoffeeFilter)[]) {
     if (filter[k] === undefined) delete filter[k];
   }
-  const page = Math.max(1, Number.parseInt(one(sp.page) ?? "1", 10) || 1);
-  return { filter, page };
+  return { filter, page: parsePage(sp) };
 }
 
-/** Build a /coffees URL preserving current params, overriding `page`. */
-export function pageHref(sp: SearchParams, page: number): string {
+/** Parse a 1-based `?page=` param (anything invalid → 1). */
+export function parsePage(sp: SearchParams): number {
+  return Math.max(1, Number.parseInt(one(sp.page) ?? "1", 10) || 1);
+}
+
+/** Build a URL on `base` preserving current params, overriding `page`. */
+export function pageHref(sp: SearchParams, page: number, base = "/coffees"): string {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
     const s = one(v);
@@ -43,5 +47,5 @@ export function pageHref(sp: SearchParams, page: number): string {
   }
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
-  return qs ? `/coffees?${qs}` : "/coffees";
+  return qs ? `${base}?${qs}` : base;
 }

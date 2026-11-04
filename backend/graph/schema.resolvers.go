@@ -32,19 +32,44 @@ func (r *mutationResolver) Logout(ctx context.Context) (bool, error) {
 	panic(fmt.Errorf("not implemented: Logout - logout"))
 }
 
-// CreateOrder is the resolver for the createOrder field.
-func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
+// CreateShop is the resolver for the createShop field.
+func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error) {
+	panic(fmt.Errorf("not implemented: CreateShop - createShop"))
 }
 
-// CreateReview is the resolver for the createReview field.
-func (r *mutationResolver) CreateReview(ctx context.Context, input model.CreateReviewInput) (*model.Review, error) {
-	panic(fmt.Errorf("not implemented: CreateReview - createReview"))
+// UpdateShop is the resolver for the updateShop field.
+func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error) {
+	panic(fmt.Errorf("not implemented: UpdateShop - updateShop"))
 }
 
-// CreateSubscription is the resolver for the createSubscription field.
-func (r *mutationResolver) CreateSubscription(ctx context.Context, input model.CreateSubscriptionInput) (*model.CoffeeSubscription, error) {
-	panic(fmt.Errorf("not implemented: CreateSubscription - createSubscription"))
+// CreateCoffee is the resolver for the createCoffee field.
+func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error) {
+	panic(fmt.Errorf("not implemented: CreateCoffee - createCoffee"))
+}
+
+// UpdateCoffee is the resolver for the updateCoffee field.
+func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input model.UpdateCoffeeInput) (*model.Coffee, error) {
+	panic(fmt.Errorf("not implemented: UpdateCoffee - updateCoffee"))
+}
+
+// PublishCoffee is the resolver for the publishCoffee field.
+func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model.Coffee, error) {
+	panic(fmt.Errorf("not implemented: PublishCoffee - publishCoffee"))
+}
+
+// UnpublishCoffee is the resolver for the unpublishCoffee field.
+func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*model.Coffee, error) {
+	panic(fmt.Errorf("not implemented: UnpublishCoffee - unpublishCoffee"))
+}
+
+// AddComment is the resolver for the addComment field.
+func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommentInput) (*model.Comment, error) {
+	panic(fmt.Errorf("not implemented: AddComment - addComment"))
+}
+
+// DeleteComment is the resolver for the deleteComment field.
+func (r *mutationResolver) DeleteComment(ctx context.Context, id string) (bool, error) {
+	panic(fmt.Errorf("not implemented: DeleteComment - deleteComment"))
 }
 
 // Me is the resolver for the me field.
@@ -52,9 +77,19 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	panic(fmt.Errorf("not implemented: Me - me"))
 }
 
-// Coffees is the resolver for the coffees field.
-func (r *queryResolver) Coffees(ctx context.Context, filter *model.CoffeeFilter, limit *int, offset *int) (*model.CoffeeConnection, error) {
-	panic(fmt.Errorf("not implemented: Coffees - coffees"))
+// Shop is the resolver for the shop field.
+func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, error) {
+	panic(fmt.Errorf("not implemented: Shop - shop"))
+}
+
+// Shops is the resolver for the shops field.
+func (r *queryResolver) Shops(ctx context.Context, city *string, limit *int, offset *int) (*model.ShopConnection, error) {
+	panic(fmt.Errorf("not implemented: Shops - shops"))
+}
+
+// ShopsForMap is the resolver for the shopsForMap field.
+func (r *queryResolver) ShopsForMap(ctx context.Context) ([]*model.ShopPin, error) {
+	panic(fmt.Errorf("not implemented: ShopsForMap - shopsForMap"))
 }
 
 // Coffee is the resolver for the coffee field.
@@ -62,24 +97,29 @@ func (r *queryResolver) Coffee(ctx context.Context, id string) (*model.Coffee, e
 	panic(fmt.Errorf("not implemented: Coffee - coffee"))
 }
 
-// Producers is the resolver for the producers field.
-func (r *queryResolver) Producers(ctx context.Context, limit *int, offset *int) (*model.ProducerConnection, error) {
-	panic(fmt.Errorf("not implemented: Producers - producers"))
+// Coffees is the resolver for the coffees field.
+func (r *queryResolver) Coffees(ctx context.Context, filter *model.CoffeeFilter, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	panic(fmt.Errorf("not implemented: Coffees - coffees"))
 }
 
-// Producer is the resolver for the producer field.
-func (r *queryResolver) Producer(ctx context.Context, id string) (*model.Producer, error) {
-	panic(fmt.Errorf("not implemented: Producer - producer"))
+// PopularCoffees is the resolver for the popularCoffees field.
+func (r *queryResolver) PopularCoffees(ctx context.Context, limit *int) ([]*model.Coffee, error) {
+	panic(fmt.Errorf("not implemented: PopularCoffees - popularCoffees"))
 }
 
-// Orders is the resolver for the orders field.
-func (r *queryResolver) Orders(ctx context.Context, limit *int, offset *int) (*model.OrderConnection, error) {
-	panic(fmt.Errorf("not implemented: Orders - orders"))
+// OriginCountries is the resolver for the originCountries field.
+func (r *queryResolver) OriginCountries(ctx context.Context) ([]*model.OriginCountry, error) {
+	panic(fmt.Errorf("not implemented: OriginCountries - originCountries"))
 }
 
-// Order is the resolver for the order field.
-func (r *queryResolver) Order(ctx context.Context, id string) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: Order - order"))
+// CoffeeVarieties is the resolver for the coffeeVarieties field.
+func (r *queryResolver) CoffeeVarieties(ctx context.Context) ([]*model.CoffeeVariety, error) {
+	panic(fmt.Errorf("not implemented: CoffeeVarieties - coffeeVarieties"))
+}
+
+// ProcessingMethods is the resolver for the processingMethods field.
+func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error) {
+	panic(fmt.Errorf("not implemented: ProcessingMethods - processingMethods"))
 }
 
 // Mutation returns generated.MutationResolver implementation.
@@ -90,3 +130,33 @@ func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error) {
+	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
+}
+func (r *mutationResolver) CreateReview(ctx context.Context, input model.CreateReviewInput) (*model.Review, error) {
+	panic(fmt.Errorf("not implemented: CreateReview - createReview"))
+}
+func (r *mutationResolver) CreateSubscription(ctx context.Context, input model.CreateSubscriptionInput) (*model.CoffeeSubscription, error) {
+	panic(fmt.Errorf("not implemented: CreateSubscription - createSubscription"))
+}
+func (r *queryResolver) Producers(ctx context.Context, limit *int, offset *int) (*model.ProducerConnection, error) {
+	panic(fmt.Errorf("not implemented: Producers - producers"))
+}
+func (r *queryResolver) Producer(ctx context.Context, id string) (*model.Producer, error) {
+	panic(fmt.Errorf("not implemented: Producer - producer"))
+}
+func (r *queryResolver) Orders(ctx context.Context, limit *int, offset *int) (*model.OrderConnection, error) {
+	panic(fmt.Errorf("not implemented: Orders - orders"))
+}
+func (r *queryResolver) Order(ctx context.Context, id string) (*model.Order, error) {
+	panic(fmt.Errorf("not implemented: Order - order"))
+}
+*/

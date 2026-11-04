@@ -1,73 +1,120 @@
 scalar Time
+# New Taiwan Dollar — whole NT$ integer (e.g. 450 = NT$450)
+scalar TWD
+
+# ─── Queries ──────────────────────────────────────────────────────────────────
 
 type Query {
   me: User
-  coffees(filter: CoffeeFilter, limit: Int, offset: Int): CoffeeConnection!
+
+  # Shop discovery
+  shop(slug: String!): Shop
+  shops(city: String, limit: Int, offset: Int): ShopConnection!
+  shopsForMap: [ShopPin!]!
+
+  # Coffee browsing
   coffee(id: ID!): Coffee
-  producers(limit: Int, offset: Int): ProducerConnection!
-  producer(id: ID!): Producer
-  orders(limit: Int, offset: Int): OrderConnection!
-  order(id: ID!): Order
+  coffees(filter: CoffeeFilter, limit: Int, offset: Int): CoffeeConnection!
+  popularCoffees(limit: Int): [Coffee!]!
+
+  # Curated dropdown data
+  originCountries: [OriginCountry!]!
+  coffeeVarieties: [CoffeeVariety!]!
+  processingMethods: [ProcessingMethod!]!
 }
 
+# ─── Mutations ────────────────────────────────────────────────────────────────
+
 type Mutation {
+  # Auth
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
   logout: Boolean!
 
-  createOrder(input: CreateOrderInput!): Order!
-  createReview(input: CreateReviewInput!): Review!
-  createSubscription(input: CreateSubscriptionInput!): CoffeeSubscription!
+  # Shop management (seller)
+  createShop(input: CreateShopInput!): Shop!
+  updateShop(id: ID!, input: UpdateShopInput!): Shop!
+
+  # Coffee listings (seller)
+  createCoffee(input: CreateCoffeeInput!): Coffee!
+  updateCoffee(id: ID!, input: UpdateCoffeeInput!): Coffee!
+  publishCoffee(id: ID!): Coffee!
+  unpublishCoffee(id: ID!): Coffee!
+
+  # Comments (buyer)
+  addComment(input: AddCommentInput!): Comment!
+  deleteComment(id: ID!): Boolean!
+
+  # Stage 2: cart, orders, ECPay checkout — parked
 }
+
+# ─── User ─────────────────────────────────────────────────────────────────────
 
 type User {
   id: ID!
   email: String!
-  firstName: String!
-  lastName: String!
+  displayName: String!
   role: UserRole!
-  addresses: [Address!]!
-  orders: [Order!]!
+  shop: Shop
   createdAt: Time!
 }
 
 enum UserRole {
-  CUSTOMER
+  BUYER
+  SELLER
   ADMIN
 }
 
-type Producer {
+# ─── Shop ─────────────────────────────────────────────────────────────────────
+
+type Shop {
   id: ID!
+  slug: String!
   name: String!
-  country: String!
-  region: String!
-  altitude: Int
   description: String!
-  imageURL: String
-  coffees: [Coffee!]!
+  logoUrl: String
+  bannerUrl: String
+  city: String!
+  lat: Float
+  lng: Float
+  coffees(limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 
-type ProducerConnection {
-  nodes: [Producer!]!
+type ShopConnection {
+  nodes: [Shop!]!
   total: Int!
 }
 
+# Lightweight type for the map page (all shops, minimal fields)
+type ShopPin {
+  id: ID!
+  slug: String!
+  name: String!
+  city: String!
+  lat: Float
+  lng: Float
+}
+
+# ─── Coffee ───────────────────────────────────────────────────────────────────
+
 type Coffee {
   id: ID!
+  shop: Shop!
   name: String!
   slug: String!
-  producer: Producer!
-  origin: String!
-  roastLevel: RoastLevel!
-  processingMethod: String!
-  flavorNotes: [String!]!
   description: String!
-  imageURL: String
+  originCountry: OriginCountry!
+  variety: CoffeeVariety
+  processingMethod: ProcessingMethod!
+  roastLevel: RoastLevel!
+  flavorNotes: [String!]!
+  imageUrls: [String!]!
   variants: [Variant!]!
-  reviews: [Review!]!
-  averageRating: Float
+  comments: [Comment!]!
+  commentCount: Int!
+  isPublished: Boolean!
   createdAt: Time!
 }
 
@@ -76,20 +123,20 @@ type CoffeeConnection {
   total: Int!
 }
 
+type Variant {
+  id: ID!
+  grind: GrindOption!
+  weightG: Int!
+  priceTwd: TWD!
+  stock: Int!
+  isAvailable: Boolean!
+}
+
 enum RoastLevel {
   LIGHT
   MEDIUM
   MEDIUM_DARK
   DARK
-}
-
-type Variant {
-  id: ID!
-  coffee: Coffee!
-  grind: GrindOption!
-  weightGrams: Int!
-  priceUSD: Float!
-  stock: Int!
 }
 
 enum GrindOption {
@@ -100,76 +147,38 @@ enum GrindOption {
   ESPRESSO
 }
 
-type Order {
+# ─── Reference / curated dropdowns ───────────────────────────────────────────
+
+type OriginCountry {
+  id: ID!
+  nameEn: String!
+  nameZh: String!
+  region: String!
+}
+
+type CoffeeVariety {
+  id: ID!
+  name: String!
+  description: String
+}
+
+type ProcessingMethod {
+  id: ID!
+  nameEn: String!
+  nameZh: String!
+  description: String
+}
+
+# ─── Comments ─────────────────────────────────────────────────────────────────
+
+type Comment {
   id: ID!
   user: User!
-  items: [OrderItem!]!
-  status: OrderStatus!
-  totalUSD: Float!
-  stripePaymentIntentID: String
-  shippingAddress: Address!
-  createdAt: Time!
-}
-
-type OrderConnection {
-  nodes: [Order!]!
-  total: Int!
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  SHIPPED
-  DELIVERED
-  CANCELLED
-}
-
-type OrderItem {
-  id: ID!
-  variant: Variant!
-  quantity: Int!
-  unitPriceUSD: Float!
-}
-
-type Review {
-  id: ID!
-  user: User!
-  coffee: Coffee!
-  rating: Int!
   body: String!
   createdAt: Time!
 }
 
-type Address {
-  id: ID!
-  line1: String!
-  line2: String
-  city: String!
-  state: String!
-  postalCode: String!
-  country: String!
-}
-
-type CoffeeSubscription {
-  id: ID!
-  user: User!
-  plan: SubscriptionPlan!
-  status: SubscriptionStatus!
-  stripeSubscriptionID: String!
-  currentPeriodEnd: Time!
-}
-
-enum SubscriptionPlan {
-  MONTHLY_250G
-  MONTHLY_500G
-  MONTHLY_1KG
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  PAUSED
-  CANCELLED
-}
+# ─── Auth ─────────────────────────────────────────────────────────────────────
 
 type AuthPayload {
   accessToken: String!
@@ -177,11 +186,12 @@ type AuthPayload {
   user: User!
 }
 
+# ─── Inputs ───────────────────────────────────────────────────────────────────
+
 input RegisterInput {
   email: String!
   password: String!
-  firstName: String!
-  lastName: String!
+  displayName: String!
 }
 
 input LoginInput {
@@ -189,31 +199,62 @@ input LoginInput {
   password: String!
 }
 
+input CreateShopInput {
+  slug: String!
+  name: String!
+  description: String!
+  city: String!
+}
+
+input UpdateShopInput {
+  name: String
+  description: String
+  logoUrl: String
+  bannerUrl: String
+  city: String
+  lat: Float
+  lng: Float
+}
+
+input CreateCoffeeInput {
+  name: String!
+  description: String!
+  originCountryId: ID!
+  varietyId: ID
+  processingMethodId: ID!
+  roastLevel: RoastLevel!
+  flavorNotes: [String!]
+  variants: [VariantInput!]!
+}
+
+input UpdateCoffeeInput {
+  name: String
+  description: String
+  originCountryId: ID
+  varietyId: ID
+  processingMethodId: ID
+  roastLevel: RoastLevel
+  flavorNotes: [String!]
+}
+
+input VariantInput {
+  grind: GrindOption!
+  weightG: Int!
+  priceTwd: Int!
+  stock: Int!
+}
+
 input CoffeeFilter {
-  origin: String
+  originCountryId: ID
+  varietyId: ID
+  processingMethodId: ID
   roastLevel: RoastLevel
   flavorNote: String
-  minPrice: Float
-  maxPrice: Float
+  minPriceTwd: Int
+  maxPriceTwd: Int
 }
 
-input CreateOrderInput {
-  items: [OrderItemInput!]!
-  addressID: ID!
-}
-
-input OrderItemInput {
-  variantID: ID!
-  quantity: Int!
-}
-
-input CreateReviewInput {
-  coffeeID: ID!
-  rating: Int!
+input AddCommentInput {
+  coffeeId: ID!
   body: String!
-}
-
-input CreateSubscriptionInput {
-  plan: SubscriptionPlan!
-  paymentMethodID: String!
 }

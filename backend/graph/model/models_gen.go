@@ -8,16 +8,13 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/underthecea/monicacafe/backend/internal/platform/money"
 )
 
-type Address struct {
-	ID         string  `json:"id"`
-	Line1      string  `json:"line1"`
-	Line2      *string `json:"line2,omitempty"`
-	City       string  `json:"city"`
-	State      string  `json:"state"`
-	PostalCode string  `json:"postalCode"`
-	Country    string  `json:"country"`
+type AddCommentInput struct {
+	CoffeeID string `json:"coffeeId"`
+	Body     string `json:"body"`
 }
 
 type AuthPayload struct {
@@ -27,20 +24,22 @@ type AuthPayload struct {
 }
 
 type Coffee struct {
-	ID               string     `json:"id"`
-	Name             string     `json:"name"`
-	Slug             string     `json:"slug"`
-	Producer         *Producer  `json:"producer"`
-	Origin           string     `json:"origin"`
-	RoastLevel       RoastLevel `json:"roastLevel"`
-	ProcessingMethod string     `json:"processingMethod"`
-	FlavorNotes      []string   `json:"flavorNotes"`
-	Description      string     `json:"description"`
-	ImageURL         *string    `json:"imageURL,omitempty"`
-	Variants         []*Variant `json:"variants"`
-	Reviews          []*Review  `json:"reviews"`
-	AverageRating    *float64   `json:"averageRating,omitempty"`
-	CreatedAt        time.Time  `json:"createdAt"`
+	ID               string            `json:"id"`
+	Shop             *Shop             `json:"shop"`
+	Name             string            `json:"name"`
+	Slug             string            `json:"slug"`
+	Description      string            `json:"description"`
+	OriginCountry    *OriginCountry    `json:"originCountry"`
+	Variety          *CoffeeVariety    `json:"variety,omitempty"`
+	ProcessingMethod *ProcessingMethod `json:"processingMethod"`
+	RoastLevel       RoastLevel        `json:"roastLevel"`
+	FlavorNotes      []string          `json:"flavorNotes"`
+	ImageUrls        []string          `json:"imageUrls"`
+	Variants         []*Variant        `json:"variants"`
+	Comments         []*Comment        `json:"comments"`
+	CommentCount     int               `json:"commentCount"`
+	IsPublished      bool              `json:"isPublished"`
+	CreatedAt        time.Time         `json:"createdAt"`
 }
 
 type CoffeeConnection struct {
@@ -49,36 +48,44 @@ type CoffeeConnection struct {
 }
 
 type CoffeeFilter struct {
-	Origin     *string     `json:"origin,omitempty"`
-	RoastLevel *RoastLevel `json:"roastLevel,omitempty"`
-	FlavorNote *string     `json:"flavorNote,omitempty"`
-	MinPrice   *float64    `json:"minPrice,omitempty"`
-	MaxPrice   *float64    `json:"maxPrice,omitempty"`
+	OriginCountryID    *string     `json:"originCountryId,omitempty"`
+	VarietyID          *string     `json:"varietyId,omitempty"`
+	ProcessingMethodID *string     `json:"processingMethodId,omitempty"`
+	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
+	FlavorNote         *string     `json:"flavorNote,omitempty"`
+	MinPriceTwd        *int        `json:"minPriceTwd,omitempty"`
+	MaxPriceTwd        *int        `json:"maxPriceTwd,omitempty"`
 }
 
-type CoffeeSubscription struct {
-	ID                   string             `json:"id"`
-	User                 *User              `json:"user"`
-	Plan                 SubscriptionPlan   `json:"plan"`
-	Status               SubscriptionStatus `json:"status"`
-	StripeSubscriptionID string             `json:"stripeSubscriptionID"`
-	CurrentPeriodEnd     time.Time          `json:"currentPeriodEnd"`
+type CoffeeVariety struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
 }
 
-type CreateOrderInput struct {
-	Items     []*OrderItemInput `json:"items"`
-	AddressID string            `json:"addressID"`
+type Comment struct {
+	ID        string    `json:"id"`
+	User      *User     `json:"user"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
-type CreateReviewInput struct {
-	CoffeeID string `json:"coffeeID"`
-	Rating   int    `json:"rating"`
-	Body     string `json:"body"`
+type CreateCoffeeInput struct {
+	Name               string          `json:"name"`
+	Description        string          `json:"description"`
+	OriginCountryID    string          `json:"originCountryId"`
+	VarietyID          *string         `json:"varietyId,omitempty"`
+	ProcessingMethodID string          `json:"processingMethodId"`
+	RoastLevel         RoastLevel      `json:"roastLevel"`
+	FlavorNotes        []string        `json:"flavorNotes,omitempty"`
+	Variants           []*VariantInput `json:"variants"`
 }
 
-type CreateSubscriptionInput struct {
-	Plan            SubscriptionPlan `json:"plan"`
-	PaymentMethodID string           `json:"paymentMethodID"`
+type CreateShopInput struct {
+	Slug        string `json:"slug"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	City        string `json:"city"`
 }
 
 type LoginInput struct {
@@ -89,88 +96,100 @@ type LoginInput struct {
 type Mutation struct {
 }
 
-type Order struct {
-	ID                    string       `json:"id"`
-	User                  *User        `json:"user"`
-	Items                 []*OrderItem `json:"items"`
-	Status                OrderStatus  `json:"status"`
-	TotalUsd              float64      `json:"totalUSD"`
-	StripePaymentIntentID *string      `json:"stripePaymentIntentID,omitempty"`
-	ShippingAddress       *Address     `json:"shippingAddress"`
-	CreatedAt             time.Time    `json:"createdAt"`
+type OriginCountry struct {
+	ID     string `json:"id"`
+	NameEn string `json:"nameEn"`
+	NameZh string `json:"nameZh"`
+	Region string `json:"region"`
 }
 
-type OrderConnection struct {
-	Nodes []*Order `json:"nodes"`
-	Total int      `json:"total"`
-}
-
-type OrderItem struct {
-	ID           string   `json:"id"`
-	Variant      *Variant `json:"variant"`
-	Quantity     int      `json:"quantity"`
-	UnitPriceUsd float64  `json:"unitPriceUSD"`
-}
-
-type OrderItemInput struct {
-	VariantID string `json:"variantID"`
-	Quantity  int    `json:"quantity"`
-}
-
-type Producer struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Country     string    `json:"country"`
-	Region      string    `json:"region"`
-	Altitude    *int      `json:"altitude,omitempty"`
-	Description string    `json:"description"`
-	ImageURL    *string   `json:"imageURL,omitempty"`
-	Coffees     []*Coffee `json:"coffees"`
-	CreatedAt   time.Time `json:"createdAt"`
-}
-
-type ProducerConnection struct {
-	Nodes []*Producer `json:"nodes"`
-	Total int         `json:"total"`
+type ProcessingMethod struct {
+	ID          string  `json:"id"`
+	NameEn      string  `json:"nameEn"`
+	NameZh      string  `json:"nameZh"`
+	Description *string `json:"description,omitempty"`
 }
 
 type Query struct {
 }
 
 type RegisterInput struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	DisplayName string `json:"displayName"`
 }
 
-type Review struct {
-	ID        string    `json:"id"`
-	User      *User     `json:"user"`
-	Coffee    *Coffee   `json:"coffee"`
-	Rating    int       `json:"rating"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"createdAt"`
+type Shop struct {
+	ID          string            `json:"id"`
+	Slug        string            `json:"slug"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	LogoURL     *string           `json:"logoUrl,omitempty"`
+	BannerURL   *string           `json:"bannerUrl,omitempty"`
+	City        string            `json:"city"`
+	Lat         *float64          `json:"lat,omitempty"`
+	Lng         *float64          `json:"lng,omitempty"`
+	Coffees     *CoffeeConnection `json:"coffees"`
+	CreatedAt   time.Time         `json:"createdAt"`
+}
+
+type ShopConnection struct {
+	Nodes []*Shop `json:"nodes"`
+	Total int     `json:"total"`
+}
+
+type ShopPin struct {
+	ID   string   `json:"id"`
+	Slug string   `json:"slug"`
+	Name string   `json:"name"`
+	City string   `json:"city"`
+	Lat  *float64 `json:"lat,omitempty"`
+	Lng  *float64 `json:"lng,omitempty"`
+}
+
+type UpdateCoffeeInput struct {
+	Name               *string     `json:"name,omitempty"`
+	Description        *string     `json:"description,omitempty"`
+	OriginCountryID    *string     `json:"originCountryId,omitempty"`
+	VarietyID          *string     `json:"varietyId,omitempty"`
+	ProcessingMethodID *string     `json:"processingMethodId,omitempty"`
+	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
+	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
+}
+
+type UpdateShopInput struct {
+	Name        *string  `json:"name,omitempty"`
+	Description *string  `json:"description,omitempty"`
+	LogoURL     *string  `json:"logoUrl,omitempty"`
+	BannerURL   *string  `json:"bannerUrl,omitempty"`
+	City        *string  `json:"city,omitempty"`
+	Lat         *float64 `json:"lat,omitempty"`
+	Lng         *float64 `json:"lng,omitempty"`
 }
 
 type User struct {
-	ID        string     `json:"id"`
-	Email     string     `json:"email"`
-	FirstName string     `json:"firstName"`
-	LastName  string     `json:"lastName"`
-	Role      UserRole   `json:"role"`
-	Addresses []*Address `json:"addresses"`
-	Orders    []*Order   `json:"orders"`
-	CreatedAt time.Time  `json:"createdAt"`
+	ID          string    `json:"id"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"displayName"`
+	Role        UserRole  `json:"role"`
+	Shop        *Shop     `json:"shop,omitempty"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type Variant struct {
 	ID          string      `json:"id"`
-	Coffee      *Coffee     `json:"coffee"`
 	Grind       GrindOption `json:"grind"`
-	WeightGrams int         `json:"weightGrams"`
-	PriceUsd    float64     `json:"priceUSD"`
+	WeightG     int         `json:"weightG"`
+	PriceTwd    money.TWD   `json:"priceTwd"`
 	Stock       int         `json:"stock"`
+	IsAvailable bool        `json:"isAvailable"`
+}
+
+type VariantInput struct {
+	Grind    GrindOption `json:"grind"`
+	WeightG  int         `json:"weightG"`
+	PriceTwd int         `json:"priceTwd"`
+	Stock    int         `json:"stock"`
 }
 
 type GrindOption string
@@ -229,67 +248,6 @@ func (e *GrindOption) UnmarshalJSON(b []byte) error {
 }
 
 func (e GrindOption) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-type OrderStatus string
-
-const (
-	OrderStatusPending   OrderStatus = "PENDING"
-	OrderStatusPaid      OrderStatus = "PAID"
-	OrderStatusShipped   OrderStatus = "SHIPPED"
-	OrderStatusDelivered OrderStatus = "DELIVERED"
-	OrderStatusCancelled OrderStatus = "CANCELLED"
-)
-
-var AllOrderStatus = []OrderStatus{
-	OrderStatusPending,
-	OrderStatusPaid,
-	OrderStatusShipped,
-	OrderStatusDelivered,
-	OrderStatusCancelled,
-}
-
-func (e OrderStatus) IsValid() bool {
-	switch e {
-	case OrderStatusPending, OrderStatusPaid, OrderStatusShipped, OrderStatusDelivered, OrderStatusCancelled:
-		return true
-	}
-	return false
-}
-
-func (e OrderStatus) String() string {
-	return string(e)
-}
-
-func (e *OrderStatus) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = OrderStatus(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid OrderStatus", str)
-	}
-	return nil
-}
-
-func (e OrderStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *OrderStatus) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e OrderStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -354,135 +312,23 @@ func (e RoastLevel) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-type SubscriptionPlan string
-
-const (
-	SubscriptionPlanMonthly250g SubscriptionPlan = "MONTHLY_250G"
-	SubscriptionPlanMonthly500g SubscriptionPlan = "MONTHLY_500G"
-	SubscriptionPlanMonthly1kg  SubscriptionPlan = "MONTHLY_1KG"
-)
-
-var AllSubscriptionPlan = []SubscriptionPlan{
-	SubscriptionPlanMonthly250g,
-	SubscriptionPlanMonthly500g,
-	SubscriptionPlanMonthly1kg,
-}
-
-func (e SubscriptionPlan) IsValid() bool {
-	switch e {
-	case SubscriptionPlanMonthly250g, SubscriptionPlanMonthly500g, SubscriptionPlanMonthly1kg:
-		return true
-	}
-	return false
-}
-
-func (e SubscriptionPlan) String() string {
-	return string(e)
-}
-
-func (e *SubscriptionPlan) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = SubscriptionPlan(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid SubscriptionPlan", str)
-	}
-	return nil
-}
-
-func (e SubscriptionPlan) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *SubscriptionPlan) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e SubscriptionPlan) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
-type SubscriptionStatus string
-
-const (
-	SubscriptionStatusActive    SubscriptionStatus = "ACTIVE"
-	SubscriptionStatusPaused    SubscriptionStatus = "PAUSED"
-	SubscriptionStatusCancelled SubscriptionStatus = "CANCELLED"
-)
-
-var AllSubscriptionStatus = []SubscriptionStatus{
-	SubscriptionStatusActive,
-	SubscriptionStatusPaused,
-	SubscriptionStatusCancelled,
-}
-
-func (e SubscriptionStatus) IsValid() bool {
-	switch e {
-	case SubscriptionStatusActive, SubscriptionStatusPaused, SubscriptionStatusCancelled:
-		return true
-	}
-	return false
-}
-
-func (e SubscriptionStatus) String() string {
-	return string(e)
-}
-
-func (e *SubscriptionStatus) UnmarshalGQL(v any) error {
-	str, ok := v.(string)
-	if !ok {
-		return fmt.Errorf("enums must be strings")
-	}
-
-	*e = SubscriptionStatus(str)
-	if !e.IsValid() {
-		return fmt.Errorf("%s is not a valid SubscriptionStatus", str)
-	}
-	return nil
-}
-
-func (e SubscriptionStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
-}
-
-func (e *SubscriptionStatus) UnmarshalJSON(b []byte) error {
-	s, err := strconv.Unquote(string(b))
-	if err != nil {
-		return err
-	}
-	return e.UnmarshalGQL(s)
-}
-
-func (e SubscriptionStatus) MarshalJSON() ([]byte, error) {
-	var buf bytes.Buffer
-	e.MarshalGQL(&buf)
-	return buf.Bytes(), nil
-}
-
 type UserRole string
 
 const (
-	UserRoleCustomer UserRole = "CUSTOMER"
-	UserRoleAdmin    UserRole = "ADMIN"
+	UserRoleBuyer  UserRole = "BUYER"
+	UserRoleSeller UserRole = "SELLER"
+	UserRoleAdmin  UserRole = "ADMIN"
 )
 
 var AllUserRole = []UserRole{
-	UserRoleCustomer,
+	UserRoleBuyer,
+	UserRoleSeller,
 	UserRoleAdmin,
 }
 
 func (e UserRole) IsValid() bool {
 	switch e {
-	case UserRoleCustomer, UserRoleAdmin:
+	case UserRoleBuyer, UserRoleSeller, UserRoleAdmin:
 		return true
 	}
 	return false

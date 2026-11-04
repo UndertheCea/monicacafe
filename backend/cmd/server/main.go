@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -18,14 +17,13 @@ import (
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
+	"github.com/underthecea/monicacafe/backend/internal/platform/config"
 )
 
 func main() {
-	port := getEnv("PORT", "4000")
-	accessSecret := getEnv("JWT_ACCESS_SECRET", "change-me-access-secret")
-	refreshSecret := getEnv("JWT_REFRESH_SECRET", "change-me-refresh-secret")
+	cfg := config.Load()
 
-	authSvc := auth.NewService(accessSecret, refreshSecret)
+	authSvc := auth.NewService(cfg.JWTAccessSecret, cfg.JWTRefreshSecret)
 
 	schema := generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{},
@@ -45,7 +43,7 @@ func main() {
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.RealIP)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{getEnv("CORS_ORIGIN", "http://localhost:3000")},
+		AllowedOrigins:   []string{cfg.CORSOrigin},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -54,23 +52,16 @@ func main() {
 	r.Use(middleware.Auth(authSvc))
 
 	r.Handle("/graphql", srv)
-	if getEnv("APP_ENV", "development") != "production" {
-		r.Handle("/playground", playground.Handler("Monica Cafe API", "/graphql"))
+	if cfg.AppEnv != "production" {
+		r.Handle("/playground", playground.Handler("Moni Cafe API", "/graphql"))
 	}
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	log.Printf("GraphQL server listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
+	log.Printf("Moni Cafe API listening on :%s (env=%s)", cfg.Port, cfg.AppEnv)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getEnv(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }

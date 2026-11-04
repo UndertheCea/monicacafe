@@ -15,6 +15,7 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/underthecea/monicacafe/backend/graph/model"
+	"github.com/underthecea/monicacafe/backend/internal/platform/money"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -47,16 +48,6 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	Address struct {
-		City       func(childComplexity int) int
-		Country    func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Line1      func(childComplexity int) int
-		Line2      func(childComplexity int) int
-		PostalCode func(childComplexity int) int
-		State      func(childComplexity int) int
-	}
-
 	AuthPayload struct {
 		AccessToken  func(childComplexity int) int
 		RefreshToken func(childComplexity int) int
@@ -64,20 +55,22 @@ type ComplexityRoot struct {
 	}
 
 	Coffee struct {
-		AverageRating    func(childComplexity int) int
+		CommentCount     func(childComplexity int) int
+		Comments         func(childComplexity int) int
 		CreatedAt        func(childComplexity int) int
 		Description      func(childComplexity int) int
 		FlavorNotes      func(childComplexity int) int
 		ID               func(childComplexity int) int
-		ImageURL         func(childComplexity int) int
+		ImageUrls        func(childComplexity int) int
+		IsPublished      func(childComplexity int) int
 		Name             func(childComplexity int) int
-		Origin           func(childComplexity int) int
+		OriginCountry    func(childComplexity int) int
 		ProcessingMethod func(childComplexity int) int
-		Producer         func(childComplexity int) int
-		Reviews          func(childComplexity int) int
 		RoastLevel       func(childComplexity int) int
+		Shop             func(childComplexity int) int
 		Slug             func(childComplexity int) int
 		Variants         func(childComplexity int) int
+		Variety          func(childComplexity int) int
 	}
 
 	CoffeeConnection struct {
@@ -85,102 +78,105 @@ type ComplexityRoot struct {
 		Total func(childComplexity int) int
 	}
 
-	CoffeeSubscription struct {
-		CurrentPeriodEnd     func(childComplexity int) int
-		ID                   func(childComplexity int) int
-		Plan                 func(childComplexity int) int
-		Status               func(childComplexity int) int
-		StripeSubscriptionID func(childComplexity int) int
-		User                 func(childComplexity int) int
-	}
-
-	Mutation struct {
-		CreateOrder        func(childComplexity int, input model.CreateOrderInput) int
-		CreateReview       func(childComplexity int, input model.CreateReviewInput) int
-		CreateSubscription func(childComplexity int, input model.CreateSubscriptionInput) int
-		Login              func(childComplexity int, input model.LoginInput) int
-		Logout             func(childComplexity int) int
-		RefreshToken       func(childComplexity int, token string) int
-		Register           func(childComplexity int, input model.RegisterInput) int
-	}
-
-	Order struct {
-		CreatedAt             func(childComplexity int) int
-		ID                    func(childComplexity int) int
-		Items                 func(childComplexity int) int
-		ShippingAddress       func(childComplexity int) int
-		Status                func(childComplexity int) int
-		StripePaymentIntentID func(childComplexity int) int
-		TotalUsd              func(childComplexity int) int
-		User                  func(childComplexity int) int
-	}
-
-	OrderConnection struct {
-		Nodes func(childComplexity int) int
-		Total func(childComplexity int) int
-	}
-
-	OrderItem struct {
-		ID           func(childComplexity int) int
-		Quantity     func(childComplexity int) int
-		UnitPriceUsd func(childComplexity int) int
-		Variant      func(childComplexity int) int
-	}
-
-	Producer struct {
-		Altitude    func(childComplexity int) int
-		Coffees     func(childComplexity int) int
-		Country     func(childComplexity int) int
-		CreatedAt   func(childComplexity int) int
+	CoffeeVariety struct {
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
-		ImageURL    func(childComplexity int) int
 		Name        func(childComplexity int) int
-		Region      func(childComplexity int) int
 	}
 
-	ProducerConnection struct {
-		Nodes func(childComplexity int) int
-		Total func(childComplexity int) int
-	}
-
-	Query struct {
-		Coffee    func(childComplexity int, id string) int
-		Coffees   func(childComplexity int, filter *model.CoffeeFilter, limit *int, offset *int) int
-		Me        func(childComplexity int) int
-		Order     func(childComplexity int, id string) int
-		Orders    func(childComplexity int, limit *int, offset *int) int
-		Producer  func(childComplexity int, id string) int
-		Producers func(childComplexity int, limit *int, offset *int) int
-	}
-
-	Review struct {
+	Comment struct {
 		Body      func(childComplexity int) int
-		Coffee    func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
-		Rating    func(childComplexity int) int
 		User      func(childComplexity int) int
 	}
 
+	Mutation struct {
+		AddComment      func(childComplexity int, input model.AddCommentInput) int
+		CreateCoffee    func(childComplexity int, input model.CreateCoffeeInput) int
+		CreateShop      func(childComplexity int, input model.CreateShopInput) int
+		DeleteComment   func(childComplexity int, id string) int
+		Login           func(childComplexity int, input model.LoginInput) int
+		Logout          func(childComplexity int) int
+		PublishCoffee   func(childComplexity int, id string) int
+		RefreshToken    func(childComplexity int, token string) int
+		Register        func(childComplexity int, input model.RegisterInput) int
+		UnpublishCoffee func(childComplexity int, id string) int
+		UpdateCoffee    func(childComplexity int, id string, input model.UpdateCoffeeInput) int
+		UpdateShop      func(childComplexity int, id string, input model.UpdateShopInput) int
+	}
+
+	OriginCountry struct {
+		ID     func(childComplexity int) int
+		NameEn func(childComplexity int) int
+		NameZh func(childComplexity int) int
+		Region func(childComplexity int) int
+	}
+
+	ProcessingMethod struct {
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		NameEn      func(childComplexity int) int
+		NameZh      func(childComplexity int) int
+	}
+
+	Query struct {
+		Coffee            func(childComplexity int, id string) int
+		CoffeeVarieties   func(childComplexity int) int
+		Coffees           func(childComplexity int, filter *model.CoffeeFilter, limit *int, offset *int) int
+		Me                func(childComplexity int) int
+		OriginCountries   func(childComplexity int) int
+		PopularCoffees    func(childComplexity int, limit *int) int
+		ProcessingMethods func(childComplexity int) int
+		Shop              func(childComplexity int, slug string) int
+		Shops             func(childComplexity int, city *string, limit *int, offset *int) int
+		ShopsForMap       func(childComplexity int) int
+	}
+
+	Shop struct {
+		BannerURL   func(childComplexity int) int
+		City        func(childComplexity int) int
+		Coffees     func(childComplexity int, limit *int, offset *int) int
+		CreatedAt   func(childComplexity int) int
+		Description func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Lat         func(childComplexity int) int
+		Lng         func(childComplexity int) int
+		LogoURL     func(childComplexity int) int
+		Name        func(childComplexity int) int
+		Slug        func(childComplexity int) int
+	}
+
+	ShopConnection struct {
+		Nodes func(childComplexity int) int
+		Total func(childComplexity int) int
+	}
+
+	ShopPin struct {
+		City func(childComplexity int) int
+		ID   func(childComplexity int) int
+		Lat  func(childComplexity int) int
+		Lng  func(childComplexity int) int
+		Name func(childComplexity int) int
+		Slug func(childComplexity int) int
+	}
+
 	User struct {
-		Addresses func(childComplexity int) int
-		CreatedAt func(childComplexity int) int
-		Email     func(childComplexity int) int
-		FirstName func(childComplexity int) int
-		ID        func(childComplexity int) int
-		LastName  func(childComplexity int) int
-		Orders    func(childComplexity int) int
-		Role      func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		DisplayName func(childComplexity int) int
+		Email       func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Role        func(childComplexity int) int
+		Shop        func(childComplexity int) int
 	}
 
 	Variant struct {
-		Coffee      func(childComplexity int) int
 		Grind       func(childComplexity int) int
 		ID          func(childComplexity int) int
-		PriceUsd    func(childComplexity int) int
+		IsAvailable func(childComplexity int) int
+		PriceTwd    func(childComplexity int) int
 		Stock       func(childComplexity int) int
-		WeightGrams func(childComplexity int) int
+		WeightG     func(childComplexity int) int
 	}
 }
 
@@ -189,18 +185,26 @@ type MutationResolver interface {
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error)
 	Logout(ctx context.Context) (bool, error)
-	CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error)
-	CreateReview(ctx context.Context, input model.CreateReviewInput) (*model.Review, error)
-	CreateSubscription(ctx context.Context, input model.CreateSubscriptionInput) (*model.CoffeeSubscription, error)
+	CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error)
+	UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error)
+	CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error)
+	UpdateCoffee(ctx context.Context, id string, input model.UpdateCoffeeInput) (*model.Coffee, error)
+	PublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
+	UnpublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
+	AddComment(ctx context.Context, input model.AddCommentInput) (*model.Comment, error)
+	DeleteComment(ctx context.Context, id string) (bool, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
-	Coffees(ctx context.Context, filter *model.CoffeeFilter, limit *int, offset *int) (*model.CoffeeConnection, error)
+	Shop(ctx context.Context, slug string) (*model.Shop, error)
+	Shops(ctx context.Context, city *string, limit *int, offset *int) (*model.ShopConnection, error)
+	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
 	Coffee(ctx context.Context, id string) (*model.Coffee, error)
-	Producers(ctx context.Context, limit *int, offset *int) (*model.ProducerConnection, error)
-	Producer(ctx context.Context, id string) (*model.Producer, error)
-	Orders(ctx context.Context, limit *int, offset *int) (*model.OrderConnection, error)
-	Order(ctx context.Context, id string) (*model.Order, error)
+	Coffees(ctx context.Context, filter *model.CoffeeFilter, limit *int, offset *int) (*model.CoffeeConnection, error)
+	PopularCoffees(ctx context.Context, limit *int) ([]*model.Coffee, error)
+	OriginCountries(ctx context.Context) ([]*model.OriginCountry, error)
+	CoffeeVarieties(ctx context.Context) ([]*model.CoffeeVariety, error)
+	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
 }
 
 type executableSchema struct {
@@ -221,55 +225,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	ec := executionContext{nil, e, 0, 0, nil}
 	_ = ec
 	switch typeName + "." + field {
-
-	case "Address.city":
-		if e.complexity.Address.City == nil {
-			break
-		}
-
-		return e.complexity.Address.City(childComplexity), true
-
-	case "Address.country":
-		if e.complexity.Address.Country == nil {
-			break
-		}
-
-		return e.complexity.Address.Country(childComplexity), true
-
-	case "Address.id":
-		if e.complexity.Address.ID == nil {
-			break
-		}
-
-		return e.complexity.Address.ID(childComplexity), true
-
-	case "Address.line1":
-		if e.complexity.Address.Line1 == nil {
-			break
-		}
-
-		return e.complexity.Address.Line1(childComplexity), true
-
-	case "Address.line2":
-		if e.complexity.Address.Line2 == nil {
-			break
-		}
-
-		return e.complexity.Address.Line2(childComplexity), true
-
-	case "Address.postalCode":
-		if e.complexity.Address.PostalCode == nil {
-			break
-		}
-
-		return e.complexity.Address.PostalCode(childComplexity), true
-
-	case "Address.state":
-		if e.complexity.Address.State == nil {
-			break
-		}
-
-		return e.complexity.Address.State(childComplexity), true
 
 	case "AuthPayload.accessToken":
 		if e.complexity.AuthPayload.AccessToken == nil {
@@ -292,12 +247,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AuthPayload.User(childComplexity), true
 
-	case "Coffee.averageRating":
-		if e.complexity.Coffee.AverageRating == nil {
+	case "Coffee.commentCount":
+		if e.complexity.Coffee.CommentCount == nil {
 			break
 		}
 
-		return e.complexity.Coffee.AverageRating(childComplexity), true
+		return e.complexity.Coffee.CommentCount(childComplexity), true
+
+	case "Coffee.comments":
+		if e.complexity.Coffee.Comments == nil {
+			break
+		}
+
+		return e.complexity.Coffee.Comments(childComplexity), true
 
 	case "Coffee.createdAt":
 		if e.complexity.Coffee.CreatedAt == nil {
@@ -327,12 +289,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Coffee.ID(childComplexity), true
 
-	case "Coffee.imageURL":
-		if e.complexity.Coffee.ImageURL == nil {
+	case "Coffee.imageUrls":
+		if e.complexity.Coffee.ImageUrls == nil {
 			break
 		}
 
-		return e.complexity.Coffee.ImageURL(childComplexity), true
+		return e.complexity.Coffee.ImageUrls(childComplexity), true
+
+	case "Coffee.isPublished":
+		if e.complexity.Coffee.IsPublished == nil {
+			break
+		}
+
+		return e.complexity.Coffee.IsPublished(childComplexity), true
 
 	case "Coffee.name":
 		if e.complexity.Coffee.Name == nil {
@@ -341,12 +310,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Coffee.Name(childComplexity), true
 
-	case "Coffee.origin":
-		if e.complexity.Coffee.Origin == nil {
+	case "Coffee.originCountry":
+		if e.complexity.Coffee.OriginCountry == nil {
 			break
 		}
 
-		return e.complexity.Coffee.Origin(childComplexity), true
+		return e.complexity.Coffee.OriginCountry(childComplexity), true
 
 	case "Coffee.processingMethod":
 		if e.complexity.Coffee.ProcessingMethod == nil {
@@ -355,26 +324,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Coffee.ProcessingMethod(childComplexity), true
 
-	case "Coffee.producer":
-		if e.complexity.Coffee.Producer == nil {
-			break
-		}
-
-		return e.complexity.Coffee.Producer(childComplexity), true
-
-	case "Coffee.reviews":
-		if e.complexity.Coffee.Reviews == nil {
-			break
-		}
-
-		return e.complexity.Coffee.Reviews(childComplexity), true
-
 	case "Coffee.roastLevel":
 		if e.complexity.Coffee.RoastLevel == nil {
 			break
 		}
 
 		return e.complexity.Coffee.RoastLevel(childComplexity), true
+
+	case "Coffee.shop":
+		if e.complexity.Coffee.Shop == nil {
+			break
+		}
+
+		return e.complexity.Coffee.Shop(childComplexity), true
 
 	case "Coffee.slug":
 		if e.complexity.Coffee.Slug == nil {
@@ -390,6 +352,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Coffee.Variants(childComplexity), true
 
+	case "Coffee.variety":
+		if e.complexity.Coffee.Variety == nil {
+			break
+		}
+
+		return e.complexity.Coffee.Variety(childComplexity), true
+
 	case "CoffeeConnection.nodes":
 		if e.complexity.CoffeeConnection.Nodes == nil {
 			break
@@ -404,83 +373,102 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.CoffeeConnection.Total(childComplexity), true
 
-	case "CoffeeSubscription.currentPeriodEnd":
-		if e.complexity.CoffeeSubscription.CurrentPeriodEnd == nil {
+	case "CoffeeVariety.description":
+		if e.complexity.CoffeeVariety.Description == nil {
 			break
 		}
 
-		return e.complexity.CoffeeSubscription.CurrentPeriodEnd(childComplexity), true
+		return e.complexity.CoffeeVariety.Description(childComplexity), true
 
-	case "CoffeeSubscription.id":
-		if e.complexity.CoffeeSubscription.ID == nil {
+	case "CoffeeVariety.id":
+		if e.complexity.CoffeeVariety.ID == nil {
 			break
 		}
 
-		return e.complexity.CoffeeSubscription.ID(childComplexity), true
+		return e.complexity.CoffeeVariety.ID(childComplexity), true
 
-	case "CoffeeSubscription.plan":
-		if e.complexity.CoffeeSubscription.Plan == nil {
+	case "CoffeeVariety.name":
+		if e.complexity.CoffeeVariety.Name == nil {
 			break
 		}
 
-		return e.complexity.CoffeeSubscription.Plan(childComplexity), true
+		return e.complexity.CoffeeVariety.Name(childComplexity), true
 
-	case "CoffeeSubscription.status":
-		if e.complexity.CoffeeSubscription.Status == nil {
+	case "Comment.body":
+		if e.complexity.Comment.Body == nil {
 			break
 		}
 
-		return e.complexity.CoffeeSubscription.Status(childComplexity), true
+		return e.complexity.Comment.Body(childComplexity), true
 
-	case "CoffeeSubscription.stripeSubscriptionID":
-		if e.complexity.CoffeeSubscription.StripeSubscriptionID == nil {
+	case "Comment.createdAt":
+		if e.complexity.Comment.CreatedAt == nil {
 			break
 		}
 
-		return e.complexity.CoffeeSubscription.StripeSubscriptionID(childComplexity), true
+		return e.complexity.Comment.CreatedAt(childComplexity), true
 
-	case "CoffeeSubscription.user":
-		if e.complexity.CoffeeSubscription.User == nil {
+	case "Comment.id":
+		if e.complexity.Comment.ID == nil {
 			break
 		}
 
-		return e.complexity.CoffeeSubscription.User(childComplexity), true
+		return e.complexity.Comment.ID(childComplexity), true
 
-	case "Mutation.createOrder":
-		if e.complexity.Mutation.CreateOrder == nil {
+	case "Comment.user":
+		if e.complexity.Comment.User == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createOrder_args(ctx, rawArgs)
+		return e.complexity.Comment.User(childComplexity), true
+
+	case "Mutation.addComment":
+		if e.complexity.Mutation.AddComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addComment_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateOrder(childComplexity, args["input"].(model.CreateOrderInput)), true
+		return e.complexity.Mutation.AddComment(childComplexity, args["input"].(model.AddCommentInput)), true
 
-	case "Mutation.createReview":
-		if e.complexity.Mutation.CreateReview == nil {
+	case "Mutation.createCoffee":
+		if e.complexity.Mutation.CreateCoffee == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createReview_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_createCoffee_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateReview(childComplexity, args["input"].(model.CreateReviewInput)), true
+		return e.complexity.Mutation.CreateCoffee(childComplexity, args["input"].(model.CreateCoffeeInput)), true
 
-	case "Mutation.createSubscription":
-		if e.complexity.Mutation.CreateSubscription == nil {
+	case "Mutation.createShop":
+		if e.complexity.Mutation.CreateShop == nil {
 			break
 		}
 
-		args, err := ec.field_Mutation_createSubscription_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_createShop_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateSubscription(childComplexity, args["input"].(model.CreateSubscriptionInput)), true
+		return e.complexity.Mutation.CreateShop(childComplexity, args["input"].(model.CreateShopInput)), true
+
+	case "Mutation.deleteComment":
+		if e.complexity.Mutation.DeleteComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteComment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteComment(childComplexity, args["id"].(string)), true
 
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
@@ -500,6 +488,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Logout(childComplexity), true
+
+	case "Mutation.publishCoffee":
+		if e.complexity.Mutation.PublishCoffee == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_publishCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PublishCoffee(childComplexity, args["id"].(string)), true
 
 	case "Mutation.refreshToken":
 		if e.complexity.Mutation.RefreshToken == nil {
@@ -525,180 +525,97 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.Register(childComplexity, args["input"].(model.RegisterInput)), true
 
-	case "Order.createdAt":
-		if e.complexity.Order.CreatedAt == nil {
+	case "Mutation.unpublishCoffee":
+		if e.complexity.Mutation.UnpublishCoffee == nil {
 			break
 		}
 
-		return e.complexity.Order.CreatedAt(childComplexity), true
+		args, err := ec.field_Mutation_unpublishCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Order.id":
-		if e.complexity.Order.ID == nil {
+		return e.complexity.Mutation.UnpublishCoffee(childComplexity, args["id"].(string)), true
+
+	case "Mutation.updateCoffee":
+		if e.complexity.Mutation.UpdateCoffee == nil {
 			break
 		}
 
-		return e.complexity.Order.ID(childComplexity), true
+		args, err := ec.field_Mutation_updateCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Order.items":
-		if e.complexity.Order.Items == nil {
+		return e.complexity.Mutation.UpdateCoffee(childComplexity, args["id"].(string), args["input"].(model.UpdateCoffeeInput)), true
+
+	case "Mutation.updateShop":
+		if e.complexity.Mutation.UpdateShop == nil {
 			break
 		}
 
-		return e.complexity.Order.Items(childComplexity), true
+		args, err := ec.field_Mutation_updateShop_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Order.shippingAddress":
-		if e.complexity.Order.ShippingAddress == nil {
+		return e.complexity.Mutation.UpdateShop(childComplexity, args["id"].(string), args["input"].(model.UpdateShopInput)), true
+
+	case "OriginCountry.id":
+		if e.complexity.OriginCountry.ID == nil {
 			break
 		}
 
-		return e.complexity.Order.ShippingAddress(childComplexity), true
+		return e.complexity.OriginCountry.ID(childComplexity), true
 
-	case "Order.status":
-		if e.complexity.Order.Status == nil {
+	case "OriginCountry.nameEn":
+		if e.complexity.OriginCountry.NameEn == nil {
 			break
 		}
 
-		return e.complexity.Order.Status(childComplexity), true
+		return e.complexity.OriginCountry.NameEn(childComplexity), true
 
-	case "Order.stripePaymentIntentID":
-		if e.complexity.Order.StripePaymentIntentID == nil {
+	case "OriginCountry.nameZh":
+		if e.complexity.OriginCountry.NameZh == nil {
 			break
 		}
 
-		return e.complexity.Order.StripePaymentIntentID(childComplexity), true
+		return e.complexity.OriginCountry.NameZh(childComplexity), true
 
-	case "Order.totalUSD":
-		if e.complexity.Order.TotalUsd == nil {
+	case "OriginCountry.region":
+		if e.complexity.OriginCountry.Region == nil {
 			break
 		}
 
-		return e.complexity.Order.TotalUsd(childComplexity), true
+		return e.complexity.OriginCountry.Region(childComplexity), true
 
-	case "Order.user":
-		if e.complexity.Order.User == nil {
+	case "ProcessingMethod.description":
+		if e.complexity.ProcessingMethod.Description == nil {
 			break
 		}
 
-		return e.complexity.Order.User(childComplexity), true
+		return e.complexity.ProcessingMethod.Description(childComplexity), true
 
-	case "OrderConnection.nodes":
-		if e.complexity.OrderConnection.Nodes == nil {
+	case "ProcessingMethod.id":
+		if e.complexity.ProcessingMethod.ID == nil {
 			break
 		}
 
-		return e.complexity.OrderConnection.Nodes(childComplexity), true
+		return e.complexity.ProcessingMethod.ID(childComplexity), true
 
-	case "OrderConnection.total":
-		if e.complexity.OrderConnection.Total == nil {
+	case "ProcessingMethod.nameEn":
+		if e.complexity.ProcessingMethod.NameEn == nil {
 			break
 		}
 
-		return e.complexity.OrderConnection.Total(childComplexity), true
+		return e.complexity.ProcessingMethod.NameEn(childComplexity), true
 
-	case "OrderItem.id":
-		if e.complexity.OrderItem.ID == nil {
+	case "ProcessingMethod.nameZh":
+		if e.complexity.ProcessingMethod.NameZh == nil {
 			break
 		}
 
-		return e.complexity.OrderItem.ID(childComplexity), true
-
-	case "OrderItem.quantity":
-		if e.complexity.OrderItem.Quantity == nil {
-			break
-		}
-
-		return e.complexity.OrderItem.Quantity(childComplexity), true
-
-	case "OrderItem.unitPriceUSD":
-		if e.complexity.OrderItem.UnitPriceUsd == nil {
-			break
-		}
-
-		return e.complexity.OrderItem.UnitPriceUsd(childComplexity), true
-
-	case "OrderItem.variant":
-		if e.complexity.OrderItem.Variant == nil {
-			break
-		}
-
-		return e.complexity.OrderItem.Variant(childComplexity), true
-
-	case "Producer.altitude":
-		if e.complexity.Producer.Altitude == nil {
-			break
-		}
-
-		return e.complexity.Producer.Altitude(childComplexity), true
-
-	case "Producer.coffees":
-		if e.complexity.Producer.Coffees == nil {
-			break
-		}
-
-		return e.complexity.Producer.Coffees(childComplexity), true
-
-	case "Producer.country":
-		if e.complexity.Producer.Country == nil {
-			break
-		}
-
-		return e.complexity.Producer.Country(childComplexity), true
-
-	case "Producer.createdAt":
-		if e.complexity.Producer.CreatedAt == nil {
-			break
-		}
-
-		return e.complexity.Producer.CreatedAt(childComplexity), true
-
-	case "Producer.description":
-		if e.complexity.Producer.Description == nil {
-			break
-		}
-
-		return e.complexity.Producer.Description(childComplexity), true
-
-	case "Producer.id":
-		if e.complexity.Producer.ID == nil {
-			break
-		}
-
-		return e.complexity.Producer.ID(childComplexity), true
-
-	case "Producer.imageURL":
-		if e.complexity.Producer.ImageURL == nil {
-			break
-		}
-
-		return e.complexity.Producer.ImageURL(childComplexity), true
-
-	case "Producer.name":
-		if e.complexity.Producer.Name == nil {
-			break
-		}
-
-		return e.complexity.Producer.Name(childComplexity), true
-
-	case "Producer.region":
-		if e.complexity.Producer.Region == nil {
-			break
-		}
-
-		return e.complexity.Producer.Region(childComplexity), true
-
-	case "ProducerConnection.nodes":
-		if e.complexity.ProducerConnection.Nodes == nil {
-			break
-		}
-
-		return e.complexity.ProducerConnection.Nodes(childComplexity), true
-
-	case "ProducerConnection.total":
-		if e.complexity.ProducerConnection.Total == nil {
-			break
-		}
-
-		return e.complexity.ProducerConnection.Total(childComplexity), true
+		return e.complexity.ProcessingMethod.NameZh(childComplexity), true
 
 	case "Query.coffee":
 		if e.complexity.Query.Coffee == nil {
@@ -711,6 +628,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.Coffee(childComplexity, args["id"].(string)), true
+
+	case "Query.coffeeVarieties":
+		if e.complexity.Query.CoffeeVarieties == nil {
+			break
+		}
+
+		return e.complexity.Query.CoffeeVarieties(childComplexity), true
 
 	case "Query.coffees":
 		if e.complexity.Query.Coffees == nil {
@@ -731,102 +655,200 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.Me(childComplexity), true
 
-	case "Query.order":
-		if e.complexity.Query.Order == nil {
+	case "Query.originCountries":
+		if e.complexity.Query.OriginCountries == nil {
 			break
 		}
 
-		args, err := ec.field_Query_order_args(ctx, rawArgs)
+		return e.complexity.Query.OriginCountries(childComplexity), true
+
+	case "Query.popularCoffees":
+		if e.complexity.Query.PopularCoffees == nil {
+			break
+		}
+
+		args, err := ec.field_Query_popularCoffees_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.Order(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.PopularCoffees(childComplexity, args["limit"].(*int)), true
 
-	case "Query.orders":
-		if e.complexity.Query.Orders == nil {
+	case "Query.processingMethods":
+		if e.complexity.Query.ProcessingMethods == nil {
 			break
 		}
 
-		args, err := ec.field_Query_orders_args(ctx, rawArgs)
+		return e.complexity.Query.ProcessingMethods(childComplexity), true
+
+	case "Query.shop":
+		if e.complexity.Query.Shop == nil {
+			break
+		}
+
+		args, err := ec.field_Query_shop_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.Orders(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Query.Shop(childComplexity, args["slug"].(string)), true
 
-	case "Query.producer":
-		if e.complexity.Query.Producer == nil {
+	case "Query.shops":
+		if e.complexity.Query.Shops == nil {
 			break
 		}
 
-		args, err := ec.field_Query_producer_args(ctx, rawArgs)
+		args, err := ec.field_Query_shops_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.Producer(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["limit"].(*int), args["offset"].(*int)), true
 
-	case "Query.producers":
-		if e.complexity.Query.Producers == nil {
+	case "Query.shopsForMap":
+		if e.complexity.Query.ShopsForMap == nil {
 			break
 		}
 
-		args, err := ec.field_Query_producers_args(ctx, rawArgs)
+		return e.complexity.Query.ShopsForMap(childComplexity), true
+
+	case "Shop.bannerUrl":
+		if e.complexity.Shop.BannerURL == nil {
+			break
+		}
+
+		return e.complexity.Shop.BannerURL(childComplexity), true
+
+	case "Shop.city":
+		if e.complexity.Shop.City == nil {
+			break
+		}
+
+		return e.complexity.Shop.City(childComplexity), true
+
+	case "Shop.coffees":
+		if e.complexity.Shop.Coffees == nil {
+			break
+		}
+
+		args, err := ec.field_Shop_coffees_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Query.Producers(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Shop.Coffees(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
 
-	case "Review.body":
-		if e.complexity.Review.Body == nil {
+	case "Shop.createdAt":
+		if e.complexity.Shop.CreatedAt == nil {
 			break
 		}
 
-		return e.complexity.Review.Body(childComplexity), true
+		return e.complexity.Shop.CreatedAt(childComplexity), true
 
-	case "Review.coffee":
-		if e.complexity.Review.Coffee == nil {
+	case "Shop.description":
+		if e.complexity.Shop.Description == nil {
 			break
 		}
 
-		return e.complexity.Review.Coffee(childComplexity), true
+		return e.complexity.Shop.Description(childComplexity), true
 
-	case "Review.createdAt":
-		if e.complexity.Review.CreatedAt == nil {
+	case "Shop.id":
+		if e.complexity.Shop.ID == nil {
 			break
 		}
 
-		return e.complexity.Review.CreatedAt(childComplexity), true
+		return e.complexity.Shop.ID(childComplexity), true
 
-	case "Review.id":
-		if e.complexity.Review.ID == nil {
+	case "Shop.lat":
+		if e.complexity.Shop.Lat == nil {
 			break
 		}
 
-		return e.complexity.Review.ID(childComplexity), true
+		return e.complexity.Shop.Lat(childComplexity), true
 
-	case "Review.rating":
-		if e.complexity.Review.Rating == nil {
+	case "Shop.lng":
+		if e.complexity.Shop.Lng == nil {
 			break
 		}
 
-		return e.complexity.Review.Rating(childComplexity), true
+		return e.complexity.Shop.Lng(childComplexity), true
 
-	case "Review.user":
-		if e.complexity.Review.User == nil {
+	case "Shop.logoUrl":
+		if e.complexity.Shop.LogoURL == nil {
 			break
 		}
 
-		return e.complexity.Review.User(childComplexity), true
+		return e.complexity.Shop.LogoURL(childComplexity), true
 
-	case "User.addresses":
-		if e.complexity.User.Addresses == nil {
+	case "Shop.name":
+		if e.complexity.Shop.Name == nil {
 			break
 		}
 
-		return e.complexity.User.Addresses(childComplexity), true
+		return e.complexity.Shop.Name(childComplexity), true
+
+	case "Shop.slug":
+		if e.complexity.Shop.Slug == nil {
+			break
+		}
+
+		return e.complexity.Shop.Slug(childComplexity), true
+
+	case "ShopConnection.nodes":
+		if e.complexity.ShopConnection.Nodes == nil {
+			break
+		}
+
+		return e.complexity.ShopConnection.Nodes(childComplexity), true
+
+	case "ShopConnection.total":
+		if e.complexity.ShopConnection.Total == nil {
+			break
+		}
+
+		return e.complexity.ShopConnection.Total(childComplexity), true
+
+	case "ShopPin.city":
+		if e.complexity.ShopPin.City == nil {
+			break
+		}
+
+		return e.complexity.ShopPin.City(childComplexity), true
+
+	case "ShopPin.id":
+		if e.complexity.ShopPin.ID == nil {
+			break
+		}
+
+		return e.complexity.ShopPin.ID(childComplexity), true
+
+	case "ShopPin.lat":
+		if e.complexity.ShopPin.Lat == nil {
+			break
+		}
+
+		return e.complexity.ShopPin.Lat(childComplexity), true
+
+	case "ShopPin.lng":
+		if e.complexity.ShopPin.Lng == nil {
+			break
+		}
+
+		return e.complexity.ShopPin.Lng(childComplexity), true
+
+	case "ShopPin.name":
+		if e.complexity.ShopPin.Name == nil {
+			break
+		}
+
+		return e.complexity.ShopPin.Name(childComplexity), true
+
+	case "ShopPin.slug":
+		if e.complexity.ShopPin.Slug == nil {
+			break
+		}
+
+		return e.complexity.ShopPin.Slug(childComplexity), true
 
 	case "User.createdAt":
 		if e.complexity.User.CreatedAt == nil {
@@ -835,19 +857,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.User.CreatedAt(childComplexity), true
 
+	case "User.displayName":
+		if e.complexity.User.DisplayName == nil {
+			break
+		}
+
+		return e.complexity.User.DisplayName(childComplexity), true
+
 	case "User.email":
 		if e.complexity.User.Email == nil {
 			break
 		}
 
 		return e.complexity.User.Email(childComplexity), true
-
-	case "User.firstName":
-		if e.complexity.User.FirstName == nil {
-			break
-		}
-
-		return e.complexity.User.FirstName(childComplexity), true
 
 	case "User.id":
 		if e.complexity.User.ID == nil {
@@ -856,20 +878,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.User.ID(childComplexity), true
 
-	case "User.lastName":
-		if e.complexity.User.LastName == nil {
-			break
-		}
-
-		return e.complexity.User.LastName(childComplexity), true
-
-	case "User.orders":
-		if e.complexity.User.Orders == nil {
-			break
-		}
-
-		return e.complexity.User.Orders(childComplexity), true
-
 	case "User.role":
 		if e.complexity.User.Role == nil {
 			break
@@ -877,12 +885,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.User.Role(childComplexity), true
 
-	case "Variant.coffee":
-		if e.complexity.Variant.Coffee == nil {
+	case "User.shop":
+		if e.complexity.User.Shop == nil {
 			break
 		}
 
-		return e.complexity.Variant.Coffee(childComplexity), true
+		return e.complexity.User.Shop(childComplexity), true
 
 	case "Variant.grind":
 		if e.complexity.Variant.Grind == nil {
@@ -898,12 +906,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Variant.ID(childComplexity), true
 
-	case "Variant.priceUSD":
-		if e.complexity.Variant.PriceUsd == nil {
+	case "Variant.isAvailable":
+		if e.complexity.Variant.IsAvailable == nil {
 			break
 		}
 
-		return e.complexity.Variant.PriceUsd(childComplexity), true
+		return e.complexity.Variant.IsAvailable(childComplexity), true
+
+	case "Variant.priceTwd":
+		if e.complexity.Variant.PriceTwd == nil {
+			break
+		}
+
+		return e.complexity.Variant.PriceTwd(childComplexity), true
 
 	case "Variant.stock":
 		if e.complexity.Variant.Stock == nil {
@@ -912,12 +927,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Variant.Stock(childComplexity), true
 
-	case "Variant.weightGrams":
-		if e.complexity.Variant.WeightGrams == nil {
+	case "Variant.weightG":
+		if e.complexity.Variant.WeightG == nil {
 			break
 		}
 
-		return e.complexity.Variant.WeightGrams(childComplexity), true
+		return e.complexity.Variant.WeightG(childComplexity), true
 
 	}
 	return 0, false
@@ -927,13 +942,15 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputAddCommentInput,
 		ec.unmarshalInputCoffeeFilter,
-		ec.unmarshalInputCreateOrderInput,
-		ec.unmarshalInputCreateReviewInput,
-		ec.unmarshalInputCreateSubscriptionInput,
+		ec.unmarshalInputCreateCoffeeInput,
+		ec.unmarshalInputCreateShopInput,
 		ec.unmarshalInputLoginInput,
-		ec.unmarshalInputOrderItemInput,
 		ec.unmarshalInputRegisterInput,
+		ec.unmarshalInputUpdateCoffeeInput,
+		ec.unmarshalInputUpdateShopInput,
+		ec.unmarshalInputVariantInput,
 	)
 	first := true
 
@@ -1032,75 +1049,122 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var sources = []*ast.Source{
 	{Name: "../schema.graphqls", Input: `scalar Time
+# New Taiwan Dollar — whole NT$ integer (e.g. 450 = NT$450)
+scalar TWD
+
+# ─── Queries ──────────────────────────────────────────────────────────────────
 
 type Query {
   me: User
-  coffees(filter: CoffeeFilter, limit: Int, offset: Int): CoffeeConnection!
+
+  # Shop discovery
+  shop(slug: String!): Shop
+  shops(city: String, limit: Int, offset: Int): ShopConnection!
+  shopsForMap: [ShopPin!]!
+
+  # Coffee browsing
   coffee(id: ID!): Coffee
-  producers(limit: Int, offset: Int): ProducerConnection!
-  producer(id: ID!): Producer
-  orders(limit: Int, offset: Int): OrderConnection!
-  order(id: ID!): Order
+  coffees(filter: CoffeeFilter, limit: Int, offset: Int): CoffeeConnection!
+  popularCoffees(limit: Int): [Coffee!]!
+
+  # Curated dropdown data
+  originCountries: [OriginCountry!]!
+  coffeeVarieties: [CoffeeVariety!]!
+  processingMethods: [ProcessingMethod!]!
 }
 
+# ─── Mutations ────────────────────────────────────────────────────────────────
+
 type Mutation {
+  # Auth
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
   logout: Boolean!
 
-  createOrder(input: CreateOrderInput!): Order!
-  createReview(input: CreateReviewInput!): Review!
-  createSubscription(input: CreateSubscriptionInput!): CoffeeSubscription!
+  # Shop management (seller)
+  createShop(input: CreateShopInput!): Shop!
+  updateShop(id: ID!, input: UpdateShopInput!): Shop!
+
+  # Coffee listings (seller)
+  createCoffee(input: CreateCoffeeInput!): Coffee!
+  updateCoffee(id: ID!, input: UpdateCoffeeInput!): Coffee!
+  publishCoffee(id: ID!): Coffee!
+  unpublishCoffee(id: ID!): Coffee!
+
+  # Comments (buyer)
+  addComment(input: AddCommentInput!): Comment!
+  deleteComment(id: ID!): Boolean!
+
+  # Stage 2: cart, orders, ECPay checkout — parked
 }
+
+# ─── User ─────────────────────────────────────────────────────────────────────
 
 type User {
   id: ID!
   email: String!
-  firstName: String!
-  lastName: String!
+  displayName: String!
   role: UserRole!
-  addresses: [Address!]!
-  orders: [Order!]!
+  shop: Shop
   createdAt: Time!
 }
 
 enum UserRole {
-  CUSTOMER
+  BUYER
+  SELLER
   ADMIN
 }
 
-type Producer {
+# ─── Shop ─────────────────────────────────────────────────────────────────────
+
+type Shop {
   id: ID!
+  slug: String!
   name: String!
-  country: String!
-  region: String!
-  altitude: Int
   description: String!
-  imageURL: String
-  coffees: [Coffee!]!
+  logoUrl: String
+  bannerUrl: String
+  city: String!
+  lat: Float
+  lng: Float
+  coffees(limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 
-type ProducerConnection {
-  nodes: [Producer!]!
+type ShopConnection {
+  nodes: [Shop!]!
   total: Int!
 }
 
+# Lightweight type for the map page (all shops, minimal fields)
+type ShopPin {
+  id: ID!
+  slug: String!
+  name: String!
+  city: String!
+  lat: Float
+  lng: Float
+}
+
+# ─── Coffee ───────────────────────────────────────────────────────────────────
+
 type Coffee {
   id: ID!
+  shop: Shop!
   name: String!
   slug: String!
-  producer: Producer!
-  origin: String!
-  roastLevel: RoastLevel!
-  processingMethod: String!
-  flavorNotes: [String!]!
   description: String!
-  imageURL: String
+  originCountry: OriginCountry!
+  variety: CoffeeVariety
+  processingMethod: ProcessingMethod!
+  roastLevel: RoastLevel!
+  flavorNotes: [String!]!
+  imageUrls: [String!]!
   variants: [Variant!]!
-  reviews: [Review!]!
-  averageRating: Float
+  comments: [Comment!]!
+  commentCount: Int!
+  isPublished: Boolean!
   createdAt: Time!
 }
 
@@ -1109,20 +1173,20 @@ type CoffeeConnection {
   total: Int!
 }
 
+type Variant {
+  id: ID!
+  grind: GrindOption!
+  weightG: Int!
+  priceTwd: TWD!
+  stock: Int!
+  isAvailable: Boolean!
+}
+
 enum RoastLevel {
   LIGHT
   MEDIUM
   MEDIUM_DARK
   DARK
-}
-
-type Variant {
-  id: ID!
-  coffee: Coffee!
-  grind: GrindOption!
-  weightGrams: Int!
-  priceUSD: Float!
-  stock: Int!
 }
 
 enum GrindOption {
@@ -1133,76 +1197,38 @@ enum GrindOption {
   ESPRESSO
 }
 
-type Order {
+# ─── Reference / curated dropdowns ───────────────────────────────────────────
+
+type OriginCountry {
+  id: ID!
+  nameEn: String!
+  nameZh: String!
+  region: String!
+}
+
+type CoffeeVariety {
+  id: ID!
+  name: String!
+  description: String
+}
+
+type ProcessingMethod {
+  id: ID!
+  nameEn: String!
+  nameZh: String!
+  description: String
+}
+
+# ─── Comments ─────────────────────────────────────────────────────────────────
+
+type Comment {
   id: ID!
   user: User!
-  items: [OrderItem!]!
-  status: OrderStatus!
-  totalUSD: Float!
-  stripePaymentIntentID: String
-  shippingAddress: Address!
-  createdAt: Time!
-}
-
-type OrderConnection {
-  nodes: [Order!]!
-  total: Int!
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  SHIPPED
-  DELIVERED
-  CANCELLED
-}
-
-type OrderItem {
-  id: ID!
-  variant: Variant!
-  quantity: Int!
-  unitPriceUSD: Float!
-}
-
-type Review {
-  id: ID!
-  user: User!
-  coffee: Coffee!
-  rating: Int!
   body: String!
   createdAt: Time!
 }
 
-type Address {
-  id: ID!
-  line1: String!
-  line2: String
-  city: String!
-  state: String!
-  postalCode: String!
-  country: String!
-}
-
-type CoffeeSubscription {
-  id: ID!
-  user: User!
-  plan: SubscriptionPlan!
-  status: SubscriptionStatus!
-  stripeSubscriptionID: String!
-  currentPeriodEnd: Time!
-}
-
-enum SubscriptionPlan {
-  MONTHLY_250G
-  MONTHLY_500G
-  MONTHLY_1KG
-}
-
-enum SubscriptionStatus {
-  ACTIVE
-  PAUSED
-  CANCELLED
-}
+# ─── Auth ─────────────────────────────────────────────────────────────────────
 
 type AuthPayload {
   accessToken: String!
@@ -1210,11 +1236,12 @@ type AuthPayload {
   user: User!
 }
 
+# ─── Inputs ───────────────────────────────────────────────────────────────────
+
 input RegisterInput {
   email: String!
   password: String!
-  firstName: String!
-  lastName: String!
+  displayName: String!
 }
 
 input LoginInput {
@@ -1222,33 +1249,64 @@ input LoginInput {
   password: String!
 }
 
+input CreateShopInput {
+  slug: String!
+  name: String!
+  description: String!
+  city: String!
+}
+
+input UpdateShopInput {
+  name: String
+  description: String
+  logoUrl: String
+  bannerUrl: String
+  city: String
+  lat: Float
+  lng: Float
+}
+
+input CreateCoffeeInput {
+  name: String!
+  description: String!
+  originCountryId: ID!
+  varietyId: ID
+  processingMethodId: ID!
+  roastLevel: RoastLevel!
+  flavorNotes: [String!]
+  variants: [VariantInput!]!
+}
+
+input UpdateCoffeeInput {
+  name: String
+  description: String
+  originCountryId: ID
+  varietyId: ID
+  processingMethodId: ID
+  roastLevel: RoastLevel
+  flavorNotes: [String!]
+}
+
+input VariantInput {
+  grind: GrindOption!
+  weightG: Int!
+  priceTwd: Int!
+  stock: Int!
+}
+
 input CoffeeFilter {
-  origin: String
+  originCountryId: ID
+  varietyId: ID
+  processingMethodId: ID
   roastLevel: RoastLevel
   flavorNote: String
-  minPrice: Float
-  maxPrice: Float
+  minPriceTwd: Int
+  maxPriceTwd: Int
 }
 
-input CreateOrderInput {
-  items: [OrderItemInput!]!
-  addressID: ID!
-}
-
-input OrderItemInput {
-  variantID: ID!
-  quantity: Int!
-}
-
-input CreateReviewInput {
-  coffeeID: ID!
-  rating: Int!
+input AddCommentInput {
+  coffeeId: ID!
   body: String!
-}
-
-input CreateSubscriptionInput {
-  plan: SubscriptionPlan!
-  paymentMethodID: String!
 }
 `, BuiltIn: false},
 }
@@ -1258,87 +1316,115 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_createOrder_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_addComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createOrder_argsInput(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_addComment_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["input"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_createOrder_argsInput(
+func (ec *executionContext) field_Mutation_addComment_argsInput(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (model.CreateOrderInput, error) {
+) (model.AddCommentInput, error) {
 	if _, ok := rawArgs["input"]; !ok {
-		var zeroVal model.CreateOrderInput
+		var zeroVal model.AddCommentInput
 		return zeroVal, nil
 	}
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNCreateOrderInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateOrderInput(ctx, tmp)
+		return ec.unmarshalNAddCommentInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddCommentInput(ctx, tmp)
 	}
 
-	var zeroVal model.CreateOrderInput
+	var zeroVal model.AddCommentInput
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_createReview_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_createCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createReview_argsInput(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_createCoffee_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["input"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_createReview_argsInput(
+func (ec *executionContext) field_Mutation_createCoffee_argsInput(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (model.CreateReviewInput, error) {
+) (model.CreateCoffeeInput, error) {
 	if _, ok := rawArgs["input"]; !ok {
-		var zeroVal model.CreateReviewInput
+		var zeroVal model.CreateCoffeeInput
 		return zeroVal, nil
 	}
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNCreateReviewInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateReviewInput(ctx, tmp)
+		return ec.unmarshalNCreateCoffeeInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateCoffeeInput(ctx, tmp)
 	}
 
-	var zeroVal model.CreateReviewInput
+	var zeroVal model.CreateCoffeeInput
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Mutation_createSubscription_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_createShop_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createSubscription_argsInput(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_createShop_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["input"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_createSubscription_argsInput(
+func (ec *executionContext) field_Mutation_createShop_argsInput(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (model.CreateSubscriptionInput, error) {
+) (model.CreateShopInput, error) {
 	if _, ok := rawArgs["input"]; !ok {
-		var zeroVal model.CreateSubscriptionInput
+		var zeroVal model.CreateShopInput
 		return zeroVal, nil
 	}
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNCreateSubscriptionInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateSubscriptionInput(ctx, tmp)
+		return ec.unmarshalNCreateShopInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateShopInput(ctx, tmp)
 	}
 
-	var zeroVal model.CreateSubscriptionInput
+	var zeroVal model.CreateShopInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteComment_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteComment_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -1367,6 +1453,34 @@ func (ec *executionContext) field_Mutation_login_argsInput(
 	}
 
 	var zeroVal model.LoginInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_publishCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_publishCoffee_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_publishCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -1423,6 +1537,136 @@ func (ec *executionContext) field_Mutation_register_argsInput(
 	}
 
 	var zeroVal model.RegisterInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_unpublishCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_unpublishCoffee_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_unpublishCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateCoffee_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Mutation_updateCoffee_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCoffee_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateCoffeeInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.UpdateCoffeeInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateCoffeeInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateCoffeeInput(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateCoffeeInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateShop_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateShop_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Mutation_updateShop_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateShop_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateShop_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateShopInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.UpdateShopInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateShopInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateShopInput(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateShopInput
 	return zeroVal, nil
 }
 
@@ -1556,50 +1800,17 @@ func (ec *executionContext) field_Query_coffees_argsOffset(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Query_order_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Query_popularCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Query_order_argsID(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	return args, nil
-}
-func (ec *executionContext) field_Query_order_argsID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	if _, ok := rawArgs["id"]; !ok {
-		var zeroVal string
-		return zeroVal, nil
-	}
-
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	if tmp, ok := rawArgs["id"]; ok {
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	var zeroVal string
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Query_orders_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Query_orders_argsLimit(ctx, rawArgs)
+	arg0, err := ec.field_Query_popularCoffees_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["limit"] = arg0
-	arg1, err := ec.field_Query_orders_argsOffset(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["offset"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Query_orders_argsLimit(
+func (ec *executionContext) field_Query_popularCoffees_argsLimit(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int, error) {
@@ -1617,7 +1828,91 @@ func (ec *executionContext) field_Query_orders_argsLimit(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Query_orders_argsOffset(
+func (ec *executionContext) field_Query_shop_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_shop_argsSlug(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["slug"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_shop_argsSlug(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["slug"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("slug"))
+	if tmp, ok := rawArgs["slug"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_shops_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_shops_argsCity(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["city"] = arg0
+	arg1, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg1
+	arg2, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
+	return args, nil
+}
+func (ec *executionContext) field_Query_shops_argsCity(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["city"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("city"))
+	if tmp, ok := rawArgs["city"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_shops_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_shops_argsOffset(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int, error) {
@@ -1635,50 +1930,22 @@ func (ec *executionContext) field_Query_orders_argsOffset(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Query_producer_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Shop_coffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Query_producer_argsID(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["id"] = arg0
-	return args, nil
-}
-func (ec *executionContext) field_Query_producer_argsID(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (string, error) {
-	if _, ok := rawArgs["id"]; !ok {
-		var zeroVal string
-		return zeroVal, nil
-	}
-
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
-	if tmp, ok := rawArgs["id"]; ok {
-		return ec.unmarshalNID2string(ctx, tmp)
-	}
-
-	var zeroVal string
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Query_producers_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Query_producers_argsLimit(ctx, rawArgs)
+	arg0, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["limit"] = arg0
-	arg1, err := ec.field_Query_producers_argsOffset(ctx, rawArgs)
+	arg1, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["offset"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Query_producers_argsLimit(
+func (ec *executionContext) field_Shop_coffees_argsLimit(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int, error) {
@@ -1696,7 +1963,7 @@ func (ec *executionContext) field_Query_producers_argsLimit(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Query_producers_argsOffset(
+func (ec *executionContext) field_Shop_coffees_argsOffset(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int, error) {
@@ -1834,311 +2101,6 @@ func (ec *executionContext) field___Type_fields_argsIncludeDeprecated(
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Address_id(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_id(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Address_line1(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_line1(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Line1, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_line1(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Address_line2(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_line2(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Line2, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_line2(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Address_city(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_city(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.City, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_city(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Address_state(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_state(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.State, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Address_postalCode(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_postalCode(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.PostalCode, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_postalCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Address_country(ctx context.Context, field graphql.CollectedField, obj *model.Address) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Address_country(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Country, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Address_country(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Address",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _AuthPayload_accessToken(ctx context.Context, field graphql.CollectedField, obj *model.AuthPayload) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_AuthPayload_accessToken(ctx, field)
 	if err != nil {
@@ -2270,16 +2232,12 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_id(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
-			case "firstName":
-				return ec.fieldContext_User_firstName(ctx, field)
-			case "lastName":
-				return ec.fieldContext_User_lastName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
-			case "addresses":
-				return ec.fieldContext_User_addresses(ctx, field)
-			case "orders":
-				return ec.fieldContext_User_orders(ctx, field)
+			case "shop":
+				return ec.fieldContext_User_shop(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -2328,6 +2286,74 @@ func (ec *executionContext) fieldContext_Coffee_id(_ context.Context, field grap
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_shop(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_shop(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Shop, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Shop)
+	fc.Result = res
+	return ec.marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
 	}
 	return fc, nil
@@ -2421,8 +2447,8 @@ func (ec *executionContext) fieldContext_Coffee_slug(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Coffee_producer(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_producer(ctx, field)
+func (ec *executionContext) _Coffee_description(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_description(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2435,71 +2461,7 @@ func (ec *executionContext) _Coffee_producer(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Producer, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Producer)
-	fc.Result = res
-	return ec.marshalNProducer2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducer(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Coffee_producer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Coffee",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Producer_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Producer_name(ctx, field)
-			case "country":
-				return ec.fieldContext_Producer_country(ctx, field)
-			case "region":
-				return ec.fieldContext_Producer_region(ctx, field)
-			case "altitude":
-				return ec.fieldContext_Producer_altitude(ctx, field)
-			case "description":
-				return ec.fieldContext_Producer_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Producer_imageURL(ctx, field)
-			case "coffees":
-				return ec.fieldContext_Producer_coffees(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Producer_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Producer", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Coffee_origin(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_origin(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Origin, nil
+		return obj.Description, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2516,7 +2478,7 @@ func (ec *executionContext) _Coffee_origin(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Coffee_origin(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Coffee_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Coffee",
 		Field:      field,
@@ -2524,6 +2486,163 @@ func (ec *executionContext) fieldContext_Coffee_origin(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_originCountry(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_originCountry(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.OriginCountry, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.OriginCountry)
+	fc.Result = res
+	return ec.marshalNOriginCountry2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOriginCountry(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_originCountry(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_OriginCountry_id(ctx, field)
+			case "nameEn":
+				return ec.fieldContext_OriginCountry_nameEn(ctx, field)
+			case "nameZh":
+				return ec.fieldContext_OriginCountry_nameZh(ctx, field)
+			case "region":
+				return ec.fieldContext_OriginCountry_region(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type OriginCountry", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_variety(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_variety(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Variety, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.CoffeeVariety)
+	fc.Result = res
+	return ec.marshalOCoffeeVariety2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeVariety(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_variety(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_CoffeeVariety_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CoffeeVariety_name(ctx, field)
+			case "description":
+				return ec.fieldContext_CoffeeVariety_description(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CoffeeVariety", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_processingMethod(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_processingMethod(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ProcessingMethod, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ProcessingMethod)
+	fc.Result = res
+	return ec.marshalNProcessingMethod2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProcessingMethod(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_processingMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ProcessingMethod_id(ctx, field)
+			case "nameEn":
+				return ec.fieldContext_ProcessingMethod_nameEn(ctx, field)
+			case "nameZh":
+				return ec.fieldContext_ProcessingMethod_nameZh(ctx, field)
+			case "description":
+				return ec.fieldContext_ProcessingMethod_description(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ProcessingMethod", field.Name)
 		},
 	}
 	return fc, nil
@@ -2573,50 +2692,6 @@ func (ec *executionContext) fieldContext_Coffee_roastLevel(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Coffee_processingMethod(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_processingMethod(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ProcessingMethod, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Coffee_processingMethod(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Coffee",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Coffee_flavorNotes(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Coffee_flavorNotes(ctx, field)
 	if err != nil {
@@ -2661,8 +2736,8 @@ func (ec *executionContext) fieldContext_Coffee_flavorNotes(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Coffee_description(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_description(ctx, field)
+func (ec *executionContext) _Coffee_imageUrls(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_imageUrls(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2675,7 +2750,7 @@ func (ec *executionContext) _Coffee_description(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
+		return obj.ImageUrls, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2687,53 +2762,12 @@ func (ec *executionContext) _Coffee_description(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.([]string)
 	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
+	return ec.marshalNString2ᚕstringᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Coffee_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Coffee",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Coffee_imageURL(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_imageURL(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ImageURL, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Coffee_imageURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Coffee_imageUrls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Coffee",
 		Field:      field,
@@ -2787,16 +2821,16 @@ func (ec *executionContext) fieldContext_Coffee_variants(_ context.Context, fiel
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Variant_id(ctx, field)
-			case "coffee":
-				return ec.fieldContext_Variant_coffee(ctx, field)
 			case "grind":
 				return ec.fieldContext_Variant_grind(ctx, field)
-			case "weightGrams":
-				return ec.fieldContext_Variant_weightGrams(ctx, field)
-			case "priceUSD":
-				return ec.fieldContext_Variant_priceUSD(ctx, field)
+			case "weightG":
+				return ec.fieldContext_Variant_weightG(ctx, field)
+			case "priceTwd":
+				return ec.fieldContext_Variant_priceTwd(ctx, field)
 			case "stock":
 				return ec.fieldContext_Variant_stock(ctx, field)
+			case "isAvailable":
+				return ec.fieldContext_Variant_isAvailable(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Variant", field.Name)
 		},
@@ -2804,8 +2838,8 @@ func (ec *executionContext) fieldContext_Coffee_variants(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Coffee_reviews(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_reviews(ctx, field)
+func (ec *executionContext) _Coffee_comments(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_comments(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2818,7 +2852,7 @@ func (ec *executionContext) _Coffee_reviews(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Reviews, nil
+		return obj.Comments, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2830,12 +2864,12 @@ func (ec *executionContext) _Coffee_reviews(ctx context.Context, field graphql.C
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Review)
+	res := resTmp.([]*model.Comment)
 	fc.Result = res
-	return ec.marshalNReview2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐReviewᚄ(ctx, field.Selections, res)
+	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Coffee_reviews(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Coffee_comments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Coffee",
 		Field:      field,
@@ -2844,26 +2878,22 @@ func (ec *executionContext) fieldContext_Coffee_reviews(_ context.Context, field
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Review_id(ctx, field)
+				return ec.fieldContext_Comment_id(ctx, field)
 			case "user":
-				return ec.fieldContext_Review_user(ctx, field)
-			case "coffee":
-				return ec.fieldContext_Review_coffee(ctx, field)
-			case "rating":
-				return ec.fieldContext_Review_rating(ctx, field)
+				return ec.fieldContext_Comment_user(ctx, field)
 			case "body":
-				return ec.fieldContext_Review_body(ctx, field)
+				return ec.fieldContext_Comment_body(ctx, field)
 			case "createdAt":
-				return ec.fieldContext_Review_createdAt(ctx, field)
+				return ec.fieldContext_Comment_createdAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Review", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Coffee_averageRating(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Coffee_averageRating(ctx, field)
+func (ec *executionContext) _Coffee_commentCount(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_commentCount(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -2876,28 +2906,75 @@ func (ec *executionContext) _Coffee_averageRating(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.AverageRating, nil
+		return obj.CommentCount, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*float64)
+	res := resTmp.(int)
 	fc.Result = res
-	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Coffee_averageRating(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Coffee_commentCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Coffee",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_isPublished(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_isPublished(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsPublished, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_isPublished(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -2988,30 +3065,34 @@ func (ec *executionContext) fieldContext_CoffeeConnection_nodes(_ context.Contex
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
 			case "name":
 				return ec.fieldContext_Coffee_name(ctx, field)
 			case "slug":
 				return ec.fieldContext_Coffee_slug(ctx, field)
-			case "producer":
-				return ec.fieldContext_Coffee_producer(ctx, field)
-			case "origin":
-				return ec.fieldContext_Coffee_origin(ctx, field)
-			case "roastLevel":
-				return ec.fieldContext_Coffee_roastLevel(ctx, field)
-			case "processingMethod":
-				return ec.fieldContext_Coffee_processingMethod(ctx, field)
-			case "flavorNotes":
-				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
 			case "description":
 				return ec.fieldContext_Coffee_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Coffee_imageURL(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
 				return ec.fieldContext_Coffee_variants(ctx, field)
-			case "reviews":
-				return ec.fieldContext_Coffee_reviews(ctx, field)
-			case "averageRating":
-				return ec.fieldContext_Coffee_averageRating(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
 			}
@@ -3065,8 +3146,8 @@ func (ec *executionContext) fieldContext_CoffeeConnection_total(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _CoffeeSubscription_id(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeSubscription) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CoffeeSubscription_id(ctx, field)
+func (ec *executionContext) _CoffeeVariety_id(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeVariety) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CoffeeVariety_id(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3096,9 +3177,9 @@ func (ec *executionContext) _CoffeeSubscription_id(ctx context.Context, field gr
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_CoffeeSubscription_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_CoffeeVariety_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "CoffeeSubscription",
+		Object:     "CoffeeVariety",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -3109,8 +3190,137 @@ func (ec *executionContext) fieldContext_CoffeeSubscription_id(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _CoffeeSubscription_user(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeSubscription) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CoffeeSubscription_user(ctx, field)
+func (ec *executionContext) _CoffeeVariety_name(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeVariety) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CoffeeVariety_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CoffeeVariety_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CoffeeVariety",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CoffeeVariety_description(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeVariety) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CoffeeVariety_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CoffeeVariety_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CoffeeVariety",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Comment_id(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Comment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Comment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Comment_user(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_user(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3140,9 +3350,9 @@ func (ec *executionContext) _CoffeeSubscription_user(ctx context.Context, field 
 	return ec.marshalNUser2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_CoffeeSubscription_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Comment_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "CoffeeSubscription",
+		Object:     "Comment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -3152,16 +3362,12 @@ func (ec *executionContext) fieldContext_CoffeeSubscription_user(_ context.Conte
 				return ec.fieldContext_User_id(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
-			case "firstName":
-				return ec.fieldContext_User_firstName(ctx, field)
-			case "lastName":
-				return ec.fieldContext_User_lastName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
-			case "addresses":
-				return ec.fieldContext_User_addresses(ctx, field)
-			case "orders":
-				return ec.fieldContext_User_orders(ctx, field)
+			case "shop":
+				return ec.fieldContext_User_shop(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -3171,8 +3377,8 @@ func (ec *executionContext) fieldContext_CoffeeSubscription_user(_ context.Conte
 	return fc, nil
 }
 
-func (ec *executionContext) _CoffeeSubscription_plan(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeSubscription) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CoffeeSubscription_plan(ctx, field)
+func (ec *executionContext) _Comment_body(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_body(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3185,95 +3391,7 @@ func (ec *executionContext) _CoffeeSubscription_plan(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Plan, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(model.SubscriptionPlan)
-	fc.Result = res
-	return ec.marshalNSubscriptionPlan2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionPlan(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_CoffeeSubscription_plan(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CoffeeSubscription",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type SubscriptionPlan does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _CoffeeSubscription_status(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeSubscription) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CoffeeSubscription_status(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Status, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(model.SubscriptionStatus)
-	fc.Result = res
-	return ec.marshalNSubscriptionStatus2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionStatus(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_CoffeeSubscription_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "CoffeeSubscription",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type SubscriptionStatus does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _CoffeeSubscription_stripeSubscriptionID(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeSubscription) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CoffeeSubscription_stripeSubscriptionID(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.StripeSubscriptionID, nil
+		return obj.Body, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3290,9 +3408,9 @@ func (ec *executionContext) _CoffeeSubscription_stripeSubscriptionID(ctx context
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_CoffeeSubscription_stripeSubscriptionID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Comment_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "CoffeeSubscription",
+		Object:     "Comment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -3303,8 +3421,8 @@ func (ec *executionContext) fieldContext_CoffeeSubscription_stripeSubscriptionID
 	return fc, nil
 }
 
-func (ec *executionContext) _CoffeeSubscription_currentPeriodEnd(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeSubscription) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_CoffeeSubscription_currentPeriodEnd(ctx, field)
+func (ec *executionContext) _Comment_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_createdAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3317,7 +3435,7 @@ func (ec *executionContext) _CoffeeSubscription_currentPeriodEnd(ctx context.Con
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.CurrentPeriodEnd, nil
+		return obj.CreatedAt, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3334,9 +3452,9 @@ func (ec *executionContext) _CoffeeSubscription_currentPeriodEnd(ctx context.Con
 	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_CoffeeSubscription_currentPeriodEnd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Comment_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "CoffeeSubscription",
+		Object:     "Comment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -3580,8 +3698,8 @@ func (ec *executionContext) fieldContext_Mutation_logout(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createOrder(ctx, field)
+func (ec *executionContext) _Mutation_createShop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createShop(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3594,7 +3712,7 @@ func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field gra
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateOrder(rctx, fc.Args["input"].(model.CreateOrderInput))
+		return ec.resolvers.Mutation().CreateShop(rctx, fc.Args["input"].(model.CreateShopInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3606,12 +3724,12 @@ func (ec *executionContext) _Mutation_createOrder(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Order)
+	res := resTmp.(*model.Shop)
 	fc.Result = res
-	return ec.marshalNOrder2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_createOrder(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -3620,634 +3738,47 @@ func (ec *executionContext) fieldContext_Mutation_createOrder(ctx context.Contex
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Order_id(ctx, field)
-			case "user":
-				return ec.fieldContext_Order_user(ctx, field)
-			case "items":
-				return ec.fieldContext_Order_items(ctx, field)
-			case "status":
-				return ec.fieldContext_Order_status(ctx, field)
-			case "totalUSD":
-				return ec.fieldContext_Order_totalUSD(ctx, field)
-			case "stripePaymentIntentID":
-				return ec.fieldContext_Order_stripePaymentIntentID(ctx, field)
-			case "shippingAddress":
-				return ec.fieldContext_Order_shippingAddress(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Order_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createOrder_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createReview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createReview(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateReview(rctx, fc.Args["input"].(model.CreateReviewInput))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Review)
-	fc.Result = res
-	return ec.marshalNReview2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐReview(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createReview(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Review_id(ctx, field)
-			case "user":
-				return ec.fieldContext_Review_user(ctx, field)
-			case "coffee":
-				return ec.fieldContext_Review_coffee(ctx, field)
-			case "rating":
-				return ec.fieldContext_Review_rating(ctx, field)
-			case "body":
-				return ec.fieldContext_Review_body(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Review_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Review", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createReview_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createSubscription(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createSubscription(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateSubscription(rctx, fc.Args["input"].(model.CreateSubscriptionInput))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.CoffeeSubscription)
-	fc.Result = res
-	return ec.marshalNCoffeeSubscription2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeSubscription(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createSubscription(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_CoffeeSubscription_id(ctx, field)
-			case "user":
-				return ec.fieldContext_CoffeeSubscription_user(ctx, field)
-			case "plan":
-				return ec.fieldContext_CoffeeSubscription_plan(ctx, field)
-			case "status":
-				return ec.fieldContext_CoffeeSubscription_status(ctx, field)
-			case "stripeSubscriptionID":
-				return ec.fieldContext_CoffeeSubscription_stripeSubscriptionID(ctx, field)
-			case "currentPeriodEnd":
-				return ec.fieldContext_CoffeeSubscription_currentPeriodEnd(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type CoffeeSubscription", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createSubscription_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_id(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_id(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_user(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_user(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.User, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.User)
-	fc.Result = res
-	return ec.marshalNUser2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "email":
-				return ec.fieldContext_User_email(ctx, field)
-			case "firstName":
-				return ec.fieldContext_User_firstName(ctx, field)
-			case "lastName":
-				return ec.fieldContext_User_lastName(ctx, field)
-			case "role":
-				return ec.fieldContext_User_role(ctx, field)
-			case "addresses":
-				return ec.fieldContext_User_addresses(ctx, field)
-			case "orders":
-				return ec.fieldContext_User_orders(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_items(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_items(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Items, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.OrderItem)
-	fc.Result = res
-	return ec.marshalNOrderItem2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItemᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_OrderItem_id(ctx, field)
-			case "variant":
-				return ec.fieldContext_OrderItem_variant(ctx, field)
-			case "quantity":
-				return ec.fieldContext_OrderItem_quantity(ctx, field)
-			case "unitPriceUSD":
-				return ec.fieldContext_OrderItem_unitPriceUSD(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type OrderItem", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_status(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_status(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Status, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(model.OrderStatus)
-	fc.Result = res
-	return ec.marshalNOrderStatus2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderStatus(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type OrderStatus does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_totalUSD(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_totalUSD(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.TotalUsd, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(float64)
-	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_totalUSD(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_stripePaymentIntentID(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_stripePaymentIntentID(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.StripePaymentIntentID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_stripePaymentIntentID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_shippingAddress(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_shippingAddress(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ShippingAddress, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Address)
-	fc.Result = res
-	return ec.marshalNAddress2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddress(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_shippingAddress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Address_id(ctx, field)
-			case "line1":
-				return ec.fieldContext_Address_line1(ctx, field)
-			case "line2":
-				return ec.fieldContext_Address_line2(ctx, field)
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
 			case "city":
-				return ec.fieldContext_Address_city(ctx, field)
-			case "state":
-				return ec.fieldContext_Address_state(ctx, field)
-			case "postalCode":
-				return ec.fieldContext_Address_postalCode(ctx, field)
-			case "country":
-				return ec.fieldContext_Address_country(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Address", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Order_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Order) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Order_createdAt(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.CreatedAt, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(time.Time)
-	fc.Result = res
-	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Order_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Order",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _OrderConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.OrderConnection) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_OrderConnection_nodes(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Nodes, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.Order)
-	fc.Result = res
-	return ec.marshalNOrder2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_OrderConnection_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "OrderConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Order_id(ctx, field)
-			case "user":
-				return ec.fieldContext_Order_user(ctx, field)
-			case "items":
-				return ec.fieldContext_Order_items(ctx, field)
-			case "status":
-				return ec.fieldContext_Order_status(ctx, field)
-			case "totalUSD":
-				return ec.fieldContext_Order_totalUSD(ctx, field)
-			case "stripePaymentIntentID":
-				return ec.fieldContext_Order_stripePaymentIntentID(ctx, field)
-			case "shippingAddress":
-				return ec.fieldContext_Order_shippingAddress(ctx, field)
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "createdAt":
-				return ec.fieldContext_Order_createdAt(ctx, field)
+				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createShop_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderConnection_total(ctx context.Context, field graphql.CollectedField, obj *model.OrderConnection) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_OrderConnection_total(ctx, field)
+func (ec *executionContext) _Mutation_updateShop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateShop(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4260,7 +3791,7 @@ func (ec *executionContext) _OrderConnection_total(ctx context.Context, field gr
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Total, nil
+		return ec.resolvers.Mutation().UpdateShop(rctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateShopInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4272,128 +3803,61 @@ func (ec *executionContext) _OrderConnection_total(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(*model.Shop)
 	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_OrderConnection_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "OrderConnection",
+		Object:     "Mutation",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _OrderItem_id(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_OrderItem_id(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_OrderItem_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "OrderItem",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _OrderItem_variant(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_OrderItem_variant(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Variant, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Variant)
-	fc.Result = res
-	return ec.marshalNVariant2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariant(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_OrderItem_variant(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "OrderItem",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Variant_id(ctx, field)
-			case "coffee":
-				return ec.fieldContext_Variant_coffee(ctx, field)
-			case "grind":
-				return ec.fieldContext_Variant_grind(ctx, field)
-			case "weightGrams":
-				return ec.fieldContext_Variant_weightGrams(ctx, field)
-			case "priceUSD":
-				return ec.fieldContext_Variant_priceUSD(ctx, field)
-			case "stock":
-				return ec.fieldContext_Variant_stock(ctx, field)
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Variant", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateShop_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_OrderItem_quantity(ctx, field)
+func (ec *executionContext) _Mutation_createCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createCoffee(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4406,7 +3870,7 @@ func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graph
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Quantity, nil
+		return ec.resolvers.Mutation().CreateCoffee(rctx, fc.Args["input"].(model.CreateCoffeeInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4418,26 +3882,71 @@ func (ec *executionContext) _OrderItem_quantity(ctx context.Context, field graph
 		}
 		return graphql.Null
 	}
-	res := resTmp.(int)
+	res := resTmp.(*model.Coffee)
 	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
+	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_OrderItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_createCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "OrderItem",
+		Object:     "Mutation",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _OrderItem_unitPriceUSD(ctx context.Context, field graphql.CollectedField, obj *model.OrderItem) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_OrderItem_unitPriceUSD(ctx, field)
+func (ec *executionContext) _Mutation_updateCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateCoffee(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4450,7 +3959,7 @@ func (ec *executionContext) _OrderItem_unitPriceUSD(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.UnitPriceUsd, nil
+		return ec.resolvers.Mutation().UpdateCoffee(rctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateCoffeeInput))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4462,26 +3971,369 @@ func (ec *executionContext) _OrderItem_unitPriceUSD(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(*model.Coffee)
 	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_OrderItem_unitPriceUSD(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_updateCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "OrderItem",
+		Object:     "Mutation",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Producer_id(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_id(ctx, field)
+func (ec *executionContext) _Mutation_publishCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_publishCoffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().PublishCoffee(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_publishCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_publishCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unpublishCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_unpublishCoffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UnpublishCoffee(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unpublishCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addComment(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddComment(rctx, fc.Args["input"].(model.AddCommentInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Comment)
+	fc.Result = res
+	return ec.marshalNComment2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Comment_id(ctx, field)
+			case "user":
+				return ec.fieldContext_Comment_user(ctx, field)
+			case "body":
+				return ec.fieldContext_Comment_body(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Comment_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteComment(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteComment(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _OriginCountry_id(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OriginCountry_id(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4511,9 +4363,9 @@ func (ec *executionContext) _Producer_id(ctx context.Context, field graphql.Coll
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Producer_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_OriginCountry_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Producer",
+		Object:     "OriginCountry",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -4524,8 +4376,8 @@ func (ec *executionContext) fieldContext_Producer_id(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Producer_name(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_name(ctx, field)
+func (ec *executionContext) _OriginCountry_nameEn(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OriginCountry_nameEn(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4538,7 +4390,7 @@ func (ec *executionContext) _Producer_name(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
+		return obj.NameEn, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4555,9 +4407,9 @@ func (ec *executionContext) _Producer_name(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Producer_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_OriginCountry_nameEn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Producer",
+		Object:     "OriginCountry",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -4568,8 +4420,8 @@ func (ec *executionContext) fieldContext_Producer_name(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Producer_country(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_country(ctx, field)
+func (ec *executionContext) _OriginCountry_nameZh(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OriginCountry_nameZh(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4582,7 +4434,7 @@ func (ec *executionContext) _Producer_country(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Country, nil
+		return obj.NameZh, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4599,9 +4451,9 @@ func (ec *executionContext) _Producer_country(ctx context.Context, field graphql
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Producer_country(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_OriginCountry_nameZh(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Producer",
+		Object:     "OriginCountry",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -4612,8 +4464,8 @@ func (ec *executionContext) fieldContext_Producer_country(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Producer_region(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_region(ctx, field)
+func (ec *executionContext) _OriginCountry_region(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OriginCountry_region(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4643,9 +4495,9 @@ func (ec *executionContext) _Producer_region(ctx context.Context, field graphql.
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Producer_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_OriginCountry_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Producer",
+		Object:     "OriginCountry",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -4656,8 +4508,8 @@ func (ec *executionContext) fieldContext_Producer_region(_ context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Producer_altitude(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_altitude(ctx, field)
+func (ec *executionContext) _ProcessingMethod_id(ctx context.Context, field graphql.CollectedField, obj *model.ProcessingMethod) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProcessingMethod_id(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4670,35 +4522,126 @@ func (ec *executionContext) _Producer_altitude(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Altitude, nil
+		return obj.ID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*int)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Producer_altitude(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProcessingMethod_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Producer",
+		Object:     "ProcessingMethod",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Producer_description(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_description(ctx, field)
+func (ec *executionContext) _ProcessingMethod_nameEn(ctx context.Context, field graphql.CollectedField, obj *model.ProcessingMethod) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProcessingMethod_nameEn(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NameEn, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ProcessingMethod_nameEn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProcessingMethod",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProcessingMethod_nameZh(ctx context.Context, field graphql.CollectedField, obj *model.ProcessingMethod) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProcessingMethod_nameZh(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.NameZh, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ProcessingMethod_nameZh(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProcessingMethod",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProcessingMethod_description(ctx context.Context, field graphql.CollectedField, obj *model.ProcessingMethod) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProcessingMethod_description(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4718,50 +4661,6 @@ func (ec *executionContext) _Producer_description(ctx context.Context, field gra
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Producer_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Producer",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Producer_imageURL(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_imageURL(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ImageURL, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
 		return graphql.Null
 	}
 	res := resTmp.(*string)
@@ -4769,240 +4668,14 @@ func (ec *executionContext) _Producer_imageURL(ctx context.Context, field graphq
 	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Producer_imageURL(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProcessingMethod_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Producer",
+		Object:     "ProcessingMethod",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Producer_coffees(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_coffees(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Coffees, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.Coffee)
-	fc.Result = res
-	return ec.marshalNCoffee2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Producer_coffees(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Producer",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Coffee_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Coffee_name(ctx, field)
-			case "slug":
-				return ec.fieldContext_Coffee_slug(ctx, field)
-			case "producer":
-				return ec.fieldContext_Coffee_producer(ctx, field)
-			case "origin":
-				return ec.fieldContext_Coffee_origin(ctx, field)
-			case "roastLevel":
-				return ec.fieldContext_Coffee_roastLevel(ctx, field)
-			case "processingMethod":
-				return ec.fieldContext_Coffee_processingMethod(ctx, field)
-			case "flavorNotes":
-				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
-			case "description":
-				return ec.fieldContext_Coffee_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Coffee_imageURL(ctx, field)
-			case "variants":
-				return ec.fieldContext_Coffee_variants(ctx, field)
-			case "reviews":
-				return ec.fieldContext_Coffee_reviews(ctx, field)
-			case "averageRating":
-				return ec.fieldContext_Coffee_averageRating(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Coffee_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Producer_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Producer) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Producer_createdAt(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.CreatedAt, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(time.Time)
-	fc.Result = res
-	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Producer_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Producer",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Time does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ProducerConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.ProducerConnection) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ProducerConnection_nodes(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Nodes, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.Producer)
-	fc.Result = res
-	return ec.marshalNProducer2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducerᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ProducerConnection_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ProducerConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Producer_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Producer_name(ctx, field)
-			case "country":
-				return ec.fieldContext_Producer_country(ctx, field)
-			case "region":
-				return ec.fieldContext_Producer_region(ctx, field)
-			case "altitude":
-				return ec.fieldContext_Producer_altitude(ctx, field)
-			case "description":
-				return ec.fieldContext_Producer_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Producer_imageURL(ctx, field)
-			case "coffees":
-				return ec.fieldContext_Producer_coffees(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Producer_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Producer", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _ProducerConnection_total(ctx context.Context, field graphql.CollectedField, obj *model.ProducerConnection) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ProducerConnection_total(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Total, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ProducerConnection_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ProducerConnection",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -5048,21 +4721,298 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_id(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
-			case "firstName":
-				return ec.fieldContext_User_firstName(ctx, field)
-			case "lastName":
-				return ec.fieldContext_User_lastName(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
 			case "role":
 				return ec.fieldContext_User_role(ctx, field)
-			case "addresses":
-				return ec.fieldContext_User_addresses(ctx, field)
-			case "orders":
-				return ec.fieldContext_User_orders(ctx, field)
+			case "shop":
+				return ec.fieldContext_User_shop(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_shop(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Shop(rctx, fc.Args["slug"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Shop)
+	fc.Result = res
+	return ec.marshalOShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shop_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shops(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_shops(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ShopConnection)
+	fc.Result = res
+	return ec.marshalNShopConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_shops(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_ShopConnection_nodes(ctx, field)
+			case "total":
+				return ec.fieldContext_ShopConnection_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShopConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_shops_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_shopsForMap(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_shopsForMap(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().ShopsForMap(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.ShopPin)
+	fc.Result = res
+	return ec.marshalNShopPin2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopPinᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_shopsForMap(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_ShopPin_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_ShopPin_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_ShopPin_name(ctx, field)
+			case "city":
+				return ec.fieldContext_ShopPin_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_ShopPin_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_ShopPin_lng(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShopPin", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_coffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_coffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Coffee(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalOCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_coffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -5128,8 +5078,8 @@ func (ec *executionContext) fieldContext_Query_coffees(ctx context.Context, fiel
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_coffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_coffee(ctx, field)
+func (ec *executionContext) _Query_popularCoffees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_popularCoffees(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5142,21 +5092,24 @@ func (ec *executionContext) _Query_coffee(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Coffee(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Query().PopularCoffees(rctx, fc.Args["limit"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Coffee)
+	res := resTmp.([]*model.Coffee)
 	fc.Result = res
-	return ec.marshalOCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+	return ec.marshalNCoffee2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -5166,30 +5119,34 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
 			case "name":
 				return ec.fieldContext_Coffee_name(ctx, field)
 			case "slug":
 				return ec.fieldContext_Coffee_slug(ctx, field)
-			case "producer":
-				return ec.fieldContext_Coffee_producer(ctx, field)
-			case "origin":
-				return ec.fieldContext_Coffee_origin(ctx, field)
-			case "roastLevel":
-				return ec.fieldContext_Coffee_roastLevel(ctx, field)
-			case "processingMethod":
-				return ec.fieldContext_Coffee_processingMethod(ctx, field)
-			case "flavorNotes":
-				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
 			case "description":
 				return ec.fieldContext_Coffee_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Coffee_imageURL(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
 				return ec.fieldContext_Coffee_variants(ctx, field)
-			case "reviews":
-				return ec.fieldContext_Coffee_reviews(ctx, field)
-			case "averageRating":
-				return ec.fieldContext_Coffee_averageRating(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
 			}
@@ -5203,15 +5160,15 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_coffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_popularCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_producers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_producers(ctx, field)
+func (ec *executionContext) _Query_originCountries(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_originCountries(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5224,7 +5181,7 @@ func (ec *executionContext) _Query_producers(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Producers(rctx, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Query().OriginCountries(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5236,70 +5193,12 @@ func (ec *executionContext) _Query_producers(ctx context.Context, field graphql.
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.ProducerConnection)
+	res := resTmp.([]*model.OriginCountry)
 	fc.Result = res
-	return ec.marshalNProducerConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducerConnection(ctx, field.Selections, res)
+	return ec.marshalNOriginCountry2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOriginCountryᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_producers(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Query",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "nodes":
-				return ec.fieldContext_ProducerConnection_nodes(ctx, field)
-			case "total":
-				return ec.fieldContext_ProducerConnection_total(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type ProducerConnection", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_producers_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Query_producer(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_producer(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Producer(rctx, fc.Args["id"].(string))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*model.Producer)
-	fc.Result = res
-	return ec.marshalOProducer2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducer(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Query_producer(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_originCountries(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -5308,43 +5207,22 @@ func (ec *executionContext) fieldContext_Query_producer(ctx context.Context, fie
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Producer_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Producer_name(ctx, field)
-			case "country":
-				return ec.fieldContext_Producer_country(ctx, field)
+				return ec.fieldContext_OriginCountry_id(ctx, field)
+			case "nameEn":
+				return ec.fieldContext_OriginCountry_nameEn(ctx, field)
+			case "nameZh":
+				return ec.fieldContext_OriginCountry_nameZh(ctx, field)
 			case "region":
-				return ec.fieldContext_Producer_region(ctx, field)
-			case "altitude":
-				return ec.fieldContext_Producer_altitude(ctx, field)
-			case "description":
-				return ec.fieldContext_Producer_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Producer_imageURL(ctx, field)
-			case "coffees":
-				return ec.fieldContext_Producer_coffees(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Producer_createdAt(ctx, field)
+				return ec.fieldContext_OriginCountry_region(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Producer", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type OriginCountry", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_producer_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_orders(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_orders(ctx, field)
+func (ec *executionContext) _Query_coffeeVarieties(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_coffeeVarieties(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5357,7 +5235,7 @@ func (ec *executionContext) _Query_orders(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Orders(rctx, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Query().CoffeeVarieties(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5369,12 +5247,12 @@ func (ec *executionContext) _Query_orders(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.OrderConnection)
+	res := resTmp.([]*model.CoffeeVariety)
 	fc.Result = res
-	return ec.marshalNOrderConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderConnection(ctx, field.Selections, res)
+	return ec.marshalNCoffeeVariety2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeVarietyᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_orders(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_coffeeVarieties(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -5382,30 +5260,21 @@ func (ec *executionContext) fieldContext_Query_orders(ctx context.Context, field
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "nodes":
-				return ec.fieldContext_OrderConnection_nodes(ctx, field)
-			case "total":
-				return ec.fieldContext_OrderConnection_total(ctx, field)
+			case "id":
+				return ec.fieldContext_CoffeeVariety_id(ctx, field)
+			case "name":
+				return ec.fieldContext_CoffeeVariety_name(ctx, field)
+			case "description":
+				return ec.fieldContext_CoffeeVariety_description(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type OrderConnection", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type CoffeeVariety", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_orders_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Query_order(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Query_order(ctx, field)
+func (ec *executionContext) _Query_processingMethods(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_processingMethods(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5418,21 +5287,24 @@ func (ec *executionContext) _Query_order(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Order(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Query().ProcessingMethods(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Order)
+	res := resTmp.([]*model.ProcessingMethod)
 	fc.Result = res
-	return ec.marshalOOrder2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrder(ctx, field.Selections, res)
+	return ec.marshalNProcessingMethod2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProcessingMethodᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_order(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_processingMethods(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -5441,35 +5313,16 @@ func (ec *executionContext) fieldContext_Query_order(ctx context.Context, field 
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Order_id(ctx, field)
-			case "user":
-				return ec.fieldContext_Order_user(ctx, field)
-			case "items":
-				return ec.fieldContext_Order_items(ctx, field)
-			case "status":
-				return ec.fieldContext_Order_status(ctx, field)
-			case "totalUSD":
-				return ec.fieldContext_Order_totalUSD(ctx, field)
-			case "stripePaymentIntentID":
-				return ec.fieldContext_Order_stripePaymentIntentID(ctx, field)
-			case "shippingAddress":
-				return ec.fieldContext_Order_shippingAddress(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Order_createdAt(ctx, field)
+				return ec.fieldContext_ProcessingMethod_id(ctx, field)
+			case "nameEn":
+				return ec.fieldContext_ProcessingMethod_nameEn(ctx, field)
+			case "nameZh":
+				return ec.fieldContext_ProcessingMethod_nameZh(ctx, field)
+			case "description":
+				return ec.fieldContext_ProcessingMethod_description(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type ProcessingMethod", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Query_order_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -5605,8 +5458,8 @@ func (ec *executionContext) fieldContext_Query___schema(_ context.Context, field
 	return fc, nil
 }
 
-func (ec *executionContext) _Review_id(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Review_id(ctx, field)
+func (ec *executionContext) _Shop_id(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_id(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5636,9 +5489,9 @@ func (ec *executionContext) _Review_id(ctx context.Context, field graphql.Collec
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Review_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Shop_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Review",
+		Object:     "Shop",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5649,8 +5502,8 @@ func (ec *executionContext) fieldContext_Review_id(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _Review_user(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Review_user(ctx, field)
+func (ec *executionContext) _Shop_slug(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_slug(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5663,187 +5516,7 @@ func (ec *executionContext) _Review_user(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.User, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.User)
-	fc.Result = res
-	return ec.marshalNUser2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Review_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Review",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "email":
-				return ec.fieldContext_User_email(ctx, field)
-			case "firstName":
-				return ec.fieldContext_User_firstName(ctx, field)
-			case "lastName":
-				return ec.fieldContext_User_lastName(ctx, field)
-			case "role":
-				return ec.fieldContext_User_role(ctx, field)
-			case "addresses":
-				return ec.fieldContext_User_addresses(ctx, field)
-			case "orders":
-				return ec.fieldContext_User_orders(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Review_coffee(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Review_coffee(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Coffee, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Coffee)
-	fc.Result = res
-	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Review_coffee(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Review",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Coffee_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Coffee_name(ctx, field)
-			case "slug":
-				return ec.fieldContext_Coffee_slug(ctx, field)
-			case "producer":
-				return ec.fieldContext_Coffee_producer(ctx, field)
-			case "origin":
-				return ec.fieldContext_Coffee_origin(ctx, field)
-			case "roastLevel":
-				return ec.fieldContext_Coffee_roastLevel(ctx, field)
-			case "processingMethod":
-				return ec.fieldContext_Coffee_processingMethod(ctx, field)
-			case "flavorNotes":
-				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
-			case "description":
-				return ec.fieldContext_Coffee_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Coffee_imageURL(ctx, field)
-			case "variants":
-				return ec.fieldContext_Coffee_variants(ctx, field)
-			case "reviews":
-				return ec.fieldContext_Coffee_reviews(ctx, field)
-			case "averageRating":
-				return ec.fieldContext_Coffee_averageRating(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Coffee_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Review_rating(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Review_rating(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Rating, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(int)
-	fc.Result = res
-	return ec.marshalNInt2int(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Review_rating(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Review",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Int does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Review_body(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Review_body(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Body, nil
+		return obj.Slug, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -5860,9 +5533,9 @@ func (ec *executionContext) _Review_body(ctx context.Context, field graphql.Coll
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Review_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Shop_slug(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Review",
+		Object:     "Shop",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -5873,8 +5546,365 @@ func (ec *executionContext) fieldContext_Review_body(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Review_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Review) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Review_createdAt(ctx, field)
+func (ec *executionContext) _Shop_name(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_description(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_description(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Description, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_logoUrl(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_logoUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.LogoURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_logoUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_bannerUrl(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_bannerUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.BannerURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_bannerUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_city(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_city(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.City, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_city(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_lat(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_lat(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Lat, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_lat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_lng(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_lng(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Lng, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_lng(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_coffees(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_coffees(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Coffees, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CoffeeConnection)
+	fc.Result = res
+	return ec.marshalNCoffeeConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_coffees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_CoffeeConnection_nodes(ctx, field)
+			case "total":
+				return ec.fieldContext_CoffeeConnection_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CoffeeConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Shop_coffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_createdAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -5904,14 +5934,384 @@ func (ec *executionContext) _Review_createdAt(ctx context.Context, field graphql
 	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Review_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Shop_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Review",
+		Object:     "Shop",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.ShopConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopConnection_nodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Nodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Shop)
+	fc.Result = res
+	return ec.marshalNShop2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopConnection_total(ctx context.Context, field graphql.CollectedField, obj *model.ShopConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopConnection_total(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Total, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopConnection_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopPin_id(ctx context.Context, field graphql.CollectedField, obj *model.ShopPin) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopPin_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopPin_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopPin",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopPin_slug(ctx context.Context, field graphql.CollectedField, obj *model.ShopPin) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopPin_slug(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Slug, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopPin_slug(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopPin",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopPin_name(ctx context.Context, field graphql.CollectedField, obj *model.ShopPin) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopPin_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopPin_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopPin",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopPin_city(ctx context.Context, field graphql.CollectedField, obj *model.ShopPin) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopPin_city(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.City, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopPin_city(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopPin",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopPin_lat(ctx context.Context, field graphql.CollectedField, obj *model.ShopPin) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopPin_lat(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Lat, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopPin_lat(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopPin",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ShopPin_lng(ctx context.Context, field graphql.CollectedField, obj *model.ShopPin) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ShopPin_lng(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Lng, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalOFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ShopPin_lng(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ShopPin",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6005,8 +6405,8 @@ func (ec *executionContext) fieldContext_User_email(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _User_firstName(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_User_firstName(ctx, field)
+func (ec *executionContext) _User_displayName(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_displayName(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6019,7 +6419,7 @@ func (ec *executionContext) _User_firstName(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.FirstName, nil
+		return obj.DisplayName, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -6036,51 +6436,7 @@ func (ec *executionContext) _User_firstName(ctx context.Context, field graphql.C
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_User_firstName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _User_lastName(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_User_lastName(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.LastName, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_User_lastName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_User_displayName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -6137,8 +6493,8 @@ func (ec *executionContext) fieldContext_User_role(_ context.Context, field grap
 	return fc, nil
 }
 
-func (ec *executionContext) _User_addresses(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_User_addresses(ctx, field)
+func (ec *executionContext) _User_shop(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_shop(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6151,24 +6507,21 @@ func (ec *executionContext) _User_addresses(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Addresses, nil
+		return obj.Shop, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Address)
+	res := resTmp.(*model.Shop)
 	fc.Result = res
-	return ec.marshalNAddress2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddressᚄ(ctx, field.Selections, res)
+	return ec.marshalOShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_User_addresses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_User_shop(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "User",
 		Field:      field,
@@ -6177,83 +6530,29 @@ func (ec *executionContext) fieldContext_User_addresses(_ context.Context, field
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
-				return ec.fieldContext_Address_id(ctx, field)
-			case "line1":
-				return ec.fieldContext_Address_line1(ctx, field)
-			case "line2":
-				return ec.fieldContext_Address_line2(ctx, field)
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
 			case "city":
-				return ec.fieldContext_Address_city(ctx, field)
-			case "state":
-				return ec.fieldContext_Address_state(ctx, field)
-			case "postalCode":
-				return ec.fieldContext_Address_postalCode(ctx, field)
-			case "country":
-				return ec.fieldContext_Address_country(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Address", field.Name)
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _User_orders(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_User_orders(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Orders, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.Order)
-	fc.Result = res
-	return ec.marshalNOrder2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_User_orders(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "User",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Order_id(ctx, field)
-			case "user":
-				return ec.fieldContext_Order_user(ctx, field)
-			case "items":
-				return ec.fieldContext_Order_items(ctx, field)
-			case "status":
-				return ec.fieldContext_Order_status(ctx, field)
-			case "totalUSD":
-				return ec.fieldContext_Order_totalUSD(ctx, field)
-			case "stripePaymentIntentID":
-				return ec.fieldContext_Order_stripePaymentIntentID(ctx, field)
-			case "shippingAddress":
-				return ec.fieldContext_Order_shippingAddress(ctx, field)
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "createdAt":
-				return ec.fieldContext_Order_createdAt(ctx, field)
+				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Order", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
 	}
 	return fc, nil
@@ -6347,80 +6646,6 @@ func (ec *executionContext) fieldContext_Variant_id(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Variant_coffee(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Variant_coffee(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Coffee, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Coffee)
-	fc.Result = res
-	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Variant_coffee(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Variant",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Coffee_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Coffee_name(ctx, field)
-			case "slug":
-				return ec.fieldContext_Coffee_slug(ctx, field)
-			case "producer":
-				return ec.fieldContext_Coffee_producer(ctx, field)
-			case "origin":
-				return ec.fieldContext_Coffee_origin(ctx, field)
-			case "roastLevel":
-				return ec.fieldContext_Coffee_roastLevel(ctx, field)
-			case "processingMethod":
-				return ec.fieldContext_Coffee_processingMethod(ctx, field)
-			case "flavorNotes":
-				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
-			case "description":
-				return ec.fieldContext_Coffee_description(ctx, field)
-			case "imageURL":
-				return ec.fieldContext_Coffee_imageURL(ctx, field)
-			case "variants":
-				return ec.fieldContext_Coffee_variants(ctx, field)
-			case "reviews":
-				return ec.fieldContext_Coffee_reviews(ctx, field)
-			case "averageRating":
-				return ec.fieldContext_Coffee_averageRating(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Coffee_createdAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Variant_grind(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Variant_grind(ctx, field)
 	if err != nil {
@@ -6465,8 +6690,8 @@ func (ec *executionContext) fieldContext_Variant_grind(_ context.Context, field 
 	return fc, nil
 }
 
-func (ec *executionContext) _Variant_weightGrams(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Variant_weightGrams(ctx, field)
+func (ec *executionContext) _Variant_weightG(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Variant_weightG(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6479,7 +6704,7 @@ func (ec *executionContext) _Variant_weightGrams(ctx context.Context, field grap
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.WeightGrams, nil
+		return obj.WeightG, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -6496,7 +6721,7 @@ func (ec *executionContext) _Variant_weightGrams(ctx context.Context, field grap
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Variant_weightGrams(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Variant_weightG(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Variant",
 		Field:      field,
@@ -6509,8 +6734,8 @@ func (ec *executionContext) fieldContext_Variant_weightGrams(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Variant_priceUSD(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Variant_priceUSD(ctx, field)
+func (ec *executionContext) _Variant_priceTwd(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Variant_priceTwd(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -6523,7 +6748,7 @@ func (ec *executionContext) _Variant_priceUSD(ctx context.Context, field graphql
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.PriceUsd, nil
+		return obj.PriceTwd, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -6535,19 +6760,19 @@ func (ec *executionContext) _Variant_priceUSD(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.(float64)
+	res := resTmp.(money.TWD)
 	fc.Result = res
-	return ec.marshalNFloat2float64(ctx, field.Selections, res)
+	return ec.marshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Variant_priceUSD(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Variant_priceTwd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Variant",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Float does not have child fields")
+			return nil, errors.New("field of type TWD does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6592,6 +6817,50 @@ func (ec *executionContext) fieldContext_Variant_stock(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Variant_isAvailable(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Variant_isAvailable(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.IsAvailable, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Variant_isAvailable(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Variant",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8548,6 +8817,40 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputAddCommentInput(ctx context.Context, obj any) (model.AddCommentInput, error) {
+	var it model.AddCommentInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"coffeeId", "body"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "coffeeId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("coffeeId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CoffeeID = data
+		case "body":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Body = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj any) (model.CoffeeFilter, error) {
 	var it model.CoffeeFilter
 	asMap := map[string]any{}
@@ -8555,20 +8858,34 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"origin", "roastLevel", "flavorNote", "minPrice", "maxPrice"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "minPriceTwd", "maxPriceTwd"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "origin":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("origin"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+		case "originCountryId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("originCountryId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Origin = data
+			it.OriginCountryID = data
+		case "varietyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("varietyId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VarietyID = data
+		case "processingMethodId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("processingMethodId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProcessingMethodID = data
 		case "roastLevel":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roastLevel"))
 			data, err := ec.unmarshalORoastLevel2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, v)
@@ -8583,129 +8900,144 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.FlavorNote = data
-		case "minPrice":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minPrice"))
-			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		case "minPriceTwd":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minPriceTwd"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.MinPrice = data
-		case "maxPrice":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxPrice"))
-			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			it.MinPriceTwd = data
+		case "maxPriceTwd":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxPriceTwd"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.MaxPrice = data
+			it.MaxPriceTwd = data
 		}
 	}
 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputCreateOrderInput(ctx context.Context, obj any) (model.CreateOrderInput, error) {
-	var it model.CreateOrderInput
+func (ec *executionContext) unmarshalInputCreateCoffeeInput(ctx context.Context, obj any) (model.CreateCoffeeInput, error) {
+	var it model.CreateCoffeeInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"items", "addressID"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "variants"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "items":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("items"))
-			data, err := ec.unmarshalNOrderItemInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItemInputᚄ(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Items = data
-		case "addressID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("addressID"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.AddressID = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputCreateReviewInput(ctx context.Context, obj any) (model.CreateReviewInput, error) {
-	var it model.CreateReviewInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"coffeeID", "rating", "body"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "coffeeID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("coffeeID"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.CoffeeID = data
-		case "rating":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("rating"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Rating = data
-		case "body":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Body = data
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "originCountryId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("originCountryId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OriginCountryID = data
+		case "varietyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("varietyId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VarietyID = data
+		case "processingMethodId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("processingMethodId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProcessingMethodID = data
+		case "roastLevel":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roastLevel"))
+			data, err := ec.unmarshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoastLevel = data
+		case "flavorNotes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flavorNotes"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FlavorNotes = data
+		case "variants":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variants"))
+			data, err := ec.unmarshalNVariantInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Variants = data
 		}
 	}
 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputCreateSubscriptionInput(ctx context.Context, obj any) (model.CreateSubscriptionInput, error) {
-	var it model.CreateSubscriptionInput
+func (ec *executionContext) unmarshalInputCreateShopInput(ctx context.Context, obj any) (model.CreateShopInput, error) {
+	var it model.CreateShopInput
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"plan", "paymentMethodID"}
+	fieldsInOrder := [...]string{"slug", "name", "description", "city"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "plan":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("plan"))
-			data, err := ec.unmarshalNSubscriptionPlan2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionPlan(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Plan = data
-		case "paymentMethodID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("paymentMethodID"))
+		case "slug":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("slug"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.PaymentMethodID = data
+			it.Slug = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "city":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("city"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.City = data
 		}
 	}
 
@@ -8746,40 +9078,6 @@ func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj an
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputOrderItemInput(ctx context.Context, obj any) (model.OrderItemInput, error) {
-	var it model.OrderItemInput
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"variantID", "quantity"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "variantID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variantID"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.VariantID = data
-		case "quantity":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("quantity"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Quantity = data
-		}
-	}
-
-	return it, nil
-}
-
 func (ec *executionContext) unmarshalInputRegisterInput(ctx context.Context, obj any) (model.RegisterInput, error) {
 	var it model.RegisterInput
 	asMap := map[string]any{}
@@ -8787,7 +9085,7 @@ func (ec *executionContext) unmarshalInputRegisterInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"email", "password", "firstName", "lastName"}
+	fieldsInOrder := [...]string{"email", "password", "displayName"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -8808,20 +9106,199 @@ func (ec *executionContext) unmarshalInputRegisterInput(ctx context.Context, obj
 				return it, err
 			}
 			it.Password = data
-		case "firstName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("firstName"))
+		case "displayName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.FirstName = data
-		case "lastName":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lastName"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			it.DisplayName = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context, obj any) (model.UpdateCoffeeInput, error) {
+	var it model.UpdateCoffeeInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.LastName = data
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "originCountryId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("originCountryId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.OriginCountryID = data
+		case "varietyId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("varietyId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VarietyID = data
+		case "processingMethodId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("processingMethodId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProcessingMethodID = data
+		case "roastLevel":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roastLevel"))
+			data, err := ec.unmarshalORoastLevel2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.RoastLevel = data
+		case "flavorNotes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flavorNotes"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FlavorNotes = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateShopInput(ctx context.Context, obj any) (model.UpdateShopInput, error) {
+	var it model.UpdateShopInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"name", "description", "logoUrl", "bannerUrl", "city", "lat", "lng"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "logoUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("logoUrl"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LogoURL = data
+		case "bannerUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bannerUrl"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BannerURL = data
+		case "city":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("city"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.City = data
+		case "lat":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lat"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Lat = data
+		case "lng":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("lng"))
+			data, err := ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Lng = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputVariantInput(ctx context.Context, obj any) (model.VariantInput, error) {
+	var it model.VariantInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"grind", "weightG", "priceTwd", "stock"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "grind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("grind"))
+			data, err := ec.unmarshalNGrindOption2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐGrindOption(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Grind = data
+		case "weightG":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("weightG"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WeightG = data
+		case "priceTwd":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priceTwd"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PriceTwd = data
+		case "stock":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stock"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Stock = data
 		}
 	}
 
@@ -8835,72 +9312,6 @@ func (ec *executionContext) unmarshalInputRegisterInput(ctx context.Context, obj
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
-
-var addressImplementors = []string{"Address"}
-
-func (ec *executionContext) _Address(ctx context.Context, sel ast.SelectionSet, obj *model.Address) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, addressImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Address")
-		case "id":
-			out.Values[i] = ec._Address_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "line1":
-			out.Values[i] = ec._Address_line1(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "line2":
-			out.Values[i] = ec._Address_line2(ctx, field, obj)
-		case "city":
-			out.Values[i] = ec._Address_city(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "state":
-			out.Values[i] = ec._Address_state(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "postalCode":
-			out.Values[i] = ec._Address_postalCode(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "country":
-			out.Values[i] = ec._Address_country(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
 
 var authPayloadImplementors = []string{"AuthPayload"}
 
@@ -8967,6 +9378,11 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "shop":
+			out.Values[i] = ec._Coffee_shop(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "name":
 			out.Values[i] = ec._Coffee_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -8977,13 +9393,20 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "producer":
-			out.Values[i] = ec._Coffee_producer(ctx, field, obj)
+		case "description":
+			out.Values[i] = ec._Coffee_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "origin":
-			out.Values[i] = ec._Coffee_origin(ctx, field, obj)
+		case "originCountry":
+			out.Values[i] = ec._Coffee_originCountry(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "variety":
+			out.Values[i] = ec._Coffee_variety(ctx, field, obj)
+		case "processingMethod":
+			out.Values[i] = ec._Coffee_processingMethod(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -8992,35 +9415,36 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "processingMethod":
-			out.Values[i] = ec._Coffee_processingMethod(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "flavorNotes":
 			out.Values[i] = ec._Coffee_flavorNotes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "description":
-			out.Values[i] = ec._Coffee_description(ctx, field, obj)
+		case "imageUrls":
+			out.Values[i] = ec._Coffee_imageUrls(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "imageURL":
-			out.Values[i] = ec._Coffee_imageURL(ctx, field, obj)
 		case "variants":
 			out.Values[i] = ec._Coffee_variants(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "reviews":
-			out.Values[i] = ec._Coffee_reviews(ctx, field, obj)
+		case "comments":
+			out.Values[i] = ec._Coffee_comments(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "averageRating":
-			out.Values[i] = ec._Coffee_averageRating(ctx, field, obj)
+		case "commentCount":
+			out.Values[i] = ec._Coffee_commentCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isPublished":
+			out.Values[i] = ec._Coffee_isPublished(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createdAt":
 			out.Values[i] = ec._Coffee_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -9093,44 +9517,80 @@ func (ec *executionContext) _CoffeeConnection(ctx context.Context, sel ast.Selec
 	return out
 }
 
-var coffeeSubscriptionImplementors = []string{"CoffeeSubscription"}
+var coffeeVarietyImplementors = []string{"CoffeeVariety"}
 
-func (ec *executionContext) _CoffeeSubscription(ctx context.Context, sel ast.SelectionSet, obj *model.CoffeeSubscription) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, coffeeSubscriptionImplementors)
+func (ec *executionContext) _CoffeeVariety(ctx context.Context, sel ast.SelectionSet, obj *model.CoffeeVariety) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, coffeeVarietyImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("CoffeeSubscription")
+			out.Values[i] = graphql.MarshalString("CoffeeVariety")
 		case "id":
-			out.Values[i] = ec._CoffeeSubscription_id(ctx, field, obj)
+			out.Values[i] = ec._CoffeeVariety_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._CoffeeVariety_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._CoffeeVariety_description(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var commentImplementors = []string{"Comment"}
+
+func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, obj *model.Comment) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, commentImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Comment")
+		case "id":
+			out.Values[i] = ec._Comment_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "user":
-			out.Values[i] = ec._CoffeeSubscription_user(ctx, field, obj)
+			out.Values[i] = ec._Comment_user(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "plan":
-			out.Values[i] = ec._CoffeeSubscription_plan(ctx, field, obj)
+		case "body":
+			out.Values[i] = ec._Comment_body(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "status":
-			out.Values[i] = ec._CoffeeSubscription_status(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "stripeSubscriptionID":
-			out.Values[i] = ec._CoffeeSubscription_stripeSubscriptionID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "currentPeriodEnd":
-			out.Values[i] = ec._CoffeeSubscription_currentPeriodEnd(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._Comment_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -9204,23 +9664,58 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createOrder":
+		case "createShop":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createOrder(ctx, field)
+				return ec._Mutation_createShop(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createReview":
+		case "updateShop":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createReview(ctx, field)
+				return ec._Mutation_updateShop(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "createSubscription":
+		case "createCoffee":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createSubscription(ctx, field)
+				return ec._Mutation_createCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "publishCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_publishCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unpublishCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unpublishCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addComment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteComment(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -9248,222 +9743,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
-var orderImplementors = []string{"Order"}
+var originCountryImplementors = []string{"OriginCountry"}
 
-func (ec *executionContext) _Order(ctx context.Context, sel ast.SelectionSet, obj *model.Order) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, orderImplementors)
+func (ec *executionContext) _OriginCountry(ctx context.Context, sel ast.SelectionSet, obj *model.OriginCountry) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, originCountryImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Order")
+			out.Values[i] = graphql.MarshalString("OriginCountry")
 		case "id":
-			out.Values[i] = ec._Order_id(ctx, field, obj)
+			out.Values[i] = ec._OriginCountry_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "user":
-			out.Values[i] = ec._Order_user(ctx, field, obj)
+		case "nameEn":
+			out.Values[i] = ec._OriginCountry_nameEn(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "items":
-			out.Values[i] = ec._Order_items(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "status":
-			out.Values[i] = ec._Order_status(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "totalUSD":
-			out.Values[i] = ec._Order_totalUSD(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "stripePaymentIntentID":
-			out.Values[i] = ec._Order_stripePaymentIntentID(ctx, field, obj)
-		case "shippingAddress":
-			out.Values[i] = ec._Order_shippingAddress(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createdAt":
-			out.Values[i] = ec._Order_createdAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var orderConnectionImplementors = []string{"OrderConnection"}
-
-func (ec *executionContext) _OrderConnection(ctx context.Context, sel ast.SelectionSet, obj *model.OrderConnection) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, orderConnectionImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("OrderConnection")
-		case "nodes":
-			out.Values[i] = ec._OrderConnection_nodes(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "total":
-			out.Values[i] = ec._OrderConnection_total(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var orderItemImplementors = []string{"OrderItem"}
-
-func (ec *executionContext) _OrderItem(ctx context.Context, sel ast.SelectionSet, obj *model.OrderItem) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, orderItemImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("OrderItem")
-		case "id":
-			out.Values[i] = ec._OrderItem_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "variant":
-			out.Values[i] = ec._OrderItem_variant(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "quantity":
-			out.Values[i] = ec._OrderItem_quantity(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "unitPriceUSD":
-			out.Values[i] = ec._OrderItem_unitPriceUSD(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var producerImplementors = []string{"Producer"}
-
-func (ec *executionContext) _Producer(ctx context.Context, sel ast.SelectionSet, obj *model.Producer) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, producerImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Producer")
-		case "id":
-			out.Values[i] = ec._Producer_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "name":
-			out.Values[i] = ec._Producer_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "country":
-			out.Values[i] = ec._Producer_country(ctx, field, obj)
+		case "nameZh":
+			out.Values[i] = ec._OriginCountry_nameZh(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "region":
-			out.Values[i] = ec._Producer_region(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "altitude":
-			out.Values[i] = ec._Producer_altitude(ctx, field, obj)
-		case "description":
-			out.Values[i] = ec._Producer_description(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "imageURL":
-			out.Values[i] = ec._Producer_imageURL(ctx, field, obj)
-		case "coffees":
-			out.Values[i] = ec._Producer_coffees(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createdAt":
-			out.Values[i] = ec._Producer_createdAt(ctx, field, obj)
+			out.Values[i] = ec._OriginCountry_region(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -9490,27 +9797,34 @@ func (ec *executionContext) _Producer(ctx context.Context, sel ast.SelectionSet,
 	return out
 }
 
-var producerConnectionImplementors = []string{"ProducerConnection"}
+var processingMethodImplementors = []string{"ProcessingMethod"}
 
-func (ec *executionContext) _ProducerConnection(ctx context.Context, sel ast.SelectionSet, obj *model.ProducerConnection) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, producerConnectionImplementors)
+func (ec *executionContext) _ProcessingMethod(ctx context.Context, sel ast.SelectionSet, obj *model.ProcessingMethod) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, processingMethodImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("ProducerConnection")
-		case "nodes":
-			out.Values[i] = ec._ProducerConnection_nodes(ctx, field, obj)
+			out.Values[i] = graphql.MarshalString("ProcessingMethod")
+		case "id":
+			out.Values[i] = ec._ProcessingMethod_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "total":
-			out.Values[i] = ec._ProducerConnection_total(ctx, field, obj)
+		case "nameEn":
+			out.Values[i] = ec._ProcessingMethod_nameEn(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "nameZh":
+			out.Values[i] = ec._ProcessingMethod_nameZh(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "description":
+			out.Values[i] = ec._ProcessingMethod_description(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9572,7 +9886,26 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "coffees":
+		case "shop":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shop(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shops":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -9581,7 +9914,29 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_coffees(ctx, field)
+				res = ec._Query_shops(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "shopsForMap":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_shopsForMap(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -9613,7 +9968,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "producers":
+		case "coffees":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -9622,7 +9977,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_producers(ctx, field)
+				res = ec._Query_coffees(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -9635,26 +9990,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "producer":
-			field := field
-
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Query_producer(ctx, field)
-				return res
-			}
-
-			rrm := func(ctx context.Context) graphql.Marshaler {
-				return ec.OperationContext.RootResolverMiddleware(ctx,
-					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "orders":
+		case "popularCoffees":
 			field := field
 
 			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
@@ -9663,7 +9999,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_orders(ctx, field)
+				res = ec._Query_popularCoffees(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -9676,16 +10012,63 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
-		case "order":
+		case "originCountries":
 			field := field
 
-			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
 				defer func() {
 					if r := recover(); r != nil {
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_order(ctx, field)
+				res = ec._Query_originCountries(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "coffeeVarieties":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_coffeeVarieties(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "processingMethods":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_processingMethods(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -9726,47 +10109,162 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 	return out
 }
 
-var reviewImplementors = []string{"Review"}
+var shopImplementors = []string{"Shop"}
 
-func (ec *executionContext) _Review(ctx context.Context, sel ast.SelectionSet, obj *model.Review) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, reviewImplementors)
+func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj *model.Shop) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, shopImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Review")
+			out.Values[i] = graphql.MarshalString("Shop")
 		case "id":
-			out.Values[i] = ec._Review_id(ctx, field, obj)
+			out.Values[i] = ec._Shop_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "user":
-			out.Values[i] = ec._Review_user(ctx, field, obj)
+		case "slug":
+			out.Values[i] = ec._Shop_slug(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "coffee":
-			out.Values[i] = ec._Review_coffee(ctx, field, obj)
+		case "name":
+			out.Values[i] = ec._Shop_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "rating":
-			out.Values[i] = ec._Review_rating(ctx, field, obj)
+		case "description":
+			out.Values[i] = ec._Shop_description(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "body":
-			out.Values[i] = ec._Review_body(ctx, field, obj)
+		case "logoUrl":
+			out.Values[i] = ec._Shop_logoUrl(ctx, field, obj)
+		case "bannerUrl":
+			out.Values[i] = ec._Shop_bannerUrl(ctx, field, obj)
+		case "city":
+			out.Values[i] = ec._Shop_city(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lat":
+			out.Values[i] = ec._Shop_lat(ctx, field, obj)
+		case "lng":
+			out.Values[i] = ec._Shop_lng(ctx, field, obj)
+		case "coffees":
+			out.Values[i] = ec._Shop_coffees(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "createdAt":
-			out.Values[i] = ec._Review_createdAt(ctx, field, obj)
+			out.Values[i] = ec._Shop_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var shopConnectionImplementors = []string{"ShopConnection"}
+
+func (ec *executionContext) _ShopConnection(ctx context.Context, sel ast.SelectionSet, obj *model.ShopConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, shopConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ShopConnection")
+		case "nodes":
+			out.Values[i] = ec._ShopConnection_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._ShopConnection_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var shopPinImplementors = []string{"ShopPin"}
+
+func (ec *executionContext) _ShopPin(ctx context.Context, sel ast.SelectionSet, obj *model.ShopPin) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, shopPinImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ShopPin")
+		case "id":
+			out.Values[i] = ec._ShopPin_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "slug":
+			out.Values[i] = ec._ShopPin_slug(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ShopPin_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "city":
+			out.Values[i] = ec._ShopPin_city(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "lat":
+			out.Values[i] = ec._ShopPin_lat(ctx, field, obj)
+		case "lng":
+			out.Values[i] = ec._ShopPin_lng(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -9811,13 +10309,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "firstName":
-			out.Values[i] = ec._User_firstName(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "lastName":
-			out.Values[i] = ec._User_lastName(ctx, field, obj)
+		case "displayName":
+			out.Values[i] = ec._User_displayName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -9826,16 +10319,8 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "addresses":
-			out.Values[i] = ec._User_addresses(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "orders":
-			out.Values[i] = ec._User_orders(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
+		case "shop":
+			out.Values[i] = ec._User_shop(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._User_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -9880,28 +10365,28 @@ func (ec *executionContext) _Variant(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "coffee":
-			out.Values[i] = ec._Variant_coffee(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "grind":
 			out.Values[i] = ec._Variant_grind(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "weightGrams":
-			out.Values[i] = ec._Variant_weightGrams(ctx, field, obj)
+		case "weightG":
+			out.Values[i] = ec._Variant_weightG(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "priceUSD":
-			out.Values[i] = ec._Variant_priceUSD(ctx, field, obj)
+		case "priceTwd":
+			out.Values[i] = ec._Variant_priceTwd(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "stock":
 			out.Values[i] = ec._Variant_stock(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isAvailable":
+			out.Values[i] = ec._Variant_isAvailable(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -10263,58 +10748,9 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNAddress2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddressᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Address) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNAddress2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddress(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNAddress2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddress(ctx context.Context, sel ast.SelectionSet, v *model.Address) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Address(ctx, sel, v)
+func (ec *executionContext) unmarshalNAddCommentInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAddCommentInput(ctx context.Context, v any) (model.AddCommentInput, error) {
+	res, err := ec.unmarshalInputAddCommentInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNAuthPayload2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAuthPayload(ctx context.Context, sel ast.SelectionSet, v model.AuthPayload) graphql.Marshaler {
@@ -10345,6 +10781,10 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNCoffee2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx context.Context, sel ast.SelectionSet, v model.Coffee) graphql.Marshaler {
+	return ec._Coffee(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNCoffee2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Coffee) graphql.Marshaler {
@@ -10415,49 +10855,126 @@ func (ec *executionContext) marshalNCoffeeConnection2ᚖgithubᚗcomᚋunderthec
 	return ec._CoffeeConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNCoffeeSubscription2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeSubscription(ctx context.Context, sel ast.SelectionSet, v model.CoffeeSubscription) graphql.Marshaler {
-	return ec._CoffeeSubscription(ctx, sel, &v)
+func (ec *executionContext) marshalNCoffeeVariety2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeVarietyᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CoffeeVariety) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNCoffeeVariety2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeVariety(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
-func (ec *executionContext) marshalNCoffeeSubscription2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeSubscription(ctx context.Context, sel ast.SelectionSet, v *model.CoffeeSubscription) graphql.Marshaler {
+func (ec *executionContext) marshalNCoffeeVariety2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeVariety(ctx context.Context, sel ast.SelectionSet, v *model.CoffeeVariety) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._CoffeeSubscription(ctx, sel, v)
+	return ec._CoffeeVariety(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNCreateOrderInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateOrderInput(ctx context.Context, v any) (model.CreateOrderInput, error) {
-	res, err := ec.unmarshalInputCreateOrderInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) marshalNComment2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v model.Comment) graphql.Marshaler {
+	return ec._Comment(ctx, sel, &v)
 }
 
-func (ec *executionContext) unmarshalNCreateReviewInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateReviewInput(ctx context.Context, v any) (model.CreateReviewInput, error) {
-	res, err := ec.unmarshalInputCreateReviewInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) marshalNComment2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Comment) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNComment2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐComment(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
-func (ec *executionContext) unmarshalNCreateSubscriptionInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateSubscriptionInput(ctx context.Context, v any) (model.CreateSubscriptionInput, error) {
-	res, err := ec.unmarshalInputCreateSubscriptionInput(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNFloat2float64(ctx context.Context, v any) (float64, error) {
-	res, err := graphql.UnmarshalFloatContext(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNFloat2float64(ctx context.Context, sel ast.SelectionSet, v float64) graphql.Marshaler {
-	_ = sel
-	res := graphql.MarshalFloatContext(v)
-	if res == graphql.Null {
+func (ec *executionContext) marshalNComment2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐComment(ctx context.Context, sel ast.SelectionSet, v *model.Comment) graphql.Marshaler {
+	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
+		return graphql.Null
 	}
-	return graphql.WrapContextMarshaler(ctx, res)
+	return ec._Comment(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNCreateCoffeeInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateCoffeeInput(ctx context.Context, v any) (model.CreateCoffeeInput, error) {
+	res, err := ec.unmarshalInputCreateCoffeeInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNCreateShopInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateShopInput(ctx context.Context, v any) (model.CreateShopInput, error) {
+	res, err := ec.unmarshalInputCreateShopInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNGrindOption2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐGrindOption(ctx context.Context, v any) (model.GrindOption, error) {
@@ -10507,11 +11024,7 @@ func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋundertheceaᚋmo
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNOrder2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v model.Order) graphql.Marshaler {
-	return ec._Order(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOriginCountry2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOriginCountryᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OriginCountry) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -10535,7 +11048,7 @@ func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋundertheceaᚋmon
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOrder2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrder(ctx, sel, v[i])
+			ret[i] = ec.marshalNOriginCountry2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOriginCountry(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -10555,31 +11068,17 @@ func (ec *executionContext) marshalNOrder2ᚕᚖgithubᚗcomᚋundertheceaᚋmon
 	return ret
 }
 
-func (ec *executionContext) marshalNOrder2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
+func (ec *executionContext) marshalNOriginCountry2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOriginCountry(ctx context.Context, sel ast.SelectionSet, v *model.OriginCountry) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._Order(ctx, sel, v)
+	return ec._OriginCountry(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrderConnection2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderConnection(ctx context.Context, sel ast.SelectionSet, v model.OrderConnection) graphql.Marshaler {
-	return ec._OrderConnection(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNOrderConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderConnection(ctx context.Context, sel ast.SelectionSet, v *model.OrderConnection) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._OrderConnection(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.OrderItem) graphql.Marshaler {
+func (ec *executionContext) marshalNProcessingMethod2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProcessingMethodᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProcessingMethod) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -10603,7 +11102,7 @@ func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋunderthecea�
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNOrderItem2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItem(ctx, sel, v[i])
+			ret[i] = ec.marshalNProcessingMethod2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProcessingMethod(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -10623,175 +11122,19 @@ func (ec *executionContext) marshalNOrderItem2ᚕᚖgithubᚗcomᚋunderthecea�
 	return ret
 }
 
-func (ec *executionContext) marshalNOrderItem2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItem(ctx context.Context, sel ast.SelectionSet, v *model.OrderItem) graphql.Marshaler {
+func (ec *executionContext) marshalNProcessingMethod2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProcessingMethod(ctx context.Context, sel ast.SelectionSet, v *model.ProcessingMethod) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._OrderItem(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalNOrderItemInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItemInputᚄ(ctx context.Context, v any) ([]*model.OrderItemInput, error) {
-	var vSlice []any
-	vSlice = graphql.CoerceList(v)
-	var err error
-	res := make([]*model.OrderItemInput, len(vSlice))
-	for i := range vSlice {
-		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
-		res[i], err = ec.unmarshalNOrderItemInput2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItemInput(ctx, vSlice[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-	return res, nil
-}
-
-func (ec *executionContext) unmarshalNOrderItemInput2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderItemInput(ctx context.Context, v any) (*model.OrderItemInput, error) {
-	res, err := ec.unmarshalInputOrderItemInput(ctx, v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNOrderStatus2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderStatus(ctx context.Context, v any) (model.OrderStatus, error) {
-	var res model.OrderStatus
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNOrderStatus2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrderStatus(ctx context.Context, sel ast.SelectionSet, v model.OrderStatus) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) marshalNProducer2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducerᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Producer) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNProducer2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducer(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNProducer2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducer(ctx context.Context, sel ast.SelectionSet, v *model.Producer) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Producer(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNProducerConnection2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducerConnection(ctx context.Context, sel ast.SelectionSet, v model.ProducerConnection) graphql.Marshaler {
-	return ec._ProducerConnection(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNProducerConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducerConnection(ctx context.Context, sel ast.SelectionSet, v *model.ProducerConnection) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._ProducerConnection(ctx, sel, v)
+	return ec._ProcessingMethod(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNRegisterInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRegisterInput(ctx context.Context, v any) (model.RegisterInput, error) {
 	res, err := ec.unmarshalInputRegisterInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNReview2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v model.Review) graphql.Marshaler {
-	return ec._Review(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNReview2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐReviewᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Review) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNReview2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐReview(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNReview2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐReview(ctx context.Context, sel ast.SelectionSet, v *model.Review) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._Review(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx context.Context, v any) (model.RoastLevel, error) {
@@ -10802,6 +11145,132 @@ func (ec *executionContext) unmarshalNRoastLevel2githubᚗcomᚋundertheceaᚋmo
 
 func (ec *executionContext) marshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx context.Context, sel ast.SelectionSet, v model.RoastLevel) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNShop2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx context.Context, sel ast.SelectionSet, v model.Shop) graphql.Marshaler {
+	return ec._Shop(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNShop2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Shop) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx context.Context, sel ast.SelectionSet, v *model.Shop) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._Shop(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNShopConnection2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopConnection(ctx context.Context, sel ast.SelectionSet, v model.ShopConnection) graphql.Marshaler {
+	return ec._ShopConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNShopConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopConnection(ctx context.Context, sel ast.SelectionSet, v *model.ShopConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ShopConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNShopPin2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopPinᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ShopPin) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNShopPin2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopPin(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNShopPin2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopPin(ctx context.Context, sel ast.SelectionSet, v *model.ShopPin) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ShopPin(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -10850,23 +11319,13 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	return ret
 }
 
-func (ec *executionContext) unmarshalNSubscriptionPlan2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionPlan(ctx context.Context, v any) (model.SubscriptionPlan, error) {
-	var res model.SubscriptionPlan
+func (ec *executionContext) unmarshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx context.Context, v any) (money.TWD, error) {
+	var res money.TWD
 	err := res.UnmarshalGQL(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSubscriptionPlan2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionPlan(ctx context.Context, sel ast.SelectionSet, v model.SubscriptionPlan) graphql.Marshaler {
-	return v
-}
-
-func (ec *executionContext) unmarshalNSubscriptionStatus2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionStatus(ctx context.Context, v any) (model.SubscriptionStatus, error) {
-	var res model.SubscriptionStatus
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNSubscriptionStatus2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐSubscriptionStatus(ctx context.Context, sel ast.SelectionSet, v model.SubscriptionStatus) graphql.Marshaler {
+func (ec *executionContext) marshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx context.Context, sel ast.SelectionSet, v money.TWD) graphql.Marshaler {
 	return v
 }
 
@@ -10884,6 +11343,16 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNUpdateCoffeeInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateCoffeeInput(ctx context.Context, v any) (model.UpdateCoffeeInput, error) {
+	res, err := ec.unmarshalInputUpdateCoffeeInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateShopInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateShopInput(ctx context.Context, v any) (model.UpdateShopInput, error) {
+	res, err := ec.unmarshalInputUpdateShopInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNUser2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
@@ -10958,6 +11427,26 @@ func (ec *executionContext) marshalNVariant2ᚖgithubᚗcomᚋundertheceaᚋmoni
 		return graphql.Null
 	}
 	return ec._Variant(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVariantInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInputᚄ(ctx context.Context, v any) ([]*model.VariantInput, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]*model.VariantInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNVariantInput2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNVariantInput2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInput(ctx context.Context, v any) (*model.VariantInput, error) {
+	res, err := ec.unmarshalInputVariantInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {
@@ -11258,6 +11747,13 @@ func (ec *executionContext) unmarshalOCoffeeFilter2ᚖgithubᚗcomᚋunderthecea
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalOCoffeeVariety2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeVariety(ctx context.Context, sel ast.SelectionSet, v *model.CoffeeVariety) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._CoffeeVariety(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalOFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
 	if v == nil {
 		return nil, nil
@@ -11273,6 +11769,24 @@ func (ec *executionContext) marshalOFloat2ᚖfloat64(ctx context.Context, sel as
 	_ = sel
 	res := graphql.MarshalFloatContext(*v)
 	return graphql.WrapContextMarshaler(ctx, res)
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
@@ -11293,20 +11807,6 @@ func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.Sele
 	return res
 }
 
-func (ec *executionContext) marshalOOrder2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐOrder(ctx context.Context, sel ast.SelectionSet, v *model.Order) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Order(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOProducer2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐProducer(ctx context.Context, sel ast.SelectionSet, v *model.Producer) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	return ec._Producer(ctx, sel, v)
-}
-
 func (ec *executionContext) unmarshalORoastLevel2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx context.Context, v any) (*model.RoastLevel, error) {
 	if v == nil {
 		return nil, nil
@@ -11321,6 +11821,49 @@ func (ec *executionContext) marshalORoastLevel2ᚖgithubᚗcomᚋundertheceaᚋm
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) marshalOShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx context.Context, sel ast.SelectionSet, v *model.Shop) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Shop(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

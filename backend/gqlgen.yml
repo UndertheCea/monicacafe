@@ -18,3 +18,5 @@ resolver:
 models:
   Time:
     model: github.com/99designs/gqlgen/graphql.Time
+  TWD:
+    model: github.com/underthecea/monicacafe/backend/internal/platform/money.TWD

@@ -4,9 +4,9 @@ package twfmt
 import "regexp"
 
 var (
-	mobile  = regexp.MustCompile(`^09\d{8}$`)
-	postal3 = regexp.MustCompile(`^\d{3}(\d{2,3})?$`)
-	taxID   = regexp.MustCompile(`^\d{8}$`)
+	mobile   = regexp.MustCompile(`^09\d{8}$`)
+	postal3  = regexp.MustCompile(`^\d{3}(\d{2,3})?$`)
+	taxID    = regexp.MustCompile(`^\d{8}$`)
 	cvsStore = regexp.MustCompile(`^\d{6}$`)
 )
 

@@ -6,121 +6,666 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/graph/model"
+	"github.com/underthecea/monicacafe/backend/internal/auth"
+	"github.com/underthecea/monicacafe/backend/internal/store"
 )
+
+// Shop is the resolver for the shop field.
+func (r *coffeeResolver) Shop(ctx context.Context, obj *model.Coffee) (*model.Shop, error) {
+	sh, err := r.loadersFor(ctx).ShopByID.Load(ctx, obj.ShopID)
+	if err != nil {
+		return nil, fmt.Errorf("load shop %s for coffee %s: %w", obj.ShopID, obj.ID, err)
+	}
+	return toShop(sh), nil
+}
+
+// OriginCountry is the resolver for the originCountry field.
+func (r *coffeeResolver) OriginCountry(ctx context.Context, obj *model.Coffee) (*model.OriginCountry, error) {
+	refs, err := r.refs.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	o, ok := refs.originBy[obj.OriginCountryID]
+	if !ok {
+		return nil, fmt.Errorf("origin country %s missing for coffee %s", obj.OriginCountryID, obj.ID)
+	}
+	return o, nil
+}
+
+// Variety is the resolver for the variety field.
+func (r *coffeeResolver) Variety(ctx context.Context, obj *model.Coffee) (*model.CoffeeVariety, error) {
+	if obj.VarietyID == nil {
+		return nil, nil
+	}
+	refs, err := r.refs.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return refs.varietyBy[*obj.VarietyID], nil
+}
+
+// ProcessingMethod is the resolver for the processingMethod field.
+func (r *coffeeResolver) ProcessingMethod(ctx context.Context, obj *model.Coffee) (*model.ProcessingMethod, error) {
+	refs, err := r.refs.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	m, ok := refs.methodBy[obj.ProcessingMethodID]
+	if !ok {
+		return nil, fmt.Errorf("processing method %s missing for coffee %s", obj.ProcessingMethodID, obj.ID)
+	}
+	return m, nil
+}
+
+// Variants is the resolver for the variants field.
+func (r *coffeeResolver) Variants(ctx context.Context, obj *model.Coffee) ([]*model.Variant, error) {
+	vs, err := r.loadersFor(ctx).VariantsByCoffeeID.Load(ctx, obj.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.Variant, len(vs))
+	for i, v := range vs {
+		out[i] = toVariant(v)
+	}
+	return out, nil
+}
+
+// Comments is the resolver for the comments field.
+func (r *coffeeResolver) Comments(ctx context.Context, obj *model.Coffee) ([]*model.Comment, error) {
+	cs, err := r.Store.CommentsByCoffee(ctx, obj.ID, maxCommentsPerCoffee)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.Comment, len(cs))
+	for i, c := range cs {
+		out[i] = toComment(c)
+	}
+	return out, nil
+}
+
+// CommentCount is the resolver for the commentCount field.
+func (r *coffeeResolver) CommentCount(ctx context.Context, obj *model.Coffee) (int, error) {
+	return r.loadersFor(ctx).CommentCountByCoffee.Load(ctx, obj.ID)
+}
+
+// User is the resolver for the user field.
+func (r *commentResolver) User(ctx context.Context, obj *model.Comment) (*model.User, error) {
+	u, err := r.loadersFor(ctx).UserByID.Load(ctx, obj.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("load author %s of comment %s: %w", obj.UserID, obj.ID, err)
+	}
+	return toUser(u), nil
+}
 
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error) {
-	panic(fmt.Errorf("not implemented: Register - register"))
+	email, err := normaliseEmail(input.Email)
+	if err != nil {
+		return nil, err
+	}
+	name, err := cleanText("displayName", input.DisplayName, 1, 50)
+	if err != nil {
+		return nil, err
+	}
+	hash, err := auth.HashPassword(input.Password)
+	if errors.Is(err, auth.ErrWeakPassword) {
+		return nil, errBadInput("password", err.Error())
+	}
+	if err != nil {
+		return nil, err
+	}
+	u, err := r.Store.CreateUser(ctx, email, hash, name)
+	if errors.Is(err, store.ErrConflict) {
+		return nil, errConflict("email", "an account with this email already exists")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return r.issueTokens(ctx, u)
 }
 
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error) {
-	panic(fmt.Errorf("not implemented: Login - login"))
+	invalid := &apiError{code: CodeUnauthenticated, message: "invalid email or password"}
+	email, err := normaliseEmail(input.Email)
+	if err != nil {
+		auth.EqualiseTiming(input.Password)
+		return nil, invalid
+	}
+	u, err := r.Store.UserByEmail(ctx, email)
+	if errors.Is(err, store.ErrNotFound) {
+		auth.EqualiseTiming(input.Password)
+		return nil, invalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !auth.CheckPassword(u.PasswordHash, input.Password) {
+		return nil, invalid
+	}
+	return r.issueTokens(ctx, u)
 }
 
 // RefreshToken is the resolver for the refreshToken field.
 func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error) {
-	panic(fmt.Errorf("not implemented: RefreshToken - refreshToken"))
+	invalid := &apiError{code: CodeUnauthenticated, message: "invalid or expired refresh token"}
+	claims, err := r.Auth.ParseRefreshToken(token)
+	if err != nil {
+		return nil, invalid
+	}
+	userID, err := r.Store.ConsumeRefreshToken(ctx, auth.HashJTI(claims.ID))
+	if errors.Is(err, store.ErrNotFound) {
+		// A correctly signed token that is no longer active has either been
+		// used already or revoked. Treat reuse as possible theft and end every
+		// session for the user.
+		if rerr := r.Store.RevokeUserRefreshTokens(ctx, claims.UserID); rerr != nil {
+			return nil, rerr
+		}
+		return nil, invalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	u, err := r.Store.UserByID(ctx, userID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, invalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	return r.issueTokens(ctx, u)
 }
 
 // Logout is the resolver for the logout field.
 func (r *mutationResolver) Logout(ctx context.Context) (bool, error) {
-	panic(fmt.Errorf("not implemented: Logout - logout"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	if err := r.Store.RevokeUserRefreshTokens(ctx, c.UserID); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // CreateShop is the resolver for the createShop field.
 func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error) {
-	panic(fmt.Errorf("not implemented: CreateShop - createShop"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	slug, err := normaliseShopSlug(input.Slug)
+	if err != nil {
+		return nil, err
+	}
+	name, err := cleanText("name", input.Name, 1, 80)
+	if err != nil {
+		return nil, err
+	}
+	desc, err := cleanText("description", input.Description, 0, 2000)
+	if err != nil {
+		return nil, err
+	}
+	city, err := cleanText("city", input.City, 1, 40)
+	if err != nil {
+		return nil, err
+	}
+
+	var sh *store.Shop
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		var err error
+		sh, err = tx.CreateShop(ctx, store.CreateShopParams{
+			OwnerID: c.UserID, Slug: slug, Name: name, Description: desc, City: city,
+		})
+		if err != nil {
+			return err
+		}
+		return tx.PromoteToSeller(ctx, c.UserID)
+	})
+	if errors.Is(err, store.ErrConflict) {
+		if store.ViolatedConstraint(err) == "shops_owner_id_key" {
+			return nil, errConflict("owner", "you already have a shop")
+		}
+		return nil, errConflict("slug", "this shop URL is already taken")
+	}
+	if errors.Is(err, store.ErrInvalidReference) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toShop(sh), nil
 }
 
 // UpdateShop is the resolver for the updateShop field.
 func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error) {
-	panic(fmt.Errorf("not implemented: UpdateShop - updateShop"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedShop(ctx, c, id); err != nil {
+		return nil, err
+	}
+	var p store.UpdateShopParams
+	if p.Name, err = cleanOptText("name", input.Name, 1, 80); err != nil {
+		return nil, err
+	}
+	if p.Description, err = cleanOptText("description", input.Description, 0, 2000); err != nil {
+		return nil, err
+	}
+	if p.City, err = cleanOptText("city", input.City, 1, 40); err != nil {
+		return nil, err
+	}
+	if p.LogoURL, err = validateURL("logoUrl", input.LogoURL); err != nil {
+		return nil, err
+	}
+	if p.BannerURL, err = validateURL("bannerUrl", input.BannerURL); err != nil {
+		return nil, err
+	}
+	if err := validateCoords(input.Lat, input.Lng); err != nil {
+		return nil, err
+	}
+	p.Lat, p.Lng = input.Lat, input.Lng
+
+	sh, err := r.Store.UpdateShop(ctx, id, p)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("shop")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toShop(sh), nil
 }
 
 // CreateCoffee is the resolver for the createCoffee field.
 func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error) {
-	panic(fmt.Errorf("not implemented: CreateCoffee - createCoffee"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sh, err := r.Store.ShopByOwner(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errForbidden("open a shop before listing coffees")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	name, err := cleanText("name", input.Name, 1, 120)
+	if err != nil {
+		return nil, err
+	}
+	desc, err := cleanText("description", input.Description, 0, 5000)
+	if err != nil {
+		return nil, err
+	}
+	if !input.RoastLevel.IsValid() {
+		return nil, errBadInput("roastLevel", "invalid roast level")
+	}
+	if err := r.validateRefs(ctx, &input.OriginCountryID, input.VarietyID, &input.ProcessingMethodID); err != nil {
+		return nil, err
+	}
+	notes, err := cleanFlavorNotes(input.FlavorNotes)
+	if err != nil {
+		return nil, err
+	}
+	variants, err := validateVariants(input.Variants)
+	if err != nil {
+		return nil, err
+	}
+
+	base := slugify(name)
+	for attempt := 0; ; attempt++ {
+		suffix, err := randomSuffix(6)
+		if err != nil {
+			return nil, err
+		}
+		var co *store.Coffee
+		err = r.Store.InTx(ctx, func(tx *store.Store) error {
+			var err error
+			co, err = tx.CreateCoffee(ctx, store.CreateCoffeeParams{
+				ShopID: sh.ID, Name: name, Slug: base + "-" + suffix, Description: desc,
+				OriginCountryID: input.OriginCountryID, VarietyID: input.VarietyID,
+				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
+				FlavorNotes: notes,
+			})
+			if err != nil {
+				return err
+			}
+			_, err = tx.CreateVariants(ctx, co.ID, variants)
+			return err
+		})
+		if errors.Is(err, store.ErrConflict) && attempt < 3 {
+			continue // slug collision: retry with a new suffix
+		}
+		if errors.Is(err, store.ErrInvalidReference) {
+			return nil, errBadInput("input", "a referenced origin, variety or processing method does not exist")
+		}
+		if err != nil {
+			return nil, err
+		}
+		return toCoffee(co), nil
+	}
 }
 
 // UpdateCoffee is the resolver for the updateCoffee field.
 func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input model.UpdateCoffeeInput) (*model.Coffee, error) {
-	panic(fmt.Errorf("not implemented: UpdateCoffee - updateCoffee"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+		return nil, err
+	}
+	var p store.UpdateCoffeeParams
+	if p.Name, err = cleanOptText("name", input.Name, 1, 120); err != nil {
+		return nil, err
+	}
+	if p.Description, err = cleanOptText("description", input.Description, 0, 5000); err != nil {
+		return nil, err
+	}
+	if input.RoastLevel != nil {
+		if !input.RoastLevel.IsValid() {
+			return nil, errBadInput("roastLevel", "invalid roast level")
+		}
+		rl := string(*input.RoastLevel)
+		p.RoastLevel = &rl
+	}
+	if err := r.validateRefs(ctx, input.OriginCountryID, input.VarietyID, input.ProcessingMethodID); err != nil {
+		return nil, err
+	}
+	p.OriginCountryID, p.VarietyID, p.ProcessingMethodID = input.OriginCountryID, input.VarietyID, input.ProcessingMethodID
+	if p.FlavorNotes, err = cleanFlavorNotes(input.FlavorNotes); err != nil {
+		return nil, err
+	}
+
+	co, err := r.Store.UpdateCoffee(ctx, id, p)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee")
+	}
+	if errors.Is(err, store.ErrInvalidReference) {
+		return nil, errBadInput("input", "a referenced origin, variety or processing method does not exist")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toCoffee(co), nil
 }
 
 // PublishCoffee is the resolver for the publishCoffee field.
 func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model.Coffee, error) {
-	panic(fmt.Errorf("not implemented: PublishCoffee - publishCoffee"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+		return nil, err
+	}
+	n, err := r.Store.CountVariants(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, errBadInput("variants", "add at least one variant before publishing")
+	}
+	co, err := r.Store.SetCoffeePublished(ctx, id, true)
+	if err != nil {
+		return nil, err
+	}
+	return toCoffee(co), nil
 }
 
 // UnpublishCoffee is the resolver for the unpublishCoffee field.
 func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*model.Coffee, error) {
-	panic(fmt.Errorf("not implemented: UnpublishCoffee - unpublishCoffee"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+		return nil, err
+	}
+	co, err := r.Store.SetCoffeePublished(ctx, id, false)
+	if err != nil {
+		return nil, err
+	}
+	return toCoffee(co), nil
 }
 
 // AddComment is the resolver for the addComment field.
 func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommentInput) (*model.Comment, error) {
-	panic(fmt.Errorf("not implemented: AddComment - addComment"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireUUID("coffeeId", input.CoffeeID); err != nil {
+		return nil, err
+	}
+	body, err := cleanText("body", input.Body, 1, 500)
+	if err != nil {
+		return nil, err
+	}
+	co, err := r.Store.CoffeeByID(ctx, input.CoffeeID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !co.IsPublished {
+		return nil, errNotFound("coffee")
+	}
+	cm, err := r.Store.CreateComment(ctx, c.UserID, co.ID, body)
+	if errors.Is(err, store.ErrInvalidReference) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toComment(cm), nil
 }
 
 // DeleteComment is the resolver for the deleteComment field.
 func (r *mutationResolver) DeleteComment(ctx context.Context, id string) (bool, error) {
-	panic(fmt.Errorf("not implemented: DeleteComment - deleteComment"))
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	if !isUUID(id) {
+		return false, errNotFound("comment")
+	}
+	cm, err := r.Store.CommentByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return false, errNotFound("comment")
+	}
+	if err != nil {
+		return false, err
+	}
+	if cm.UserID != c.UserID && !isAdmin(c) {
+		return false, errForbidden("you can only delete your own comments")
+	}
+	if err := r.Store.DeleteComment(ctx, id); err != nil && !errors.Is(err, store.ErrNotFound) {
+		return false, err
+	}
+	return true, nil
 }
 
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
-	panic(fmt.Errorf("not implemented: Me - me"))
+	c := viewer(ctx)
+	if c == nil {
+		return nil, nil
+	}
+	u, err := r.Store.UserByID(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toUser(u), nil
 }
 
 // Shop is the resolver for the shop field.
 func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, error) {
-	panic(fmt.Errorf("not implemented: Shop - shop"))
+	sh, err := r.Store.ShopBySlug(ctx, slug)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toShop(sh), nil
 }
 
 // Shops is the resolver for the shops field.
 func (r *queryResolver) Shops(ctx context.Context, city *string, limit *int, offset *int) (*model.ShopConnection, error) {
-	panic(fmt.Errorf("not implemented: Shops - shops"))
+	l, o := page(limit, offset)
+	shops, total, err := r.Store.ListShops(ctx, city, l, o)
+	if err != nil {
+		return nil, err
+	}
+	nodes := make([]*model.Shop, len(shops))
+	for i, sh := range shops {
+		nodes[i] = toShop(sh)
+	}
+	return &model.ShopConnection{Nodes: nodes, Total: total}, nil
 }
 
 // ShopsForMap is the resolver for the shopsForMap field.
 func (r *queryResolver) ShopsForMap(ctx context.Context) ([]*model.ShopPin, error) {
-	panic(fmt.Errorf("not implemented: ShopsForMap - shopsForMap"))
+	shops, err := r.Store.AllShops(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*model.ShopPin, len(shops))
+	for i, sh := range shops {
+		out[i] = &model.ShopPin{ID: sh.ID, Slug: sh.Slug, Name: sh.Name, City: sh.City, Lat: sh.Lat, Lng: sh.Lng}
+	}
+	return out, nil
 }
 
 // Coffee is the resolver for the coffee field.
 func (r *queryResolver) Coffee(ctx context.Context, id string) (*model.Coffee, error) {
-	panic(fmt.Errorf("not implemented: Coffee - coffee"))
+	if !isUUID(id) {
+		return nil, nil
+	}
+	co, err := r.Store.CoffeeByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !co.IsPublished {
+		ok, err := r.canSeeDrafts(ctx, co.ShopID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, nil
+		}
+	}
+	return toCoffee(co), nil
 }
 
 // Coffees is the resolver for the coffees field.
 func (r *queryResolver) Coffees(ctx context.Context, filter *model.CoffeeFilter, limit *int, offset *int) (*model.CoffeeConnection, error) {
-	panic(fmt.Errorf("not implemented: Coffees - coffees"))
+	f, err := storeFilter(filter)
+	if err != nil {
+		return nil, err
+	}
+	l, o := page(limit, offset)
+	cs, total, err := r.Store.ListCoffees(ctx, f, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
 }
 
 // PopularCoffees is the resolver for the popularCoffees field.
 func (r *queryResolver) PopularCoffees(ctx context.Context, limit *int) ([]*model.Coffee, error) {
-	panic(fmt.Errorf("not implemented: PopularCoffees - popularCoffees"))
+	l, _ := page(limit, nil)
+	cs, err := r.Store.PopularCoffees(ctx, l)
+	if err != nil {
+		return nil, err
+	}
+	return toCoffees(cs), nil
 }
 
 // OriginCountries is the resolver for the originCountries field.
 func (r *queryResolver) OriginCountries(ctx context.Context) ([]*model.OriginCountry, error) {
-	panic(fmt.Errorf("not implemented: OriginCountries - originCountries"))
+	refs, err := r.refs.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return refs.origins, nil
 }
 
 // CoffeeVarieties is the resolver for the coffeeVarieties field.
 func (r *queryResolver) CoffeeVarieties(ctx context.Context) ([]*model.CoffeeVariety, error) {
-	panic(fmt.Errorf("not implemented: CoffeeVarieties - coffeeVarieties"))
+	refs, err := r.refs.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return refs.varieties, nil
 }
 
 // ProcessingMethods is the resolver for the processingMethods field.
 func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error) {
-	panic(fmt.Errorf("not implemented: ProcessingMethods - processingMethods"))
+	refs, err := r.refs.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return refs.methods, nil
 }
+
+// Coffees is the resolver for the coffees field.
+func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	c := viewer(ctx)
+	f := store.CoffeeFilter{
+		ShopID:             &obj.ID,
+		IncludeUnpublished: c != nil && (c.UserID == obj.OwnerID || isAdmin(c)),
+	}
+	l, o := page(limit, offset)
+	cs, total, err := r.Store.ListCoffees(ctx, f, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
+}
+
+// Email is the resolver for the email field.
+func (r *userResolver) Email(ctx context.Context, obj *model.User) (*string, error) {
+	c := viewer(ctx)
+	if !obj.RevealEmail && (c == nil || (c.UserID != obj.ID && !isAdmin(c))) {
+		return nil, nil
+	}
+	email := obj.EmailAddr
+	return &email, nil
+}
+
+// Shop is the resolver for the shop field.
+func (r *userResolver) Shop(ctx context.Context, obj *model.User) (*model.Shop, error) {
+	sh, err := r.Store.ShopByOwner(ctx, obj.ID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toShop(sh), nil
+}
+
+// Coffee returns generated.CoffeeResolver implementation.
+func (r *Resolver) Coffee() generated.CoffeeResolver { return &coffeeResolver{r} }
+
+// Comment returns generated.CommentResolver implementation.
+func (r *Resolver) Comment() generated.CommentResolver { return &commentResolver{r} }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
@@ -128,35 +673,15 @@ func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResol
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Shop returns generated.ShopResolver implementation.
+func (r *Resolver) Shop() generated.ShopResolver { return &shopResolver{r} }
+
+// User returns generated.UserResolver implementation.
+func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
+
+type coffeeResolver struct{ *Resolver }
+type commentResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *mutationResolver) CreateOrder(ctx context.Context, input model.CreateOrderInput) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: CreateOrder - createOrder"))
-}
-func (r *mutationResolver) CreateReview(ctx context.Context, input model.CreateReviewInput) (*model.Review, error) {
-	panic(fmt.Errorf("not implemented: CreateReview - createReview"))
-}
-func (r *mutationResolver) CreateSubscription(ctx context.Context, input model.CreateSubscriptionInput) (*model.CoffeeSubscription, error) {
-	panic(fmt.Errorf("not implemented: CreateSubscription - createSubscription"))
-}
-func (r *queryResolver) Producers(ctx context.Context, limit *int, offset *int) (*model.ProducerConnection, error) {
-	panic(fmt.Errorf("not implemented: Producers - producers"))
-}
-func (r *queryResolver) Producer(ctx context.Context, id string) (*model.Producer, error) {
-	panic(fmt.Errorf("not implemented: Producer - producer"))
-}
-func (r *queryResolver) Orders(ctx context.Context, limit *int, offset *int) (*model.OrderConnection, error) {
-	panic(fmt.Errorf("not implemented: Orders - orders"))
-}
-func (r *queryResolver) Order(ctx context.Context, id string) (*model.Order, error) {
-	panic(fmt.Errorf("not implemented: Order - order"))
-}
-*/
+type shopResolver struct{ *Resolver }
+type userResolver struct{ *Resolver }

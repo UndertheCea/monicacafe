@@ -1,0 +1,272 @@
+package store
+
+import (
+	"context"
+	"fmt"
+	"strings"
+)
+
+const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
+	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at`
+
+func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
+	var c Coffee
+	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
+		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
+		&c.IsPublished, &c.CreatedAt); err != nil {
+		return nil, mapErr(err)
+	}
+	if c.FlavorNotes == nil {
+		c.FlavorNotes = []string{}
+	}
+	if c.ImageURLs == nil {
+		c.ImageURLs = []string{}
+	}
+	return &c, nil
+}
+
+func collectCoffees(rows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+	Close()
+}) ([]*Coffee, error) {
+	defer rows.Close()
+	var out []*Coffee
+	for rows.Next() {
+		c, err := scanCoffee(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// CoffeeByID fetches a coffee regardless of publication state.
+func (s *Store) CoffeeByID(ctx context.Context, id string) (*Coffee, error) {
+	return scanCoffee(s.db.QueryRow(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = $1`, id))
+}
+
+// CoffeeFilter narrows a coffee listing. Nil fields are ignored.
+type CoffeeFilter struct {
+	ShopID             *string
+	OriginCountryID    *string
+	VarietyID          *string
+	ProcessingMethodID *string
+	RoastLevel         *string
+	FlavorNote         *string
+	MinPriceTWD        *int64
+	MaxPriceTWD        *int64
+	// IncludeUnpublished also returns drafts; only set for the owning seller.
+	IncludeUnpublished bool
+}
+
+func (f CoffeeFilter) where() (string, []any) {
+	var (
+		conds []string
+		args  []any
+	)
+	add := func(cond string, v any) {
+		args = append(args, v)
+		conds = append(conds, fmt.Sprintf(cond, len(args)))
+	}
+	if !f.IncludeUnpublished {
+		conds = append(conds, "c.is_published")
+	}
+	if f.ShopID != nil {
+		add("c.shop_id = $%d", *f.ShopID)
+	}
+	if f.OriginCountryID != nil {
+		add("c.origin_country_id = $%d", *f.OriginCountryID)
+	}
+	if f.VarietyID != nil {
+		add("c.variety_id = $%d", *f.VarietyID)
+	}
+	if f.ProcessingMethodID != nil {
+		add("c.processing_method_id = $%d", *f.ProcessingMethodID)
+	}
+	if f.RoastLevel != nil {
+		add("c.roast_level = $%d::roast_level", *f.RoastLevel)
+	}
+	if f.FlavorNote != nil {
+		// Case-insensitive exact match on any flavor note.
+		add("EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE lower(n) = lower($%d))", *f.FlavorNote)
+	}
+	if f.MinPriceTWD != nil || f.MaxPriceTWD != nil {
+		// A coffee matches when at least one in-stock, available variant is within range.
+		var priceConds []string
+		if f.MinPriceTWD != nil {
+			args = append(args, *f.MinPriceTWD)
+			priceConds = append(priceConds, fmt.Sprintf("v.price_twd >= $%d", len(args)))
+		}
+		if f.MaxPriceTWD != nil {
+			args = append(args, *f.MaxPriceTWD)
+			priceConds = append(priceConds, fmt.Sprintf("v.price_twd <= $%d", len(args)))
+		}
+		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND "+
+			strings.Join(priceConds, " AND ")+")")
+	}
+	if len(conds) == 0 {
+		return "", args
+	}
+	return " WHERE " + strings.Join(conds, " AND "), args
+}
+
+// ListCoffees returns a page of coffees (newest first) matching the filter,
+// plus the total number of matches.
+func (s *Store) ListCoffees(ctx context.Context, f CoffeeFilter, limit, offset int) ([]*Coffee, int, error) {
+	where, args := f.where()
+	var total int
+	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees c`+where, args...).Scan(&total); err != nil {
+		return nil, 0, mapErr(err)
+	}
+	n := len(args)
+	args = append(args, limit, offset)
+	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM coffees c%s
+		ORDER BY c.created_at DESC, c.id LIMIT $%d OFFSET $%d`, coffeeColumns, where, n+1, n+2), args...)
+	if err != nil {
+		return nil, 0, mapErr(err)
+	}
+	out, err := collectCoffees(rows)
+	return out, total, err
+}
+
+// PopularCoffees returns published coffees ranked by comment count, then recency.
+func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT `+coffeeColumns+` FROM coffees c
+		LEFT JOIN (SELECT coffee_id, count(*) AS n FROM comments GROUP BY coffee_id) cc ON cc.coffee_id = c.id
+		WHERE c.is_published
+		ORDER BY COALESCE(cc.n, 0) DESC, c.created_at DESC, c.id
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return collectCoffees(rows)
+}
+
+// CreateCoffeeParams holds the fields for a new (unpublished) coffee listing.
+type CreateCoffeeParams struct {
+	ShopID             string
+	Name               string
+	Slug               string
+	Description        string
+	OriginCountryID    string
+	VarietyID          *string
+	ProcessingMethodID string
+	RoastLevel         string
+	FlavorNotes        []string
+}
+
+// CreateCoffee inserts a draft coffee.
+func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee, error) {
+	if p.FlavorNotes == nil {
+		p.FlavorNotes = []string{}
+	}
+	return scanCoffee(s.db.QueryRow(ctx, `
+		WITH c AS (
+			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
+				processing_method_id, roast_level, flavor_notes)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9)
+			RETURNING *
+		)
+		SELECT `+coffeeColumns+` FROM c`,
+		p.ShopID, p.Name, p.Slug, p.Description, p.OriginCountryID, p.VarietyID,
+		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes))
+}
+
+// UpdateCoffeeParams holds optional coffee fields; nil means "leave unchanged".
+type UpdateCoffeeParams struct {
+	Name               *string
+	Description        *string
+	OriginCountryID    *string
+	VarietyID          *string
+	ProcessingMethodID *string
+	RoastLevel         *string
+	FlavorNotes        []string // nil = unchanged; empty slice clears
+}
+
+// UpdateCoffee applies a partial update.
+func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParams) (*Coffee, error) {
+	return scanCoffee(s.db.QueryRow(ctx, `
+		WITH c AS (
+			UPDATE coffees SET
+				name                 = COALESCE($2, name),
+				description          = COALESCE($3, description),
+				origin_country_id    = COALESCE($4, origin_country_id),
+				variety_id           = COALESCE($5, variety_id),
+				processing_method_id = COALESCE($6, processing_method_id),
+				roast_level          = COALESCE($7::roast_level, roast_level),
+				flavor_notes         = COALESCE($8, flavor_notes)
+			WHERE id = $1
+			RETURNING *
+		)
+		SELECT `+coffeeColumns+` FROM c`,
+		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
+		p.RoastLevel, p.FlavorNotes))
+}
+
+// SetCoffeePublished toggles a coffee's visibility.
+func (s *Store) SetCoffeePublished(ctx context.Context, id string, published bool) (*Coffee, error) {
+	return scanCoffee(s.db.QueryRow(ctx, `
+		WITH c AS (UPDATE coffees SET is_published = $2 WHERE id = $1 RETURNING *)
+		SELECT `+coffeeColumns+` FROM c`, id, published))
+}
+
+// ─── Variants ─────────────────────────────────────────────────────────────────
+
+// CreateVariantParams holds a new variant's fields.
+type CreateVariantParams struct {
+	Grind    string
+	WeightG  int
+	PriceTWD int64
+	Stock    int
+}
+
+// CreateVariants inserts variants for a coffee.
+func (s *Store) CreateVariants(ctx context.Context, coffeeID string, vs []CreateVariantParams) ([]*Variant, error) {
+	out := make([]*Variant, 0, len(vs))
+	for _, v := range vs {
+		var r Variant
+		err := s.db.QueryRow(ctx, `
+			INSERT INTO variants (coffee_id, grind, weight_g, price_twd, stock)
+			VALUES ($1, $2::grind_option, $3, $4, $5)
+			RETURNING id, coffee_id, grind, weight_g, price_twd, stock, is_available`,
+			coffeeID, v.Grind, v.WeightG, v.PriceTWD, v.Stock,
+		).Scan(&r.ID, &r.CoffeeID, &r.Grind, &r.WeightG, &r.PriceTWD, &r.Stock, &r.IsAvailable)
+		if err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, &r)
+	}
+	return out, nil
+}
+
+// VariantsByCoffeeIDs batch-fetches variants grouped by coffee, ordered by weight then price.
+func (s *Store) VariantsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (map[string][]*Variant, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, coffee_id, grind, weight_g, price_twd, stock, is_available
+		FROM variants WHERE coffee_id = ANY($1::uuid[])
+		ORDER BY weight_g, price_twd, grind, id`, coffeeIDs)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := make(map[string][]*Variant, len(coffeeIDs))
+	for rows.Next() {
+		var v Variant
+		if err := rows.Scan(&v.ID, &v.CoffeeID, &v.Grind, &v.WeightG, &v.PriceTWD, &v.Stock, &v.IsAvailable); err != nil {
+			return nil, mapErr(err)
+		}
+		out[v.CoffeeID] = append(out[v.CoffeeID], &v)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// CountVariants returns how many variants a coffee has.
+func (s *Store) CountVariants(ctx context.Context, coffeeID string) (int, error) {
+	var n int
+	err := s.db.QueryRow(ctx, `SELECT count(*) FROM variants WHERE coffee_id = $1`, coffeeID).Scan(&n)
+	return n, mapErr(err)
+}

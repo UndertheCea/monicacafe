@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"time"
 
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
 )
@@ -21,25 +20,6 @@ type AuthPayload struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
 	User         *User  `json:"user"`
-}
-
-type Coffee struct {
-	ID               string            `json:"id"`
-	Shop             *Shop             `json:"shop"`
-	Name             string            `json:"name"`
-	Slug             string            `json:"slug"`
-	Description      string            `json:"description"`
-	OriginCountry    *OriginCountry    `json:"originCountry"`
-	Variety          *CoffeeVariety    `json:"variety,omitempty"`
-	ProcessingMethod *ProcessingMethod `json:"processingMethod"`
-	RoastLevel       RoastLevel        `json:"roastLevel"`
-	FlavorNotes      []string          `json:"flavorNotes"`
-	ImageUrls        []string          `json:"imageUrls"`
-	Variants         []*Variant        `json:"variants"`
-	Comments         []*Comment        `json:"comments"`
-	CommentCount     int               `json:"commentCount"`
-	IsPublished      bool              `json:"isPublished"`
-	CreatedAt        time.Time         `json:"createdAt"`
 }
 
 type CoffeeConnection struct {
@@ -61,13 +41,6 @@ type CoffeeVariety struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
-}
-
-type Comment struct {
-	ID        string    `json:"id"`
-	User      *User     `json:"user"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"createdAt"`
 }
 
 type CreateCoffeeInput struct {
@@ -119,20 +92,6 @@ type RegisterInput struct {
 	DisplayName string `json:"displayName"`
 }
 
-type Shop struct {
-	ID          string            `json:"id"`
-	Slug        string            `json:"slug"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	LogoURL     *string           `json:"logoUrl,omitempty"`
-	BannerURL   *string           `json:"bannerUrl,omitempty"`
-	City        string            `json:"city"`
-	Lat         *float64          `json:"lat,omitempty"`
-	Lng         *float64          `json:"lng,omitempty"`
-	Coffees     *CoffeeConnection `json:"coffees"`
-	CreatedAt   time.Time         `json:"createdAt"`
-}
-
 type ShopConnection struct {
 	Nodes []*Shop `json:"nodes"`
 	Total int     `json:"total"`
@@ -165,15 +124,6 @@ type UpdateShopInput struct {
 	City        *string  `json:"city,omitempty"`
 	Lat         *float64 `json:"lat,omitempty"`
 	Lng         *float64 `json:"lng,omitempty"`
-}
-
-type User struct {
-	ID          string    `json:"id"`
-	Email       string    `json:"email"`
-	DisplayName string    `json:"displayName"`
-	Role        UserRole  `json:"role"`
-	Shop        *Shop     `json:"shop,omitempty"`
-	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type Variant struct {

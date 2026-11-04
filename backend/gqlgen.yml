@@ -20,3 +20,6 @@ models:
     model: github.com/99designs/gqlgen/graphql.Time
   TWD:
     model: github.com/underthecea/monicacafe/backend/internal/platform/money.TWD
+
+autobind:
+  - github.com/underthecea/monicacafe/backend/graph/model

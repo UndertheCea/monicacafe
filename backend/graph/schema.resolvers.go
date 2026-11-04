@@ -538,13 +538,14 @@ func (r *queryResolver) Shops(ctx context.Context, city *string, limit *int, off
 
 // ShopsForMap is the resolver for the shopsForMap field.
 func (r *queryResolver) ShopsForMap(ctx context.Context) ([]*model.ShopPin, error) {
-	shops, err := r.Store.AllShops(ctx)
+	pins, err := r.Store.ShopPins(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*model.ShopPin, len(shops))
-	for i, sh := range shops {
-		out[i] = &model.ShopPin{ID: sh.ID, Slug: sh.Slug, Name: sh.Name, City: sh.City, Lat: sh.Lat, Lng: sh.Lng}
+	out := make([]*model.ShopPin, len(pins))
+	for i, p := range pins {
+		lat, lng := p.Lat, p.Lng
+		out[i] = &model.ShopPin{ID: p.ID, Slug: p.Slug, Name: p.Name, City: p.City, Lat: &lat, Lng: &lng}
 	}
 	return out, nil
 }

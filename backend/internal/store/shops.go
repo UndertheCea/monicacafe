@@ -121,20 +121,36 @@ func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) 
 	return out, total, mapErr(rows.Err())
 }
 
-// AllShops returns every shop ordered by name (used for the map page).
-func (s *Store) AllShops(ctx context.Context) ([]*Shop, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops ORDER BY name, id`)
+// ShopPin is the minimal projection of a shop drawn on the /map page.
+type ShopPin struct {
+	ID   string
+	Slug string
+	Name string
+	City string
+	Lat  float64
+	Lng  float64
+}
+
+// ShopPins returns every shop that has both coordinates set, ordered by name.
+// Shops without a location are omitted: they cannot be drawn on a map, and
+// the /shops directory still lists them. Only the six pin columns are read
+// (no descriptions / image URLs), backed by shops_map_pins_idx (migration 003).
+func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, slug, name, city, lat, lng FROM shops
+		WHERE lat IS NOT NULL AND lng IS NOT NULL
+		ORDER BY name, id`)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	defer rows.Close()
-	var out []*Shop
+	out := []*ShopPin{}
 	for rows.Next() {
-		sh, err := scanShop(rows)
-		if err != nil {
-			return nil, err
+		var p ShopPin
+		if err := rows.Scan(&p.ID, &p.Slug, &p.Name, &p.City, &p.Lat, &p.Lng); err != nil {
+			return nil, mapErr(err)
 		}
-		out = append(out, sh)
+		out = append(out, &p)
 	}
 	return out, mapErr(rows.Err())
 }

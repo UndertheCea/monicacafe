@@ -189,3 +189,35 @@ export const SHOP = typed<
 export function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
+
+// ---------------------------------------------------------------------------
+// Map + home page
+// ---------------------------------------------------------------------------
+
+export const SHOPS_FOR_MAP = typed<{ shopsForMap: import("./map").ShopPin[] }>(/* GraphQL */ `
+  query ShopsForMap {
+    shopsForMap { id slug name city lat lng }
+  }
+`);
+
+export interface HomeData {
+  popularCoffees: CoffeeCardData[];
+  shops: { total: number; nodes: ShopSummary[] };
+}
+
+export const HOME = typed<HomeData, { coffeeLimit: number; shopLimit: number }>(/* GraphQL */ `
+  query Home($coffeeLimit: Int, $shopLimit: Int) {
+    popularCoffees(limit: $coffeeLimit) {
+      id slug name roastLevel flavorNotes imageUrls commentCount
+      shop { slug name city }
+      originCountry { nameEn nameZh }
+      processingMethod { nameEn nameZh }
+      variety { name }
+      variants { priceTwd isAvailable }
+    }
+    shops(limit: $shopLimit) {
+      total
+      nodes { id slug name description logoUrl bannerUrl city }
+    }
+  }
+`);

@@ -216,6 +216,46 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ---
 
+## Iteration 5 — Map page, bilingual home page, Next.js security upgrade
+
+**Completed** (three slices; backend needed no changes — `shopsForMap` / `popularCoffees` were already wired)
+
+### Slice 1 (frontend) — `/map` coffee map
+- Leaflet 1.9.4 + OpenStreetMap tiles (with the attribution OSM requires); Leaflet is imported lazily in an effect so it never runs on the server
+- Amber circle markers (no bundler marker-image issues), tooltip + popup per shop; popup DOM is built with `textContent` so seller-supplied names are never parsed as HTML
+- Map fits all pins (Taiwan-centre fallback); side list focuses a pin (`flyTo` + popup) and links to the storefront — doubles as the accessible fallback, and shows a bilingual "map failed to load" message
+- Shops with missing / out-of-range coordinates are listed separately below the map instead of being dropped
+- Header nav gains 地圖 / Map
+- `partitionPins()` lives in dependency-free `lib/mapPins.ts`
+
+### Slice 2 (frontend) — bilingual home page `/`
+- Replaced the English-only placeholder (and its dead `/subscribe` link) with a zh-TW / EN hero, CTAs to `/coffees` and `/map`
+- "Popular coffees" strip (`popularCoffees(limit: 4)`, reusing `CoffeeCard`) and "Featured shops" (`shops(limit: 3)`, reusing `ShopCard`)
+- Sections load with `Promise.allSettled`: if the API is down the hero still renders and each section shows a bilingual "unavailable" notice
+- ~40 new `t()` keys (`map.*`, `home.*`) in both locales
+
+### Slice 3 (cross-cutting) — security upgrade + frontend test harness
+- **Next.js 15.3.9 → 15.5.29** (and `eslint-config-next`): clears the critical image-optimizer / Windows RCE advisories and the high-severity DoS / SSRF / middleware-bypass ones without a major-version jump; `npm audit fix` also cleared `sharp`
+- Removed the `images.remotePatterns: "**"` wildcard (nothing uses `next/image`; it made the optimizer an open proxy)
+- `package-lock.json` re-synced: plain `npm ci` used to fail (only `--legacy-peer-deps` worked)
+- Frontend unit tests with Node's built-in runner, no new dependencies: `npm test` (`node --test`, Node 22 strips TS types natively) — table-driven `partitionPins` cases, i18n key parity between zh-TW and en, placeholder parity, `t()` interpolation, `pick()` — 19 tests. `npm run typecheck` added too
+- `DICTS` is now exported from `lib/i18n/dict.ts` (for the parity test)
+
+### Verification
+- `go build ./...`, `go vet ./...`, `go test ./... -count=1` pass (integration test included, against PostgreSQL 16)
+- `npm test` 19/19, `tsc --noEmit` clean, `npm run build` passes (7 routes), `docker compose config --quiet` OK
+- Migrations + `seed_dev.sql` applied cleanly to a fresh PostgreSQL 16; backend + Next standalone server run against it:
+  `/`, `/map`, `/coffees`, `/shops`, `/shops/demo-roastery` → 200 in both locales. Playwright: 5 markers, list click opens the right popup,
+  no horizontal scroll at 390px, no client errors except OSM tile fetches (the build sandbox has no route to tile.openstreetmap.org)
+- **Not re-verified**: a full `docker compose up` — there is no Docker daemon in this build sandbox. The Dockerfiles are unchanged since iteration 4
+
+### Decisions / deferred
+- OSM's public tile server is fine for the demo but its usage policy forbids heavy production use — switch to a hosted tile provider (configurable URL) before launch
+- Remaining `npm audit` items need Next 16 (moderate `next` advisories, bundled `postcss` used at build time only) or are dev-only (`@typescript-eslint` / `minimatch`)
+- No ESLint config file exists, so `next lint` prompts interactively; `next build` still runs its built-in checks
+
+---
+
 ## Component Status
 
 | Component | Status |
@@ -225,10 +265,10 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 | Go data layer (store) | Done |
 | GraphQL API (Stage 1 queries + mutations) | Done |
 | JWT auth (register / login / refresh / logout) | Done |
-| Next.js frontend — home page | Placeholder (English-only, needs bilingual rewrite) |
+| Next.js frontend — home page | Done — bilingual, popular coffees + featured shops (iteration 5) |
 | Next.js frontend — catalog / shop / coffee pages | Done (iteration 4) |
 | Frontend auth (login / register, token refresh) | Not started |
-| Map page | Not started |
+| Map page | Done — Leaflet + OSM (iteration 5) |
 | Seller dashboard | Not started |
 | File uploads (S3-compatible) | Not started |
 | Cart / orders / ECPay | Not started (Stage 2) |
@@ -236,13 +276,13 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ## Next Iteration Should Tackle
 
-**Iteration 5 — Finish the Stage 1 Docker demo checklist**
-1. `/map` page: Leaflet + OSM tiles from `shopsForMap` (seed shops already have lat/lng) — last route of the demo checklist
-2. Bilingual home page: hero + `popularCoffees` strip + featured shops, remove the dead `/subscribe` link
-3. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
-4. Consider Next 16 upgrade to clear the remaining `npm audit` advisories
+**Iteration 6 — Frontend auth + comments**
+1. Login / register pages, access token in memory + refresh token in an httpOnly cookie (or a BFF route handler), silent refresh
+2. Add-comment form on `/coffees/[id]` (and delete for the author) — closes the last `[~]` Stage 1 item
+3. Run `docker compose up` on a machine with a Docker daemon to re-confirm the demo end to end (now including `/map`)
+4. Add an ESLint flat config so `next lint` runs in CI; consider a GitHub Actions workflow running `go test` + `npm test` + `npm run build`
 
-Later: seller dashboard, uploads (S3-compatible).
+Later: seller dashboard, uploads (S3-compatible), hosted map tiles, Next 16 upgrade.
 
 ---
 
@@ -254,7 +294,7 @@ Later: seller dashboard, uploads (S3-compatible).
 - [x] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
 - [x] Auth resolvers: register, login, refreshToken, logout (bcrypt + JWT, rotation)
 - [x] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
-- [ ] Frontend: map page (Leaflet.js or Mapbox) with shop pins
+- [x] Frontend: map page (Leaflet.js or Mapbox) with shop pins
 - [x] Frontend: coffee filters (origin country, variety, processing method, roast level)
 - [~] Frontend: simple comment section on coffee pages (read-only list done; add form needs frontend auth)
 - [ ] File upload: seller logo/banner/coffee images (S3-compatible, Stage 1)
@@ -267,7 +307,7 @@ Later: seller dashboard, uploads (S3-compatible).
 - [x] `nginx/nginx.conf` routing `/graphql` → backend:4000, everything else → frontend:3000
 - [x] `scripts/seed_dev.sql` loads cleanly (auto-applied by `scripts/initdb.sh`)
 - [x] `docker compose up` starts all services without manual intervention
-- [ ] Home page, /coffees, /shops, and /map all render at localhost without errors (/map missing)
+- [x] Home page, /coffees, /shops, and /map all render at localhost without errors (verified against the Next server in iteration 5; full compose run pending a Docker host)
 
 ### Stage 2 — Transactions
 

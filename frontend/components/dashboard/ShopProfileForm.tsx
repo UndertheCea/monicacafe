@@ -16,6 +16,7 @@ import {
 } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { ShopImages } from "./ShopImages";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 
 // Leaflet touches `window`; load the picker on the client only.
@@ -69,13 +70,12 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
       </Notice>
     );
   }
+  const onSaved = (shop: EditableShop) => setLoad({ state: "ready", shop });
   return (
-    <ProfileEditor
-      key={load.shop.id}
-      shop={load.shop}
-      locale={locale}
-      onSaved={(shop) => setLoad({ state: "ready", shop })}
-    />
+    <div className="space-y-6">
+      <ShopImages shop={load.shop} locale={locale} onSaved={onSaved} />
+      <ProfileEditor key={load.shop.id} shop={load.shop} locale={locale} onSaved={onSaved} />
+    </div>
   );
 }
 

@@ -60,7 +60,7 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         <div>
           <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-amber-100 via-stone-100 to-stone-200 ring-1 ring-stone-200">
             {hero ? (
-              // Seller-uploaded images come from arbitrary hosts in Stage 1.
+              // Seller images come from our media bucket (backend/internal/storage).
               // eslint-disable-next-line @next/next/no-img-element
               <img src={hero} alt={coffee.name} className="h-full w-full object-cover" />
             ) : (
@@ -71,10 +71,10 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
           </div>
           {thumbs.length > 0 && (
             <ul className="mt-3 grid grid-cols-4 gap-3">
-              {thumbs.slice(0, 4).map((src) => (
+              {thumbs.slice(0, 4).map((src, i) => (
                 <li key={src} className="aspect-square overflow-hidden rounded-xl ring-1 ring-stone-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  <img src={src} alt={t(locale, "img.photoAlt", { name: coffee.name, n: i + 2 })} className="h-full w-full object-cover" loading="lazy" />
                 </li>
               ))}
             </ul>

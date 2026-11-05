@@ -130,6 +130,8 @@ export interface UpdateCoffeeInput {
   clearVariety?: boolean;
   roastLevel?: string;
   flavorNotes?: string[];
+  /** Replaces the gallery (order kept; first is the cover). */
+  imageUrls?: string[];
 }
 
 export const UPDATE_COFFEE = typed<
@@ -195,5 +197,24 @@ export interface UpdateShopInput {
 export const UPDATE_SHOP = typed<{ updateShop: EditableShop }, { id: string; input: UpdateShopInput }>(/* GraphQL */ `
   mutation UpdateShop($id: ID!, $input: UpdateShopInput!) {
     updateShop(id: $id, input: $input) { ${EDITABLE_SHOP_FIELDS} }
+  }
+`);
+
+// ── Image uploads ────────────────────────────────────────────────────────────
+
+export type ImageKind = "SHOP_LOGO" | "SHOP_BANNER" | "COFFEE_PHOTO";
+
+export interface ImageUpload {
+  uploadUrl: string;
+  publicUrl: string;
+  headers: { name: string; value: string }[];
+}
+
+export const CREATE_IMAGE_UPLOAD = typed<
+  { createImageUpload: ImageUpload },
+  { input: { kind: ImageKind; targetId: string; contentType: string; byteSize: number } }
+>(/* GraphQL */ `
+  mutation CreateImageUpload($input: ImageUploadInput!) {
+    createImageUpload(input: $input) { uploadUrl publicUrl headers { name value } }
   }
 `);

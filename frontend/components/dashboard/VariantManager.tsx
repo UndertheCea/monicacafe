@@ -16,6 +16,7 @@ import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/da
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
+import { CoffeeGallery } from "./CoffeeGallery";
 import { GRINDS } from "./NewCoffeeForm";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -74,6 +75,12 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
       </div>
 
       <CoffeeDetailsForm
+        coffee={coffee}
+        locale={locale}
+        onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
+      />
+
+      <CoffeeGallery
         coffee={coffee}
         locale={locale}
         onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}

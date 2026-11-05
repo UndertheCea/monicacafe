@@ -89,6 +89,8 @@ export function LocationPicker({
     } else {
       markerRef.current.setLatLng([value.lat, value.lng]);
     }
+    // Typed coordinates can land off-screen; bring the pin into view.
+    if (!map.getBounds().contains([value.lat, value.lng])) map.panTo([value.lat, value.lng]);
   }, [value, status]);
 
   return (

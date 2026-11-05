@@ -212,6 +212,24 @@ func TestMarketplaceFlow(t *testing.T) {
 	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!) { updateShop(id: $id, input: {lat: 91}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
 
+	// The map query exposes the pin with both coordinates.
+	var pins struct {
+		ShopsForMap []struct {
+			Slug     string
+			Lat, Lng *float64
+		}
+	}
+	anon.mustDo(`{ shopsForMap { slug lat lng } }`, nil, &pins)
+	foundPin := false
+	for _, p := range pins.ShopsForMap {
+		if p.Slug == slug {
+			foundPin = p.Lat != nil && p.Lng != nil && *p.Lat == lat && *p.Lng == lng
+		}
+	}
+	if !foundPin {
+		t.Fatalf("shopsForMap missing pin for %s: %+v", slug, pins.ShopsForMap)
+	}
+
 	// ── Coffee ──────────────────────────────────────────────────────────────
 	var refs struct {
 		OriginCountries   []struct{ ID, NameEn string }

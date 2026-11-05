@@ -185,6 +185,61 @@ export const SHOP = typed<
   }
 `);
 
+// ---------------------------------------------------------------------------
+// Map + home page
+// ---------------------------------------------------------------------------
+
+export interface ShopPin {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+export const SHOPS_FOR_MAP = typed<{ shopsForMap: ShopPin[] }>(/* GraphQL */ `
+  query ShopsForMap {
+    shopsForMap { id slug name city lat lng }
+  }
+`);
+
+export const HOME = typed<
+  { popularCoffees: CoffeeCardData[]; shops: { nodes: ShopSummary[] } },
+  { popular: number; shops: number }
+>(/* GraphQL */ `
+  query Home($popular: Int, $shops: Int) {
+    popularCoffees(limit: $popular) {
+      id slug name roastLevel flavorNotes imageUrls commentCount
+      shop { slug name city }
+      originCountry { nameEn nameZh }
+      processingMethod { nameEn nameZh }
+      variety { name }
+      variants { priceTwd isAvailable }
+    }
+    shops(limit: $shops) {
+      nodes { id slug name description logoUrl bannerUrl city }
+    }
+  }
+`);
+
+/** Group pins by city (zh-TW collation), keeping each city's order stable. */
+export function groupByCity(pins: ShopPin[]): [string, ShopPin[]][] {
+  const groups = new Map<string, ShopPin[]>();
+  for (const p of pins) {
+    const city = p.city || "—";
+    const list = groups.get(city);
+    if (list) list.push(p);
+    else groups.set(city, [p]);
+  }
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "zh-TW"));
+}
+
+/** True when the pin has a plottable coordinate pair. */
+export function hasCoords(p: ShopPin): p is ShopPin & { lat: number; lng: number } {
+  return typeof p.lat === "number" && typeof p.lng === "number";
+}
+
 /** True when `id` looks like a UUID (avoids a backend round-trip on junk URLs). */
 export function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);

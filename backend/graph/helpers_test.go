@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/underthecea/monicacafe/backend/graph/model"
+	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
 func TestSlugify(t *testing.T) {
@@ -124,5 +125,37 @@ func TestStoreFilter(t *testing.T) {
 	f, err := storeFilter(&model.CoffeeFilter{FlavorNote: &blank})
 	if err != nil || f.FlavorNote != nil || f.IncludeUnpublished {
 		t.Fatalf("unexpected filter %+v %v", f, err)
+	}
+}
+
+func TestToShopPin(t *testing.T) {
+	f := func(v float64) *float64 { return &v }
+	tests := []struct {
+		name     string
+		lat, lng *float64
+		wantPin  bool
+	}{
+		{"taipei", f(25.033), f(121.565), true},
+		{"origin is valid", f(0), f(0), true},
+		{"no coords", nil, nil, false},
+		{"lat only", f(25.0), nil, false},
+		{"lng only", nil, f(121.5), false},
+		{"lat out of range", f(95), f(121.5), false},
+		{"lng out of range", f(25), f(-181), false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := toShopPin(&store.ShopPin{ID: "id", Slug: "s", Name: "n", City: "台北市", Lat: tc.lat, Lng: tc.lng})
+			if got.ID != "id" || got.Slug != "s" || got.Name != "n" || got.City != "台北市" {
+				t.Fatalf("identity fields not copied: %+v", got)
+			}
+			hasPin := got.Lat != nil && got.Lng != nil
+			if hasPin != tc.wantPin {
+				t.Fatalf("pin = %v, want %v", hasPin, tc.wantPin)
+			}
+			if !hasPin && (got.Lat != nil || got.Lng != nil) {
+				t.Fatalf("half a coordinate leaked: %+v", got)
+			}
+		})
 	}
 }

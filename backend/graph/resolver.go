@@ -22,13 +22,17 @@ type Resolver struct {
 	refs   *refCache
 }
 
-// Limits are the auth rate limiters, keyed by client IP (see
-// middleware.ClientIPMiddleware) or, for LoginEmail, the normalised email.
+// Limits are the rate limiters. The *IP ones are keyed by client IP (see
+// middleware.ClientIPMiddleware), LoginEmail by the normalised email and the
+// *User ones by the signed-in user's ID.
 type Limits struct {
 	LoginIP    *ratelimit.Limiter
 	LoginEmail *ratelimit.Limiter
 	RegisterIP *ratelimit.Limiter
 	RefreshIP  *ratelimit.Limiter
+
+	CommentUser *ratelimit.Limiter
+	UploadUser  *ratelimit.Limiter
 }
 
 // allowIP spends a token for the request's client IP. Requests whose IP is

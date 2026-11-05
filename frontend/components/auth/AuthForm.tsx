@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { toApiError } from "@/lib/graphql";
-import { authErrorMessage, safeNext, validateCredentials, type AuthErrorMessage } from "@/lib/auth/token";
+import { safeNext, validateCredentials } from "@/lib/auth/token";
+import { authErrorMessage, type AuthErrorMessage } from "@/lib/errors";
 import { useAuth } from "./AuthProvider";
 
 type Mode = "login" | "register";

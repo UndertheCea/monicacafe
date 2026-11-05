@@ -46,6 +46,10 @@ type Config struct {
 	RateLimitLoginEmail string
 	RateLimitRegisterIP string
 	RateLimitRefreshIP  string
+
+	// Per-account limits on signed-in writes.
+	RateLimitCommentUser string
+	RateLimitUploadUser  string
 }
 
 func get(k, d string) string {
@@ -77,10 +81,12 @@ func Load() Config {
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
 		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
 
-		RateLimitLoginIP:    get("RATE_LIMIT_LOGIN_IP", "20/1m"),
-		RateLimitLoginEmail: get("RATE_LIMIT_LOGIN_EMAIL", "10/10m"),
-		RateLimitRegisterIP: get("RATE_LIMIT_REGISTER_IP", "10/1h"),
-		RateLimitRefreshIP:  get("RATE_LIMIT_REFRESH_IP", "60/1m"),
+		RateLimitLoginIP:     get("RATE_LIMIT_LOGIN_IP", "20/1m"),
+		RateLimitLoginEmail:  get("RATE_LIMIT_LOGIN_EMAIL", "10/10m"),
+		RateLimitRegisterIP:  get("RATE_LIMIT_REGISTER_IP", "10/1h"),
+		RateLimitRefreshIP:   get("RATE_LIMIT_REFRESH_IP", "60/1m"),
+		RateLimitCommentUser: get("RATE_LIMIT_COMMENT_USER", "5/5m"),
+		RateLimitUploadUser:  get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
 	}
 }
 
@@ -130,6 +136,7 @@ const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.
 // RateLimitRules are the parsed auth rate limits.
 type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
+	CommentUser, UploadUser                    ratelimit.Rule
 }
 
 // RateLimits parses the RATE_LIMIT_* settings.
@@ -143,6 +150,8 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_LOGIN_EMAIL", c.RateLimitLoginEmail, &r.LoginEmail},
 		{"RATE_LIMIT_REGISTER_IP", c.RateLimitRegisterIP, &r.RegisterIP},
 		{"RATE_LIMIT_REFRESH_IP", c.RateLimitRefreshIP, &r.RefreshIP},
+		{"RATE_LIMIT_COMMENT_USER", c.RateLimitCommentUser, &r.CommentUser},
+		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)
 		if err != nil {

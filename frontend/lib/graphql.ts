@@ -1,5 +1,5 @@
 import { ClientError, GraphQLClient } from "graphql-request";
-import { retryAfterSeconds } from "./auth/token";
+import { retryAfterSeconds } from "./errors";
 
 // Server components talk to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
 // http://backend:4000/graphql inside docker compose); the browser uses the

@@ -7,7 +7,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, authedClient, toApiError, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
-import { refreshDelayMs, retryAfterSeconds } from "@/lib/auth/token";
+import { refreshDelayMs } from "@/lib/auth/token";
+import { retryAfterSeconds } from "@/lib/errors";
 
 type State =
   | { status: "loading" }

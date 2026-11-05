@@ -78,6 +78,9 @@ func run() error {
 		LoginEmail: ratelimit.New(rules.LoginEmail),
 		RegisterIP: ratelimit.New(rules.RegisterIP),
 		RefreshIP:  ratelimit.New(rules.RefreshIP),
+
+		CommentUser: ratelimit.New(rules.CommentUser),
+		UploadUser:  ratelimit.New(rules.UploadUser),
 	}
 	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
 	if err != nil {

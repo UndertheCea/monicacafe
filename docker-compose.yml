@@ -112,6 +112,8 @@ services:
       RATE_LIMIT_LOGIN_EMAIL: ${RATE_LIMIT_LOGIN_EMAIL:-10/10m}
       RATE_LIMIT_REGISTER_IP: ${RATE_LIMIT_REGISTER_IP:-10/1h}
       RATE_LIMIT_REFRESH_IP: ${RATE_LIMIT_REFRESH_IP:-60/1m}
+      RATE_LIMIT_COMMENT_USER: ${RATE_LIMIT_COMMENT_USER:-5/5m}
+      RATE_LIMIT_UPLOAD_USER: ${RATE_LIMIT_UPLOAD_USER:-30/10m}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}

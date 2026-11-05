@@ -519,6 +519,9 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	if r.Media == nil {
 		return nil, errBadInput("input", "image uploads are not configured on this server")
 	}
+	if err := allowKey(r.Limits.UploadUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if !input.Kind.IsValid() {
 		return nil, errBadInput("kind", "invalid image kind")
 	}
@@ -677,6 +680,10 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	}
 	if !co.IsPublished {
 		return nil, errNotFound("coffee")
+	}
+	// Spent only by valid comments, so a typo doesn't cost a token.
+	if err := allowKey(r.Limits.CommentUser, c.UserID); err != nil {
+		return nil, err
 	}
 	cm, err := r.Store.CreateComment(ctx, c.UserID, co.ID, body)
 	if errors.Is(err, store.ErrInvalidReference) {

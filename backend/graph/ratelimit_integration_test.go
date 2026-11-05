@@ -53,3 +53,33 @@ func TestAuthRateLimits(t *testing.T) {
 	anon.mustDo(refresh, map[string]any{"t": reg.RefreshToken}, nil)
 	anon.expectCode("RATE_LIMITED", refresh, map[string]any{"t": reg.RefreshToken})
 }
+
+// TestCommentRateLimit: the N+1th comment by one user is refused while another
+// user can still comment. Requires TEST_DATABASE_URL.
+func TestCommentRateLimit(t *testing.T) {
+	const perUser = 2
+	url, _ := newTestServerWith(t, func(r *graph.Resolver) {
+		r.Limits = graph.Limits{CommentUser: ratelimit.New(ratelimit.Rule{Burst: perUser, Per: time.Hour})}
+	})
+	run := fmt.Sprintf("%d", time.Now().UnixNano())
+	alice, _ := register(t, url, "calice+"+run+"@example.com")
+	bob, _ := register(t, url, "cbob+"+run+"@example.com")
+
+	var list struct {
+		Coffees struct{ Nodes []struct{ ID string } }
+	}
+	alice.mustDo(`{ coffees(limit: 1) { nodes { id } } }`, nil, &list)
+	if len(list.Coffees.Nodes) == 0 {
+		t.Skip("no published coffees in the test database (seed not loaded)")
+	}
+	coffeeID := list.Coffees.Nodes[0].ID
+	const add = `mutation($in: AddCommentInput!) { addComment(input: $in) { id } }`
+	in := map[string]any{"in": map[string]any{"coffeeId": coffeeID, "body": "rate limit test"}}
+	// An invalid comment doesn't spend a token.
+	alice.expectCode("BAD_USER_INPUT", add, map[string]any{"in": map[string]any{"coffeeId": coffeeID, "body": " "}})
+	for range perUser {
+		alice.mustDo(add, in, nil)
+	}
+	alice.expectCode("RATE_LIMITED", add, in)
+	bob.mustDo(add, in, nil)
+}

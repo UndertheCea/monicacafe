@@ -9,10 +9,10 @@ import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
   REFRESH_MAX_AGE_S,
-  authErrorStatus,
   forwardedFor,
   jwtExpiryMs,
 } from "@/lib/auth/token";
+import { authErrorStatus } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 

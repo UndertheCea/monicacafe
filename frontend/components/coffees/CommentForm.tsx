@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
 import { toApiError } from "@/lib/graphql";
+import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -16,7 +17,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   const pathname = usePathname();
   const router = useRouter();
   const [body, setBody] = useState("");
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
   const [busy, setBusy] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -48,8 +49,9 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
       setBody("");
       startTransition(() => router.refresh());
     } catch (err) {
-      const code = toApiError(err).code;
-      setError(code === "BAD_USER_INPUT" ? "comments.tooLong" : "comments.error");
+      const e2 = toApiError(err);
+      if (e2.code === "RATE_LIMITED") setError(rateLimitMessage(e2.retryAfter));
+      else setError({ key: e2.code === "BAD_USER_INPUT" ? "comments.tooLong" : "comments.error" });
     } finally {
       setBusy(false);
     }
@@ -86,7 +88,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
       </div>
       {error && (
         <p role="alert" className="mt-2 text-sm text-red-700">
-          {t(locale, error, { max: COMMENT_MAX })}
+          {t(locale, error.key, { max: COMMENT_MAX, ...error.vars })}
         </p>
       )}
     </form>

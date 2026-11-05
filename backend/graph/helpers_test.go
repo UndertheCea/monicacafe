@@ -236,3 +236,27 @@ func eqp[T comparable](a, b *T) bool {
 	}
 	return *a == *b
 }
+
+func TestValidatePasswordChange(t *testing.T) {
+	cases := []struct {
+		name, current, next, wantField string
+	}{
+		{"ok", "old-password-1", "new-password-2", ""},
+		{"missing current", "", "new-password-2", "currentPassword"},
+		{"too short", "old-password-1", "short", "newPassword"},
+		{"too long", "old-password-1", strings.Repeat("x", 73), "newPassword"},
+		{"unchanged", "same-password", "same-password", "newPassword"},
+	}
+	for _, c := range cases {
+		err := validatePasswordChange(c.current, c.next)
+		var field string
+		if ae, ok := err.(*apiError); ok {
+			field = ae.field
+		} else if err != nil {
+			t.Fatalf("%s: unexpected error type %T", c.name, err)
+		}
+		if field != c.wantField {
+			t.Errorf("%s: field = %q, want %q (err %v)", c.name, field, c.wantField, err)
+		}
+	}
+}

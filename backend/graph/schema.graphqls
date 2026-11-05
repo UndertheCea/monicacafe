@@ -32,6 +32,12 @@ type Mutation {
   refreshToken(token: String!): AuthPayload!
   logout: Boolean!
 
+  # Account (signed in)
+  updateProfile(input: UpdateProfileInput!): User!
+  # Checks currentPassword, stores the new one and ends every other session
+  # (all refresh tokens are revoked); returns fresh tokens for this one.
+  changePassword(input: ChangePasswordInput!): AuthPayload!
+
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
   updateShop(id: ID!, input: UpdateShopInput!): Shop!
@@ -234,6 +240,15 @@ input RegisterInput {
 input LoginInput {
   email: String!
   password: String!
+}
+
+input UpdateProfileInput {
+  displayName: String!
+}
+
+input ChangePasswordInput {
+  currentPassword: String!
+  newPassword: String!
 }
 
 input CreateShopInput {

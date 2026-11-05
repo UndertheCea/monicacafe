@@ -221,6 +221,22 @@ func cleanOptText(field string, s *string, minLen, maxLen int) (*string, error) 
 	return &v, nil
 }
 
+// validatePasswordChange checks a changePassword input before any database
+// work: the new password must meet the strength rule and differ from the
+// current one.
+func validatePasswordChange(current, next string) error {
+	if current == "" {
+		return errBadInput("currentPassword", "current password is required")
+	}
+	if err := auth.ValidatePassword(next); err != nil {
+		return errBadInput("newPassword", err.Error())
+	}
+	if next == current {
+		return errBadInput("newPassword", "new password must differ from the current one")
+	}
+	return nil
+}
+
 func normaliseEmail(s string) (string, error) {
 	s = strings.ToLower(strings.TrimSpace(s))
 	addr, err := mail.ParseAddress(s)

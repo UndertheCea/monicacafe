@@ -218,6 +218,63 @@ func (r *mutationResolver) Logout(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+// UpdateProfile is the resolver for the updateProfile field.
+func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*model.User, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	name, err := cleanText("displayName", input.DisplayName, 1, 50)
+	if err != nil {
+		return nil, err
+	}
+	u, err := r.Store.UpdateDisplayName(ctx, c.UserID, name)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
+		return nil, err
+	}
+	user := toUser(u)
+	user.RevealEmail = true
+	return user, nil
+}
+
+// ChangePassword is the resolver for the changePassword field.
+func (r *mutationResolver) ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.AuthPayload, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// Counted per account before the bcrypt check, like login (#27).
+	if err := allowKey(r.Limits.PasswordUser, c.UserID); err != nil {
+		return nil, err
+	}
+	if err := validatePasswordChange(input.CurrentPassword, input.NewPassword); err != nil {
+		return nil, err
+	}
+	u, err := r.Store.UserByID(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !auth.CheckPassword(u.PasswordHash, input.CurrentPassword) {
+		// BAD_USER_INPUT, not UNAUTHENTICATED: the caller is signed in, and
+		// clients treat UNAUTHENTICATED as "refresh the access token and retry".
+		return nil, errBadInput("currentPassword", "current password is wrong")
+	}
+	hash, err := auth.HashPassword(input.NewPassword)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.Store.ChangePassword(ctx, u.ID, hash); err != nil {
+		return nil, err
+	}
+	return r.issueTokens(ctx, u)
+}
+
 // CreateShop is the resolver for the createShop field.
 func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error) {
 	c, err := requireViewer(ctx)

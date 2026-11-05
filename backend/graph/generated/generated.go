@@ -105,6 +105,7 @@ type ComplexityRoot struct {
 	Mutation struct {
 		AddComment        func(childComplexity int, input model.AddCommentInput) int
 		AddVariant        func(childComplexity int, coffeeID string, input model.VariantInput) int
+		ChangePassword    func(childComplexity int, input model.ChangePasswordInput) int
 		CreateCoffee      func(childComplexity int, input model.CreateCoffeeInput) int
 		CreateImageUpload func(childComplexity int, input model.ImageUploadInput) int
 		CreateShop        func(childComplexity int, input model.CreateShopInput) int
@@ -118,6 +119,7 @@ type ComplexityRoot struct {
 		Register          func(childComplexity int, input model.RegisterInput) int
 		UnpublishCoffee   func(childComplexity int, id string) int
 		UpdateCoffee      func(childComplexity int, id string, input model.UpdateCoffeeInput) int
+		UpdateProfile     func(childComplexity int, input model.UpdateProfileInput) int
 		UpdateShop        func(childComplexity int, id string, input model.UpdateShopInput) int
 		UpdateVariant     func(childComplexity int, id string, input model.UpdateVariantInput) int
 	}
@@ -220,6 +222,8 @@ type MutationResolver interface {
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error)
 	Logout(ctx context.Context) (bool, error)
+	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*model.User, error)
+	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.AuthPayload, error)
 	CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error)
 	UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error)
 	CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error)
@@ -522,6 +526,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.AddVariant(childComplexity, args["coffeeId"].(string), args["input"].(model.VariantInput)), true
 
+	case "Mutation.changePassword":
+		if e.complexity.Mutation.ChangePassword == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changePassword_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ChangePassword(childComplexity, args["input"].(model.ChangePasswordInput)), true
+
 	case "Mutation.createCoffee":
 		if e.complexity.Mutation.CreateCoffee == nil {
 			break
@@ -672,6 +688,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateCoffee(childComplexity, args["id"].(string), args["input"].(model.UpdateCoffeeInput)), true
+
+	case "Mutation.updateProfile":
+		if e.complexity.Mutation.UpdateProfile == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateProfile_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateProfile(childComplexity, args["input"].(model.UpdateProfileInput)), true
 
 	case "Mutation.updateShop":
 		if e.complexity.Mutation.UpdateShop == nil {
@@ -1093,6 +1121,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddCommentInput,
+		ec.unmarshalInputChangePasswordInput,
 		ec.unmarshalInputCoffeeFilter,
 		ec.unmarshalInputCreateCoffeeInput,
 		ec.unmarshalInputCreateShopInput,
@@ -1100,6 +1129,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputRegisterInput,
 		ec.unmarshalInputUpdateCoffeeInput,
+		ec.unmarshalInputUpdateProfileInput,
 		ec.unmarshalInputUpdateShopInput,
 		ec.unmarshalInputUpdateVariantInput,
 		ec.unmarshalInputVariantInput,
@@ -1233,6 +1263,12 @@ type Mutation {
   login(input: LoginInput!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
   logout: Boolean!
+
+  # Account (signed in)
+  updateProfile(input: UpdateProfileInput!): User!
+  # Checks currentPassword, stores the new one and ends every other session
+  # (all refresh tokens are revoked); returns fresh tokens for this one.
+  changePassword(input: ChangePasswordInput!): AuthPayload!
 
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
@@ -1438,6 +1474,15 @@ input LoginInput {
   password: String!
 }
 
+input UpdateProfileInput {
+  displayName: String!
+}
+
+input ChangePasswordInput {
+  currentPassword: String!
+  newPassword: String!
+}
+
 input CreateShopInput {
   slug: String!
   name: String!
@@ -1603,6 +1648,34 @@ func (ec *executionContext) field_Mutation_addVariant_argsInput(
 	}
 
 	var zeroVal model.VariantInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_changePassword_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_changePassword_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_changePassword_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.ChangePasswordInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.ChangePasswordInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNChangePasswordInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐChangePasswordInput(ctx, tmp)
+	}
+
+	var zeroVal model.ChangePasswordInput
 	return zeroVal, nil
 }
 
@@ -1962,6 +2035,34 @@ func (ec *executionContext) field_Mutation_updateCoffee_argsInput(
 	}
 
 	var zeroVal model.UpdateCoffeeInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateProfile_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateProfile_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateProfile_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateProfileInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.UpdateProfileInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateProfileInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateProfileInput(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateProfileInput
 	return zeroVal, nil
 }
 
@@ -4273,6 +4374,138 @@ func (ec *executionContext) fieldContext_Mutation_logout(_ context.Context, fiel
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Boolean does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateProfile(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateProfile(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateProfile(rctx, fc.Args["input"].(model.UpdateProfileInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.User)
+	fc.Result = res
+	return ec.marshalNUser2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateProfile(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_User_id(ctx, field)
+			case "email":
+				return ec.fieldContext_User_email(ctx, field)
+			case "displayName":
+				return ec.fieldContext_User_displayName(ctx, field)
+			case "role":
+				return ec.fieldContext_User_role(ctx, field)
+			case "shop":
+				return ec.fieldContext_User_shop(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_User_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateProfile_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_changePassword(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_changePassword(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ChangePassword(rctx, fc.Args["input"].(model.ChangePasswordInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.AuthPayload)
+	fc.Result = res
+	return ec.marshalNAuthPayload2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐAuthPayload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_changePassword(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "accessToken":
+				return ec.fieldContext_AuthPayload_accessToken(ctx, field)
+			case "refreshToken":
+				return ec.fieldContext_AuthPayload_refreshToken(ctx, field)
+			case "user":
+				return ec.fieldContext_AuthPayload_user(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type AuthPayload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_changePassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -9828,6 +10061,40 @@ func (ec *executionContext) unmarshalInputAddCommentInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputChangePasswordInput(ctx context.Context, obj any) (model.ChangePasswordInput, error) {
+	var it model.ChangePasswordInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"currentPassword", "newPassword"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "currentPassword":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("currentPassword"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CurrentPassword = data
+		case "newPassword":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("newPassword"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.NewPassword = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj any) (model.CoffeeFilter, error) {
 	var it model.CoffeeFilter
 	asMap := map[string]any{}
@@ -10221,6 +10488,33 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.ImageUrls = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateProfileInput(ctx context.Context, obj any) (model.UpdateProfileInput, error) {
+	var it model.UpdateProfileInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"displayName"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "displayName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("displayName"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DisplayName = data
 		}
 	}
 
@@ -11042,6 +11336,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "logout":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_logout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateProfile":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateProfile(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "changePassword":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_changePassword(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -12334,6 +12642,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
+func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐChangePasswordInput(ctx context.Context, v any) (model.ChangePasswordInput, error) {
+	res, err := ec.unmarshalInputChangePasswordInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNCoffee2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx context.Context, sel ast.SelectionSet, v model.Coffee) graphql.Marshaler {
 	return ec._Coffee(ctx, sel, &v)
 }
@@ -12935,6 +13248,11 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 
 func (ec *executionContext) unmarshalNUpdateCoffeeInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateCoffeeInput(ctx context.Context, v any) (model.UpdateCoffeeInput, error) {
 	res, err := ec.unmarshalInputUpdateCoffeeInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateProfileInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateProfileInput(ctx context.Context, v any) (model.UpdateProfileInput, error) {
+	res, err := ec.unmarshalInputUpdateProfileInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

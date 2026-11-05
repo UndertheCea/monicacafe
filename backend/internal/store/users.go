@@ -56,6 +56,27 @@ func (s *Store) UsersByIDs(ctx context.Context, ids []string) (map[string]*User,
 	return out, mapErr(rows.Err())
 }
 
+// UpdateDisplayName sets a user's display name and returns the updated row.
+func (s *Store) UpdateDisplayName(ctx context.Context, userID, displayName string) (*User, error) {
+	return scanUser(s.db.QueryRow(ctx, `
+		UPDATE users SET display_name = $2 WHERE id = $1 RETURNING `+userColumns, userID, displayName))
+}
+
+// ChangePassword stores a new password hash and revokes every refresh token
+// of the user in one transaction, so no session outlives the old password.
+func (s *Store) ChangePassword(ctx context.Context, userID, passwordHash string) error {
+	return s.InTx(ctx, func(tx *Store) error {
+		tag, err := tx.db.Exec(ctx, `UPDATE users SET password_hash = $2 WHERE id = $1`, userID, passwordHash)
+		if err != nil {
+			return mapErr(err)
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotFound
+		}
+		return tx.RevokeUserRefreshTokens(ctx, userID)
+	})
+}
+
 // PromoteToSeller upgrades a BUYER to SELLER. ADMIN and SELLER roles are left unchanged.
 func (s *Store) PromoteToSeller(ctx context.Context, userID string) error {
 	_, err := s.db.Exec(ctx, `UPDATE users SET role = 'SELLER' WHERE id = $1 AND role = 'BUYER'`, userID)
@@ -80,7 +101,7 @@ func (s *Store) SaveRefreshToken(ctx context.Context, userID, tokenHash string, 
 //   - presented again within grace of its rotation while its successor is still
 //     unused (a browser aborted the refresh response): the unused successor is
 //     revoked and the new token replaces it;
-//   - otherwise: ErrRefreshReuse for a revoked token (possible theft; the caller
+//   - otherwise: ErrRefreshReuse for a rotated token (possible theft; the caller
 //     revokes every session) or ErrNotFound for an unknown or expired one.
 //
 // userID (from the verified token claims) must match the row's owner, or

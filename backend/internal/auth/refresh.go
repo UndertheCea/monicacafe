@@ -36,8 +36,8 @@ const (
 	// RefreshGraceReplay: rotated moments ago and the successor was never
 	// used. Revoke that successor and issue a new one.
 	RefreshGraceReplay
-	// RefreshReuse: a revoked token presented again. Possible theft: revoke
-	// every session for the user.
+	// RefreshReuse: a rotated token presented again outside the grace window.
+	// Someone else holds a copy (possible theft): revoke every session.
 	RefreshReuse
 )
 
@@ -49,7 +49,14 @@ func ClassifyRefresh(s RefreshState, now time.Time, grace time.Duration) Refresh
 	if s.RevokedAt == nil {
 		return RefreshRotate
 	}
-	if s.Rotated && s.SuccessorActive && now.Sub(*s.RevokedAt) <= grace {
+	if !s.Rotated {
+		// Revoked on purpose (logout, password change, or an earlier reuse
+		// detection): just refuse it. Treating it as theft would also end
+		// sessions issued after the revocation, e.g. the one that changed
+		// the password, as soon as an old device tried to refresh.
+		return RefreshInvalid
+	}
+	if s.SuccessorActive && now.Sub(*s.RevokedAt) <= grace {
 		return RefreshGraceReplay
 	}
 	return RefreshReuse

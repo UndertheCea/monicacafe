@@ -48,7 +48,10 @@ services:
     volumes:
       - meili_data:/meili_data
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7700/health || exit 1"]
+      # 127.0.0.1, not localhost: where /etc/hosts maps localhost to ::1 first
+      # (GitHub runners), busybox wget doesn't fall back to IPv4 and Meilisearch
+      # listens on 0.0.0.0 only.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7700/health || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10

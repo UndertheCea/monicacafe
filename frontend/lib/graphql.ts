@@ -1,4 +1,5 @@
 import { ClientError, GraphQLClient } from "graphql-request";
+import { UNAVAILABLE, parseGraphQLErrors } from "./errors";
 
 // Server components talk to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
 // http://backend:4000/graphql inside docker compose); the browser uses the
@@ -14,6 +15,12 @@ export const gqlClient = new GraphQLClient(endpoint, {
   // Catalogue data changes often in Stage 1; never serve stale lists.
   cache: "no-store",
 });
+
+/** Server-side client that passes the browser's X-Forwarded-For on (BFF auth calls, for rate limiting). */
+export function forwardingClient(xff: string | undefined) {
+  if (!xff) return gqlClient;
+  return new GraphQLClient(endpoint, { headers: { "X-Forwarded-For": xff }, cache: "no-store" });
+}
 
 export function authedClient(accessToken: string) {
   return new GraphQLClient(endpoint, {
@@ -42,15 +49,20 @@ export async function query<TData, TVars extends Record<string, unknown>>(
   return client.request<TData>(doc, vars);
 }
 
-/** Structured error mirroring the backend's apperr extensions. */
+/**
+ * A failed API call. `code` is a backend code (see API_ERROR_CODES in
+ * lib/errors.ts) or UNAVAILABLE when the server couldn't be reached;
+ * `message` is English, for logs only — show t() messages chosen by code.
+ */
 export class ApiError extends Error {
   constructor(
     public code: string,
-    public messageZh: string,
-    public messageEn: string,
+    message: string,
     public field?: string,
+    /** Seconds to wait, on RATE_LIMITED errors. */
+    public retryAfter?: number,
   ) {
-    super(messageEn);
+    super(message);
   }
 }
 
@@ -58,16 +70,11 @@ export class ApiError extends Error {
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   if (err instanceof ClientError) {
-    const ext = err.response.errors?.[0]?.extensions as
-      | { code?: string; messageZh?: string; messageEn?: string; field?: string }
-      | undefined;
-    const fallback = err.response.errors?.[0]?.message ?? "GraphQL error";
-    return new ApiError(
-      ext?.code ?? "INTERNAL",
-      ext?.messageZh ?? fallback,
-      ext?.messageEn ?? fallback,
-      ext?.field,
-    );
+    const f = parseGraphQLErrors(err.response.errors);
+    return new ApiError(f.code, f.message, f.field, f.retryAfter);
   }
-  return new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
+  return unavailable();
 }
+
+/** The error for "couldn't reach the server". */
+export const unavailable = () => new ApiError(UNAVAILABLE, "could not reach the server");

@@ -61,6 +61,9 @@ export function AccountMenu({ locale }: { locale: Locale }) {
           <Link role="menuitem" href="/dashboard" className="block px-4 py-2 text-sm hover:bg-stone-50">
             {t(locale, user.shop ? "nav.dashboard" : "nav.openShop")}
           </Link>
+          <Link role="menuitem" href="/account" className="block px-4 py-2 text-sm hover:bg-stone-50">
+            {t(locale, "nav.settings")}
+          </Link>
           <button
             role="menuitem"
             type="button"

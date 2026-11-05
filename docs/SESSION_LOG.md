@@ -15,6 +15,58 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 9 — 2026-11-05 — Rate limits, account settings, orphaned-image cleanup, one error contract
+PR: #36
+
+### Shipped (one line per slice: area — what — key files)
+- #27 backend — in-memory token buckets (`internal/ratelimit`) on `login` (per IP + per email), `register` and
+  `refreshToken` (per IP) → `RATE_LIMITED` + `retryAfter`; BFF answers 429 + `Retry-After`, forms say "try again in
+  N" (zh/en). Client IP from new `middleware.ClientIPMiddleware`: walks X-Forwarded-For only past
+  `TRUSTED_PROXIES` (replaces chi `RealIP`, which trusted anyone); the BFF forwards nginx's XFF — `RATE_LIMIT_*`
+- #31 backend — per-user limits on `addComment` (valid comments only) and `createImageUpload`; comment form and
+  uploader show the shared message from `frontend/lib/errors.ts`
+- #32 backend — `updateProfile(displayName)` and `changePassword(current, new)`: new hash + revoke every refresh
+  token in one tx, fresh tokens for this session; wrong current password is `BAD_USER_INPUT` on
+  `currentPassword` (clients retry `UNAUTHENTICATED` after a refresh); per-user limit. **Behaviour change to #24:**
+  a refresh token revoked on purpose (logout / password change) is now just invalid, not "reuse" — otherwise an
+  old device refreshing after a password change would end the new session. Rotated tokens replayed outside the
+  grace window still revoke everything — `auth.ClassifyRefresh`
+- #33 frontend — `/account` (menu link "帳號設定"): display name + change password; BFF action
+  `/api/auth/password` puts the rotated refresh token in the cookie; AuthProvider `changePassword()` retries once
+  after a refresh on 401 and tells other tabs. robots.txt disallows /account
+- #34 cross-cutting — deleted the never-imported `internal/apperr`; `lib/errors.ts` documents the real contract
+  (`code`, `field`, `retryAfter`) with `parseGraphQLErrors`; `ApiError` lost the never-sent zh/en messages;
+  `ErrorState` shows a `t()` message by code instead of the raw English backend message. Go test
+  `graph/errors_contract_test.go` fails when backend codes and `API_ERROR_CODES` drift
+- #29 backend (stage-2) — `internal/mediaclean.Sweep`: lists `shops/` + `coffees/` (ListObjectsV2 via the SigV4
+  presigner, now with signed query params), then reads every saved URL (`store.ImageURLs`), deletes unreferenced
+  objects older than `MEDIA_CLEANUP_MIN_AGE` (24h), ≤1000 per run, every `MEDIA_CLEANUP_INTERVAL` (6h). Keys are
+  matched by shape, not by `MEDIA_PUBLIC_URL`, so a CDN switch can't orphan everything. New
+  `S3_INTERNAL_ENDPOINT` (compose: `http://seaweedfs:8333`) for server-side calls
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against local PostgreSQL 16 (migrations + seed) **and** a local
+  SeaweedFS 4.52 container (`TEST_S3_*`), so `TestImageUploads` and the new `TestMediaCleanup` ran for real. New:
+  `TestParseRule`, `TestLimiterAllow`, `TestClientIP`, `TestRateLimits`, `TestMediaCleanup` (config),
+  `TestAuthRateLimits`, `TestCommentRateLimit`, `TestAccount`, `TestValidatePasswordChange`, `TestImageKeyIn`,
+  `TestOrphans`, `TestParseListObjects`, `TestSweep`, `TestErrorCodesMatchFrontend` (also checked it fails on drift).
+- Frontend: tsc, `npm test` (49 cases), `next build`.
+- Full stack: dockerd in the session, images built with the sandbox CA via local-only Dockerfile copies (not
+  committed); `docker compose up --wait` healthy; `smoke.sh` passes, incl. the new checks: `/account` 200, change
+  password via BFF (new cookie refreshes, old one 401), 11th wrong login for one email → 429 + Retry-After. Backend
+  logs show BFF calls from the browser's IP (docker gateway), not the frontend container.
+- NOT tested: `/account` forms and the rate-limit messages driven in a real browser (only via smoke/curl and unit
+  tests); the periodic cleanup ticker itself in compose (6 h; `Sweep` is covered against SeaweedFS).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `TRUSTED_PROXIES` defaults to loopback + private ranges (fits compose). Production must list only its own
+  proxies and not expose :3000 / :4000, or anyone can claim any client IP.
+- Limits are per API instance (in memory); move to Redis when scaling out. Per-email login limit also counts
+  unknown emails (doesn't reveal accounts) — the cost is that someone can lock an account's logins for minutes.
+- Other sessions' *access* tokens stay valid up to 15 min after a password change (only refresh is revoked).
+- Stage 1 has no open slices after this PR; Stage 2 is still blocked on #9 (cart) and #12 (commission). New slice
+  #35: Next.js 16 upgrade (#11 default "after Stage 1" now applies).
+
 ## Session 8 — 2026-11-05 — Stack proven end to end, refresh grace window, draft preview / delete, sitemap
 PR: (see the merged PR for this branch)
 

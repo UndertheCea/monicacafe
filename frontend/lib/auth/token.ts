@@ -67,3 +67,18 @@ export function validateCredentials(
   }
   return null;
 }
+
+/**
+ * X-Forwarded-For value the BFF sends to the backend: the header nginx set,
+ * trimmed and capped so a client can't bloat backend requests. The backend
+ * only believes it because the BFF is a trusted proxy (TRUSTED_PROXIES).
+ */
+export function forwardedFor(header: string | null): string | undefined {
+  if (!header) return undefined;
+  const hops = header
+    .split(",")
+    .map((h) => h.trim())
+    .filter((h) => /^[0-9a-fA-F:.]{2,45}$/.test(h));
+  // Keep the rightmost hops: those were appended by our own proxies.
+  return hops.length ? hops.slice(-5).join(", ") : undefined;
+}

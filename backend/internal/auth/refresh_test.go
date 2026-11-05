@@ -23,7 +23,8 @@ func TestClassifyRefresh(t *testing.T) {
 		{"replay at the window edge", RefreshState{Found: true, ExpiresAt: future, RevokedAt: ago(RefreshReuseGrace), Rotated: true, SuccessorActive: true}, RefreshGraceReplay},
 		{"replay after the window", RefreshState{Found: true, ExpiresAt: future, RevokedAt: ago(RefreshReuseGrace + time.Second), Rotated: true, SuccessorActive: true}, RefreshReuse},
 		{"successor already used", RefreshState{Found: true, ExpiresAt: future, RevokedAt: ago(time.Second), Rotated: true, SuccessorActive: false}, RefreshReuse},
-		{"revoked by logout", RefreshState{Found: true, ExpiresAt: future, RevokedAt: ago(time.Second)}, RefreshReuse},
+		{"revoked by logout / password change", RefreshState{Found: true, ExpiresAt: future, RevokedAt: ago(time.Second)}, RefreshInvalid},
+		{"revoked long ago, never rotated", RefreshState{Found: true, ExpiresAt: future, RevokedAt: ago(time.Hour)}, RefreshInvalid},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

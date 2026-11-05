@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_IMAGE_UPLOAD, type ImageKind, type ImageUpload } from "@/lib/dashboard/queries";
 import { IMAGE_TYPES, MAX_IMAGE_BYTES, imageFileProblem, percent } from "@/lib/dashboard/upload";
 import { toApiError } from "@/lib/graphql";
+import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 
 /** PUT a file to a presigned URL, reporting progress (fetch can't report upload progress). */
@@ -43,14 +44,14 @@ export function ImageUploader({
   const { request } = useAuth();
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
 
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow choosing the same file again
     if (!file) return;
     const problem = imageFileProblem(file);
-    if (problem) return setError(problem === "type" ? "img.error.type" : "img.error.size");
+    if (problem) return setError({ key: problem === "type" ? "img.error.type" : "img.error.size" });
     setError(null);
     setProgress(0);
     let step: "sign" | "put" | "save" = "sign";
@@ -63,8 +64,10 @@ export function ImageUploader({
       step = "save";
       await onUploaded(r.createImageUpload.publicUrl);
     } catch (err) {
-      if (step === "sign" && toApiError(err).code === "BAD_USER_INPUT") setError("img.error.unavailable");
-      else setError(step === "put" ? "img.error.upload" : "img.error.save");
+      const e2 = toApiError(err);
+      if (step === "sign" && e2.code === "RATE_LIMITED") setError(rateLimitMessage(e2.retryAfter));
+      else if (step === "sign" && e2.code === "BAD_USER_INPUT") setError({ key: "img.error.unavailable" });
+      else setError({ key: step === "put" ? "img.error.upload" : "img.error.save" });
     } finally {
       setProgress(null);
     }
@@ -104,7 +107,7 @@ export function ImageUploader({
       <p className="mt-1 text-xs text-stone-500">{t(locale, "img.hint", { mb: MAX_IMAGE_BYTES / 1024 / 1024 })}</p>
       {error && (
         <p role="alert" className="mt-1 text-xs text-red-600">
-          {t(locale, error, { mb: MAX_IMAGE_BYTES / 1024 / 1024 })}
+          {t(locale, error.key, { mb: MAX_IMAGE_BYTES / 1024 / 1024, ...error.vars })}
         </p>
       )}
     </div>

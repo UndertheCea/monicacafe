@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-05 (after Session 8)
+Last updated: 2026-11-05 (after Session 9)
 
 ---
 
@@ -34,28 +34,31 @@ takes a commission on each sale).
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — expired tokens pruned hourly |
 | Pages: home, /coffees (+filters), /coffees/[id] (+comments), /shops, /shops/[slug], /map | Done |
-| /login, /register, account menu | Done |
+| /login, /register, account menu, /account (display name, change password) | Done |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / delete draft), shop profile + location | Done |
 | Draft preview for sellers (dashboard-only, #8 default) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
+| Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
 | Content-Security-Policy (nonce'd, from Next middleware) | Done |
 | sitemap.xml + robots.txt (`SITE_URL`) | Done |
-| Rate limiting on auth mutations (#27) | Todo |
+| Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user | Done |
+| Error contract (`graph/errors.go` ↔ `lib/errors.ts`, pinned by a Go test) | Done |
 | CI: backend, frontend, compose config, **full stack compose + smoke** | Done |
-| Full `docker compose up` through nginx | Verified session 8 (and now in CI) |
+| Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 8** — refresh-token replay grace window (#24, migration 005) and hourly pruning of expired tokens (#25);
-seller draft preview (#19) and delete-draft (#26); sitemap.xml + robots.txt (#28). Proved `docker compose up` +
-`smoke.sh` on a real daemon (#20; smoke now drives the auth cookie through nginx) and added a CI `stack` job that
-does the same on every PR. Not seen in a browser: an actually aborted refresh (covered by smoke + integration test).
+**Session 9** — Stage 1 finished. Rate limits on auth (#27) and on comments / uploads (#31), with a trusted-proxy
+client-IP middleware; account API (#32) and `/account` page (#33) — password change revokes other sessions, and
+deliberately revoked refresh tokens no longer trigger reuse detection; one documented error contract, dead
+`apperr` removed (#34); orphaned-image cleanup (#29). Verified with Postgres + SeaweedFS integration tests and the
+full compose stack + smoke. Not driven in a browser: the `/account` forms.
 
 ## Current focus
 
-Last Stage 1 slice: #27 (rate-limit login / register / refresh). After that Stage 1 is done; Stage 2 is blocked on
-the owner's answers to #9 (cart storage) and #12 (commission + payouts). Housekeeping queued for Stage 2: #29
-(orphaned images in the bucket).
+Stage 1 has no open slices. Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage)
+and #12 (commission + payouts). Until then: #35 (Next.js 16 upgrade — #11's safe default was "after Stage 1").
+Production readiness to keep in mind: set `TRUSTED_PROXIES` to the real proxies only.
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -95,4 +98,10 @@ Open questions for the owner (answer by commenting on the issue):
   old cookie; replaying the just-rotated token re-rotates instead of revoking everything. Cost: a theft replayed
   inside the window isn't detected.
 - **Delete is drafts-only** — public links (and Stage 2 orders) never point at a coffee that silently vanished.
+- **Rate limits in memory, keyed by trusted client IP / email / user** — no extra infra for one API instance;
+  X-Forwarded-For is believed only from `TRUSTED_PROXIES`, and the BFF forwards nginx's. Redis when scaling out.
+- **Revoked ≠ reused refresh tokens** — only a *rotated* token presented again means a copy exists (theft); a token
+  revoked by logout or password change is just invalid, so old devices can't end the session that revoked them.
+- **Orphan cleanup matches keys by shape after listing first** — a CDN / `MEDIA_PUBLIC_URL` change can't make saved
+  images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.

@@ -1,7 +1,7 @@
 // Pure auth helpers (lib/auth/token.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
+import { forwardedFor, jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwt = (payload) => `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(payload)}.sig`;
@@ -63,4 +63,17 @@ test("validateCredentials", () => {
     { args: ["a@b.tw", "password1", "名".repeat(51)], want: "displayName" },
   ];
   for (const c of cases) assert.equal(validateCredentials(...c.args), c.want, JSON.stringify(c.args));
+});
+
+test("forwardedFor", () => {
+  const cases = [
+    [null, undefined],
+    ["", undefined],
+    ["198.51.100.2", "198.51.100.2"],
+    [" 1.2.3.4 ,198.51.100.2 ", "1.2.3.4, 198.51.100.2"],
+    ["2001:db8::1", "2001:db8::1"],
+    ["evil<script>, 198.51.100.2", "198.51.100.2"],
+    ["1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5,6.6.6.6", "2.2.2.2, 3.3.3.3, 4.4.4.4, 5.5.5.5, 6.6.6.6"],
+  ];
+  for (const [h, want] of cases) assert.equal(forwardedFor(h), want, String(h));
 });

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -16,6 +17,7 @@ const (
 	CodeNotFound        = "NOT_FOUND"
 	CodeBadInput        = "BAD_USER_INPUT"
 	CodeConflict        = "CONFLICT"
+	CodeRateLimited     = "RATE_LIMITED"
 	CodeInternal        = "INTERNAL_SERVER_ERROR"
 )
 
@@ -24,6 +26,8 @@ type apiError struct {
 	code    string
 	message string
 	field   string
+	// retryAfter (whole seconds) is set on RATE_LIMITED errors.
+	retryAfter int
 }
 
 func (e *apiError) Error() string { return e.message }
@@ -46,6 +50,13 @@ func errConflict(field, msg string) error {
 	return &apiError{code: CodeConflict, message: msg, field: field}
 }
 
+// errRateLimited tells the client to back off for retry (rounded up to a
+// whole second).
+func errRateLimited(retry time.Duration) error {
+	secs := int((retry + time.Second - 1) / time.Second)
+	return &apiError{code: CodeRateLimited, message: "too many attempts, try again later", retryAfter: max(secs, 1)}
+}
+
 // ErrorPresenter converts resolver errors into GraphQL errors. apiErrors are
 // passed through with their code; anything else is logged and replaced with a
 // generic message so internal details never leak to clients.
@@ -57,6 +68,9 @@ func ErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		gqlErr.Extensions = map[string]any{"code": ae.code}
 		if ae.field != "" {
 			gqlErr.Extensions["field"] = ae.field
+		}
+		if ae.retryAfter > 0 {
+			gqlErr.Extensions["retryAfter"] = ae.retryAfter
 		}
 		return gqlErr
 	}

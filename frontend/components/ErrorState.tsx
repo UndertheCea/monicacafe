@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { loadErrorKey } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
-import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 
 /** Bilingual error panel for a failed GraphQL fetch in a server component. */
 export function ErrorState({ locale, error }: { locale: Locale; error: unknown }) {
@@ -9,8 +10,7 @@ export function ErrorState({ locale, error }: { locale: Locale; error: unknown }
     <main className="mx-auto max-w-3xl px-4 py-24">
       <div role="alert" className="rounded-2xl bg-red-50 p-6 ring-1 ring-red-200">
         <h1 className="text-lg font-bold text-red-900">{t(locale, "error.title")}</h1>
-        <p className="mt-2 text-red-800">{pick(locale, e.messageZh, e.messageEn)}</p>
-        <p className="mt-1 text-sm text-red-700">{t(locale, "error.retry")}</p>
+        <p className="mt-2 text-red-800">{t(locale, loadErrorKey(e.code))}</p>
       </div>
     </main>
   );

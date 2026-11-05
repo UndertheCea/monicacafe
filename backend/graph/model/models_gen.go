@@ -23,6 +23,11 @@ type AuthPayload struct {
 	User         *User  `json:"user"`
 }
 
+type ChangePasswordInput struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
 type CoffeeConnection struct {
 	Nodes []*Coffee `json:"nodes"`
 	Total int       `json:"total"`
@@ -131,6 +136,10 @@ type UpdateCoffeeInput struct {
 	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
 	ClearVariety       *bool       `json:"clearVariety,omitempty"`
 	ImageUrls          []string    `json:"imageUrls,omitempty"`
+}
+
+type UpdateProfileInput struct {
+	DisplayName string `json:"displayName"`
 }
 
 type UpdateShopInput struct {

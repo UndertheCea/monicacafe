@@ -22,6 +22,8 @@ export interface SessionErrorBody {
   code: string;
   message: string;
   field?: string;
+  /** Seconds to wait, on RATE_LIMITED (also sent as the Retry-After header). */
+  retryAfter?: number;
 }
 
 export const USER_FIELDS = `id email displayName role shop { id slug name }`;
@@ -55,4 +57,19 @@ export const LOGOUT = typed<{ logout: boolean }>(/* GraphQL */ `
 
 export const ME = typed<{ me: SessionUser | null }>(/* GraphQL */ `
   query Me { me { ${USER_FIELDS} } }
+`);
+
+export const UPDATE_PROFILE = typed<{ updateProfile: { displayName: string } }, { input: { displayName: string } }>(
+  /* GraphQL */ `
+    mutation UpdateProfile($input: UpdateProfileInput!) { updateProfile(input: $input) { displayName } }
+  `,
+);
+
+export const CHANGE_PASSWORD = typed<
+  { changePassword: AuthPayload },
+  { input: { currentPassword: string; newPassword: string } }
+>(/* GraphQL */ `
+  mutation ChangePassword($input: ChangePasswordInput!) {
+    changePassword(input: $input) { accessToken refreshToken user { ${USER_FIELDS} } }
+  }
 `);

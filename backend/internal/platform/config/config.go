@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 )
 
 type Config struct {
@@ -29,10 +31,33 @@ type Config struct {
 	S3AccessKey    string
 	S3SecretKey    string
 	MediaPublicURL string
+	// Where the API reaches the store itself (list / delete); defaults to S3Endpoint.
+	S3InternalEndpoint string
+
+	// Orphaned-image cleanup (#29): how often to sweep ("0" = off) and how
+	// old an unreferenced object must be before it's deleted.
+	MediaCleanupInterval string
+	MediaCleanupMinAge   string
 
 	// How often the API deletes expired refresh tokens (Go duration, e.g.
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
 	TokenPruneInterval string
+
+	// Comma-separated CIDRs / IPs whose X-Forwarded-For header is believed
+	// when working out the client IP (nginx and the Next.js BFF in compose).
+	TrustedProxies string
+
+	// Auth rate limits as "N/duration" (burst N, refilled over duration);
+	// "0" disables one. Parsed by RateLimits.
+	RateLimitLoginIP    string
+	RateLimitLoginEmail string
+	RateLimitRegisterIP string
+	RateLimitRefreshIP  string
+
+	// Per-account limits on signed-in writes.
+	RateLimitCommentUser  string
+	RateLimitUploadUser   string
+	RateLimitPasswordUser string
 }
 
 func get(k, d string) string {
@@ -61,7 +86,20 @@ func Load() Config {
 		S3SecretKey:      get("S3_SECRET_KEY", ""),
 		MediaPublicURL:   get("MEDIA_PUBLIC_URL", ""),
 
+		S3InternalEndpoint:   get("S3_INTERNAL_ENDPOINT", ""),
+		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
+		MediaCleanupMinAge:   get("MEDIA_CLEANUP_MIN_AGE", "24h"),
+
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
+		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
+
+		RateLimitLoginIP:      get("RATE_LIMIT_LOGIN_IP", "20/1m"),
+		RateLimitLoginEmail:   get("RATE_LIMIT_LOGIN_EMAIL", "10/10m"),
+		RateLimitRegisterIP:   get("RATE_LIMIT_REGISTER_IP", "10/1h"),
+		RateLimitRefreshIP:    get("RATE_LIMIT_REFRESH_IP", "60/1m"),
+		RateLimitCommentUser:  get("RATE_LIMIT_COMMENT_USER", "5/5m"),
+		RateLimitUploadUser:   get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
+		RateLimitPasswordUser: get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
 	}
 }
 
@@ -104,9 +142,75 @@ func (c Config) TokenPruneEvery() (time.Duration, error) {
 	return d, nil
 }
 
+// DefaultTrustedProxies covers loopback and the private ranges docker
+// networks use. In production set TRUSTED_PROXIES to your proxies only.
+const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
+
+// RateLimitRules are the parsed auth rate limits.
+type RateLimitRules struct {
+	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
+	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
+}
+
+// RateLimits parses the RATE_LIMIT_* settings.
+func (c Config) RateLimits() (RateLimitRules, error) {
+	var r RateLimitRules
+	for _, f := range []struct {
+		env, val string
+		dst      *ratelimit.Rule
+	}{
+		{"RATE_LIMIT_LOGIN_IP", c.RateLimitLoginIP, &r.LoginIP},
+		{"RATE_LIMIT_LOGIN_EMAIL", c.RateLimitLoginEmail, &r.LoginEmail},
+		{"RATE_LIMIT_REGISTER_IP", c.RateLimitRegisterIP, &r.RegisterIP},
+		{"RATE_LIMIT_REFRESH_IP", c.RateLimitRefreshIP, &r.RefreshIP},
+		{"RATE_LIMIT_COMMENT_USER", c.RateLimitCommentUser, &r.CommentUser},
+		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
+		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
+	} {
+		rule, err := ratelimit.ParseRule(f.val)
+		if err != nil {
+			return RateLimitRules{}, fmt.Errorf("config: %s: %w", f.env, err)
+		}
+		*f.dst = rule
+	}
+	return r, nil
+}
+
+// Minimums that stop a typo from hammering the bucket or deleting uploads
+// that are still being saved (presigned URLs live 10 minutes).
+const (
+	minCleanupInterval = time.Minute
+	minCleanupAge      = time.Hour
+)
+
+// MediaCleanup parses MEDIA_CLEANUP_INTERVAL (0 = off) and MEDIA_CLEANUP_MIN_AGE.
+func (c Config) MediaCleanup() (every, minAge time.Duration, err error) {
+	if v := strings.TrimSpace(c.MediaCleanupInterval); v != "" && v != "0" {
+		every, err = time.ParseDuration(v)
+		if err != nil || every < minCleanupInterval {
+			return 0, 0, fmt.Errorf("config: MEDIA_CLEANUP_INTERVAL must be a duration of at least %s (or 0 to disable), got %q", minCleanupInterval, v)
+		}
+	}
+	v := strings.TrimSpace(c.MediaCleanupMinAge)
+	if v == "" {
+		v = "24h"
+	}
+	minAge, err = time.ParseDuration(v)
+	if err != nil || minAge < minCleanupAge {
+		return 0, 0, fmt.Errorf("config: MEDIA_CLEANUP_MIN_AGE must be a duration of at least %s, got %q", minCleanupAge, v)
+	}
+	return every, minAge, nil
+}
+
 // Validate rejects configurations that are unsafe to run in production.
 func (c Config) Validate() error {
+	if _, _, err := c.MediaCleanup(); err != nil {
+		return err
+	}
 	if _, err := c.TokenPruneEvery(); err != nil {
+		return err
+	}
+	if _, err := c.RateLimits(); err != nil {
 		return err
 	}
 	if c.AppEnv != "production" {

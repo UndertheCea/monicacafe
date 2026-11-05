@@ -92,3 +92,54 @@ func TestTokenPruneEvery(t *testing.T) {
 		t.Fatal("Validate should reject a bad TOKEN_PRUNE_INTERVAL")
 	}
 }
+
+func TestRateLimits(t *testing.T) {
+	cases := []struct {
+		name    string
+		login   string
+		wantErr bool
+	}{
+		{"default", "20/1m", false},
+		{"disabled", "0", false},
+		{"garbage", "lots", true},
+		{"sub-second", "5/10ms", true},
+	}
+	for _, c := range cases {
+		cfg := Config{RateLimitLoginIP: c.login, RateLimitLoginEmail: "10/10m"}
+		r, err := cfg.RateLimits()
+		if (err != nil) != c.wantErr {
+			t.Errorf("%s: err = %v", c.name, err)
+		}
+		if err := cfg.Validate(); (err != nil) != c.wantErr {
+			t.Errorf("%s: Validate err = %v", c.name, err)
+		}
+		if c.name == "default" && (r.LoginIP.Burst != 20 || r.LoginIP.Per != time.Minute || r.LoginEmail.Burst != 10) {
+			t.Errorf("default parsed to %+v", r)
+		}
+	}
+}
+
+func TestMediaCleanup(t *testing.T) {
+	cases := []struct {
+		every, age         string
+		wantEvery, wantAge time.Duration
+		wantErr            bool
+	}{
+		{"6h", "24h", 6 * time.Hour, 24 * time.Hour, false},
+		{"0", "", 0, 24 * time.Hour, false},
+		{"", "48h", 0, 48 * time.Hour, false},
+		{"1s", "24h", 0, 0, true},
+		{"often", "24h", 0, 0, true},
+		{"6h", "10m", 0, 0, true},
+	}
+	for _, c := range cases {
+		cfg := Config{MediaCleanupInterval: c.every, MediaCleanupMinAge: c.age}
+		every, age, err := cfg.MediaCleanup()
+		if (err != nil) != c.wantErr || every != c.wantEvery || age != c.wantAge {
+			t.Errorf("MediaCleanup(%q, %q) = %v, %v, %v", c.every, c.age, every, age, err)
+		}
+		if verr := cfg.Validate(); (verr != nil) != c.wantErr {
+			t.Errorf("Validate(%q, %q) err = %v", c.every, c.age, verr)
+		}
+	}
+}

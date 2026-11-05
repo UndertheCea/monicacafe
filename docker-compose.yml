@@ -126,6 +126,7 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost/graphql}
+        NEXT_PUBLIC_MEDIA_URL: ${NEXT_PUBLIC_MEDIA_URL:-http://localhost/media}
     environment:
       # Server components fetch over the compose network, not through nginx.
       GRAPHQL_URL_INTERNAL: http://backend:4000/graphql

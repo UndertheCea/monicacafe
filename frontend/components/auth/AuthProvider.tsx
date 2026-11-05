@@ -7,7 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, authedClient, toApiError, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
-import { refreshDelayMs } from "@/lib/auth/token";
+import { refreshDelayMs, retryAfterSeconds } from "@/lib/auth/token";
 
 type State =
   | { status: "loading" }
@@ -62,7 +62,7 @@ function refreshSession(): Promise<SessionPayload | null> {
 async function asError(res: Response): Promise<ApiError> {
   try {
     const b = (await res.json()) as SessionErrorBody;
-    return new ApiError(b.code, b.message, b.message, b.field);
+    return new ApiError(b.code, b.message, b.message, b.field, retryAfterSeconds(b.retryAfter ?? res.headers.get("retry-after")));
   } catch {
     return new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
   }

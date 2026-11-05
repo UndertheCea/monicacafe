@@ -105,6 +105,13 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
       TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
+      # nginx and the Next.js BFF sit on the compose network; their
+      # X-Forwarded-For is believed when rate-limiting auth per client IP.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7}
+      RATE_LIMIT_LOGIN_IP: ${RATE_LIMIT_LOGIN_IP:-20/1m}
+      RATE_LIMIT_LOGIN_EMAIL: ${RATE_LIMIT_LOGIN_EMAIL:-10/10m}
+      RATE_LIMIT_REGISTER_IP: ${RATE_LIMIT_REGISTER_IP:-10/1h}
+      RATE_LIMIT_REFRESH_IP: ${RATE_LIMIT_REFRESH_IP:-60/1m}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}

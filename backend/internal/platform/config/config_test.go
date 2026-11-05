@@ -92,3 +92,29 @@ func TestTokenPruneEvery(t *testing.T) {
 		t.Fatal("Validate should reject a bad TOKEN_PRUNE_INTERVAL")
 	}
 }
+
+func TestRateLimits(t *testing.T) {
+	cases := []struct {
+		name    string
+		login   string
+		wantErr bool
+	}{
+		{"default", "20/1m", false},
+		{"disabled", "0", false},
+		{"garbage", "lots", true},
+		{"sub-second", "5/10ms", true},
+	}
+	for _, c := range cases {
+		cfg := Config{RateLimitLoginIP: c.login, RateLimitLoginEmail: "10/10m"}
+		r, err := cfg.RateLimits()
+		if (err != nil) != c.wantErr {
+			t.Errorf("%s: err = %v", c.name, err)
+		}
+		if err := cfg.Validate(); (err != nil) != c.wantErr {
+			t.Errorf("%s: Validate err = %v", c.name, err)
+		}
+		if c.name == "default" && (r.LoginIP.Burst != 20 || r.LoginIP.Per != time.Minute || r.LoginEmail.Burst != 10) {
+			t.Errorf("default parsed to %+v", r)
+		}
+	}
+}

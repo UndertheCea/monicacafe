@@ -22,6 +22,8 @@ export interface SessionErrorBody {
   code: string;
   message: string;
   field?: string;
+  /** Seconds to wait, on RATE_LIMITED (also sent as the Retry-After header). */
+  retryAfter?: number;
 }
 
 export const USER_FIELDS = `id email displayName role shop { id slug name }`;

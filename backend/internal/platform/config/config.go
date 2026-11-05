@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 )
 
 type Config struct {
@@ -33,6 +35,17 @@ type Config struct {
 	// How often the API deletes expired refresh tokens (Go duration, e.g.
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
 	TokenPruneInterval string
+
+	// Comma-separated CIDRs / IPs whose X-Forwarded-For header is believed
+	// when working out the client IP (nginx and the Next.js BFF in compose).
+	TrustedProxies string
+
+	// Auth rate limits as "N/duration" (burst N, refilled over duration);
+	// "0" disables one. Parsed by RateLimits.
+	RateLimitLoginIP    string
+	RateLimitLoginEmail string
+	RateLimitRegisterIP string
+	RateLimitRefreshIP  string
 }
 
 func get(k, d string) string {
@@ -62,6 +75,12 @@ func Load() Config {
 		MediaPublicURL:   get("MEDIA_PUBLIC_URL", ""),
 
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
+		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
+
+		RateLimitLoginIP:    get("RATE_LIMIT_LOGIN_IP", "20/1m"),
+		RateLimitLoginEmail: get("RATE_LIMIT_LOGIN_EMAIL", "10/10m"),
+		RateLimitRegisterIP: get("RATE_LIMIT_REGISTER_IP", "10/1h"),
+		RateLimitRefreshIP:  get("RATE_LIMIT_REFRESH_IP", "60/1m"),
 	}
 }
 
@@ -104,9 +123,42 @@ func (c Config) TokenPruneEvery() (time.Duration, error) {
 	return d, nil
 }
 
+// DefaultTrustedProxies covers loopback and the private ranges docker
+// networks use. In production set TRUSTED_PROXIES to your proxies only.
+const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
+
+// RateLimitRules are the parsed auth rate limits.
+type RateLimitRules struct {
+	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
+}
+
+// RateLimits parses the RATE_LIMIT_* settings.
+func (c Config) RateLimits() (RateLimitRules, error) {
+	var r RateLimitRules
+	for _, f := range []struct {
+		env, val string
+		dst      *ratelimit.Rule
+	}{
+		{"RATE_LIMIT_LOGIN_IP", c.RateLimitLoginIP, &r.LoginIP},
+		{"RATE_LIMIT_LOGIN_EMAIL", c.RateLimitLoginEmail, &r.LoginEmail},
+		{"RATE_LIMIT_REGISTER_IP", c.RateLimitRegisterIP, &r.RegisterIP},
+		{"RATE_LIMIT_REFRESH_IP", c.RateLimitRefreshIP, &r.RefreshIP},
+	} {
+		rule, err := ratelimit.ParseRule(f.val)
+		if err != nil {
+			return RateLimitRules{}, fmt.Errorf("config: %s: %w", f.env, err)
+		}
+		*f.dst = rule
+	}
+	return r, nil
+}
+
 // Validate rejects configurations that are unsafe to run in production.
 func (c Config) Validate() error {
 	if _, err := c.TokenPruneEvery(); err != nil {
+		return err
+	}
+	if _, err := c.RateLimits(); err != nil {
 		return err
 	}
 	if c.AppEnv != "production" {

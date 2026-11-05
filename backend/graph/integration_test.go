@@ -89,6 +89,13 @@ func (c *gqlClient) expectCode(code, query string, vars map[string]any) {
 
 func newTestServer(t *testing.T) (string, *pgxpool.Pool) {
 	t.Helper()
+	return newTestServerWith(t, nil)
+}
+
+// newTestServerWith lets a test adjust the resolver (e.g. set rate limits)
+// before the server starts.
+func newTestServerWith(t *testing.T, configure func(*graph.Resolver)) (string, *pgxpool.Pool) {
+	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("TEST_DATABASE_URL not set; skipping integration test")
@@ -106,12 +113,16 @@ func newTestServer(t *testing.T) (string, *pgxpool.Pool) {
 
 	st := store.New(pool)
 	authSvc := auth.NewService("test-access", "test-refresh")
-	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graph.NewResolver(st, authSvc, testMedia(t))}))
+	resolver := graph.NewResolver(st, authSvc, testMedia(t))
+	if configure != nil {
+		configure(resolver)
+	}
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	srv.AddTransport(transport.POST{})
 	srv.SetErrorPresenter(graph.ErrorPresenter)
 	srv.SetRecoverFunc(graph.RecoverFunc)
 
-	h := middleware.Auth(authSvc)(graph.LoaderMiddleware(st)(srv))
+	h := middleware.ClientIPMiddleware(nil)(middleware.Auth(authSvc)(graph.LoaderMiddleware(st)(srv)))
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	return ts.URL, pool

@@ -106,6 +106,9 @@ func (r *commentResolver) User(ctx context.Context, obj *model.Comment) (*model.
 
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error) {
+	if err := allowIP(ctx, r.Limits.RegisterIP); err != nil {
+		return nil, err
+	}
 	email, err := normaliseEmail(input.Email)
 	if err != nil {
 		return nil, err
@@ -134,10 +137,19 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error) {
 	invalid := &apiError{code: CodeUnauthenticated, message: "invalid email or password"}
+	if err := allowIP(ctx, r.Limits.LoginIP); err != nil {
+		return nil, err
+	}
 	email, err := normaliseEmail(input.Email)
 	if err != nil {
 		auth.EqualiseTiming(input.Password)
 		return nil, invalid
+	}
+	// Per account too, so a botnet spread over many IPs can't keep guessing
+	// one password. Counted for unknown emails as well, so the limit doesn't
+	// reveal which accounts exist.
+	if err := allowKey(r.Limits.LoginEmail, email); err != nil {
+		return nil, err
 	}
 	u, err := r.Store.UserByEmail(ctx, email)
 	if errors.Is(err, store.ErrNotFound) {
@@ -156,6 +168,9 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 // RefreshToken is the resolver for the refreshToken field.
 func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error) {
 	invalid := &apiError{code: CodeUnauthenticated, message: "invalid or expired refresh token"}
+	if err := allowIP(ctx, r.Limits.RefreshIP); err != nil {
+		return nil, err
+	}
 	claims, err := r.Auth.ParseRefreshToken(token)
 	if err != nil {
 		return nil, invalid

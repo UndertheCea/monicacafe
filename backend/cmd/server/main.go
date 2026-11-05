@@ -26,6 +26,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/db"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/config"
+	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
@@ -71,6 +72,17 @@ func run() error {
 		slog.Warn("image uploads disabled: S3_ACCESS_KEY / S3_SECRET_KEY not set")
 	}
 	resolver := graph.NewResolver(st, authSvc, media)
+	rules, _ := cfg.RateLimits() // checked by cfg.Validate
+	resolver.Limits = graph.Limits{
+		LoginIP:    ratelimit.New(rules.LoginIP),
+		LoginEmail: ratelimit.New(rules.LoginEmail),
+		RegisterIP: ratelimit.New(rules.RegisterIP),
+		RefreshIP:  ratelimit.New(rules.RefreshIP),
+	}
+	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
+	if err != nil {
+		return err
+	}
 	pruneEvery, _ := cfg.TokenPruneEvery() // checked by cfg.Validate
 	if pruneEvery > 0 {
 		go pruneRefreshTokens(ctx, st, pruneEvery)
@@ -91,7 +103,7 @@ func run() error {
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
-	r.Use(chimiddleware.RealIP)
+	r.Use(middleware.ClientIPMiddleware(proxies))
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{

@@ -67,3 +67,71 @@ export function validateCredentials(
   }
   return null;
 }
+
+/** HTTP status the /api/auth route handlers answer with for a backend error code. */
+export function authErrorStatus(code: string): number {
+  switch (code) {
+    case "UNAUTHENTICATED":
+      return 401;
+    case "BAD_USER_INPUT":
+      return 400;
+    case "CONFLICT":
+      return 409;
+    case "RATE_LIMITED":
+      return 429;
+    case "UNAVAILABLE":
+      return 503;
+    default:
+      return 500;
+  }
+}
+
+/** A positive whole number of seconds from a retryAfter extension / header, else undefined. */
+export function retryAfterSeconds(v: unknown): number | undefined {
+  const n = typeof v === "string" && /^\d+$/.test(v.trim()) ? Number(v) : v;
+  return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
+export type AuthErrorMessage =
+  | { key: "auth.error.unavailable" | "auth.error.invalid" | "auth.error.taken" | "auth.error.generic" }
+  | { key: "auth.error.email" | "auth.error.password" | "auth.error.displayName" }
+  | { key: "auth.error.rateLimitedSec" | "auth.error.rateLimitedMin"; vars: { n: number } };
+
+/** Which bilingual message the login / register form shows for an error. */
+export function authErrorMessage(
+  mode: "login" | "register",
+  code: string,
+  field?: string,
+  retryAfter?: number,
+): AuthErrorMessage {
+  if (code === "RATE_LIMITED") {
+    const s = retryAfter ?? 60;
+    return s < 60
+      ? { key: "auth.error.rateLimitedSec", vars: { n: s } }
+      : { key: "auth.error.rateLimitedMin", vars: { n: Math.ceil(s / 60) } };
+  }
+  if (code === "UNAVAILABLE") return { key: "auth.error.unavailable" };
+  if (mode === "login" && code === "UNAUTHENTICATED") return { key: "auth.error.invalid" };
+  if (code === "CONFLICT") return { key: "auth.error.taken" };
+  if (code === "BAD_USER_INPUT") {
+    if (field === "email") return { key: "auth.error.email" };
+    if (field === "password") return { key: "auth.error.password" };
+    if (field === "displayName") return { key: "auth.error.displayName" };
+  }
+  return { key: "auth.error.generic" };
+}
+
+/**
+ * X-Forwarded-For value the BFF sends to the backend: the header nginx set,
+ * trimmed and capped so a client can't bloat backend requests. The backend
+ * only believes it because the BFF is a trusted proxy (TRUSTED_PROXIES).
+ */
+export function forwardedFor(header: string | null): string | undefined {
+  if (!header) return undefined;
+  const hops = header
+    .split(",")
+    .map((h) => h.trim())
+    .filter((h) => /^[0-9a-fA-F:.]{2,45}$/.test(h));
+  // Keep the rightmost hops: those were appended by our own proxies.
+  return hops.length ? hops.slice(-5).join(", ") : undefined;
+}

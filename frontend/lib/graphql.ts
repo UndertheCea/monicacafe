@@ -1,4 +1,5 @@
 import { ClientError, GraphQLClient } from "graphql-request";
+import { retryAfterSeconds } from "./auth/token";
 
 // Server components talk to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
 // http://backend:4000/graphql inside docker compose); the browser uses the
@@ -14,6 +15,12 @@ export const gqlClient = new GraphQLClient(endpoint, {
   // Catalogue data changes often in Stage 1; never serve stale lists.
   cache: "no-store",
 });
+
+/** Server-side client that passes the browser's X-Forwarded-For on (BFF auth calls, for rate limiting). */
+export function forwardingClient(xff: string | undefined) {
+  if (!xff) return gqlClient;
+  return new GraphQLClient(endpoint, { headers: { "X-Forwarded-For": xff }, cache: "no-store" });
+}
 
 export function authedClient(accessToken: string) {
   return new GraphQLClient(endpoint, {
@@ -49,6 +56,8 @@ export class ApiError extends Error {
     public messageZh: string,
     public messageEn: string,
     public field?: string,
+    /** Seconds to wait, on RATE_LIMITED errors. */
+    public retryAfter?: number,
   ) {
     super(messageEn);
   }
@@ -59,7 +68,7 @@ export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   if (err instanceof ClientError) {
     const ext = err.response.errors?.[0]?.extensions as
-      | { code?: string; messageZh?: string; messageEn?: string; field?: string }
+      | { code?: string; messageZh?: string; messageEn?: string; field?: string; retryAfter?: unknown }
       | undefined;
     const fallback = err.response.errors?.[0]?.message ?? "GraphQL error";
     return new ApiError(
@@ -67,6 +76,7 @@ export function toApiError(err: unknown): ApiError {
       ext?.messageZh ?? fallback,
       ext?.messageEn ?? fallback,
       ext?.field,
+      retryAfterSeconds(ext?.retryAfter),
     );
   }
   return new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");

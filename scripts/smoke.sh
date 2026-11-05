@@ -65,6 +65,22 @@ bff logout >/dev/null
 out=$(bff refresh)
 if [[ "$out" == "401" ]]; then echo "ok   401 refresh after logout"; else echo "FAIL refresh after logout → $out (want 401)"; fail=1; fi
 
+# Auth rate limit (#27): wrong-password logins for one email are refused with
+# 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL's burst (default 10) is spent.
+rl_email="smokerl$(date +%s)$RANDOM@example.com"; rl_code=""; rl_n=0
+while (( rl_n < ${SMOKE_LOGIN_BURST:-10} + 1 )); do
+  rl_n=$((rl_n + 1))
+  rl_code=$(bff login "$(printf '{"email":"%s","password":"wrong-password"}' "$rl_email")")
+  [[ "$rl_code" == "429" ]] && break
+done
+rl_headers=$(curl -s -D - -o /dev/null --max-time 15 -X POST -H 'Content-Type: application/json' \
+  -d "$(printf '{"email":"%s","password":"wrong-password"}' "$rl_email")" "$BASE_URL/api/auth/login" || true)
+if [[ "$rl_code" == "429" ]] && grep -qi '^retry-after: [0-9]' <<<"$rl_headers"; then
+  echo "ok   429 login after $rl_n attempts for one email (Retry-After set)"
+else
+  echo "FAIL login rate limit: attempt $rl_n → $rl_code, headers: $(head -1 <<<"$rl_headers")"; fail=1
+fi
+
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
   -d '{"query":"{ shopsForMap { slug lat lng } popularCoffees(limit: 1) { id } }"}') || body=""
 pins=$(grep -o '"lat":[0-9.-]*' <<<"$body" | wc -l || true)

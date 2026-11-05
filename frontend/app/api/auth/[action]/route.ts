@@ -3,9 +3,16 @@
 // handlers trade it for short-lived access tokens (kept in memory by
 // AuthProvider). POST /api/auth/{login,register,refresh,logout}.
 import { NextResponse, type NextRequest } from "next/server";
-import { authedClient, query, toApiError } from "@/lib/graphql";
+import { authedClient, forwardingClient, query, toApiError } from "@/lib/graphql";
 import { LOGIN, LOGOUT, REFRESH, REGISTER, type SessionErrorBody, type SessionPayload } from "@/lib/auth/session";
-import { REFRESH_COOKIE, REFRESH_COOKIE_PATH, REFRESH_MAX_AGE_S, jwtExpiryMs } from "@/lib/auth/token";
+import {
+  REFRESH_COOKIE,
+  REFRESH_COOKIE_PATH,
+  REFRESH_MAX_AGE_S,
+  authErrorStatus,
+  forwardedFor,
+  jwtExpiryMs,
+} from "@/lib/auth/token";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +33,11 @@ function sameOrigin(req: NextRequest): boolean {
   }
 }
 
-function fail(status: number, code: string, message: string, field?: string) {
-  const body: SessionErrorBody = { code, message, ...(field ? { field } : {}) };
-  return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+function fail(status: number, code: string, message: string, field?: string, retryAfter?: number) {
+  const body: SessionErrorBody = { code, message, ...(field ? { field } : {}), ...(retryAfter ? { retryAfter } : {}) };
+  const headers: Record<string, string> = { "Cache-Control": "no-store" };
+  if (retryAfter) headers["Retry-After"] = String(retryAfter);
+  return NextResponse.json(body, { status, headers });
 }
 
 function clearCookie(res: NextResponse) {
@@ -55,13 +64,7 @@ function ok(req: NextRequest, p: { accessToken: string; refreshToken: string; us
 
 function fromError(err: unknown) {
   const e = toApiError(err);
-  const status =
-    e.code === "UNAUTHENTICATED" ? 401
-    : e.code === "BAD_USER_INPUT" ? 400
-    : e.code === "CONFLICT" ? 409
-    : e.code === "UNAVAILABLE" ? 503
-    : 500;
-  return fail(status, e.code, e.messageEn, e.field);
+  return fail(authErrorStatus(e.code), e.code, e.messageEn, e.field, e.retryAfter);
 }
 
 async function readJSON(req: NextRequest): Promise<Record<string, unknown>> {
@@ -78,12 +81,14 @@ const str = (v: unknown) => (typeof v === "string" ? v : "");
 export async function POST(req: NextRequest, { params }: Ctx) {
   const { action } = await params;
   if (!sameOrigin(req)) return fail(403, "FORBIDDEN", "cross-site request rejected");
+  // The backend rate-limits auth per client IP; pass on what nginx saw.
+  const client = forwardingClient(forwardedFor(req.headers.get("x-forwarded-for")));
 
   switch (action) {
     case "login": {
       const b = await readJSON(req);
       try {
-        const r = await query(LOGIN, { input: { email: str(b.email), password: str(b.password) } });
+        const r = await query(LOGIN, { input: { email: str(b.email), password: str(b.password) } }, client);
         return ok(req, r.login);
       } catch (err) {
         return fromError(err);
@@ -94,7 +99,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       try {
         const r = await query(REGISTER, {
           input: { email: str(b.email), password: str(b.password), displayName: str(b.displayName) },
-        });
+        }, client);
         return ok(req, r.register);
       } catch (err) {
         return fromError(err);
@@ -104,7 +109,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const token = req.cookies.get(REFRESH_COOKIE)?.value;
       if (!token) return fail(401, "UNAUTHENTICATED", "no session");
       try {
-        const r = await query(REFRESH, { token });
+        const r = await query(REFRESH, { token }, client);
         return ok(req, r.refreshToken);
       } catch (err) {
         const res = fromError(err);

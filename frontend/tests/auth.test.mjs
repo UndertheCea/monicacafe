@@ -1,7 +1,16 @@
 // Pure auth helpers (lib/auth/token.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
+import {
+  authErrorMessage,
+  authErrorStatus,
+  forwardedFor,
+  jwtExpiryMs,
+  refreshDelayMs,
+  retryAfterSeconds,
+  safeNext,
+  validateCredentials,
+} from "../lib/auth/token.ts";
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwt = (payload) => `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(payload)}.sig`;
@@ -63,4 +72,60 @@ test("validateCredentials", () => {
     { args: ["a@b.tw", "password1", "名".repeat(51)], want: "displayName" },
   ];
   for (const c of cases) assert.equal(validateCredentials(...c.args), c.want, JSON.stringify(c.args));
+});
+
+test("authErrorStatus", () => {
+  const cases = [
+    ["UNAUTHENTICATED", 401],
+    ["BAD_USER_INPUT", 400],
+    ["CONFLICT", 409],
+    ["RATE_LIMITED", 429],
+    ["UNAVAILABLE", 503],
+    ["INTERNAL_SERVER_ERROR", 500],
+    ["", 500],
+  ];
+  for (const [code, want] of cases) assert.equal(authErrorStatus(code), want, code);
+});
+
+test("retryAfterSeconds", () => {
+  const cases = [
+    [30, 30],
+    ["120", 120],
+    [" 7 ", 7],
+    [0, undefined],
+    [-5, undefined],
+    [1.5, undefined],
+    ["soon", undefined],
+    [null, undefined],
+    [undefined, undefined],
+  ];
+  for (const [v, want] of cases) assert.equal(retryAfterSeconds(v), want, String(v));
+});
+
+test("authErrorMessage", () => {
+  const cases = [
+    { args: ["login", "RATE_LIMITED", undefined, 30], want: { key: "auth.error.rateLimitedSec", vars: { n: 30 } } },
+    { args: ["login", "RATE_LIMITED", undefined, 61], want: { key: "auth.error.rateLimitedMin", vars: { n: 2 } } },
+    { args: ["register", "RATE_LIMITED"], want: { key: "auth.error.rateLimitedMin", vars: { n: 1 } } },
+    { args: ["login", "UNAUTHENTICATED"], want: { key: "auth.error.invalid" } },
+    { args: ["register", "UNAUTHENTICATED"], want: { key: "auth.error.generic" } },
+    { args: ["register", "CONFLICT", "email"], want: { key: "auth.error.taken" } },
+    { args: ["register", "BAD_USER_INPUT", "password"], want: { key: "auth.error.password" } },
+    { args: ["register", "BAD_USER_INPUT", "other"], want: { key: "auth.error.generic" } },
+    { args: ["login", "UNAVAILABLE"], want: { key: "auth.error.unavailable" } },
+  ];
+  for (const c of cases) assert.deepEqual(authErrorMessage(...c.args), c.want, c.args.join(" "));
+});
+
+test("forwardedFor", () => {
+  const cases = [
+    [null, undefined],
+    ["", undefined],
+    ["198.51.100.2", "198.51.100.2"],
+    [" 1.2.3.4 ,198.51.100.2 ", "1.2.3.4, 198.51.100.2"],
+    ["2001:db8::1", "2001:db8::1"],
+    ["evil<script>, 198.51.100.2", "198.51.100.2"],
+    ["1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5,6.6.6.6", "2.2.2.2, 3.3.3.3, 4.4.4.4, 5.5.5.5, 6.6.6.6"],
+  ];
+  for (const [h, want] of cases) assert.equal(forwardedFor(h), want, String(h));
 });

@@ -218,3 +218,8 @@ export const CREATE_IMAGE_UPLOAD = typed<
     createImageUpload(input: $input) { uploadUrl publicUrl headers { name value } }
   }
 `);
+
+/** Drafts only; the API answers CONFLICT for a published coffee. */
+export const DELETE_COFFEE = typed<{ deleteCoffee: boolean }, { id: string }>(/* GraphQL */ `
+  mutation DeleteCoffee($id: ID!) { deleteCoffee(id: $id) }
+`);

@@ -289,6 +289,19 @@ func (s *Store) VariantByID(ctx context.Context, id string) (*Variant, error) {
 	return scanVariant(s.db.QueryRow(ctx, `SELECT `+variantColumns+` FROM variants WHERE id = $1`, id))
 }
 
+// DeleteCoffee removes a coffee; its variants and comments cascade (migration
+// 001). ErrNotFound if it doesn't exist.
+func (s *Store) DeleteCoffee(ctx context.Context, id string) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM coffees WHERE id = $1`, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // LockCoffee takes a row lock on a coffee for the rest of the transaction, so
 // variant-count checks can't race with each other or with publishing. It
 // returns whether the coffee is currently published. Call it inside InTx.

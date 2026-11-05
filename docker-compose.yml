@@ -48,7 +48,10 @@ services:
     volumes:
       - meili_data:/meili_data
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7700/health || exit 1"]
+      # 127.0.0.1, not localhost: where /etc/hosts maps localhost to ::1 first
+      # (GitHub runners), busybox wget doesn't fall back to IPv4 and Meilisearch
+      # listens on 0.0.0.0 only.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7700/health || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -101,6 +104,7 @@ services:
       MEILI_KEY: ${MEILI_KEY:-monica_meili_key}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
+      TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}
@@ -130,6 +134,8 @@ services:
     environment:
       # Server components fetch over the compose network, not through nginx.
       GRAPHQL_URL_INTERNAL: http://backend:4000/graphql
+      # Public origin for sitemap.xml / robots.txt.
+      SITE_URL: ${SITE_URL:-http://localhost}
     depends_on:
       backend:
         condition: service_healthy

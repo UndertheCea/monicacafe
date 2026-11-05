@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestDefaultsAndOverride(t *testing.T) {
 	t.Setenv("PORT", "")
@@ -58,5 +61,34 @@ func TestCORSOrigins(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTokenPruneEvery(t *testing.T) {
+	tests := []struct {
+		in      string
+		want    time.Duration
+		wantErr bool
+	}{
+		{"", 0, false},
+		{"0", 0, false},
+		{"1h", time.Hour, false},
+		{" 30m ", 30 * time.Minute, false},
+		{"1m", time.Minute, false},
+		{"59s", 0, true},
+		{"-1h", 0, true},
+		{"hourly", 0, true},
+		{"60", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, err := Config{TokenPruneInterval: tt.in}.TokenPruneEvery()
+			if (err != nil) != tt.wantErr || got != tt.want {
+				t.Fatalf("TokenPruneEvery(%q) = %v, %v; want %v, err %v", tt.in, got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+	if err := (Config{AppEnv: "development", TokenPruneInterval: "soon"}).Validate(); err == nil {
+		t.Fatal("Validate should reject a bad TOKEN_PRUNE_INTERVAL")
 	}
 }

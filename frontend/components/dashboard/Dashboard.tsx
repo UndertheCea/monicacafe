@@ -8,7 +8,9 @@ import { MY_SHOP, PUBLISH_COFFEE, UNPUBLISH_COFFEE, type DashboardShop } from "@
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
+import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { CreateShopForm } from "./CreateShopForm";
+import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
 
 type Load = { state: "loading" } | { state: "error" } | { state: "ready"; shop: DashboardShop | null };
@@ -142,6 +144,12 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       </Link>
                     )}
                     <Link
+                      href={`/dashboard/coffees/${c.id}/preview`}
+                      className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:text-amber-700"
+                    >
+                      {t(locale, "dash.preview")}
+                    </Link>
+                    <Link
                       href={`/dashboard/coffees/${c.id}`}
                       className="rounded-full border border-stone-300 px-3 py-1.5 text-sm hover:border-stone-500"
                     >
@@ -159,6 +167,15 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     >
                       {t(locale, c.isPublished ? "dash.unpublish" : "dash.publish")}
                     </button>
+                    {!c.isPublished && (
+                      <DeleteCoffeeButton
+                        coffeeId={c.id}
+                        locale={locale}
+                        onDeleted={() =>
+                          setLoad({ state: "ready", shop: { ...shop, coffees: withoutCoffee(shop.coffees, c.id) } })
+                        }
+                      />
+                    )}
                   </div>
                 </li>
               );

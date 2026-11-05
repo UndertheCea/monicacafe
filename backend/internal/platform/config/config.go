@@ -3,8 +3,10 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -27,6 +29,10 @@ type Config struct {
 	S3AccessKey    string
 	S3SecretKey    string
 	MediaPublicURL string
+
+	// How often the API deletes expired refresh tokens (Go duration, e.g.
+	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
+	TokenPruneInterval string
 }
 
 func get(k, d string) string {
@@ -54,6 +60,8 @@ func Load() Config {
 		S3AccessKey:      get("S3_ACCESS_KEY", ""),
 		S3SecretKey:      get("S3_SECRET_KEY", ""),
 		MediaPublicURL:   get("MEDIA_PUBLIC_URL", ""),
+
+		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
 	}
 }
 
@@ -80,8 +88,27 @@ const (
 	minSecretLen         = 32
 )
 
+// minPruneInterval stops a typo ("1s") from hammering the database.
+const minPruneInterval = time.Minute
+
+// TokenPruneEvery parses TOKEN_PRUNE_INTERVAL. Zero means pruning is off.
+func (c Config) TokenPruneEvery() (time.Duration, error) {
+	v := strings.TrimSpace(c.TokenPruneInterval)
+	if v == "" || v == "0" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d < minPruneInterval {
+		return 0, fmt.Errorf("config: TOKEN_PRUNE_INTERVAL must be a duration of at least %s (or 0 to disable), got %q", minPruneInterval, v)
+	}
+	return d, nil
+}
+
 // Validate rejects configurations that are unsafe to run in production.
 func (c Config) Validate() error {
+	if _, err := c.TokenPruneEvery(); err != nil {
+		return err
+	}
 	if c.AppEnv != "production" {
 		return nil
 	}

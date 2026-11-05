@@ -71,6 +71,10 @@ func run() error {
 		slog.Warn("image uploads disabled: S3_ACCESS_KEY / S3_SECRET_KEY not set")
 	}
 	resolver := graph.NewResolver(st, authSvc, media)
+	pruneEvery, _ := cfg.TokenPruneEvery() // checked by cfg.Validate
+	if pruneEvery > 0 {
+		go pruneRefreshTokens(ctx, st, pruneEvery)
+	}
 
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	srv.AddTransport(transport.Options{})
@@ -146,4 +150,29 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return httpSrv.Shutdown(shutdownCtx)
+}
+
+// pruneBatch bounds each DELETE so pruning never holds long locks.
+const pruneBatch = 5000
+
+// pruneRefreshTokens deletes expired refresh tokens now and then every
+// interval until ctx is cancelled (shutdown). Failures are logged and retried
+// on the next tick.
+func pruneRefreshTokens(ctx context.Context, st *store.Store, every time.Duration) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		n, err := st.PruneRefreshTokens(ctx, pruneBatch)
+		switch {
+		case err != nil && ctx.Err() == nil:
+			slog.Warn("refresh token prune failed", "err", err)
+		case n > 0:
+			slog.Info("pruned expired refresh tokens", "rows", n)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }

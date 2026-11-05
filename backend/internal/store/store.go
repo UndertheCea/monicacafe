@@ -22,6 +22,9 @@ var (
 	ErrConflict = errors.New("store: conflict")
 	// ErrInvalidReference is returned when a foreign key points at a missing row.
 	ErrInvalidReference = errors.New("store: invalid reference")
+	// ErrRefreshReuse is returned when a revoked refresh token is presented
+	// again outside the rotation grace window (possible theft).
+	ErrRefreshReuse = errors.New("store: refresh token reuse")
 )
 
 // DB is the subset of pgx used by the store; satisfied by *pgxpool.Pool and pgx.Tx.

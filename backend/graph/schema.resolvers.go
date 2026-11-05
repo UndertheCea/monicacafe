@@ -160,27 +160,35 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*mod
 	if err != nil {
 		return nil, invalid
 	}
-	userID, err := r.Store.ConsumeRefreshToken(ctx, auth.HashJTI(claims.ID))
-	if errors.Is(err, store.ErrNotFound) {
-		// A correctly signed token that is no longer active has either been
-		// used already or revoked. Treat reuse as possible theft and end every
-		// session for the user.
+	next, err := r.Auth.IssueRefreshToken(claims.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("issue refresh token: %w", err)
+	}
+	err = r.Store.RotateRefreshToken(ctx, auth.HashJTI(claims.ID), claims.UserID,
+		next.JTIHash, next.ExpiresAt, auth.RefreshReuseGrace)
+	if errors.Is(err, store.ErrRefreshReuse) {
+		// A correctly signed token that was already rotated (outside the grace
+		// window) or revoked is being presented again. Treat it as possible
+		// theft and end every session for the user.
 		if rerr := r.Store.RevokeUserRefreshTokens(ctx, claims.UserID); rerr != nil {
 			return nil, rerr
 		}
 		return nil, invalid
 	}
-	if err != nil {
-		return nil, err
-	}
-	u, err := r.Store.UserByID(ctx, userID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, invalid
 	}
 	if err != nil {
 		return nil, err
 	}
-	return r.issueTokens(ctx, u)
+	u, err := r.Store.UserByID(ctx, claims.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, invalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	return r.authPayload(u, next.Token)
 }
 
 // Logout is the resolver for the logout field.
@@ -454,6 +462,37 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 		return nil, err
 	}
 	return toCoffee(co), nil
+}
+
+// DeleteCoffee is the resolver for the deleteCoffee field.
+func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+		return false, err
+	}
+	// Lock the row so a concurrent publishCoffee can't slip in between the
+	// draft check and the delete. Uploaded images stay in the bucket; they are
+	// unreachable once the row is gone (orphan cleanup is a separate job).
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		published, err := tx.LockCoffee(ctx, id)
+		if err != nil {
+			return err
+		}
+		if published {
+			return errConflict("isPublished", "unpublish the coffee before deleting it")
+		}
+		return tx.DeleteCoffee(ctx, id)
+	})
+	if errors.Is(err, store.ErrNotFound) {
+		return false, errNotFound("coffee")
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // CreateImageUpload is the resolver for the createImageUpload field.

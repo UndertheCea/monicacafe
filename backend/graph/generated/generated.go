@@ -95,22 +95,30 @@ type ComplexityRoot struct {
 		User      func(childComplexity int) int
 	}
 
+	ImageUpload struct {
+		ExpiresAt func(childComplexity int) int
+		Headers   func(childComplexity int) int
+		PublicURL func(childComplexity int) int
+		UploadURL func(childComplexity int) int
+	}
+
 	Mutation struct {
-		AddComment      func(childComplexity int, input model.AddCommentInput) int
-		AddVariant      func(childComplexity int, coffeeID string, input model.VariantInput) int
-		CreateCoffee    func(childComplexity int, input model.CreateCoffeeInput) int
-		CreateShop      func(childComplexity int, input model.CreateShopInput) int
-		DeleteComment   func(childComplexity int, id string) int
-		DeleteVariant   func(childComplexity int, id string) int
-		Login           func(childComplexity int, input model.LoginInput) int
-		Logout          func(childComplexity int) int
-		PublishCoffee   func(childComplexity int, id string) int
-		RefreshToken    func(childComplexity int, token string) int
-		Register        func(childComplexity int, input model.RegisterInput) int
-		UnpublishCoffee func(childComplexity int, id string) int
-		UpdateCoffee    func(childComplexity int, id string, input model.UpdateCoffeeInput) int
-		UpdateShop      func(childComplexity int, id string, input model.UpdateShopInput) int
-		UpdateVariant   func(childComplexity int, id string, input model.UpdateVariantInput) int
+		AddComment        func(childComplexity int, input model.AddCommentInput) int
+		AddVariant        func(childComplexity int, coffeeID string, input model.VariantInput) int
+		CreateCoffee      func(childComplexity int, input model.CreateCoffeeInput) int
+		CreateImageUpload func(childComplexity int, input model.ImageUploadInput) int
+		CreateShop        func(childComplexity int, input model.CreateShopInput) int
+		DeleteComment     func(childComplexity int, id string) int
+		DeleteVariant     func(childComplexity int, id string) int
+		Login             func(childComplexity int, input model.LoginInput) int
+		Logout            func(childComplexity int) int
+		PublishCoffee     func(childComplexity int, id string) int
+		RefreshToken      func(childComplexity int, token string) int
+		Register          func(childComplexity int, input model.RegisterInput) int
+		UnpublishCoffee   func(childComplexity int, id string) int
+		UpdateCoffee      func(childComplexity int, id string, input model.UpdateCoffeeInput) int
+		UpdateShop        func(childComplexity int, id string, input model.UpdateShopInput) int
+		UpdateVariant     func(childComplexity int, id string, input model.UpdateVariantInput) int
 	}
 
 	OriginCountry struct {
@@ -168,6 +176,11 @@ type ComplexityRoot struct {
 		Slug func(childComplexity int) int
 	}
 
+	UploadHeader struct {
+		Name  func(childComplexity int) int
+		Value func(childComplexity int) int
+	}
+
 	User struct {
 		CreatedAt   func(childComplexity int) int
 		DisplayName func(childComplexity int) int
@@ -212,6 +225,7 @@ type MutationResolver interface {
 	UpdateCoffee(ctx context.Context, id string, input model.UpdateCoffeeInput) (*model.Coffee, error)
 	PublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
 	UnpublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
+	CreateImageUpload(ctx context.Context, input model.ImageUploadInput) (*model.ImageUpload, error)
 	AddVariant(ctx context.Context, coffeeID string, input model.VariantInput) (*model.Variant, error)
 	UpdateVariant(ctx context.Context, id string, input model.UpdateVariantInput) (*model.Variant, error)
 	DeleteVariant(ctx context.Context, id string) (bool, error)
@@ -454,6 +468,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Comment.User(childComplexity), true
 
+	case "ImageUpload.expiresAt":
+		if e.complexity.ImageUpload.ExpiresAt == nil {
+			break
+		}
+
+		return e.complexity.ImageUpload.ExpiresAt(childComplexity), true
+
+	case "ImageUpload.headers":
+		if e.complexity.ImageUpload.Headers == nil {
+			break
+		}
+
+		return e.complexity.ImageUpload.Headers(childComplexity), true
+
+	case "ImageUpload.publicUrl":
+		if e.complexity.ImageUpload.PublicURL == nil {
+			break
+		}
+
+		return e.complexity.ImageUpload.PublicURL(childComplexity), true
+
+	case "ImageUpload.uploadUrl":
+		if e.complexity.ImageUpload.UploadURL == nil {
+			break
+		}
+
+		return e.complexity.ImageUpload.UploadURL(childComplexity), true
+
 	case "Mutation.addComment":
 		if e.complexity.Mutation.AddComment == nil {
 			break
@@ -489,6 +531,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateCoffee(childComplexity, args["input"].(model.CreateCoffeeInput)), true
+
+	case "Mutation.createImageUpload":
+		if e.complexity.Mutation.CreateImageUpload == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createImageUpload_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateImageUpload(childComplexity, args["input"].(model.ImageUploadInput)), true
 
 	case "Mutation.createShop":
 		if e.complexity.Mutation.CreateShop == nil {
@@ -918,6 +972,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.ShopPin.Slug(childComplexity), true
 
+	case "UploadHeader.name":
+		if e.complexity.UploadHeader.Name == nil {
+			break
+		}
+
+		return e.complexity.UploadHeader.Name(childComplexity), true
+
+	case "UploadHeader.value":
+		if e.complexity.UploadHeader.Value == nil {
+			break
+		}
+
+		return e.complexity.UploadHeader.Value(childComplexity), true
+
 	case "User.createdAt":
 		if e.complexity.User.CreatedAt == nil {
 			break
@@ -1014,6 +1082,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCoffeeFilter,
 		ec.unmarshalInputCreateCoffeeInput,
 		ec.unmarshalInputCreateShopInput,
+		ec.unmarshalInputImageUploadInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputRegisterInput,
 		ec.unmarshalInputUpdateCoffeeInput,
@@ -1161,6 +1230,11 @@ type Mutation {
   publishCoffee(id: ID!): Coffee!
   unpublishCoffee(id: ID!): Coffee!
 
+  # Image uploads (seller). Returns a short-lived presigned PUT URL; after the
+  # PUT succeeds, save publicUrl via updateShop (logoUrl / bannerUrl) or
+  # updateCoffee (imageUrls). Only URLs from this mutation are accepted there.
+  createImageUpload(input: ImageUploadInput!): ImageUpload!
+
   # Variants (seller). Grind and weight are fixed once created — delete and
   # re-add to change them. The last variant of a published coffee can't be deleted.
   addVariant(coffeeId: ID!, input: VariantInput!): Variant!
@@ -1274,6 +1348,27 @@ enum GrindOption {
   ESPRESSO
 }
 
+# ─── Image uploads ────────────────────────────────────────────────────────────
+
+enum ImageKind {
+  SHOP_LOGO
+  SHOP_BANNER
+  COFFEE_PHOTO
+}
+
+type ImageUpload {
+  # PUT the file here, with exactly the headers below, within 10 minutes.
+  uploadUrl: String!
+  publicUrl: String!
+  headers: [UploadHeader!]!
+  expiresAt: Time!
+}
+
+type UploadHeader {
+  name: String!
+  value: String!
+}
+
 # ─── Reference / curated dropdowns ───────────────────────────────────────────
 
 type OriginCountry {
@@ -1336,6 +1431,7 @@ input CreateShopInput {
 input UpdateShopInput {
   name: String
   description: String
+  # From createImageUpload for this shop; "" removes the image.
   logoUrl: String
   bannerUrl: String
   city: String
@@ -1362,6 +1458,21 @@ input UpdateCoffeeInput {
   processingMethodId: ID
   roastLevel: RoastLevel
   flavorNotes: [String!]
+  # true removes the variety (it's optional). Can't be combined with varietyId.
+  clearVariety: Boolean
+  # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
+  # from createImageUpload for this coffee. [] removes every photo.
+  imageUrls: [String!]
+}
+
+input ImageUploadInput {
+  kind: ImageKind!
+  # The shop ID for SHOP_LOGO / SHOP_BANNER, the coffee ID for COFFEE_PHOTO.
+  targetId: ID!
+  # image/jpeg, image/png or image/webp
+  contentType: String!
+  # Exact file size in bytes (max 5 MB); the upload must match it.
+  byteSize: Int!
 }
 
 input VariantInput {
@@ -1503,6 +1614,34 @@ func (ec *executionContext) field_Mutation_createCoffee_argsInput(
 	}
 
 	var zeroVal model.CreateCoffeeInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_createImageUpload_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_createImageUpload_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_createImageUpload_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.ImageUploadInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.ImageUploadInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNImageUploadInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUploadInput(ctx, tmp)
+	}
+
+	var zeroVal model.ImageUploadInput
 	return zeroVal, nil
 }
 
@@ -3678,6 +3817,188 @@ func (ec *executionContext) fieldContext_Comment_createdAt(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _ImageUpload_uploadUrl(ctx context.Context, field graphql.CollectedField, obj *model.ImageUpload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ImageUpload_uploadUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UploadURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ImageUpload_uploadUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageUpload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageUpload_publicUrl(ctx context.Context, field graphql.CollectedField, obj *model.ImageUpload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ImageUpload_publicUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PublicURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ImageUpload_publicUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageUpload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageUpload_headers(ctx context.Context, field graphql.CollectedField, obj *model.ImageUpload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ImageUpload_headers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Headers, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.UploadHeader)
+	fc.Result = res
+	return ec.marshalNUploadHeader2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUploadHeaderᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ImageUpload_headers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageUpload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "name":
+				return ec.fieldContext_UploadHeader_name(ctx, field)
+			case "value":
+				return ec.fieldContext_UploadHeader_value(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type UploadHeader", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ImageUpload_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.ImageUpload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ImageUpload_expiresAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ExpiresAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ImageUpload_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageUpload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_register(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_register(ctx, field)
 	if err != nil {
@@ -4419,6 +4740,71 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_unpublishCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createImageUpload(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createImageUpload(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateImageUpload(rctx, fc.Args["input"].(model.ImageUploadInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ImageUpload)
+	fc.Result = res
+	return ec.marshalNImageUpload2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUpload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_createImageUpload(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "uploadUrl":
+				return ec.fieldContext_ImageUpload_uploadUrl(ctx, field)
+			case "publicUrl":
+				return ec.fieldContext_ImageUpload_publicUrl(ctx, field)
+			case "headers":
+				return ec.fieldContext_ImageUpload_headers(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_ImageUpload_expiresAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageUpload", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createImageUpload_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6718,6 +7104,94 @@ func (ec *executionContext) fieldContext_ShopPin_lng(_ context.Context, field gr
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Float does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UploadHeader_name(ctx context.Context, field graphql.CollectedField, obj *model.UploadHeader) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UploadHeader_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UploadHeader_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UploadHeader",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _UploadHeader_value(ctx context.Context, field graphql.CollectedField, obj *model.UploadHeader) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_UploadHeader_value(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Value, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_UploadHeader_value(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "UploadHeader",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9447,6 +9921,54 @@ func (ec *executionContext) unmarshalInputCreateShopInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputImageUploadInput(ctx context.Context, obj any) (model.ImageUploadInput, error) {
+	var it model.ImageUploadInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"kind", "targetId", "contentType", "byteSize"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNImageKind2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "targetId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("targetId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TargetID = data
+		case "contentType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contentType"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContentType = data
+		case "byteSize":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("byteSize"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ByteSize = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
 	var it model.LoginInput
 	asMap := map[string]any{}
@@ -9529,7 +10051,7 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety", "imageUrls"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -9585,6 +10107,20 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.FlavorNotes = data
+		case "clearVariety":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearVariety"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearVariety = data
+		case "imageUrls":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageUrls"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ImageUrls = data
 		}
 	}
 
@@ -10309,6 +10845,60 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 	return out
 }
 
+var imageUploadImplementors = []string{"ImageUpload"}
+
+func (ec *executionContext) _ImageUpload(ctx context.Context, sel ast.SelectionSet, obj *model.ImageUpload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, imageUploadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ImageUpload")
+		case "uploadUrl":
+			out.Values[i] = ec._ImageUpload_uploadUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "publicUrl":
+			out.Values[i] = ec._ImageUpload_publicUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "headers":
+			out.Values[i] = ec._ImageUpload_headers(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "expiresAt":
+			out.Values[i] = ec._ImageUpload_expiresAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -10394,6 +10984,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "unpublishCoffee":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_unpublishCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createImageUpload":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createImageUpload(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -11009,6 +11606,50 @@ func (ec *executionContext) _ShopPin(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._ShopPin_lat(ctx, field, obj)
 		case "lng":
 			out.Values[i] = ec._ShopPin_lng(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var uploadHeaderImplementors = []string{"UploadHeader"}
+
+func (ec *executionContext) _UploadHeader(ctx context.Context, sel ast.SelectionSet, obj *model.UploadHeader) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, uploadHeaderImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("UploadHeader")
+		case "name":
+			out.Values[i] = ec._UploadHeader_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "value":
+			out.Values[i] = ec._UploadHeader_value(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11806,6 +12447,35 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) unmarshalNImageKind2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageKind(ctx context.Context, v any) (model.ImageKind, error) {
+	var res model.ImageKind
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNImageKind2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageKind(ctx context.Context, sel ast.SelectionSet, v model.ImageKind) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNImageUpload2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUpload(ctx context.Context, sel ast.SelectionSet, v model.ImageUpload) graphql.Marshaler {
+	return ec._ImageUpload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNImageUpload2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUpload(ctx context.Context, sel ast.SelectionSet, v *model.ImageUpload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ImageUpload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNImageUploadInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUploadInput(ctx context.Context, v any) (model.ImageUploadInput, error) {
+	res, err := ec.unmarshalInputImageUploadInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -12169,6 +12839,60 @@ func (ec *executionContext) unmarshalNUpdateShopInput2githubᚗcomᚋunderthecea
 func (ec *executionContext) unmarshalNUpdateVariantInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateVariantInput(ctx context.Context, v any) (model.UpdateVariantInput, error) {
 	res, err := ec.unmarshalInputUpdateVariantInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUploadHeader2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUploadHeaderᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.UploadHeader) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNUploadHeader2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUploadHeader(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNUploadHeader2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUploadHeader(ctx context.Context, sel ast.SelectionSet, v *model.UploadHeader) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._UploadHeader(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNUser2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {

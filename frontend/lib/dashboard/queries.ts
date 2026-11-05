@@ -100,14 +100,46 @@ export const CREATE_COFFEE = typed<
 export interface EditableCoffee {
   id: string;
   name: string;
+  description: string;
+  originCountry: { id: string };
+  processingMethod: { id: string };
+  variety: { id: string } | null;
+  roastLevel: RoastLevel;
+  flavorNotes: string[];
+  imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
   variants: DashboardVariant[];
 }
 
+const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
+  roastLevel flavorNotes imageUrls isPublished shop { id }`;
+
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
-    coffee(id: $id) { id name isPublished shop { id } variants { ${VARIANT_FIELDS} } }
+    coffee(id: $id) { ${EDITABLE_COFFEE_FIELDS} variants { ${VARIANT_FIELDS} } }
+  }
+`);
+
+export interface UpdateCoffeeInput {
+  name?: string;
+  description?: string;
+  originCountryId?: string;
+  processingMethodId?: string;
+  varietyId?: string;
+  clearVariety?: boolean;
+  roastLevel?: string;
+  flavorNotes?: string[];
+  /** Replaces the gallery (order kept; first is the cover). */
+  imageUrls?: string[];
+}
+
+export const UPDATE_COFFEE = typed<
+  { updateCoffee: Omit<EditableCoffee, "variants"> },
+  { id: string; input: UpdateCoffeeInput }
+>(/* GraphQL */ `
+  mutation UpdateCoffee($id: ID!, $input: UpdateCoffeeInput!) {
+    updateCoffee(id: $id, input: $input) { ${EDITABLE_COFFEE_FIELDS} }
   }
 `);
 
@@ -130,4 +162,59 @@ export const UPDATE_VARIANT = typed<
 
 export const DELETE_VARIANT = typed<{ deleteVariant: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteVariant($id: ID!) { deleteVariant(id: $id) }
+`);
+
+// ── Shop profile ─────────────────────────────────────────────────────────────
+
+export interface EditableShop {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+}
+
+const EDITABLE_SHOP_FIELDS = `id slug name description city lat lng logoUrl bannerUrl`;
+
+export const MY_SHOP_PROFILE = typed<{ me: { id: string; shop: EditableShop | null } | null }>(/* GraphQL */ `
+  query MyShopProfile { me { id shop { ${EDITABLE_SHOP_FIELDS} } } }
+`);
+
+export interface UpdateShopInput {
+  name?: string;
+  description?: string;
+  city?: string;
+  lat?: number;
+  lng?: number;
+  logoUrl?: string;
+  bannerUrl?: string;
+}
+
+export const UPDATE_SHOP = typed<{ updateShop: EditableShop }, { id: string; input: UpdateShopInput }>(/* GraphQL */ `
+  mutation UpdateShop($id: ID!, $input: UpdateShopInput!) {
+    updateShop(id: $id, input: $input) { ${EDITABLE_SHOP_FIELDS} }
+  }
+`);
+
+// ── Image uploads ────────────────────────────────────────────────────────────
+
+export type ImageKind = "SHOP_LOGO" | "SHOP_BANNER" | "COFFEE_PHOTO";
+
+export interface ImageUpload {
+  uploadUrl: string;
+  publicUrl: string;
+  headers: { name: string; value: string }[];
+}
+
+export const CREATE_IMAGE_UPLOAD = typed<
+  { createImageUpload: ImageUpload },
+  { input: { kind: ImageKind; targetId: string; contentType: string; byteSize: number } }
+>(/* GraphQL */ `
+  mutation CreateImageUpload($input: ImageUploadInput!) {
+    createImageUpload(input: $input) { uploadUrl publicUrl headers { name value } }
+  }
 `);

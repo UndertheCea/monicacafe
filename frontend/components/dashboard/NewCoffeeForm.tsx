@@ -6,7 +6,14 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FILTER_OPTIONS, ROAST_LEVELS, type GrindOption, type RoastLevel } from "@/lib/api";
 import { CREATE_COFFEE } from "@/lib/dashboard/queries";
-import { LIMITS, parseFlavorNotes, parseWhole, runes, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
+import {
+  LIMITS,
+  coffeeDetailsProblem,
+  parseFlavorNotes,
+  parseWhole,
+  variantProblems,
+  type VariantDraft,
+} from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
@@ -61,10 +68,12 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     const roastLevel = String(fd.get("roast") ?? "") as RoastLevel;
     const notes = parseFlavorNotes(String(fd.get("notes") ?? ""));
 
-    if (!name || !originCountryId || !processingMethodId || !ROAST_LEVELS.includes(roastLevel)) {
-      return setError({ key: "cf.error.required" });
-    }
-    if (notes.length > LIMITS.flavorNotes || notes.some((n) => runes(n) > LIMITS.flavorNote)) {
+    const detailsProblem = coffeeDetailsProblem(
+      { name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes },
+      ROAST_LEVELS,
+    );
+    if (detailsProblem === "required") return setError({ key: "cf.error.required" });
+    if (detailsProblem === "notes") {
       return setError({ key: "cf.error.notes", vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
     }
     if (rows.length === 0) return setError({ key: "cf.error.noVariants" });

@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-05 (after Session 6 / PR #5; backlog moved to Issues)
+Last updated: 2026-11-05 (after Session 7 / PR #23)
 
 ---
 
@@ -36,29 +36,31 @@ takes a commission on each sale).
 | Pages: home, /coffees (+filters), /coffees/[id] (+comments), /shops, /shops/[slug], /map | Done |
 | /login, /register, account menu | Done |
 | Seller dashboard: open shop, new coffee, options, publish / unpublish | Done |
-| Seller dashboard: edit coffee text (#13), shop profile + map location (#14) | Todo |
-| Image uploads: API (#15), MinIO (#16), uploader UI (#17), CSP (#18) | Todo |
+| Seller dashboard: edit coffee details, shop profile + map location | Done |
+| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
+| Content-Security-Policy (nonce'd, from Next middleware) | Done |
 | Draft preview for sellers (#19) | Todo |
+| Auth refresh race on fast navigation (#24) | Todo |
 | CI + branch cleanup workflow | Done |
-| Full `docker compose up` through nginx (#20) | Last verified session 4; re-check |
+| Full `docker compose up` through nginx (#20) | Last verified session 4; now also SeaweedFS — re-check |
 
 ## Last session
 
-**Session 6 · PR #5** — frontend auth (login / register, httpOnly refresh cookie via `/api/auth/*`, cross-tab
-refresh lock), add / delete comments, seller dashboard (open shop, coffee list incl. drafts, publish /
-unpublish), coffee editor (new coffee + options), variant mutations + migration 004. Not tested: full
-`docker compose up`, nginx in front of the auth route handlers.
+**Session 7 · PR #23** — edit coffee details (#13), shop profile + Leaflet location picker (#14), presigned image
+upload API with a hand-written SigV4 signer (#15), S3 store in compose + nginx `/media/` (#16; SeaweedFS because
+MinIO's images left Docker Hub), uploader for logo / banner / coffee gallery (#17), nonce'd CSP (#18). CI does a
+real presigned PUT against SeaweedFS. Not tested: `docker compose up` + `smoke.sh` (no Docker daemon).
 
 ## Current focus
 
-Finish Stage 1. The p1 slices are #13–#16 (dashboard edits, then the upload API + MinIO pair); p2 are
-#17–#20. Stage 2 (#21) is blocked on the cart-storage question.
+Finish Stage 1: #20 (prove `docker compose up` + `smoke.sh` end to end, now including the image store — add a CI
+job if no Docker daemon), #19 (draft preview), #24 (refresh race). Then Stage 2, which is blocked on #9 and #12.
 
 Open questions for the owner (answer by commenting on the issue):
 
 | Issue | Question | Default | Safe? |
 |---|---|---|---|
-| #7 | Image storage | MinIO / S3-compatible | yes |
+| #7 | Image storage | S3-compatible (SeaweedFS in dev) | yes |
 | #8 | Draft previews | dashboard-only preview | yes |
 | #9 | Cart storage (Stage 2) | Postgres | **no** — blocks #21 |
 | #10 | Production map tiles | keep OSM for the demo | yes |
@@ -84,3 +86,8 @@ Open questions for the owner (answer by commenting on the issue):
 - **Work queue in GitHub Issues, not a doc** — sessions claim slices with `in-progress`, so parallel or
   overlapping runs don't duplicate work (six runs once rebuilt the same `/map` page); the owner can answer
   questions from a phone.
+- **Images: presigned PUTs to an S3-compatible bucket, same-origin via nginx** — the API never proxies file bytes;
+  the signed Content-Type / Content-Length cap type and size; only bucket URLs under the owner's prefix can be
+  saved, so sellers can't hot-link or link out and the CSP stays narrow. SeaweedFS in dev (MinIO's images were
+  pulled from Docker Hub); any S3 provider in production.
+- **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.

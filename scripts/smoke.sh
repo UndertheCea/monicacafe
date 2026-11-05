@@ -6,7 +6,8 @@
 #
 # Checks every demo route returns 200 (and an unknown route 404), that the
 # auth endpoints answer, that the API answers health + GraphQL, and that the
-# seed produced map pins and coffees.
+# seed produced map pins and coffees, and that image uploads round-trip
+# through nginx to the S3 store.
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost}"
@@ -37,6 +38,41 @@ if [[ "$body" == *'"errors"'* || "$pins" -eq 0 || "$coffees" -eq 0 ]]; then
   echo "FAIL graphql: expected map pins and popular coffees, got: ${body:0:300}"; fail=1
 else
   echo "ok   graphql ($pins map pins, popular coffees present)"
+fi
+
+# ── Image storage (S3 store behind nginx at /media/) ────────────────────────
+# A missing object must come back from the store as 404 (not nginx's 502/404 page),
+# and listing the bucket must be refused.
+check_status "$BASE_URL/media/shops/__no-such-image__.png" 404
+check_status "$BASE_URL/media/" 403
+
+# End to end: a throwaway seller opens a shop, gets a presigned URL, uploads a
+# file through nginx and reads it back from the public URL. This leaves a
+# "smoke…" user and shop behind (fine for a dev stack; SMOKE_UPLOAD=0 skips it).
+gql() { # token json-body
+  curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' ${1:+-H "Authorization: Bearer $1"} -d "$2"
+}
+field() { grep -o "\"$1\":\"[^\"]*\"" | head -1 | cut -d'"' -f4; }
+if [[ "${SMOKE_UPLOAD:-1}" != "0" ]]; then
+  run="smoke$(date +%s)$RANDOM"
+  token=$(gql "" "$(printf '{"query":"mutation($in: RegisterInput!) { register(input: $in) { accessToken } }","variables":{"in":{"email":"%s@example.com","password":"smoke-test-pw","displayName":"Smoke"}}}' "$run")" | field accessToken)
+  shop_id=$(gql "$token" "$(printf '{"query":"mutation($in: CreateShopInput!) { createShop(input: $in) { id } }","variables":{"in":{"slug":"%s","name":"Smoke test","description":"","city":"Taipei"}}}' "$run")" | field id)
+  payload="smoke-image-$run"
+  size=${#payload}
+  upload=$(gql "$token" "$(printf '{"query":"mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { uploadUrl publicUrl } }","variables":{"in":{"kind":"SHOP_LOGO","targetId":"%s","contentType":"image/png","byteSize":%d}}}' "$shop_id" "$size")")
+  upload_url=$(field uploadUrl <<<"$upload" | sed 's/\\u0026/\&/g')
+  public_url=$(field publicUrl <<<"$upload")
+  if [[ -z "$token" || -z "$shop_id" || -z "$upload_url" ]]; then
+    echo "FAIL upload: couldn't get a presigned URL: ${upload:0:300}"; fail=1
+  else
+    code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X PUT -H 'Content-Type: image/png' --data-binary "$payload" "$upload_url") || code="000"
+    got=$(curl -s --max-time 15 "$public_url") || got=""
+    if [[ "$code" == "200" && "$got" == "$payload" ]]; then
+      echo "ok   upload: presigned PUT + public GET via /media/"
+    else
+      echo "FAIL upload: PUT → $code, GET $public_url → ${got:0:100}"; fail=1
+    fi
+  fi
 fi
 
 if [[ $fail -ne 0 ]]; then echo "smoke test FAILED"; exit 1; fi

@@ -26,6 +26,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/db"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/config"
+	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
@@ -59,7 +60,17 @@ func run() error {
 
 	st := store.New(pool)
 	authSvc := auth.NewService(cfg.JWTAccessSecret, cfg.JWTRefreshSecret)
-	resolver := graph.NewResolver(st, authSvc)
+	media, err := storage.New(storage.Config{
+		Endpoint: cfg.S3Endpoint, Bucket: cfg.S3Bucket, Region: cfg.S3Region,
+		AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, PublicURL: cfg.MediaPublicURL,
+	})
+	if err != nil {
+		return err
+	}
+	if media == nil {
+		slog.Warn("image uploads disabled: S3_ACCESS_KEY / S3_SECRET_KEY not set")
+	}
+	resolver := graph.NewResolver(st, authSvc, media)
 
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 	srv.AddTransport(transport.Options{})

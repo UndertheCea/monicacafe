@@ -8,10 +8,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/graph/model"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
+	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
@@ -261,10 +263,10 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if p.City, err = cleanOptText("city", input.City, 1, 40); err != nil {
 		return nil, err
 	}
-	if p.LogoURL, err = validateURL("logoUrl", input.LogoURL); err != nil {
+	if p.LogoURL, err = r.mediaURL("logoUrl", input.LogoURL, storage.ShopPrefix(id)); err != nil {
 		return nil, err
 	}
-	if p.BannerURL, err = validateURL("bannerUrl", input.BannerURL); err != nil {
+	if p.BannerURL, err = r.mediaURL("bannerUrl", input.BannerURL, storage.ShopPrefix(id)); err != nil {
 		return nil, err
 	}
 	if err := validateCoords(input.Lat, input.Lng); err != nil {
@@ -380,7 +382,16 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	p.OriginCountryID, p.VarietyID, p.ProcessingMethodID = input.OriginCountryID, input.VarietyID, input.ProcessingMethodID
+	if input.ClearVariety != nil && *input.ClearVariety {
+		if input.VarietyID != nil {
+			return nil, errBadInput("clearVariety", "clearVariety can't be combined with varietyId")
+		}
+		p.ClearVariety = true
+	}
 	if p.FlavorNotes, err = cleanFlavorNotes(input.FlavorNotes); err != nil {
+		return nil, err
+	}
+	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
 		return nil, err
 	}
 
@@ -443,6 +454,53 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 		return nil, err
 	}
 	return toCoffee(co), nil
+}
+
+// CreateImageUpload is the resolver for the createImageUpload field.
+func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.ImageUploadInput) (*model.ImageUpload, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if r.Media == nil {
+		return nil, errBadInput("input", "image uploads are not configured on this server")
+	}
+	if !input.Kind.IsValid() {
+		return nil, errBadInput("kind", "invalid image kind")
+	}
+	ext, err := storage.ImageExt(input.ContentType, int64(input.ByteSize))
+	if errors.Is(err, storage.ErrContentType) {
+		return nil, errBadInput("contentType", err.Error())
+	}
+	if err != nil {
+		return nil, errBadInput("byteSize", err.Error())
+	}
+	var prefix, kind string
+	switch input.Kind {
+	case model.ImageKindShopLogo, model.ImageKindShopBanner:
+		if _, err := r.ownedShop(ctx, c, input.TargetID); err != nil {
+			return nil, err
+		}
+		prefix, kind = storage.ShopPrefix(input.TargetID), "logo"
+		if input.Kind == model.ImageKindShopBanner {
+			kind = "banner"
+		}
+	case model.ImageKindCoffeePhoto:
+		if _, err := r.ownedCoffee(ctx, c, input.TargetID); err != nil {
+			return nil, err
+		}
+		prefix, kind = storage.CoffeePrefix(input.TargetID), "photo"
+	}
+	key, err := storage.NewKey(prefix, kind, ext)
+	if err != nil {
+		return nil, err
+	}
+	up := r.Media.PresignPut(key, strings.ToLower(strings.TrimSpace(input.ContentType)), int64(input.ByteSize))
+	headers := make([]*model.UploadHeader, 0, len(up.Headers))
+	for k, v := range up.Headers {
+		headers = append(headers, &model.UploadHeader{Name: k, Value: v})
+	}
+	return &model.ImageUpload{UploadURL: up.UploadURL, PublicURL: up.PublicURL, Headers: headers, ExpiresAt: up.ExpiresAt}, nil
 }
 
 // AddVariant is the resolver for the addVariant field.

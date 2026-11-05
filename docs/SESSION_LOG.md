@@ -15,6 +15,53 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 7 — 2026-11-05 — Dashboard edits, image uploads end to end, CSP
+PR: #23
+
+### Shipped (one line per slice: area — what — key files)
+- #13 frontend — edit coffee details on `/dashboard/coffees/[id]` (only changed fields sent; shared
+  `coffeeDetailsProblem` validation with the new-coffee form); backend `updateCoffee.clearVariety` —
+  `components/dashboard/CoffeeDetailsForm.tsx`, `lib/dashboard/validate.ts`
+- #14 frontend — `/dashboard/shop`: name / city / description + Leaflet click-to-place (draggable) pin or typed
+  lat/lng, warning outside Taiwan's rough bounds (incl. Penghu, Kinmen, Matsu) — `ShopProfileForm.tsx`,
+  `LocationPicker.tsx`
+- #15 backend — `createImageUpload(kind, targetId, contentType, byteSize)`: ownership check, jpeg/png/webp ≤ 5 MB,
+  10-minute presigned PUT with Content-Type + Content-Length **signed** (size enforced by the store). Hand-written
+  SigV4 presigner (no AWS SDK) checked against AWS's published example. `updateShop` logo/banner and new
+  `updateCoffee.imageUrls` (≤ 8, ordered, deduped) accept only bucket URLs under that shop's / coffee's prefix;
+  `""` clears a logo/banner — `internal/storage/`, `S3_*` + `MEDIA_PUBLIC_URL` in `config.Load()`
+- #16 cross-cutting — S3 store in compose + nginx `/media/` (same-origin uploads and image URLs, Host kept for the
+  signature), smoke checks incl. a real presigned PUT + GET. **SeaweedFS** (`chrislusf/seaweedfs:4.52`) instead
+  of MinIO: `minio/minio` is no longer pullable from Docker Hub (CI failed on it). `scripts/seaweedfs.sh` writes
+  the identities (admin key; anonymous GET on `shops/*` + `coffees/*` only) and creates the bucket
+- #17 frontend — `ImageUploader` (client type/size check, XHR PUT with progress) for shop logo + banner and the
+  coffee gallery (add / remove / reorder, first = cover); bilingual alt text — `ImageUploader.tsx`,
+  `ShopImages.tsx`, `CoffeeGallery.tsx`, `lib/dashboard/upload.ts`
+- #18 cross-cutting — nonce'd CSP from `middleware.ts` (pure builder `lib/csp.ts`): img-src self + media + OSM
+  tiles, connect-src self + GraphQL + media, frame-ancestors none, etc. New build arg `NEXT_PUBLIC_MEDIA_URL`
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with a local PostgreSQL 16 (migrations + seed). New:
+  `internal/storage` tests (AWS SigV4 vector, URL ownership, config), `TestImageUploads`, clearVariety check.
+- CI additionally runs SeaweedFS and `TestImageUploads` does a **real** presigned PUT (and a wrong-size PUT that
+  must fail) plus an anonymous GET — green.
+- Frontend: tsc, `npm test` (31 cases), `next build`. Playwright (Chromium) against local backend + Postgres:
+  #13 save incl. clearing variety, #14 map click / outside-Taiwan warning / save, #17 uploads, reorder, oversize
+  rejection, logo on `/shops/[slug]` (a stand-in S3 endpoint, no signature check, served the files). #18: a
+  production build swept every `smoke.sh` page plus the signed-in dashboard pages and an upload — no CSP violations.
+- NOT tested: `docker compose up` + `smoke.sh` (no Docker daemon here; that's #20), SeaweedFS behind nginx (the
+  Host-preserving proxy is configured but only exercised directly on :8333 in CI), OSM tiles (blocked egress).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Dev image store is SeaweedFS, not MinIO (images gone from Docker Hub). Same S3 code path; #7's default stands.
+- Image URLs must come from our bucket; pre-existing off-bucket URLs (none in the seed) would be blocked by the CSP.
+- A shop's saved location can't be cleared (`updateShop` null = unchanged); the page says so.
+- New slice #24: navigating away while `/api/auth/refresh` is in flight loses the rotated cookie and the next load
+  trips reuse detection, logging the user out everywhere. Found while testing; needs a grace window.
+- `smoke.sh` now creates a throwaway "smoke…" user + shop each run (`SMOKE_UPLOAD=0` skips).
+
+---
+
 ## Maintenance — 2026-11-05 — CLAUDE.md, backlog in GitHub Issues, brief check
 
 - `CLAUDE.md` (auto-loaded by Claude Code): rules, architecture, verify commands, issue workflow.

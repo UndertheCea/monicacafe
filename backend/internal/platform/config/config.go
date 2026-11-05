@@ -18,6 +18,15 @@ type Config struct {
 	CORSOrigin       string
 	AppEnv           string
 	Locale           string
+
+	// Object storage for uploaded images (S3-compatible; SeaweedFS in compose).
+	// Uploads are disabled when S3AccessKey is empty.
+	S3Endpoint     string
+	S3Bucket       string
+	S3Region       string
+	S3AccessKey    string
+	S3SecretKey    string
+	MediaPublicURL string
 }
 
 func get(k, d string) string {
@@ -39,6 +48,12 @@ func Load() Config {
 		CORSOrigin:       get("CORS_ORIGIN", "http://localhost,http://localhost:3000"),
 		AppEnv:           get("APP_ENV", "development"),
 		Locale:           get("LOCALE", "zh-TW"),
+		S3Endpoint:       get("S3_ENDPOINT", "http://localhost"),
+		S3Bucket:         get("S3_BUCKET", "media"),
+		S3Region:         get("S3_REGION", "us-east-1"),
+		S3AccessKey:      get("S3_ACCESS_KEY", ""),
+		S3SecretKey:      get("S3_SECRET_KEY", ""),
+		MediaPublicURL:   get("MEDIA_PUBLIC_URL", ""),
 	}
 }
 

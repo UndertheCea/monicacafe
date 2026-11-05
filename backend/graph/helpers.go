@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/mail"
-	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -19,6 +18,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
+	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
@@ -276,16 +276,58 @@ func randomSuffix(n int) (string, error) {
 	return string(b), nil
 }
 
-func validateURL(field string, s *string) (*string, error) {
+// mediaURL validates an optional image URL: "" (clear) or a URL served from
+// the configured bucket under keyPrefix, i.e. one createImageUpload issued for
+// this shop or coffee. Arbitrary hosts are refused so sellers can't hot-link
+// (or link out) and the CSP can stay narrow.
+func (r *Resolver) mediaURL(field string, s *string, keyPrefix string) (*string, error) {
 	if s == nil {
 		return nil, nil
 	}
 	v := strings.TrimSpace(*s)
-	u, err := url.Parse(v)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || len(v) > 2048 {
-		return nil, errBadInput(field, field+" must be an http(s) URL")
+	if v == "" {
+		return &v, nil
+	}
+	if err := r.checkMediaURL(field, v, keyPrefix); err != nil {
+		return nil, err
 	}
 	return &v, nil
+}
+
+func (r *Resolver) checkMediaURL(field, v, keyPrefix string) error {
+	if r.Media == nil {
+		return errBadInput(field, "image uploads are not configured on this server")
+	}
+	if len(v) > 2048 || !strings.HasPrefix(r.Media.KeyOf(v), keyPrefix) {
+		return errBadInput(field, field+" must be an image uploaded for this listing")
+	}
+	return nil
+}
+
+const maxCoffeeImages = 8
+
+// coffeeImageURLs validates a replacement gallery. nil = unchanged.
+func (r *Resolver) coffeeImageURLs(urls []string, coffeeID string) ([]string, error) {
+	if urls == nil {
+		return nil, nil
+	}
+	out := make([]string, 0, len(urls))
+	seen := make(map[string]bool, len(urls))
+	for _, u := range urls {
+		u = strings.TrimSpace(u)
+		if seen[u] {
+			continue
+		}
+		if err := r.checkMediaURL("imageUrls", u, storage.CoffeePrefix(coffeeID)); err != nil {
+			return nil, err
+		}
+		seen[u] = true
+		out = append(out, u)
+	}
+	if len(out) > maxCoffeeImages {
+		return nil, errBadInput("imageUrls", fmt.Sprintf("at most %d photos", maxCoffeeImages))
+	}
+	return out, nil
 }
 
 const (

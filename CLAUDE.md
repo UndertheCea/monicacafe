@@ -56,7 +56,8 @@ every `Closes #N` in the PR body) so merging the PR closes the issue. If you sto
 ```
 browser ──► nginx :80 ──┬─► frontend (Next.js 15, :3000) ──► backend /graphql (server components fetch directly)
                         │        └─ /api/auth/* route handlers (hold the refresh token in an httpOnly cookie)
-                        └─► backend (Go, :4000) /graphql, /health
+                        ├─► backend (Go, :4000) /graphql, /health
+                        └─► /media/ ─► S3 store (SeaweedFS :8333 in compose; browsers PUT via presigned URLs)
 backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) · Meilisearch (Stage 3, idle)
 ```
 
@@ -68,12 +69,15 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `backend/internal/store` | All SQL (hand-written pgx v5), transactions, sentinel errors |
 | `backend/internal/auth` | bcrypt, JWT issue / verify, refresh rotation and reuse detection |
 | `backend/internal/platform` | `money.TWD`, `twfmt` (Taiwan validators), `tz.Taipei`, `config.Load()` |
+| `backend/internal/storage` | S3 SigV4 presigned uploads, which image URLs belong to the bucket |
 | `backend/internal/payments/ecpay` | ECPay CheckMacValue signing stub (Stage 2) |
 | `migrations/NNN_*.sql` | Plain SQL, applied in order by `scripts/initdb.sh`, then `scripts/seed_dev.sql` |
 | `frontend/app/` | App Router pages; `api/auth/[action]` is the auth backend-for-frontend |
-| `frontend/lib/` | `api.ts` (typed queries), `graphql.ts` (client), `i18n/`, `auth/`, `dashboard/` |
+| `frontend/lib/` | `api.ts` (typed queries), `graphql.ts` (client), `i18n/`, `auth/`, `dashboard/`, `csp.ts` |
+| `frontend/middleware.ts` | Per-request nonce'd Content-Security-Policy |
 | `frontend/tests/*.test.mjs` | `npm test` (Node's built-in runner) |
-| `scripts/smoke.sh` | Hits every demo route plus GraphQL after `docker compose up` |
+| `scripts/smoke.sh` | Hits every demo route plus GraphQL and an image upload after `docker compose up` |
+| `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks), `branch-cleanup.yml` (deletes merged PR branches) |
 

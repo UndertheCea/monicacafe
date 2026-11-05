@@ -67,12 +67,20 @@ export function Dashboard({ locale }: { locale: Locale }) {
             {shop.city} · <span className="font-mono">/shops/{shop.slug}</span>
           </p>
         </div>
-        <Link
-          href={`/shops/${shop.slug}`}
-          className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500"
-        >
-          {t(locale, "dash.viewShop")}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/shop"
+            className="rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700"
+          >
+            {t(locale, "dash.editShop")}
+          </Link>
+          <Link
+            href={`/shops/${shop.slug}`}
+            className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500"
+          >
+            {t(locale, "dash.viewShop")}
+          </Link>
+        </div>
       </section>
 
       <section aria-labelledby="my-coffees">

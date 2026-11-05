@@ -42,6 +42,11 @@ type Mutation {
   publishCoffee(id: ID!): Coffee!
   unpublishCoffee(id: ID!): Coffee!
 
+  # Image uploads (seller). Returns a short-lived presigned PUT URL; after the
+  # PUT succeeds, save publicUrl via updateShop (logoUrl / bannerUrl) or
+  # updateCoffee (imageUrls). Only URLs from this mutation are accepted there.
+  createImageUpload(input: ImageUploadInput!): ImageUpload!
+
   # Variants (seller). Grind and weight are fixed once created — delete and
   # re-add to change them. The last variant of a published coffee can't be deleted.
   addVariant(coffeeId: ID!, input: VariantInput!): Variant!
@@ -155,6 +160,27 @@ enum GrindOption {
   ESPRESSO
 }
 
+# ─── Image uploads ────────────────────────────────────────────────────────────
+
+enum ImageKind {
+  SHOP_LOGO
+  SHOP_BANNER
+  COFFEE_PHOTO
+}
+
+type ImageUpload {
+  # PUT the file here, with exactly the headers below, within 10 minutes.
+  uploadUrl: String!
+  publicUrl: String!
+  headers: [UploadHeader!]!
+  expiresAt: Time!
+}
+
+type UploadHeader {
+  name: String!
+  value: String!
+}
+
 # ─── Reference / curated dropdowns ───────────────────────────────────────────
 
 type OriginCountry {
@@ -217,6 +243,7 @@ input CreateShopInput {
 input UpdateShopInput {
   name: String
   description: String
+  # From createImageUpload for this shop; "" removes the image.
   logoUrl: String
   bannerUrl: String
   city: String
@@ -243,6 +270,21 @@ input UpdateCoffeeInput {
   processingMethodId: ID
   roastLevel: RoastLevel
   flavorNotes: [String!]
+  # true removes the variety (it's optional). Can't be combined with varietyId.
+  clearVariety: Boolean
+  # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
+  # from createImageUpload for this coffee. [] removes every photo.
+  imageUrls: [String!]
+}
+
+input ImageUploadInput {
+  kind: ImageKind!
+  # The shop ID for SHOP_LOGO / SHOP_BANNER, the coffee ID for COFFEE_PHOTO.
+  targetId: ID!
+  # image/jpeg, image/png or image/webp
+  contentType: String!
+  # Exact file size in bytes (max 5 MB); the upload must match it.
+  byteSize: Int!
 }
 
 input VariantInput {

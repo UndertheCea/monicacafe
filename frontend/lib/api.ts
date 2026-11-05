@@ -115,7 +115,7 @@ export interface CoffeeDetail {
   imageUrls: string[];
   isPublished: boolean;
   commentCount: number;
-  shop: { slug: string; name: string; city: string; description: string; logoUrl: string | null };
+  shop: { id: string; slug: string; name: string; city: string; description: string; logoUrl: string | null };
   originCountry: { nameEn: string; nameZh: string; region: string };
   processingMethod: { nameEn: string; nameZh: string };
   variety: { name: string } | null;
@@ -127,7 +127,7 @@ export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* 
   query Coffee($id: ID!) {
     coffee(id: $id) {
       id slug name description roastLevel flavorNotes imageUrls isPublished commentCount
-      shop { slug name city description logoUrl }
+      shop { id slug name city description logoUrl }
       originCountry { nameEn nameZh region }
       processingMethod { nameEn nameZh }
       variety { name }

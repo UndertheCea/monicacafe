@@ -12,6 +12,7 @@ import {
   type DashboardVariant,
   type EditableCoffee,
 } from "@/lib/dashboard/queries";
+import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -52,7 +53,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
   if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
   // Published coffees are visible to everyone, so also check ownership here
   // (the mutations re-check it server-side).
-  if (load.state === "missing" || (load.coffee.shop.id !== user?.shop?.id && user?.role !== "ADMIN")) {
+  if (load.state === "missing" || !canManageCoffee(load.coffee.shop.id, user)) {
     return <Notice>{t(locale, "cf.notYours")}</Notice>;
   }
 
@@ -72,6 +73,9 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
             {t(locale, "dash.view")}
           </Link>
         )}
+        <Link href={`/dashboard/coffees/${coffee.id}/preview`} className="text-sm text-amber-700 hover:underline">
+          {t(locale, "dash.preview")}
+        </Link>
       </div>
 
       <CoffeeDetailsForm

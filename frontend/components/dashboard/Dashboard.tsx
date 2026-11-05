@@ -142,6 +142,12 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       </Link>
                     )}
                     <Link
+                      href={`/dashboard/coffees/${c.id}/preview`}
+                      className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:text-amber-700"
+                    >
+                      {t(locale, "dash.preview")}
+                    </Link>
+                    <Link
                       href={`/dashboard/coffees/${c.id}`}
                       className="rounded-full border border-stone-300 px-3 py-1.5 text-sm hover:border-stone-500"
                     >

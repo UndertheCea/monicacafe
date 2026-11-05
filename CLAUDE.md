@@ -66,9 +66,11 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `backend/cmd/server` | HTTP server: chi, gqlgen, JWT middleware, slog, graceful shutdown |
 | `backend/cmd/worker` | River job-queue skeleton (Stage 2) |
 | `backend/graph/` | `schema.graphqls`, resolvers, hand-written models, dataloaders, input validation, integration tests |
+| `backend/graph/errors.go` + `frontend/lib/errors.ts` | The error contract: `extensions.code` (+ `field`, `retryAfter`); a Go test keeps the code lists in sync |
 | `backend/internal/store` | All SQL (hand-written pgx v5), transactions, sentinel errors |
 | `backend/internal/auth` | bcrypt, JWT issue / verify, refresh rotation and reuse detection |
 | `backend/internal/platform` | `money.TWD`, `twfmt` (Taiwan validators), `tz.Taipei`, `config.Load()` |
+| `backend/internal/ratelimit`, `internal/middleware` | In-memory token buckets (auth, comments, uploads, password); client IP via `TRUSTED_PROXIES` |
 | `backend/internal/storage` | S3 SigV4 presigned uploads, which image URLs belong to the bucket |
 | `backend/internal/payments/ecpay` | ECPay CheckMacValue signing stub (Stage 2) |
 | `migrations/NNN_*.sql` | Plain SQL, applied in order by `scripts/initdb.sh`, then `scripts/seed_dev.sql` |

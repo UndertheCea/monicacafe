@@ -72,7 +72,7 @@ function ok(req: NextRequest, p: { accessToken: string; refreshToken: string; us
 
 function fromError(err: unknown) {
   const e = toApiError(err);
-  return fail(authErrorStatus(e.code), e.code, e.messageEn, e.field, e.retryAfter);
+  return fail(authErrorStatus(e.code), e.code, e.message, e.field, e.retryAfter);
 }
 
 async function readJSON(req: NextRequest): Promise<Record<string, unknown>> {

@@ -5,7 +5,7 @@
 // the cookie for a fresh access token, then refresh a minute before expiry.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ApiError, authedClient, toApiError, type TypedDocument } from "@/lib/graphql";
+import { ApiError, authedClient, toApiError, unavailable, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
 import { refreshDelayMs } from "@/lib/auth/token";
 import { retryAfterSeconds } from "@/lib/errors";
@@ -65,9 +65,9 @@ function refreshSession(): Promise<SessionPayload | null> {
 async function asError(res: Response): Promise<ApiError> {
   try {
     const b = (await res.json()) as SessionErrorBody;
-    return new ApiError(b.code, b.message, b.message, b.field, retryAfterSeconds(b.retryAfter ?? res.headers.get("retry-after")));
+    return new ApiError(b.code, b.message, b.field, retryAfterSeconds(b.retryAfter ?? res.headers.get("retry-after")));
   } catch {
-    return new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
+    return unavailable();
   }
 }
 
@@ -81,7 +81,7 @@ async function postAuth(action: "login" | "register", body: Record<string, strin
       body: JSON.stringify(body),
     });
   } catch {
-    throw new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
+    throw unavailable();
   }
   if (!res.ok) throw await asError(res);
   return (await res.json()) as SessionPayload;
@@ -181,17 +181,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             body: JSON.stringify({ currentPassword, newPassword }),
           });
         } catch {
-          throw new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
+          throw unavailable();
         }
       };
       const cur = stateRef.current;
       let token = cur.status === "authenticated" ? cur.session.accessToken : null;
-      if (!token) throw new ApiError("UNAUTHENTICATED", "請先登入", "Please log in");
+      if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
       let res = await send(token);
       if (res.status === 401) {
         // Access token expired: refresh once and retry.
         token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
-        if (!token) throw new ApiError("UNAUTHENTICATED", "請先登入", "Please log in");
+        if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
         res = await send(token);
       }
       if (!res.ok) throw await asError(res);
@@ -211,7 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Called before the initial refresh settled: use the shared in-flight one.
         token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
       }
-      if (!token) throw new ApiError("UNAUTHENTICATED", "請先登入", "Please log in");
+      if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
       try {
         return await run(token);
       } catch (err) {

@@ -1,5 +1,5 @@
 import { ClientError, GraphQLClient } from "graphql-request";
-import { retryAfterSeconds } from "./errors";
+import { UNAVAILABLE, parseGraphQLErrors } from "./errors";
 
 // Server components talk to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
 // http://backend:4000/graphql inside docker compose); the browser uses the
@@ -49,17 +49,20 @@ export async function query<TData, TVars extends Record<string, unknown>>(
   return client.request<TData>(doc, vars);
 }
 
-/** Structured error mirroring the backend's apperr extensions. */
+/**
+ * A failed API call. `code` is a backend code (see API_ERROR_CODES in
+ * lib/errors.ts) or UNAVAILABLE when the server couldn't be reached;
+ * `message` is English, for logs only — show t() messages chosen by code.
+ */
 export class ApiError extends Error {
   constructor(
     public code: string,
-    public messageZh: string,
-    public messageEn: string,
+    message: string,
     public field?: string,
     /** Seconds to wait, on RATE_LIMITED errors. */
     public retryAfter?: number,
   ) {
-    super(messageEn);
+    super(message);
   }
 }
 
@@ -67,17 +70,11 @@ export class ApiError extends Error {
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   if (err instanceof ClientError) {
-    const ext = err.response.errors?.[0]?.extensions as
-      | { code?: string; messageZh?: string; messageEn?: string; field?: string; retryAfter?: unknown }
-      | undefined;
-    const fallback = err.response.errors?.[0]?.message ?? "GraphQL error";
-    return new ApiError(
-      ext?.code ?? "INTERNAL",
-      ext?.messageZh ?? fallback,
-      ext?.messageEn ?? fallback,
-      ext?.field,
-      retryAfterSeconds(ext?.retryAfter),
-    );
+    const f = parseGraphQLErrors(err.response.errors);
+    return new ApiError(f.code, f.message, f.field, f.retryAfter);
   }
-  return new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
+  return unavailable();
 }
+
+/** The error for "couldn't reach the server". */
+export const unavailable = () => new ApiError(UNAVAILABLE, "could not reach the server");

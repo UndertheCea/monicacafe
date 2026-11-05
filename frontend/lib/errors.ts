@@ -1,5 +1,56 @@
 // Pure helpers for API errors shared by the BFF route handlers, AuthProvider
 // and forms. No imports, so `node --test` can load this file directly.
+//
+// The error contract with the backend (backend/graph/errors.go): every
+// GraphQL error carries `extensions.code` (one of API_ERROR_CODES), plus
+// `field` (the offending input) on BAD_USER_INPUT / CONFLICT and
+// `retryAfter` (whole seconds) on RATE_LIMITED. `message` is English and for
+// logs only: the UI picks a t() key from the code and field.
+
+/**
+ * Codes the backend sends. A Go test (graph/errors_contract_test.go) fails
+ * when this list and graph/errors.go drift apart.
+ */
+export const API_ERROR_CODES = [
+  "UNAUTHENTICATED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "BAD_USER_INPUT",
+  "CONFLICT",
+  "RATE_LIMITED",
+  "INTERNAL_SERVER_ERROR",
+] as const;
+
+/** Client-side only: the server couldn't be reached. */
+export const UNAVAILABLE = "UNAVAILABLE";
+
+export interface ApiErrorFields {
+  code: string;
+  message: string;
+  field?: string;
+  retryAfter?: number;
+}
+
+/** Fields of the first error in a GraphQL response's `errors` array. */
+export function parseGraphQLErrors(errors: unknown): ApiErrorFields {
+  const first: unknown = Array.isArray(errors) ? errors[0] : undefined;
+  const obj = typeof first === "object" && first !== null ? (first as Record<string, unknown>) : {};
+  const ext =
+    typeof obj.extensions === "object" && obj.extensions !== null ? (obj.extensions as Record<string, unknown>) : {};
+  const code = typeof ext.code === "string" && ext.code ? ext.code : "INTERNAL_SERVER_ERROR";
+  const out: ApiErrorFields = { code, message: typeof obj.message === "string" ? obj.message : "GraphQL error" };
+  if (typeof ext.field === "string" && ext.field) out.field = ext.field;
+  const retry = retryAfterSeconds(ext.retryAfter);
+  if (retry) out.retryAfter = retry;
+  return out;
+}
+
+/** Message key for a failed page load (server components). */
+export function loadErrorKey(code: string): "error.unavailable" | "error.notFound" | "error.retry" {
+  if (code === UNAVAILABLE) return "error.unavailable";
+  if (code === "NOT_FOUND") return "error.notFound";
+  return "error.retry";
+}
 
 /** Bilingual "try again in N seconds / minutes" message for RATE_LIMITED. */
 export type RateLimitMessage = { key: "error.rateLimitedSec" | "error.rateLimitedMin"; vars: { n: number } };

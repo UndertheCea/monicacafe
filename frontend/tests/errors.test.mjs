@@ -1,7 +1,16 @@
 // API error helpers (lib/errors.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authErrorMessage, authErrorStatus, rateLimitMessage, retryAfterSeconds } from "../lib/errors.ts";
+import {
+  API_ERROR_CODES,
+  UNAVAILABLE,
+  authErrorMessage,
+  authErrorStatus,
+  loadErrorKey,
+  parseGraphQLErrors,
+  rateLimitMessage,
+  retryAfterSeconds,
+} from "../lib/errors.ts";
 
 test("authErrorStatus", () => {
   const cases = [
@@ -55,4 +64,44 @@ test("rateLimitMessage", () => {
     [undefined, { key: "error.rateLimitedMin", vars: { n: 1 } }],
   ];
   for (const [s, want] of cases) assert.deepEqual(rateLimitMessage(s), want, String(s));
+});
+
+test("parseGraphQLErrors", () => {
+  const cases = [
+    {
+      name: "rate limited",
+      in: [{ message: "too many attempts", extensions: { code: "RATE_LIMITED", retryAfter: 42 } }],
+      want: { code: "RATE_LIMITED", message: "too many attempts", retryAfter: 42 },
+    },
+    {
+      name: "bad input with field",
+      in: [{ message: "bad", extensions: { code: "BAD_USER_INPUT", field: "email" } }, { message: "second" }],
+      want: { code: "BAD_USER_INPUT", message: "bad", field: "email" },
+    },
+    {
+      name: "gqlgen validation error without code",
+      in: [{ message: "Cannot query field" }],
+      want: { code: "INTERNAL_SERVER_ERROR", message: "Cannot query field" },
+    },
+    { name: "no errors array", in: undefined, want: { code: "INTERNAL_SERVER_ERROR", message: "GraphQL error" } },
+    { name: "garbage", in: ["x", null], want: { code: "INTERNAL_SERVER_ERROR", message: "GraphQL error" } },
+    {
+      name: "bad retryAfter dropped",
+      in: [{ message: "m", extensions: { code: "RATE_LIMITED", retryAfter: -1, field: 3 } }],
+      want: { code: "RATE_LIMITED", message: "m" },
+    },
+  ];
+  for (const c of cases) assert.deepEqual(parseGraphQLErrors(c.in), c.want, c.name);
+});
+
+test("loadErrorKey", () => {
+  assert.equal(loadErrorKey("UNAVAILABLE"), "error.unavailable");
+  assert.equal(loadErrorKey("NOT_FOUND"), "error.notFound");
+  assert.equal(loadErrorKey("INTERNAL_SERVER_ERROR"), "error.retry");
+});
+
+test("API_ERROR_CODES are unique and upper snake case", () => {
+  assert.equal(new Set(API_ERROR_CODES).size, API_ERROR_CODES.length);
+  for (const c of API_ERROR_CODES) assert.match(c, /^[A-Z][A-Z_]*$/);
+  assert.ok(!API_ERROR_CODES.includes(UNAVAILABLE), "UNAVAILABLE is client-only");
 });

@@ -15,6 +15,16 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Maintenance — 2026-11-05 — CLAUDE.md, backlog in GitHub Issues, brief check
+
+- `CLAUDE.md` (auto-loaded by Claude Code): rules, architecture, verify commands, issue workflow.
+- Backlog and owner questions moved from the brief to GitHub Issues: questions #7–#12 (`question`),
+  slices #13–#21 (`slice` + `priority:*` + `area:*` + `stage-*`; #21 `blocked` on #9).
+- `PROJECT_BRIEF.md` cut to goal / status / last session / current focus / decisions (86 lines).
+- `scripts/check_brief.sh` in CI: brief ≤ 250 lines and required sections present.
+
+---
+
 ## Maintenance — 2026-11-05 — Split PROGRESS.md into brief + log
 
 - `PROGRESS.md` (467 lines and growing) replaced by `PROJECT_BRIEF.md` (current state, plan, open questions,

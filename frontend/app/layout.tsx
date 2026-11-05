@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getLocale } from "@/lib/i18n/server";
@@ -33,9 +34,11 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans`}>
-        <SiteHeader locale={locale} />
-        <div className="flex-1">{children}</div>
-        <SiteFooter locale={locale} />
+        <AuthProvider>
+          <SiteHeader locale={locale} />
+          <div className="flex-1">{children}</div>
+          <SiteFooter locale={locale} />
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { AccountMenu } from "./auth/AccountMenu";
 import { LanguageToggle } from "./LanguageToggle";
 
 export function SiteHeader({ locale }: { locale: Locale }) {
@@ -10,7 +11,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
           <span className="text-lg font-bold tracking-widest text-stone-900">MONI CAFE</span>
           <span className="hidden text-xs text-stone-500 sm:inline">{t(locale, "brand.tagline")}</span>
         </Link>
-        <nav className="flex items-center gap-5 text-sm font-medium text-stone-700">
+        <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm font-medium text-stone-700">
           <Link href="/coffees" className="hover:text-amber-700">
             {t(locale, "nav.coffees")}
           </Link>
@@ -21,6 +22,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
             {t(locale, "nav.map")}
           </Link>
           <LanguageToggle locale={locale} />
+          <AccountMenu locale={locale} />
         </nav>
       </div>
     </header>

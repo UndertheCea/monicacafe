@@ -1,0 +1,58 @@
+// Shared types + GraphQL documents for the auth flow.
+import { typed } from "../graphql";
+
+export interface SessionUser {
+  id: string;
+  email: string | null;
+  displayName: string;
+  role: "BUYER" | "SELLER" | "ADMIN";
+  shop: { id: string; slug: string; name: string } | null;
+}
+
+/** What /api/auth/* returns to the browser on success. */
+export interface SessionPayload {
+  accessToken: string;
+  /** Access-token expiry, ms since epoch. */
+  expiresAt: number;
+  user: SessionUser;
+}
+
+/** Error body returned by /api/auth/* (mirrors ApiError). */
+export interface SessionErrorBody {
+  code: string;
+  message: string;
+  field?: string;
+}
+
+export const USER_FIELDS = `id email displayName role shop { id slug name }`;
+
+type AuthPayload = { accessToken: string; refreshToken: string; user: SessionUser };
+
+export const LOGIN = typed<{ login: AuthPayload }, { input: { email: string; password: string } }>(/* GraphQL */ `
+  mutation Login($input: LoginInput!) {
+    login(input: $input) { accessToken refreshToken user { ${USER_FIELDS} } }
+  }
+`);
+
+export const REGISTER = typed<
+  { register: AuthPayload },
+  { input: { email: string; password: string; displayName: string } }
+>(/* GraphQL */ `
+  mutation Register($input: RegisterInput!) {
+    register(input: $input) { accessToken refreshToken user { ${USER_FIELDS} } }
+  }
+`);
+
+export const REFRESH = typed<{ refreshToken: AuthPayload }, { token: string }>(/* GraphQL */ `
+  mutation Refresh($token: String!) {
+    refreshToken(token: $token) { accessToken refreshToken user { ${USER_FIELDS} } }
+  }
+`);
+
+export const LOGOUT = typed<{ logout: boolean }>(/* GraphQL */ `
+  mutation Logout { logout }
+`);
+
+export const ME = typed<{ me: SessionUser | null }>(/* GraphQL */ `
+  query Me { me { ${USER_FIELDS} } }
+`);

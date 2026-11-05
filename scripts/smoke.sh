@@ -20,7 +20,7 @@ check_status() { # path expected
   if [[ "$code" == "$2" ]]; then echo "ok   $2 $1"; else echo "FAIL $1 → $code (want $2)"; fail=1; fi
 }
 
-for path in / /coffees /shops /map /login /register /dashboard /dashboard/coffees/new; do
+for path in / /coffees /shops /map /login /register /account /dashboard /dashboard/coffees/new; do
   check_status "$BASE_URL$path" 200
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
@@ -64,6 +64,25 @@ fi
 bff logout >/dev/null
 out=$(bff refresh)
 if [[ "$out" == "401" ]]; then echo "ok   401 refresh after logout"; else echo "FAIL refresh after logout → $out (want 401)"; fail=1; fi
+
+# Change password through the BFF (#33): log in again, change it with the
+# access token; the response sets a new cookie that refreshes, and the
+# pre-change cookie is refused.
+login_body=$(curl -s --max-time 15 -b "$jar" -c "$jar" -X POST -H 'Content-Type: application/json' \
+  -d "$(printf '{"email":"%s@example.com","password":"smoke-test-pw"}' "$bff_run")" "$BASE_URL/api/auth/login" || true)
+access=$(grep -o '"accessToken":"[^"]*"' <<<"$login_body" | cut -d'"' -f4 || true)
+cp "$jar" "$old_jar"; before=$(cookie "$jar")
+pw=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -b "$jar" -c "$jar" -X POST \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $access" \
+  -d '{"currentPassword":"smoke-test-pw","newPassword":"smoke-test-pw-2"}' "$BASE_URL/api/auth/password" || echo 000)
+after=$(cookie "$jar"); new_jar=$(mktemp); cp "$jar" "$new_jar"
+cp "$old_jar" "$jar"; stale=$(bff refresh)
+cp "$new_jar" "$jar"; fresh=$(bff refresh); rm -f "$new_jar"
+if [[ -n "$access" && "$pw" == "200" && -n "$after" && "$after" != "$before" && "$stale" == "401" && "$fresh" == "200" ]]; then
+  echo "ok   change password via BFF: new cookie works, old one refused"
+else
+  echo "FAIL change password: login token '${access:0:8}', /api/auth/password $pw, stale refresh $stale, new refresh $fresh"; fail=1
+fi
 
 # Auth rate limit (#27): wrong-password logins for one email are refused with
 # 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL's burst (default 10) is spent.

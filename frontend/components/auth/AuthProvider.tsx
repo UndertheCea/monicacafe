@@ -21,6 +21,8 @@ export interface AuthContextValue {
   login(email: string, password: string): Promise<SessionUser>;
   register(email: string, password: string, displayName: string): Promise<SessionUser>;
   logout(): Promise<void>;
+  /** Change the password; every other session ends, this one continues. */
+  changePassword(currentPassword: string, newPassword: string): Promise<void>;
   /** Re-fetch the session (new token + user), e.g. after opening a shop. */
   reload(): Promise<SessionUser | null>;
   /** Run an authenticated GraphQL request, refreshing the token once on 401. */
@@ -168,6 +170,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [apply]);
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      const send = async (token: string) => {
+        try {
+          return await fetch("/api/auth/password", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ currentPassword, newPassword }),
+          });
+        } catch {
+          throw new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
+        }
+      };
+      const cur = stateRef.current;
+      let token = cur.status === "authenticated" ? cur.session.accessToken : null;
+      if (!token) throw new ApiError("UNAUTHENTICATED", "請先登入", "Please log in");
+      let res = await send(token);
+      if (res.status === 401) {
+        // Access token expired: refresh once and retry.
+        token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+        if (!token) throw new ApiError("UNAUTHENTICATED", "請先登入", "Please log in");
+        res = await send(token);
+      }
+      if (!res.ok) throw await asError(res);
+      apply((await res.json()) as SessionPayload);
+      // Other tabs pick up the rotated cookie.
+      channelRef.current?.postMessage("login");
+    },
+    [apply],
+  );
+
   const request = useCallback(
     async <TData, TVars extends Record<string, unknown>>(doc: TypedDocument<TData, TVars>, vars?: TVars) => {
       const run = (token: string) => authedClient(token).request<TData>(doc, vars);
@@ -202,10 +236,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
+      changePassword,
       reload,
       request,
     }),
-    [state, login, register, logout, reload, request],
+    [state, login, register, logout, changePassword, reload, request],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

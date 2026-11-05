@@ -1,10 +1,18 @@
 // Backend-for-frontend auth endpoints. The refresh token never reaches page
 // JavaScript: it lives in an httpOnly cookie scoped to /api/auth, and these
 // handlers trade it for short-lived access tokens (kept in memory by
-// AuthProvider). POST /api/auth/{login,register,refresh,logout}.
+// AuthProvider). POST /api/auth/{login,register,refresh,logout,password}.
 import { NextResponse, type NextRequest } from "next/server";
 import { authedClient, forwardingClient, query, toApiError } from "@/lib/graphql";
-import { LOGIN, LOGOUT, REFRESH, REGISTER, type SessionErrorBody, type SessionPayload } from "@/lib/auth/session";
+import {
+  CHANGE_PASSWORD,
+  LOGIN,
+  LOGOUT,
+  REFRESH,
+  REGISTER,
+  type SessionErrorBody,
+  type SessionPayload,
+} from "@/lib/auth/session";
 import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
@@ -115,6 +123,23 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         const res = fromError(err);
         // Only drop the cookie when the backend rejected it, not on outages.
         return res.status === 401 ? clearCookie(res) : res;
+      }
+    }
+    case "password": {
+      // changePassword revokes every refresh token and returns a new pair, so
+      // the new refresh token has to land in the cookie here.
+      const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+      if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
+      const b = await readJSON(req);
+      try {
+        const r = await query(
+          CHANGE_PASSWORD,
+          { input: { currentPassword: str(b.currentPassword), newPassword: str(b.newPassword) } },
+          authedClient(bearer),
+        );
+        return ok(req, r.changePassword);
+      } catch (err) {
+        return fromError(err);
       }
     }
     case "logout": {

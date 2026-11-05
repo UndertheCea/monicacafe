@@ -216,19 +216,77 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ---
 
+## Iteration 5 — Map page, bilingual home, smoke test (Stage 1 demo checklist complete)
+
+**Completed** (three slices)
+
+### Slice 1 (backend) — Lean `shopsForMap`
+- New `store.ShopPins` query reads only `id, slug, name, city, lat, lng` (ordered by city, name) instead of every
+  shop column; `AllShops` removed (it had no other callers)
+- `toShopPin` exposes a coordinate pair only when both halves are present and in range, so the map never gets
+  half a location; table-driven `TestToShopPin` (7 cases)
+- Integration test now asserts the seller's shop appears in `shopsForMap` with its exact lat/lng
+
+### Slice 2 (frontend) — `/map` page
+- Leaflet 1.9.4 + OpenStreetMap tiles (no API key), loaded client-side inside `useEffect` (`components/map/ShopMap.tsx`)
+- ☕ `divIcon` markers (no Leaflet image assets needed), fit-to-bounds, popups link to `/shops/[slug]`;
+  popups use DOM nodes + `textContent` because shop names come from sellers (no HTML injection)
+- Loading / failed overlay; scroll-wheel zoom off so the page still scrolls
+- "Browse by city" text list under the map is the accessible / no-JS equivalent and shows shops without a location
+- Header nav gains 地圖 / Map
+
+### Slice 3 (frontend) — Bilingual home page
+- Replaced the English-only placeholder: zh-TW / EN hero, CTAs to `/coffees` and `/map` (dead `/subscribe` link removed)
+- 熱門咖啡豆 strip from `popularCoffees` (reuses `CoffeeCard`), 精選店家 from `shops` (reuses `ShopCard`), one `HOME` query
+- If the API is down the hero and feature grid still render; data sections show a short bilingual notice
+- ~40 new `t()` keys (`map.*`, `home.*`) in both locales
+
+### Cross-cutting — `scripts/smoke.sh`
+- Curls `/`, `/coffees`, `/shops`, `/map` (200), an unknown shop (404), `/health`, and a GraphQL query that must return
+  seeded map pins + popular coffees; exits non-zero on any failure. Defaults to nginx on `http://localhost`;
+  `BASE_URL` / `API_URL` override it
+
+### Verification
+- `go build ./...`, `go vet ./...`, `go test ./... -count=1` pass; integration test passes against PostgreSQL 16 with
+  migrations 001–002 + seed applied
+- `npm run build` passes (7 routes); `docker compose config --quiet` passes
+- `next start` + backend: smoke test passes; Playwright: 4 markers rendered, popup shows shop name + city, no page errors,
+  no horizontal scroll at 390px. OSM tile requests are blocked in the build sandbox (grey map background there), so
+  tile rendering itself was not visually verified. Full `docker compose up` was not re-run this session
+
+### Branch consolidation
+Five other scheduled runs had built this same iteration on separate `claude/focused-mendel-*` branches from the
+same master commit. This branch keeps its own map/home implementation and adds the useful parts of the others:
+- **CI** (`.github/workflows/ci.yml`, from `-4ft3fu`): backend gofmt / build / vet / `go test -race` with Postgres 17
+  + migrations + seed; frontend `npm ci` + `tsc --noEmit` + build; `docker compose config`
+- **Next.js 15.3.9 → 15.5.29** (from `-h73xwl`): clears the critical `npm audit` advisory; wildcard
+  `images.remotePatterns` removed (open image proxy, GHSA-9g9p-9gw9-jx7f; nothing uses `next/image` yet).
+  `package-lock.json` re-synced; plain `npm ci` used to fail
+- **Migration 003** (from `-8b57gy`): lat/lng range CHECKs on `shops`, NaN rejected
+- Discarded as duplicates: the other map / home pages, smoke scripts and shop-pin queries
+  (`-1xy7di`, `-6mkm6y` and the rest of `-4ft3fu`, `-8b57gy`, `-h73xwl`)
+- Remaining `npm audit`: 7 moderate, 2 high (sharp/libvips, eslint tooling). None critical
+
+### Decisions / deferred
+- No CSP header yet; when one is added it must allow `img-src https://tile.openstreetmap.org`
+- OSM's public tile server is fine for a demo but its usage policy disallows heavy production traffic — switch to
+  a tile provider (or self-hosted tiles) before launch
+
+---
+
 ## Component Status
 
 | Component | Status |
 |-----------|--------|
 | Repo scaffold & Docker Compose | Done — `docker compose up` verified (iteration 4) |
-| PostgreSQL schema / migrations | Done (001, 002) |
+| PostgreSQL schema / migrations | Done (001–003) |
 | Go data layer (store) | Done |
 | GraphQL API (Stage 1 queries + mutations) | Done |
 | JWT auth (register / login / refresh / logout) | Done |
-| Next.js frontend — home page | Placeholder (English-only, needs bilingual rewrite) |
+| Next.js frontend — home page | Done (iteration 5) |
 | Next.js frontend — catalog / shop / coffee pages | Done (iteration 4) |
 | Frontend auth (login / register, token refresh) | Not started |
-| Map page | Not started |
+| Map page | Done (iteration 5, Leaflet + OSM) |
 | Seller dashboard | Not started |
 | File uploads (S3-compatible) | Not started |
 | Cart / orders / ECPay | Not started (Stage 2) |
@@ -236,13 +294,12 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 
 ## Next Iteration Should Tackle
 
-**Iteration 5 — Finish the Stage 1 Docker demo checklist**
-1. `/map` page: Leaflet + OSM tiles from `shopsForMap` (seed shops already have lat/lng) — last route of the demo checklist
-2. Bilingual home page: hero + `popularCoffees` strip + featured shops, remove the dead `/subscribe` link
-3. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
-4. Consider Next 16 upgrade to clear the remaining `npm audit` advisories
-
-Later: seller dashboard, uploads (S3-compatible).
+**Iteration 6 — Finish Stage 1 features (Docker demo checklist is complete)**
+1. Run `docker compose up --build` then `./scripts/smoke.sh` on a normal network to confirm the full stack + OSM tiles
+2. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
+3. Seller dashboard: create shop, add / edit coffees + variants, publish / unpublish
+4. File uploads (S3-compatible) for logo / banner / coffee images; then tighten `images.remotePatterns`
+5. Make the scheduled routine start from the latest master so runs stop duplicating each other
 
 ---
 
@@ -254,7 +311,7 @@ Later: seller dashboard, uploads (S3-compatible).
 - [x] Wire resolvers: `shops`, `shopsForMap`, `coffees`, `popularCoffees`, `originCountries`, etc.
 - [x] Auth resolvers: register, login, refreshToken, logout (bcrypt + JWT, rotation)
 - [x] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
-- [ ] Frontend: map page (Leaflet.js or Mapbox) with shop pins
+- [x] Frontend: map page (Leaflet.js or Mapbox) with shop pins
 - [x] Frontend: coffee filters (origin country, variety, processing method, roast level)
 - [~] Frontend: simple comment section on coffee pages (read-only list done; add form needs frontend auth)
 - [ ] File upload: seller logo/banner/coffee images (S3-compatible, Stage 1)
@@ -267,7 +324,7 @@ Later: seller dashboard, uploads (S3-compatible).
 - [x] `nginx/nginx.conf` routing `/graphql` → backend:4000, everything else → frontend:3000
 - [x] `scripts/seed_dev.sql` loads cleanly (auto-applied by `scripts/initdb.sh`)
 - [x] `docker compose up` starts all services without manual intervention
-- [ ] Home page, /coffees, /shops, and /map all render at localhost without errors (/map missing)
+- [x] Home page, /coffees, /shops, and /map all render at localhost without errors (`scripts/smoke.sh` checks this)
 
 ### Stage 2 — Transactions
 

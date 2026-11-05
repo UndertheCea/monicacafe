@@ -446,3 +446,14 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 	}
 	return out, nil
 }
+
+// toShopPin maps a store pin to the GraphQL type. A coordinate pair is only
+// exposed when both halves are present and in range: half a location (or a
+// corrupt one) cannot be plotted, so the map lists such shops without a pin.
+func toShopPin(p *store.ShopPin) *model.ShopPin {
+	out := &model.ShopPin{ID: p.ID, Slug: p.Slug, Name: p.Name, City: p.City}
+	if p.Lat != nil && p.Lng != nil && validateCoords(p.Lat, p.Lng) == nil {
+		out.Lat, out.Lng = p.Lat, p.Lng
+	}
+	return out
+}

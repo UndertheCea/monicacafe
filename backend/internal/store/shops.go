@@ -121,20 +121,32 @@ func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) 
 	return out, total, mapErr(rows.Err())
 }
 
-// AllShops returns every shop ordered by name (used for the map page).
-func (s *Store) AllShops(ctx context.Context) ([]*Shop, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops ORDER BY name, id`)
+// ShopPin is the lightweight projection of a shop used by the map page.
+type ShopPin struct {
+	ID   string
+	Slug string
+	Name string
+	City string
+	Lat  *float64
+	Lng  *float64
+}
+
+// ShopPins returns every shop's map pin, grouped by city then name. Only the
+// six columns the map needs are read (no descriptions / image URLs).
+func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT id, slug, name, city, lat, lng FROM shops ORDER BY city, name, id`)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	defer rows.Close()
-	var out []*Shop
+	var out []*ShopPin
 	for rows.Next() {
-		sh, err := scanShop(rows)
-		if err != nil {
-			return nil, err
+		p := &ShopPin{}
+		if err := rows.Scan(&p.ID, &p.Slug, &p.Name, &p.City, &p.Lat, &p.Lng); err != nil {
+			return nil, mapErr(err)
 		}
-		out = append(out, sh)
+		out = append(out, p)
 	}
 	return out, mapErr(rows.Err())
 }

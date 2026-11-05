@@ -14,7 +14,8 @@
     "framer-motion": "^12.9.4",
     "graphql": "^16.10.0",
     "graphql-request": "^7.1.2",
-    "next": "15.3.9",
+    "leaflet": "^1.9.4",
+    "next": "15.5.29",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.0",
@@ -22,11 +23,12 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.12",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.3.9",
+    "eslint-config-next": "15.5.29",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

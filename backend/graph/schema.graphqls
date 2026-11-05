@@ -42,6 +42,12 @@ type Mutation {
   publishCoffee(id: ID!): Coffee!
   unpublishCoffee(id: ID!): Coffee!
 
+  # Variants (seller). Grind and weight are fixed once created — delete and
+  # re-add to change them. The last variant of a published coffee can't be deleted.
+  addVariant(coffeeId: ID!, input: VariantInput!): Variant!
+  updateVariant(id: ID!, input: UpdateVariantInput!): Variant!
+  deleteVariant(id: ID!): Boolean!
+
   # Comments (buyer)
   addComment(input: AddCommentInput!): Comment!
   deleteComment(id: ID!): Boolean!
@@ -244,6 +250,12 @@ input VariantInput {
   weightG: Int!
   priceTwd: Int!
   stock: Int!
+}
+
+input UpdateVariantInput {
+  priceTwd: Int
+  stock: Int
+  isAvailable: Boolean
 }
 
 input CoffeeFilter {

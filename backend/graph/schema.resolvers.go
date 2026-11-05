@@ -406,14 +406,23 @@ func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model
 	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
 		return nil, err
 	}
-	n, err := r.Store.CountVariants(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		return nil, errBadInput("variants", "add at least one variant before publishing")
-	}
-	co, err := r.Store.SetCoffeePublished(ctx, id, true)
+	// Lock the coffee so a concurrent deleteVariant can't leave it published
+	// with no variants.
+	var co *store.Coffee
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		if _, err := tx.LockCoffee(ctx, id); err != nil {
+			return err
+		}
+		n, err := tx.CountVariants(ctx, id)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return errBadInput("variants", "add at least one variant before publishing")
+		}
+		co, err = tx.SetCoffeePublished(ctx, id, true)
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -434,6 +443,104 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 		return nil, err
 	}
 	return toCoffee(co), nil
+}
+
+// AddVariant is the resolver for the addVariant field.
+func (r *mutationResolver) AddVariant(ctx context.Context, coffeeID string, input model.VariantInput) (*model.Variant, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, coffeeID); err != nil {
+		return nil, err
+	}
+	params, err := validateVariant(&input)
+	if err != nil {
+		return nil, err
+	}
+	var v *store.Variant
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		if _, err := tx.LockCoffee(ctx, coffeeID); err != nil {
+			return err
+		}
+		n, err := tx.CountVariants(ctx, coffeeID)
+		if err != nil {
+			return err
+		}
+		if n >= maxVariants {
+			return errBadInput("variants", fmt.Sprintf("a coffee can have at most %d variants", maxVariants))
+		}
+		v, err = tx.AddVariant(ctx, coffeeID, params)
+		return err
+	})
+	if errors.Is(err, store.ErrConflict) {
+		return nil, errConflict("variants", "this coffee already has a variant with that grind and weight")
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toVariant(v), nil
+}
+
+// UpdateVariant is the resolver for the updateVariant field.
+func (r *mutationResolver) UpdateVariant(ctx context.Context, id string, input model.UpdateVariantInput) (*model.Variant, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedVariant(ctx, c, id); err != nil {
+		return nil, err
+	}
+	params, err := validateVariantUpdate(input)
+	if err != nil {
+		return nil, err
+	}
+	v, err := r.Store.UpdateVariant(ctx, id, params)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("variant")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toVariant(v), nil
+}
+
+// DeleteVariant is the resolver for the deleteVariant field.
+func (r *mutationResolver) DeleteVariant(ctx context.Context, id string) (bool, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	v, err := r.ownedVariant(ctx, c, id)
+	if err != nil {
+		return false, err
+	}
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		published, err := tx.LockCoffee(ctx, v.CoffeeID)
+		if err != nil {
+			return err
+		}
+		if published {
+			n, err := tx.CountVariants(ctx, v.CoffeeID)
+			if err != nil {
+				return err
+			}
+			if n <= 1 {
+				return errBadInput("variants", "a published coffee needs at least one variant; unpublish it first")
+			}
+		}
+		return tx.DeleteVariant(ctx, id)
+	})
+	if errors.Is(err, store.ErrNotFound) {
+		return false, errNotFound("variant")
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // AddComment is the resolver for the addComment field.

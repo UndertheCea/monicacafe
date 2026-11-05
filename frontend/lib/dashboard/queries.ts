@@ -161,3 +161,39 @@ export const UPDATE_VARIANT = typed<
 export const DELETE_VARIANT = typed<{ deleteVariant: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteVariant($id: ID!) { deleteVariant(id: $id) }
 `);
+
+// ── Shop profile ─────────────────────────────────────────────────────────────
+
+export interface EditableShop {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+}
+
+const EDITABLE_SHOP_FIELDS = `id slug name description city lat lng logoUrl bannerUrl`;
+
+export const MY_SHOP_PROFILE = typed<{ me: { id: string; shop: EditableShop | null } | null }>(/* GraphQL */ `
+  query MyShopProfile { me { id shop { ${EDITABLE_SHOP_FIELDS} } } }
+`);
+
+export interface UpdateShopInput {
+  name?: string;
+  description?: string;
+  city?: string;
+  lat?: number;
+  lng?: number;
+  logoUrl?: string;
+  bannerUrl?: string;
+}
+
+export const UPDATE_SHOP = typed<{ updateShop: EditableShop }, { id: string; input: UpdateShopInput }>(/* GraphQL */ `
+  mutation UpdateShop($id: ID!, $input: UpdateShopInput!) {
+    updateShop(id: $id, input: $input) { ${EDITABLE_SHOP_FIELDS} }
+  }
+`);

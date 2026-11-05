@@ -138,3 +138,85 @@ export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails):
   if (!sameNotes) p.flavorNotes = after.flavorNotes;
   return p;
 }
+
+// ── Shop profile ─────────────────────────────────────────────────────────────
+
+/** Rough bounding box of Taiwan incl. Penghu, Kinmen, Matsu, Green and Orchid Islands. */
+export const TAIWAN_BOUNDS = { minLat: 21.8, maxLat: 26.4, minLng: 118.1, maxLng: 122.1 } as const;
+
+export type Coords = { lat: number; lng: number };
+
+/**
+ * Parse a lat/lng pair typed by a seller. Both blank → "empty"; a missing half,
+ * non-number or out-of-range value → "invalid". Values are rounded to 6
+ * decimals (~10 cm), more than enough for a shop pin.
+ */
+export function parseCoords(lat: string, lng: string): Coords | "empty" | "invalid" {
+  const a = lat.trim();
+  const b = lng.trim();
+  if (!a && !b) return "empty";
+  const num = /^-?\d+(\.\d+)?$/;
+  if (!num.test(a) || !num.test(b)) return "invalid";
+  const la = Number(a);
+  const ln = Number(b);
+  if (la < -90 || la > 90 || ln < -180 || ln > 180) return "invalid";
+  return { lat: roundCoord(la), lng: roundCoord(ln) };
+}
+
+export const roundCoord = (n: number) => Math.round(n * 1e6) / 1e6;
+
+/** Whether a point falls inside Taiwan's rough bounds (a warning, never a block). */
+export function inTaiwan({ lat, lng }: Coords): boolean {
+  const b = TAIWAN_BOUNDS;
+  return lat >= b.minLat && lat <= b.maxLat && lng >= b.minLng && lng <= b.maxLng;
+}
+
+export interface ShopProfile {
+  name: string;
+  description: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+export type ShopProfileProblem = "required" | "name" | "description" | "city" | "coords";
+
+/** First problem with a shop profile draft, or null. Mirrors updateShop's checks. */
+export function shopProfileProblem(p: ShopProfile): ShopProfileProblem | null {
+  const name = p.name.trim();
+  const city = p.city.trim();
+  if (!name || !city) return "required";
+  if (runes(name) > LIMITS.shopName) return "name";
+  if (runes(p.description.trim()) > LIMITS.shopDescription) return "description";
+  if (runes(city) > LIMITS.city) return "city";
+  if ((p.lat === null) !== (p.lng === null)) return "coords";
+  return null;
+}
+
+export interface ShopProfilePatch {
+  name?: string;
+  description?: string;
+  city?: string;
+  lat?: number;
+  lng?: number;
+}
+
+/**
+ * The `updateShop` input for the fields that changed. A location is always
+ * sent as a pair. Clearing a saved location isn't supported by updateShop
+ * (null means "unchanged"), so a blank location simply sends nothing.
+ */
+export function shopProfilePatch(before: ShopProfile, after: ShopProfile): ShopProfilePatch {
+  const p: ShopProfilePatch = {};
+  const name = after.name.trim();
+  const description = after.description.trim();
+  const city = after.city.trim();
+  if (name !== before.name) p.name = name;
+  if (description !== before.description) p.description = description;
+  if (city !== before.city) p.city = city;
+  if (after.lat !== null && after.lng !== null && (after.lat !== before.lat || after.lng !== before.lng)) {
+    p.lat = after.lat;
+    p.lng = after.lng;
+  }
+  return p;
+}

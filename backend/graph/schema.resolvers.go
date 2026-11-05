@@ -160,27 +160,35 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*mod
 	if err != nil {
 		return nil, invalid
 	}
-	userID, err := r.Store.ConsumeRefreshToken(ctx, auth.HashJTI(claims.ID))
-	if errors.Is(err, store.ErrNotFound) {
-		// A correctly signed token that is no longer active has either been
-		// used already or revoked. Treat reuse as possible theft and end every
-		// session for the user.
+	next, err := r.Auth.IssueRefreshToken(claims.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("issue refresh token: %w", err)
+	}
+	err = r.Store.RotateRefreshToken(ctx, auth.HashJTI(claims.ID), claims.UserID,
+		next.JTIHash, next.ExpiresAt, auth.RefreshReuseGrace)
+	if errors.Is(err, store.ErrRefreshReuse) {
+		// A correctly signed token that was already rotated (outside the grace
+		// window) or revoked is being presented again. Treat it as possible
+		// theft and end every session for the user.
 		if rerr := r.Store.RevokeUserRefreshTokens(ctx, claims.UserID); rerr != nil {
 			return nil, rerr
 		}
 		return nil, invalid
 	}
-	if err != nil {
-		return nil, err
-	}
-	u, err := r.Store.UserByID(ctx, userID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, invalid
 	}
 	if err != nil {
 		return nil, err
 	}
-	return r.issueTokens(ctx, u)
+	u, err := r.Store.UserByID(ctx, claims.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, invalid
+	}
+	if err != nil {
+		return nil, err
+	}
+	return r.authPayload(u, next.Token)
 }
 
 // Logout is the resolver for the logout field.

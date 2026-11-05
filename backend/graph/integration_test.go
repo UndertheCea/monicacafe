@@ -164,14 +164,39 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatal("login returned a different user")
 	}
 
-	// Refresh rotates; reusing the old token is rejected and revokes the family.
-	var refreshed struct{ RefreshToken authPayload }
-	anon.mustDo(`mutation($t: String!) { refreshToken(token: $t) { `+authFields+` } }`,
-		map[string]any{"t": login.Login.RefreshToken}, &refreshed)
+	// Refresh rotates. Replaying the previous token within the grace window
+	// (the browser aborted the refresh response) rotates again instead of
+	// ending every session (#24).
+	const refreshQ = `mutation($t: String!) { refreshToken(token: $t) { ` + authFields + ` } }`
+	var refreshed, replayed, replayedAgain struct{ RefreshToken authPayload }
+	anon.mustDo(refreshQ, map[string]any{"t": login.Login.RefreshToken}, &refreshed)
+	anon.mustDo(refreshQ, map[string]any{"t": login.Login.RefreshToken}, &replayed)
+	anon.mustDo(refreshQ, map[string]any{"t": login.Login.RefreshToken}, &replayedAgain)
+	if replayedAgain.RefreshToken.User.ID != sellerAuth.User.ID || replayedAgain.RefreshToken.RefreshToken == refreshed.RefreshToken.RefreshToken {
+		t.Fatal("grace replay should issue a new refresh token for the same user")
+	}
+	var activeChain int
+	if err := pool.QueryRow(context.Background(), `
+		SELECT count(*) FROM refresh_tokens WHERE user_id = $1 AND revoked_at IS NULL`,
+		sellerAuth.User.ID).Scan(&activeChain); err != nil {
+		t.Fatal(err)
+	}
+	// The register token plus the newest token of the login chain: the
+	// successors the browser never received were retired.
+	if activeChain != 2 {
+		t.Fatalf("want 2 active refresh tokens after grace replays, got %d", activeChain)
+	}
+	// Outside the window, replaying a rotated token is reuse: it is rejected
+	// and every session for the user is revoked, including the newest token.
+	if _, err := pool.Exec(context.Background(), `
+		UPDATE refresh_tokens SET revoked_at = revoked_at - interval '1 minute'
+		WHERE user_id = $1 AND revoked_at IS NOT NULL`, sellerAuth.User.ID); err != nil {
+		t.Fatal(err)
+	}
 	anon.expectCode(graph.CodeUnauthenticated, `mutation($t: String!) { refreshToken(token: $t) { accessToken } }`,
 		map[string]any{"t": login.Login.RefreshToken})
 	anon.expectCode(graph.CodeUnauthenticated, `mutation($t: String!) { refreshToken(token: $t) { accessToken } }`,
-		map[string]any{"t": refreshed.RefreshToken.RefreshToken})
+		map[string]any{"t": replayedAgain.RefreshToken.RefreshToken})
 
 	var me struct {
 		Me *struct {

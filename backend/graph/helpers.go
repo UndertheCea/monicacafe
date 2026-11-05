@@ -97,10 +97,6 @@ func isLoaderNotFound(err error) bool {
 
 // issueTokens creates an access/refresh token pair and records the refresh token.
 func (r *Resolver) issueTokens(ctx context.Context, u *store.User) (*model.AuthPayload, error) {
-	access, err := r.Auth.IssueAccessToken(u.ID, u.Role)
-	if err != nil {
-		return nil, fmt.Errorf("issue access token: %w", err)
-	}
 	refresh, err := r.Auth.IssueRefreshToken(u.ID)
 	if err != nil {
 		return nil, fmt.Errorf("issue refresh token: %w", err)
@@ -108,9 +104,18 @@ func (r *Resolver) issueTokens(ctx context.Context, u *store.User) (*model.AuthP
 	if err := r.Store.SaveRefreshToken(ctx, u.ID, refresh.JTIHash, refresh.ExpiresAt); err != nil {
 		return nil, fmt.Errorf("save refresh token: %w", err)
 	}
+	return r.authPayload(u, refresh.Token)
+}
+
+// authPayload pairs a fresh access token with an already-recorded refresh token.
+func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthPayload, error) {
+	access, err := r.Auth.IssueAccessToken(u.ID, u.Role)
+	if err != nil {
+		return nil, fmt.Errorf("issue access token: %w", err)
+	}
 	user := toUser(u)
 	user.RevealEmail = true
-	return &model.AuthPayload{AccessToken: access, RefreshToken: refresh.Token, User: user}, nil
+	return &model.AuthPayload{AccessToken: access, RefreshToken: refreshToken, User: user}, nil
 }
 
 // ─── Conversions ──────────────────────────────────────────────────────────────

@@ -37,8 +37,8 @@ func (s *Store) CreateShop(ctx context.Context, p CreateShopParams) (*Shop, erro
 type UpdateShopParams struct {
 	Name        *string
 	Description *string
-	LogoURL     *string
-	BannerURL   *string
+	LogoURL     *string // "" clears
+	BannerURL   *string // "" clears
 	City        *string
 	Lat         *float64
 	Lng         *float64
@@ -50,8 +50,8 @@ func (s *Store) UpdateShop(ctx context.Context, id string, p UpdateShopParams) (
 		UPDATE shops SET
 			name        = COALESCE($2, name),
 			description = COALESCE($3, description),
-			logo_url    = COALESCE($4, logo_url),
-			banner_url  = COALESCE($5, banner_url),
+			logo_url    = CASE WHEN $4::text IS NULL THEN logo_url ELSE NULLIF($4, '') END,
+			banner_url  = CASE WHEN $5::text IS NULL THEN banner_url ELSE NULLIF($5, '') END,
 			city        = COALESCE($6, city),
 			lat         = COALESCE($7, lat),
 			lng         = COALESCE($8, lng)

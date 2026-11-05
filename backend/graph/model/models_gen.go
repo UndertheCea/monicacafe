@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
 )
@@ -59,6 +60,20 @@ type CreateShopInput struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	City        string `json:"city"`
+}
+
+type ImageUpload struct {
+	UploadURL string          `json:"uploadUrl"`
+	PublicURL string          `json:"publicUrl"`
+	Headers   []*UploadHeader `json:"headers"`
+	ExpiresAt time.Time       `json:"expiresAt"`
+}
+
+type ImageUploadInput struct {
+	Kind        ImageKind `json:"kind"`
+	TargetID    string    `json:"targetId"`
+	ContentType string    `json:"contentType"`
+	ByteSize    int       `json:"byteSize"`
 }
 
 type LoginInput struct {
@@ -115,6 +130,7 @@ type UpdateCoffeeInput struct {
 	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
 	ClearVariety       *bool       `json:"clearVariety,omitempty"`
+	ImageUrls          []string    `json:"imageUrls,omitempty"`
 }
 
 type UpdateShopInput struct {
@@ -131,6 +147,11 @@ type UpdateVariantInput struct {
 	PriceTwd    *int  `json:"priceTwd,omitempty"`
 	Stock       *int  `json:"stock,omitempty"`
 	IsAvailable *bool `json:"isAvailable,omitempty"`
+}
+
+type UploadHeader struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type Variant struct {
@@ -205,6 +226,63 @@ func (e *GrindOption) UnmarshalJSON(b []byte) error {
 }
 
 func (e GrindOption) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ImageKind string
+
+const (
+	ImageKindShopLogo    ImageKind = "SHOP_LOGO"
+	ImageKindShopBanner  ImageKind = "SHOP_BANNER"
+	ImageKindCoffeePhoto ImageKind = "COFFEE_PHOTO"
+)
+
+var AllImageKind = []ImageKind{
+	ImageKindShopLogo,
+	ImageKindShopBanner,
+	ImageKindCoffeePhoto,
+}
+
+func (e ImageKind) IsValid() bool {
+	switch e {
+	case ImageKindShopLogo, ImageKindShopBanner, ImageKindCoffeePhoto:
+		return true
+	}
+	return false
+}
+
+func (e ImageKind) String() string {
+	return string(e)
+}
+
+func (e *ImageKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ImageKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ImageKind", str)
+	}
+	return nil
+}
+
+func (e ImageKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ImageKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ImageKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

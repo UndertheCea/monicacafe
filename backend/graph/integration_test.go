@@ -106,7 +106,7 @@ func newTestServer(t *testing.T) (string, *pgxpool.Pool) {
 
 	st := store.New(pool)
 	authSvc := auth.NewService("test-access", "test-refresh")
-	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graph.NewResolver(st, authSvc)}))
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: graph.NewResolver(st, authSvc, testMedia(t))}))
 	srv.AddTransport(transport.POST{})
 	srv.SetErrorPresenter(graph.ErrorPresenter)
 	srv.SetRecoverFunc(graph.RecoverFunc)
@@ -208,7 +208,7 @@ func TestMarketplaceFlow(t *testing.T) {
 
 	lat, lng := 25.033, 121.5654
 	seller.mustDo(`mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { id } }`,
-		map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"lat": lat, "lng": lng, "logoUrl": "https://cdn.example.com/logo.png"}}, nil)
+		map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"lat": lat, "lng": lng}}, nil)
 	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!) { updateShop(id: $id, input: {lat: 91}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
 

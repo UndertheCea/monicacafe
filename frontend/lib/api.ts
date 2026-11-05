@@ -263,3 +263,23 @@ export const ADD_COMMENT = typed<{ addComment: { id: string } }, { input: { coff
 export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteComment($id: ID!) { deleteComment(id: $id) }
 `);
+
+// ---------------------------------------------------------------------------
+// Sitemap (public data only: the API never returns drafts to anonymous callers)
+// ---------------------------------------------------------------------------
+
+export const SITEMAP_SHOPS = typed<{ shops: { total: number; nodes: { slug: string }[] } }, { limit: number; offset: number }>(
+  /* GraphQL */ `
+    query SitemapShops($limit: Int, $offset: Int) {
+      shops(limit: $limit, offset: $offset) { total nodes { slug } }
+    }
+  `,
+);
+
+export const SITEMAP_COFFEES = typed<{ coffees: { total: number; nodes: { id: string }[] } }, { limit: number; offset: number }>(
+  /* GraphQL */ `
+    query SitemapCoffees($limit: Int, $offset: Int) {
+      coffees(limit: $limit, offset: $offset) { total nodes { id } }
+    }
+  `,
+);

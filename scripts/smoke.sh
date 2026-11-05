@@ -25,6 +25,16 @@ for path in / /coffees /shops /map /login /register /dashboard /dashboard/coffee
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
 
+# sitemap.xml lists the seeded shops and coffees; robots.txt points at it.
+sitemap=$(curl -s --max-time 15 "$BASE_URL/sitemap.xml") || sitemap=""
+if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* ]]; then
+  echo "ok   sitemap.xml ($(grep -o '<loc>' <<<"$sitemap" | wc -l) URLs)"
+else
+  echo "FAIL sitemap.xml: ${sitemap:0:200}"; fail=1
+fi
+robots=$(curl -s --max-time 15 "$BASE_URL/robots.txt") || robots=""
+if [[ "$robots" == *"Sitemap:"*"/sitemap.xml"* ]]; then echo "ok   robots.txt → sitemap"; else echo "FAIL robots.txt: ${robots:0:200}"; fail=1; fi
+
 # Auth BFF: no refresh cookie → 401 (proves the route handler is reachable).
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST "$BASE_URL/api/auth/refresh") || code="000"
 if [[ "$code" == "401" ]]; then echo "ok   401 POST /api/auth/refresh (no session)"; else echo "FAIL POST /api/auth/refresh → $code (want 401)"; fail=1; fi

@@ -131,6 +131,8 @@ services:
     environment:
       # Server components fetch over the compose network, not through nginx.
       GRAPHQL_URL_INTERNAL: http://backend:4000/graphql
+      # Public origin for sitemap.xml / robots.txt.
+      SITE_URL: ${SITE_URL:-http://localhost}
     depends_on:
       backend:
         condition: service_healthy

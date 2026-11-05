@@ -102,7 +102,7 @@ export interface CommentData {
   id: string;
   body: string;
   createdAt: string;
-  user: { displayName: string };
+  user: { id: string; displayName: string };
 }
 
 export interface CoffeeDetail {
@@ -132,7 +132,7 @@ export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* 
       processingMethod { nameEn nameZh }
       variety { name }
       variants { id grind weightG priceTwd stock isAvailable }
-      comments { id body createdAt user { displayName } }
+      comments { id body createdAt user { id displayName } }
     }
   }
 `);
@@ -244,3 +244,22 @@ export function hasCoords(p: ShopPin): p is ShopPin & { lat: number; lng: number
 export function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
+
+// ---------------------------------------------------------------------------
+// Comment mutations (signed-in users)
+// ---------------------------------------------------------------------------
+
+/** Backend limit for comment bodies (rune count). */
+export const COMMENT_MAX = 500;
+
+export const ADD_COMMENT = typed<{ addComment: { id: string } }, { input: { coffeeId: string; body: string } }>(
+  /* GraphQL */ `
+    mutation AddComment($input: AddCommentInput!) {
+      addComment(input: $input) { id }
+    }
+  `,
+);
+
+export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(/* GraphQL */ `
+  mutation DeleteComment($id: ID!) { deleteComment(id: $id) }
+`);

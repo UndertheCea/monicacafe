@@ -186,7 +186,10 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         </div>
       </div>
 
-      <CommentList comments={coffee.comments} total={coffee.commentCount} locale={locale} />
+      <CommentList
+        coffeeId={coffee.id}
+        isPublished={coffee.isPublished}
+        comments={coffee.comments} total={coffee.commentCount} locale={locale} />
     </main>
   );
 }

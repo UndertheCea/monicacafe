@@ -153,3 +153,27 @@ func (s *Store) RevokeUserRefreshTokens(ctx context.Context, userID string) erro
 		UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID)
 	return mapErr(err)
 }
+
+// PruneRefreshTokens deletes refresh tokens that expired before now, in
+// batches of at most batch rows, and returns how many it removed. An expired
+// token can never be accepted or trigger reuse detection (auth.ClassifyRefresh
+// rejects it first), so its row is dead weight; every page load rotates a
+// token, so without pruning the table grows with traffic.
+func (s *Store) PruneRefreshTokens(ctx context.Context, batch int) (int64, error) {
+	if batch <= 0 {
+		return 0, errors.New("store: prune batch must be positive")
+	}
+	var total int64
+	for {
+		tag, err := s.db.Exec(ctx, `
+			DELETE FROM refresh_tokens WHERE id IN (
+				SELECT id FROM refresh_tokens WHERE expires_at < now() LIMIT $1)`, batch)
+		if err != nil {
+			return total, mapErr(err)
+		}
+		total += tag.RowsAffected()
+		if tag.RowsAffected() < int64(batch) {
+			return total, nil
+		}
+	}
+}

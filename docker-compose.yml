@@ -101,6 +101,7 @@ services:
       MEILI_KEY: ${MEILI_KEY:-monica_meili_key}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
+      TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}

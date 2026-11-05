@@ -52,6 +52,8 @@ func TestNew(t *testing.T) {
 		{name: "default public", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost/", Bucket: "media"}, public: "http://localhost/media"},
 		{name: "cdn public", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "https://s3.example.com", Bucket: "media", PublicURL: "https://cdn.example.com/m/"}, public: "https://cdn.example.com/m"},
 		{name: "bad public", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost", Bucket: "media", PublicURL: "ftp://x"}, wantErr: true},
+		{name: "internal endpoint", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost", Bucket: "media", InternalEndpoint: "http://seaweedfs:8333/"}, public: "http://localhost/media"},
+		{name: "bad internal endpoint", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost", Bucket: "media", InternalEndpoint: "seaweedfs:8333"}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

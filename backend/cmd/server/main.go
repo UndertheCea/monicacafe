@@ -24,6 +24,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/db"
+	"github.com/underthecea/monicacafe/backend/internal/mediaclean"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/config"
 	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
@@ -64,6 +65,7 @@ func run() error {
 	media, err := storage.New(storage.Config{
 		Endpoint: cfg.S3Endpoint, Bucket: cfg.S3Bucket, Region: cfg.S3Region,
 		AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, PublicURL: cfg.MediaPublicURL,
+		InternalEndpoint: cfg.S3InternalEndpoint,
 	})
 	if err != nil {
 		return err
@@ -90,6 +92,10 @@ func run() error {
 	pruneEvery, _ := cfg.TokenPruneEvery() // checked by cfg.Validate
 	if pruneEvery > 0 {
 		go pruneRefreshTokens(ctx, st, pruneEvery)
+	}
+	cleanEvery, cleanAge, _ := cfg.MediaCleanup() // checked by cfg.Validate
+	if media != nil && cleanEvery > 0 {
+		go cleanMedia(ctx, media, st, cleanEvery, mediaclean.Options{MinAge: cleanAge, MaxDeletes: maxMediaDeletes})
 	}
 
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
@@ -189,6 +195,31 @@ func pruneRefreshTokens(ctx context.Context, st *store.Store, every time.Duratio
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+		}
+	}
+}
+
+// maxMediaDeletes bounds one cleanup run; the rest waits for the next tick.
+const maxMediaDeletes = 1000
+
+// cleanMedia deletes unreferenced images from the bucket every interval
+// (first run one interval after start, so a restart loop never sweeps).
+// With several API instances each sweeps; deletes are idempotent.
+func cleanMedia(ctx context.Context, media *storage.Media, st *store.Store, every time.Duration, opts mediaclean.Options) {
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+		res, err := mediaclean.Sweep(ctx, media, st.ImageURLs, time.Now(), opts)
+		switch {
+		case err != nil && ctx.Err() == nil:
+			slog.Warn("media cleanup failed", "err", err, "scanned", res.Scanned, "deleted", res.Deleted)
+		case res.Deleted > 0:
+			slog.Info("deleted orphaned images", "scanned", res.Scanned, "orphans", res.Orphans, "deleted", res.Deleted)
 		}
 	}
 }

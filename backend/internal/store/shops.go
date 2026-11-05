@@ -150,3 +150,26 @@ func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
 	}
 	return out, mapErr(rows.Err())
 }
+
+// ImageURLs returns every image URL a row still points at: shop logos and
+// banners and coffee galleries (drafts included). Used to find orphaned
+// objects in the media bucket.
+func (s *Store) ImageURLs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT logo_url FROM shops WHERE logo_url IS NOT NULL AND logo_url <> ''
+		UNION SELECT banner_url FROM shops WHERE banner_url IS NOT NULL AND banner_url <> ''
+		UNION SELECT unnest(image_urls) FROM coffees`)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var u string
+		if err := rows.Scan(&u); err != nil {
+			return nil, mapErr(err)
+		}
+		out = append(out, u)
+	}
+	return out, mapErr(rows.Err())
+}

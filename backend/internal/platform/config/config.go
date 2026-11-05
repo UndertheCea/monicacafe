@@ -31,6 +31,13 @@ type Config struct {
 	S3AccessKey    string
 	S3SecretKey    string
 	MediaPublicURL string
+	// Where the API reaches the store itself (list / delete); defaults to S3Endpoint.
+	S3InternalEndpoint string
+
+	// Orphaned-image cleanup (#29): how often to sweep ("0" = off) and how
+	// old an unreferenced object must be before it's deleted.
+	MediaCleanupInterval string
+	MediaCleanupMinAge   string
 
 	// How often the API deletes expired refresh tokens (Go duration, e.g.
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
@@ -78,6 +85,10 @@ func Load() Config {
 		S3AccessKey:      get("S3_ACCESS_KEY", ""),
 		S3SecretKey:      get("S3_SECRET_KEY", ""),
 		MediaPublicURL:   get("MEDIA_PUBLIC_URL", ""),
+
+		S3InternalEndpoint:   get("S3_INTERNAL_ENDPOINT", ""),
+		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
+		MediaCleanupMinAge:   get("MEDIA_CLEANUP_MIN_AGE", "24h"),
 
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
 		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
@@ -165,8 +176,37 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 	return r, nil
 }
 
+// Minimums that stop a typo from hammering the bucket or deleting uploads
+// that are still being saved (presigned URLs live 10 minutes).
+const (
+	minCleanupInterval = time.Minute
+	minCleanupAge      = time.Hour
+)
+
+// MediaCleanup parses MEDIA_CLEANUP_INTERVAL (0 = off) and MEDIA_CLEANUP_MIN_AGE.
+func (c Config) MediaCleanup() (every, minAge time.Duration, err error) {
+	if v := strings.TrimSpace(c.MediaCleanupInterval); v != "" && v != "0" {
+		every, err = time.ParseDuration(v)
+		if err != nil || every < minCleanupInterval {
+			return 0, 0, fmt.Errorf("config: MEDIA_CLEANUP_INTERVAL must be a duration of at least %s (or 0 to disable), got %q", minCleanupInterval, v)
+		}
+	}
+	v := strings.TrimSpace(c.MediaCleanupMinAge)
+	if v == "" {
+		v = "24h"
+	}
+	minAge, err = time.ParseDuration(v)
+	if err != nil || minAge < minCleanupAge {
+		return 0, 0, fmt.Errorf("config: MEDIA_CLEANUP_MIN_AGE must be a duration of at least %s, got %q", minCleanupAge, v)
+	}
+	return every, minAge, nil
+}
+
 // Validate rejects configurations that are unsafe to run in production.
 func (c Config) Validate() error {
+	if _, _, err := c.MediaCleanup(); err != nil {
+		return err
+	}
 	if _, err := c.TokenPruneEvery(); err != nil {
 		return err
 	}

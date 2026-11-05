@@ -53,6 +53,11 @@ type Config struct {
 	SecretKey string
 	// PublicURL is the base URL objects are served from; defaults to Endpoint/Bucket.
 	PublicURL string
+	// InternalEndpoint is where the API itself reaches the store (listing and
+	// deleting objects), e.g. http://seaweedfs:8333 in compose, where the
+	// browser-facing Endpoint (nginx on localhost) isn't reachable. Defaults to
+	// Endpoint.
+	InternalEndpoint string
 }
 
 // Media presigns uploads and recognises URLs of objects in the bucket.
@@ -63,6 +68,7 @@ type Media struct {
 	accessKey string
 	secretKey string
 	publicURL string // no trailing slash
+	internal  *url.URL
 	now       func() time.Time
 }
 
@@ -98,9 +104,18 @@ func New(c Config) (*Media, error) {
 	if p, err := url.Parse(pub); err != nil || (p.Scheme != "http" && p.Scheme != "https") || p.Host == "" {
 		return nil, fmt.Errorf("storage: MEDIA_PUBLIC_URL must be an http(s) URL, got %q", c.PublicURL)
 	}
+	internal := u
+	if c.InternalEndpoint != "" {
+		iu, err := url.Parse(strings.TrimRight(c.InternalEndpoint, "/"))
+		if err != nil || (iu.Scheme != "http" && iu.Scheme != "https") || iu.Host == "" || (iu.Path != "" && iu.Path != "/") {
+			return nil, fmt.Errorf("storage: S3_INTERNAL_ENDPOINT must be an http(s) origin, got %q", c.InternalEndpoint)
+		}
+		iu.Path = ""
+		internal = iu
+	}
 	return &Media{
 		endpoint: u, bucket: c.Bucket, region: region,
-		accessKey: c.AccessKey, secretKey: c.SecretKey, publicURL: pub, now: time.Now,
+		accessKey: c.AccessKey, secretKey: c.SecretKey, publicURL: pub, internal: internal, now: time.Now,
 	}, nil
 }
 

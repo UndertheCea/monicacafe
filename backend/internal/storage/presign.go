@@ -28,7 +28,8 @@ const (
 // presignRequest describes one request to sign. Host is taken from URL.
 type presignRequest struct {
 	Method    string
-	URL       *url.URL // scheme://host/path; any existing query is ignored
+	URL       *url.URL   // scheme://host/path; any existing query is ignored
+	Query     url.Values // extra (signed) query parameters, e.g. list-type=2
 	Headers   map[string]string
 	Region    string
 	AccessKey string
@@ -61,6 +62,9 @@ func presign(req presignRequest) string {
 	signedHeaders := strings.Join(names, ";")
 
 	q := url.Values{}
+	for k, vs := range req.Query {
+		q[k] = append([]string(nil), vs...)
+	}
 	q.Set("X-Amz-Algorithm", sigAlgorithm)
 	q.Set("X-Amz-Credential", req.AccessKey+"/"+scope)
 	q.Set("X-Amz-Date", amzDate)

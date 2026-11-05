@@ -1,0 +1,132 @@
+name: Branch cleanup
+
+# 1. When a pull request is merged, delete its head branch.
+# 2. Run manually (Actions → Branch cleanup → Run workflow) to clean up older
+#    branches:
+#      - leave "branches" empty to delete every branch already fully merged
+#        into the default branch;
+#      - or list branches (space-separated) to delete them. A listed branch
+#        that still has commits not in the default branch is archived first
+#        as the tag `archive/<branch>`, so nothing is lost and it can be
+#        restored with: git push origin archive/<branch>:refs/heads/<branch>
+#
+# The default branch is never deleted. Branch names come from event data, so
+# they are passed through env vars (never interpolated into the script) and
+# checked against a strict pattern.
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      branches:
+        description: "Space-separated branches to archive + delete (empty = delete all branches already merged into the default branch)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  delete-merged-head:
+    name: Delete merged PR branch
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      MERGED_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Delete head branch
+        run: |
+          set -euo pipefail
+          if [[ "$BRANCH" == "$DEFAULT_BRANCH" || ! "$BRANCH" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "Refusing to delete '$BRANCH'"; exit 0
+          fi
+          current=$(gh api "repos/$REPO/git/ref/heads/$BRANCH" --jq .object.sha 2>/dev/null) || current=""
+          if [[ -z "$current" ]]; then
+            echo "Branch '$BRANCH' is already gone"; exit 0
+          fi
+          # Someone pushed after the merge: those commits aren't in master.
+          if [[ "$current" != "$MERGED_SHA" ]]; then
+            echo "::warning::'$BRANCH' moved past the merged commit ($MERGED_SHA → $current); keeping it"; exit 0
+          fi
+          # Deleting a branch that is the base of an open PR would close that PR.
+          dependents=$(gh api "repos/$REPO/pulls?state=open&base=$BRANCH" --jq length)
+          if [[ "$dependents" != "0" ]]; then
+            echo "::warning::'$BRANCH' is the base of $dependents open PR(s); keeping it"; exit 0
+          fi
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH"
+          echo "Deleted '$BRANCH'"
+
+  manual-cleanup:
+    name: Archive + delete branches
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      INPUT_BRANCHES: ${{ inputs.branches }}
+    steps:
+      - name: Clean up
+        run: |
+          set -euo pipefail
+          failed=0
+
+          if [[ -z "${INPUT_BRANCHES// }" ]]; then
+            mode=merged-only
+            mapfile -t branches < <(gh api --paginate "repos/$REPO/branches?per_page=100" --jq '.[].name')
+          else
+            mode=listed
+            read -ra branches <<< "$INPUT_BRANCHES"
+          fi
+          echo "Mode: $mode"
+
+          for b in "${branches[@]}"; do
+            if [[ "$b" == "$DEFAULT_BRANCH" || ! "$b" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+              [[ "$mode" == listed ]] && echo "::warning::Skipping '$b'"
+              continue
+            fi
+            sha=$(gh api "repos/$REPO/git/ref/heads/$b" --jq .object.sha 2>/dev/null) || sha=""
+            if [[ -z "$sha" ]]; then
+              echo "::warning::'$b' not found"; continue
+            fi
+            ahead=$(gh api "repos/$REPO/compare/$DEFAULT_BRANCH...$sha" --jq .ahead_by)
+
+            if [[ "$ahead" != "0" ]]; then
+              if [[ "$mode" == merged-only ]]; then
+                echo "Keeping '$b' ($ahead commit(s) not in $DEFAULT_BRANCH)"; continue
+              fi
+              tag="archive/$b"
+              existing=$(gh api "repos/$REPO/git/ref/tags/$tag" --jq .object.sha 2>/dev/null) || existing=""
+              if [[ -z "$existing" ]]; then
+                gh api "repos/$REPO/git/refs" -f ref="refs/tags/$tag" -f sha="$sha" >/dev/null
+                echo "Archived '$b' as tag '$tag' ($sha)"
+              elif [[ "$existing" != "$sha" ]]; then
+                echo "::error::Tag '$tag' already exists at a different commit; not deleting '$b'"
+                failed=1; continue
+              fi
+            fi
+
+            dependents=$(gh api "repos/$REPO/pulls?state=open&base=$b" --jq length)
+            if [[ "$dependents" != "0" ]]; then
+              echo "::warning::'$b' is the base of $dependents open PR(s); keeping it"; continue
+            fi
+            if gh api -X DELETE "repos/$REPO/git/refs/heads/$b" >/dev/null; then
+              echo "Deleted '$b'"
+            else
+              echo "::error::Could not delete '$b'"; failed=1
+            fi
+          done
+          exit $failed

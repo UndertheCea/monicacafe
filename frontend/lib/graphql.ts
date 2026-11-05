@@ -48,6 +48,7 @@ export class ApiError extends Error {
     public code: string,
     public messageZh: string,
     public messageEn: string,
+    public field?: string,
   ) {
     super(messageEn);
   }
@@ -58,10 +59,15 @@ export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   if (err instanceof ClientError) {
     const ext = err.response.errors?.[0]?.extensions as
-      | { code?: string; messageZh?: string; messageEn?: string }
+      | { code?: string; messageZh?: string; messageEn?: string; field?: string }
       | undefined;
     const fallback = err.response.errors?.[0]?.message ?? "GraphQL error";
-    return new ApiError(ext?.code ?? "INTERNAL", ext?.messageZh ?? fallback, ext?.messageEn ?? fallback);
+    return new ApiError(
+      ext?.code ?? "INTERNAL",
+      ext?.messageZh ?? fallback,
+      ext?.messageEn ?? fallback,
+      ext?.field,
+    );
   }
   return new ApiError("UNAVAILABLE", "無法連線至伺服器", "Could not reach the server");
 }

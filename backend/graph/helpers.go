@@ -335,28 +335,93 @@ func validateVariants(vs []*model.VariantInput) ([]store.CreateVariantParams, er
 	seen := make(map[string]bool, len(vs))
 	out := make([]store.CreateVariantParams, 0, len(vs))
 	for _, v := range vs {
-		if !v.Grind.IsValid() {
-			return nil, errBadInput("variants", "invalid grind option")
+		p, err := validateVariant(v)
+		if err != nil {
+			return nil, err
 		}
-		if v.WeightG <= 0 || v.WeightG > maxWeightG {
-			return nil, errBadInput("variants", fmt.Sprintf("weightG must be 1–%d", maxWeightG))
-		}
-		if v.PriceTwd < 0 || v.PriceTwd > maxPriceTWD {
-			return nil, errBadInput("variants", fmt.Sprintf("priceTwd must be 0–%d", maxPriceTWD))
-		}
-		if v.Stock < 0 || v.Stock > maxStock {
-			return nil, errBadInput("variants", fmt.Sprintf("stock must be 0–%d", maxStock))
-		}
-		key := fmt.Sprintf("%s/%d", v.Grind, v.WeightG)
+		key := fmt.Sprintf("%s/%d", p.Grind, p.WeightG)
 		if seen[key] {
 			return nil, errBadInput("variants", "duplicate grind and weight combination")
 		}
 		seen[key] = true
-		out = append(out, store.CreateVariantParams{
-			Grind: string(v.Grind), WeightG: v.WeightG, PriceTWD: int64(v.PriceTwd), Stock: v.Stock,
-		})
+		out = append(out, p)
 	}
 	return out, nil
+}
+
+// validateVariant checks one new variant's fields.
+func validateVariant(v *model.VariantInput) (store.CreateVariantParams, error) {
+	if v == nil || !v.Grind.IsValid() {
+		return store.CreateVariantParams{}, errBadInput("variants", "invalid grind option")
+	}
+	if v.WeightG <= 0 || v.WeightG > maxWeightG {
+		return store.CreateVariantParams{}, errBadInput("variants", fmt.Sprintf("weightG must be 1–%d", maxWeightG))
+	}
+	if err := checkPrice(v.PriceTwd); err != nil {
+		return store.CreateVariantParams{}, err
+	}
+	if err := checkStock(v.Stock); err != nil {
+		return store.CreateVariantParams{}, err
+	}
+	return store.CreateVariantParams{
+		Grind: string(v.Grind), WeightG: v.WeightG, PriceTWD: int64(v.PriceTwd), Stock: v.Stock,
+	}, nil
+}
+
+func checkPrice(p int) error {
+	if p < 0 || p > maxPriceTWD {
+		return errBadInput("variants", fmt.Sprintf("priceTwd must be 0–%d", maxPriceTWD))
+	}
+	return nil
+}
+
+func checkStock(n int) error {
+	if n < 0 || n > maxStock {
+		return errBadInput("variants", fmt.Sprintf("stock must be 0–%d", maxStock))
+	}
+	return nil
+}
+
+// validateVariantUpdate checks a partial variant update. At least one field
+// must be set.
+func validateVariantUpdate(in model.UpdateVariantInput) (store.UpdateVariantParams, error) {
+	var p store.UpdateVariantParams
+	if in.PriceTwd == nil && in.Stock == nil && in.IsAvailable == nil {
+		return p, errBadInput("input", "nothing to update")
+	}
+	if in.PriceTwd != nil {
+		if err := checkPrice(*in.PriceTwd); err != nil {
+			return p, err
+		}
+		price := int64(*in.PriceTwd)
+		p.PriceTWD = &price
+	}
+	if in.Stock != nil {
+		if err := checkStock(*in.Stock); err != nil {
+			return p, err
+		}
+		p.Stock = in.Stock
+	}
+	p.IsAvailable = in.IsAvailable
+	return p, nil
+}
+
+// ownedVariant loads a variant and checks the viewer manages its coffee's shop.
+func (r *Resolver) ownedVariant(ctx context.Context, c *auth.Claims, variantID string) (*store.Variant, error) {
+	if !isUUID(variantID) {
+		return nil, errNotFound("variant")
+	}
+	v, err := r.Store.VariantByID(ctx, variantID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("variant")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, v.CoffeeID); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func validateCoords(lat, lng *float64) error {

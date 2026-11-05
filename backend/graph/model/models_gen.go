@@ -126,6 +126,12 @@ type UpdateShopInput struct {
 	Lng         *float64 `json:"lng,omitempty"`
 }
 
+type UpdateVariantInput struct {
+	PriceTwd    *int  `json:"priceTwd,omitempty"`
+	Stock       *int  `json:"stock,omitempty"`
+	IsAvailable *bool `json:"isAvailable,omitempty"`
+}
+
 type Variant struct {
 	ID          string      `json:"id"`
 	Grind       GrindOption `json:"grind"`

@@ -159,3 +159,80 @@ func TestToShopPin(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateVariantUpdate(t *testing.T) {
+	ip := func(v int) *int { return &v }
+	bp := func(v bool) *bool { return &v }
+	cases := []struct {
+		name      string
+		in        model.UpdateVariantInput
+		wantErr   bool
+		wantPrice *int64
+		wantStock *int
+		wantAvail *bool
+	}{
+		{name: "empty", in: model.UpdateVariantInput{}, wantErr: true},
+		{name: "price only", in: model.UpdateVariantInput{PriceTwd: ip(520)}, wantPrice: ptr64(520)},
+		{name: "free coffee allowed", in: model.UpdateVariantInput{PriceTwd: ip(0)}, wantPrice: ptr64(0)},
+		{name: "negative price", in: model.UpdateVariantInput{PriceTwd: ip(-1)}, wantErr: true},
+		{name: "price too high", in: model.UpdateVariantInput{PriceTwd: ip(maxPriceTWD + 1)}, wantErr: true},
+		{name: "stock zero", in: model.UpdateVariantInput{Stock: ip(0)}, wantStock: ip(0)},
+		{name: "negative stock", in: model.UpdateVariantInput{Stock: ip(-3)}, wantErr: true},
+		{name: "stock too high", in: model.UpdateVariantInput{Stock: ip(maxStock + 1)}, wantErr: true},
+		{name: "availability only", in: model.UpdateVariantInput{IsAvailable: bp(false)}, wantAvail: bp(false)},
+		{
+			name:      "all fields",
+			in:        model.UpdateVariantInput{PriceTwd: ip(380), Stock: ip(12), IsAvailable: bp(true)},
+			wantPrice: ptr64(380), wantStock: ip(12), wantAvail: bp(true),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := validateVariantUpdate(tc.in)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			if !eqp(got.PriceTWD, tc.wantPrice) || !eqp(got.Stock, tc.wantStock) || !eqp(got.IsAvailable, tc.wantAvail) {
+				t.Errorf("got %+v", got)
+			}
+		})
+	}
+}
+
+func TestValidateVariant(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      *model.VariantInput
+		wantErr bool
+	}{
+		{"nil", nil, true},
+		{"ok", &model.VariantInput{Grind: model.GrindOptionFine, WeightG: 250, PriceTwd: 600, Stock: 5}, false},
+		{"max weight", &model.VariantInput{Grind: model.GrindOptionFine, WeightG: maxWeightG, PriceTwd: 1, Stock: 0}, false},
+		{"weight over max", &model.VariantInput{Grind: model.GrindOptionFine, WeightG: maxWeightG + 1, PriceTwd: 1, Stock: 0}, true},
+		{"bad grind", &model.VariantInput{Grind: "POWDER", WeightG: 100, PriceTwd: 1, Stock: 0}, true},
+		{"bad price", &model.VariantInput{Grind: model.GrindOptionFine, WeightG: 100, PriceTwd: -5, Stock: 0}, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p, err := validateVariant(tc.in)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if !tc.wantErr && (p.Grind != string(tc.in.Grind) || p.PriceTWD != int64(tc.in.PriceTwd)) {
+				t.Errorf("params not copied: %+v", p)
+			}
+		})
+	}
+}
+
+func ptr64(v int64) *int64 { return &v }
+
+func eqp[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}

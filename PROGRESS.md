@@ -297,31 +297,114 @@ Scheduled runs now work on a branch, open a PR and merge it at the end of each s
 
 ---
 
+## Iteration 6 — Frontend auth, comments, seller dashboard
+
+**Completed** (six slices, one commit each)
+
+### Slice 1 (backend) — Variant management mutations
+- Schema: `addVariant(coffeeId, input: VariantInput!)`, `updateVariant(id, input: UpdateVariantInput!)`
+  (price / stock / isAvailable, all optional, at least one required), `deleteVariant(id)`. Grind + weight are
+  fixed once created (delete and re-add to change them)
+- Store: `VariantByID`, `LockCoffee` (`SELECT … FOR UPDATE`), `AddVariant`, `UpdateVariant`, `DeleteVariant`
+- Rules: owner/admin only; max 10 variants; duplicate grind+weight → `CONFLICT`; the last variant of a
+  **published** coffee can't be deleted (`BAD_USER_INPUT`). `publishCoffee` now takes the same row lock, so
+  publish and delete can't race into "published with no variants"
+- **Migration 004**: unique index `(coffee_id, grind, weight_g)` on `variants` (replaces the single-column index;
+  dedupes any old rows first)
+- Table-driven tests: `TestValidateVariant`, `TestValidateVariantUpdate`
+
+### Slice 2 (cross-cutting) — Variant test coverage
+- `graph/variants_integration_test.go`: auth checks, conflict, partial updates, last-variant guard, a
+  **concurrent `deleteVariant` race** (exactly one of two wins), 10-variant cap. Passed 3× with `-race`
+- `internal/store/variants_test.go`: CRUD + the migration-004 index (`ViolatedConstraint` name), rolled back
+
+### Slice 3 (frontend) — Auth: login / register, token refresh, account menu
+- Backend-for-frontend route handlers `POST /api/auth/{login,register,refresh,logout}`: the refresh token sits in
+  an **httpOnly, SameSite=Lax cookie scoped to `/api/auth`** (Secure behind https); page JS never sees it.
+  Cross-origin `Origin` headers → 403. Logout calls the backend `logout` (revokes every session) and clears the cookie
+- `AuthProvider` (root layout): access token in memory only; refresh 1 min before the 15-min expiry; one refresh
+  at a time per tab and **serialised across tabs with the Web Locks API** (the backend revokes every session when
+  a rotated refresh token is reused, so two tabs refreshing with the same cookie would log the user out);
+  `request()` retries once after refreshing on `UNAUTHENTICATED`; login/logout synced across tabs (`BroadcastChannel`)
+- `/login`, `/register` (safe `?next=` redirects — same-origin paths only), header `AccountMenu`
+- Pure helpers `lib/auth/token.ts` + `tests/auth.test.mjs`
+
+### Slice 4 (frontend) — Comments: add / delete on `/coffees/[id]`
+- `CommentForm` for signed-in users (rune-counted 500-char limit like the backend, live counter); anonymous
+  visitors get a login link back to the coffee. `DeleteCommentButton` only for the author or admins
+- `COFFEE` query now fetches `user { id }` for each comment
+
+### Slice 5 (frontend) — Seller dashboard `/dashboard`
+- Signed out → login prompt; no shop → `CreateShopForm` (slug suggested from the name, validated like the backend,
+  taken slug → bilingual message); otherwise shop header + every coffee **including drafts** with status badge,
+  option count, from-price, comment count, publish / unpublish
+- After `createShop` the session is reloaded so the token carries the SELLER role and the header shows 賣家後台
+- Pure helpers `lib/dashboard/validate.ts` + `tests/dashboard.test.mjs`
+
+### Slice 6 (frontend) — Coffee editor
+- `/dashboard/coffees/new`: name, origin / process / variety / roast from the curated lists, flavor notes
+  (`,` `，` `、` separated), description, 1–10 option rows (whole-NT$ prices — decimals rejected); saves a draft
+- `/dashboard/coffees/[id]`: edit price / stock / on-sale per option, delete options, add options — all via the
+  slice-1 mutations. `isAvailable` is only sent when the seller toggles it (the API reports `false` for any
+  out-of-stock row, so the stored flag isn't visible)
+
+### Also
+- `scripts/smoke.sh` now checks `/login`, `/register`, `/dashboard`, `/dashboard/coffees/new` and that
+  `POST /api/auth/refresh` without a cookie returns 401
+- ~150 new `t()` keys (zh-TW + en); i18n parity tests still pass
+
+### Verification
+- Backend: `gofmt`, `go build`, `go vet`, `go test -race ./...` pass, with `TEST_DATABASE_URL` against
+  PostgreSQL 16 (migrations 001–004 + seed; also applied to a fresh DB)
+- Frontend: `npm ci`, `tsc --noEmit`, `npm test` (18 tests), `npm run build` (13 routes) pass
+- `docker compose config --quiet` passes; `scripts/smoke.sh` passes against `next start` + the Go server
+- Playwright against `next start` + Go server: register (client + server validation), session survives reload,
+  two tabs refreshing at once stay signed in, logout propagates to the other tab, wrong password message,
+  cross-origin refresh → 403; comment add / counter / too-long / delete; open shop (bad slug message) → new coffee
+  (decimal price and duplicate row rejected) → publish → edit price → add option (duplicate rejected) → delete down
+  to the last option (refused while published) → public page shows the option; a second user can't manage the
+  coffee; no horizontal scroll at 390px, no page errors
+- **Not tested:** full `docker compose up` (no Docker daemon in this sandbox) and nginx in front of the auth
+  route handlers; behaviour without the Web Locks API (older Safari falls back to per-tab single-flight only)
+
+### Decisions / deferred
+- BFF cookie flow instead of storing refresh tokens in `localStorage` (XSS can't steal a 7-day credential)
+- Server components still fetch anonymously, so a seller's **draft** coffee pages 404 at `/coffees/[id]`;
+  sellers manage drafts from the dashboard. A server-side session (forwarding the access token to RSC fetches)
+  would fix this — deferred
+- Coffee **text** fields (name, description, notes) can't be edited from the UI yet — `updateCoffee` exists
+- The backend's role claim is in the access token; after `createShop` we refresh to pick up SELLER
+
+---
+
 ## Component Status
 
 | Component | Status |
 |-----------|--------|
 | Repo scaffold & Docker Compose | Done — `docker compose up` verified (iteration 4) |
-| PostgreSQL schema / migrations | Done (001–003) |
+| PostgreSQL schema / migrations | Done (001–004) |
 | Go data layer (store) | Done |
-| GraphQL API (Stage 1 queries + mutations) | Done |
+| GraphQL API (Stage 1 queries + mutations) | Done (+ variant management, iteration 6) |
 | JWT auth (register / login / refresh / logout) | Done |
 | Next.js frontend — home page | Done (iteration 5) |
 | Next.js frontend — catalog / shop / coffee pages | Done (iteration 4) |
-| Frontend auth (login / register, token refresh) | Not started |
+| Frontend auth (login / register, token refresh) | Done (iteration 6, httpOnly refresh cookie) |
 | Map page | Done (iteration 5, Leaflet + OSM) |
-| Seller dashboard | Not started |
+| Seller dashboard | Mostly done (iteration 6): shop, coffees, options, publish. Edit coffee text / shop profile pending |
 | File uploads (S3-compatible) | Not started |
 | Cart / orders / ECPay | Not started (Stage 2) |
 | Meilisearch | Not started (Stage 3) |
 
 ## Next Iteration Should Tackle
 
-**Iteration 6 — Finish Stage 1 features (Docker demo checklist is complete)**
-1. Run `docker compose up --build` then `./scripts/smoke.sh` on a normal network to confirm the full stack + OSM tiles
-2. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
-3. Seller dashboard: create shop, add / edit coffees + variants, publish / unpublish
-4. File uploads (S3-compatible) for logo / banner / coffee images; then tighten `images.remotePatterns`
+**Iteration 7 — Finish Stage 1**
+1. Seller dashboard gaps: edit coffee details (`updateCoffee` form on `/dashboard/coffees/[id]`) and shop profile
+   (`updateShop`: name, description, city, lat/lng so the shop appears on `/map`)
+2. File uploads (S3-compatible, e.g. MinIO in docker compose) for shop logo / banner and coffee images; then add
+   specific hosts to `images.remotePatterns` and a CSP (`img-src` must allow the OSM tile host too)
+3. Server-side session for RSC fetches so owners can preview their draft coffee pages
+4. Run `docker compose up --build` + `./scripts/smoke.sh` on a normal network (nginx in front of `/api/auth/*`)
+5. Then Stage 2: cart
 
 ---
 
@@ -335,9 +418,10 @@ Scheduled runs now work on a branch, open a PR and merge it at the end of each s
 - [x] Frontend: bilingual layout (zh-TW / EN toggle), shop listing page, coffee detail page
 - [x] Frontend: map page (Leaflet.js or Mapbox) with shop pins
 - [x] Frontend: coffee filters (origin country, variety, processing method, roast level)
-- [~] Frontend: simple comment section on coffee pages (read-only list done; add form needs frontend auth)
+- [x] Frontend: simple comment section on coffee pages (add / delete, iteration 6)
+- [x] Frontend auth: login / register, token refresh (iteration 6)
 - [ ] File upload: seller logo/banner/coffee images (S3-compatible, Stage 1)
-- [ ] Seller dashboard: create shop, add coffees, manage listings
+- [~] Seller dashboard: create shop, add coffees, manage options, publish (done); edit coffee text + shop profile (todo)
 
 **Docker demo readiness**
 - [x] `backend/Dockerfile` (multi-stage, runs `cmd/server`)

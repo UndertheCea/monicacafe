@@ -97,9 +97,11 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddComment      func(childComplexity int, input model.AddCommentInput) int
+		AddVariant      func(childComplexity int, coffeeID string, input model.VariantInput) int
 		CreateCoffee    func(childComplexity int, input model.CreateCoffeeInput) int
 		CreateShop      func(childComplexity int, input model.CreateShopInput) int
 		DeleteComment   func(childComplexity int, id string) int
+		DeleteVariant   func(childComplexity int, id string) int
 		Login           func(childComplexity int, input model.LoginInput) int
 		Logout          func(childComplexity int) int
 		PublishCoffee   func(childComplexity int, id string) int
@@ -108,6 +110,7 @@ type ComplexityRoot struct {
 		UnpublishCoffee func(childComplexity int, id string) int
 		UpdateCoffee    func(childComplexity int, id string, input model.UpdateCoffeeInput) int
 		UpdateShop      func(childComplexity int, id string, input model.UpdateShopInput) int
+		UpdateVariant   func(childComplexity int, id string, input model.UpdateVariantInput) int
 	}
 
 	OriginCountry struct {
@@ -209,6 +212,9 @@ type MutationResolver interface {
 	UpdateCoffee(ctx context.Context, id string, input model.UpdateCoffeeInput) (*model.Coffee, error)
 	PublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
 	UnpublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
+	AddVariant(ctx context.Context, coffeeID string, input model.VariantInput) (*model.Variant, error)
+	UpdateVariant(ctx context.Context, id string, input model.UpdateVariantInput) (*model.Variant, error)
+	DeleteVariant(ctx context.Context, id string) (bool, error)
 	AddComment(ctx context.Context, input model.AddCommentInput) (*model.Comment, error)
 	DeleteComment(ctx context.Context, id string) (bool, error)
 }
@@ -460,6 +466,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.AddComment(childComplexity, args["input"].(model.AddCommentInput)), true
 
+	case "Mutation.addVariant":
+		if e.complexity.Mutation.AddVariant == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addVariant_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddVariant(childComplexity, args["coffeeId"].(string), args["input"].(model.VariantInput)), true
+
 	case "Mutation.createCoffee":
 		if e.complexity.Mutation.CreateCoffee == nil {
 			break
@@ -495,6 +513,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.DeleteComment(childComplexity, args["id"].(string)), true
+
+	case "Mutation.deleteVariant":
+		if e.complexity.Mutation.DeleteVariant == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteVariant_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteVariant(childComplexity, args["id"].(string)), true
 
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
@@ -586,6 +616,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateShop(childComplexity, args["id"].(string), args["input"].(model.UpdateShopInput)), true
+
+	case "Mutation.updateVariant":
+		if e.complexity.Mutation.UpdateVariant == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateVariant_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateVariant(childComplexity, args["id"].(string), args["input"].(model.UpdateVariantInput)), true
 
 	case "OriginCountry.id":
 		if e.complexity.OriginCountry.ID == nil {
@@ -976,6 +1018,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputRegisterInput,
 		ec.unmarshalInputUpdateCoffeeInput,
 		ec.unmarshalInputUpdateShopInput,
+		ec.unmarshalInputUpdateVariantInput,
 		ec.unmarshalInputVariantInput,
 	)
 	first := true
@@ -1117,6 +1160,12 @@ type Mutation {
   updateCoffee(id: ID!, input: UpdateCoffeeInput!): Coffee!
   publishCoffee(id: ID!): Coffee!
   unpublishCoffee(id: ID!): Coffee!
+
+  # Variants (seller). Grind and weight are fixed once created — delete and
+  # re-add to change them. The last variant of a published coffee can't be deleted.
+  addVariant(coffeeId: ID!, input: VariantInput!): Variant!
+  updateVariant(id: ID!, input: UpdateVariantInput!): Variant!
+  deleteVariant(id: ID!): Boolean!
 
   # Comments (buyer)
   addComment(input: AddCommentInput!): Comment!
@@ -1322,6 +1371,12 @@ input VariantInput {
   stock: Int!
 }
 
+input UpdateVariantInput {
+  priceTwd: Int
+  stock: Int
+  isAvailable: Boolean
+}
+
 input CoffeeFilter {
   originCountryId: ID
   varietyId: ID
@@ -1369,6 +1424,57 @@ func (ec *executionContext) field_Mutation_addComment_argsInput(
 	}
 
 	var zeroVal model.AddCommentInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_addVariant_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_addVariant_argsCoffeeID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["coffeeId"] = arg0
+	arg1, err := ec.field_Mutation_addVariant_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_addVariant_argsCoffeeID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["coffeeId"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("coffeeId"))
+	if tmp, ok := rawArgs["coffeeId"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_addVariant_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.VariantInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.VariantInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNVariantInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInput(ctx, tmp)
+	}
+
+	var zeroVal model.VariantInput
 	return zeroVal, nil
 }
 
@@ -1439,6 +1545,34 @@ func (ec *executionContext) field_Mutation_deleteComment_args(ctx context.Contex
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_deleteComment_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteVariant_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteVariant_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteVariant_argsID(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
@@ -1695,6 +1829,57 @@ func (ec *executionContext) field_Mutation_updateShop_argsInput(
 	}
 
 	var zeroVal model.UpdateShopInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateVariant_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateVariant_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Mutation_updateVariant_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateVariant_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateVariant_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateVariantInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.UpdateVariantInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateVariantInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateVariantInput(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateVariantInput
 	return zeroVal, nil
 }
 
@@ -4234,6 +4419,199 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_unpublishCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addVariant(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addVariant(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddVariant(rctx, fc.Args["coffeeId"].(string), fc.Args["input"].(model.VariantInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Variant)
+	fc.Result = res
+	return ec.marshalNVariant2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariant(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addVariant(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Variant_id(ctx, field)
+			case "grind":
+				return ec.fieldContext_Variant_grind(ctx, field)
+			case "weightG":
+				return ec.fieldContext_Variant_weightG(ctx, field)
+			case "priceTwd":
+				return ec.fieldContext_Variant_priceTwd(ctx, field)
+			case "stock":
+				return ec.fieldContext_Variant_stock(ctx, field)
+			case "isAvailable":
+				return ec.fieldContext_Variant_isAvailable(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Variant", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addVariant_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateVariant(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateVariant(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateVariant(rctx, fc.Args["id"].(string), fc.Args["input"].(model.UpdateVariantInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Variant)
+	fc.Result = res
+	return ec.marshalNVariant2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariant(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateVariant(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Variant_id(ctx, field)
+			case "grind":
+				return ec.fieldContext_Variant_grind(ctx, field)
+			case "weightG":
+				return ec.fieldContext_Variant_weightG(ctx, field)
+			case "priceTwd":
+				return ec.fieldContext_Variant_priceTwd(ctx, field)
+			case "stock":
+				return ec.fieldContext_Variant_stock(ctx, field)
+			case "isAvailable":
+				return ec.fieldContext_Variant_isAvailable(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Variant", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateVariant_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteVariant(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteVariant(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteVariant(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteVariant(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteVariant_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9282,6 +9660,47 @@ func (ec *executionContext) unmarshalInputUpdateShopInput(ctx context.Context, o
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateVariantInput(ctx context.Context, obj any) (model.UpdateVariantInput, error) {
+	var it model.UpdateVariantInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"priceTwd", "stock", "isAvailable"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "priceTwd":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priceTwd"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PriceTwd = data
+		case "stock":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("stock"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Stock = data
+		case "isAvailable":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isAvailable"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsAvailable = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputVariantInput(ctx context.Context, obj any) (model.VariantInput, error) {
 	var it model.VariantInput
 	asMap := map[string]any{}
@@ -9975,6 +10394,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "unpublishCoffee":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_unpublishCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addVariant":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addVariant(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateVariant":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateVariant(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteVariant":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteVariant(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -11726,6 +12166,11 @@ func (ec *executionContext) unmarshalNUpdateShopInput2githubᚗcomᚋunderthecea
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNUpdateVariantInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUpdateVariantInput(ctx context.Context, v any) (model.UpdateVariantInput, error) {
+	res, err := ec.unmarshalInputUpdateVariantInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNUser2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
 	return ec._User(ctx, sel, &v)
 }
@@ -11748,6 +12193,10 @@ func (ec *executionContext) unmarshalNUserRole2githubᚗcomᚋundertheceaᚋmoni
 
 func (ec *executionContext) marshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, sel ast.SelectionSet, v model.UserRole) graphql.Marshaler {
 	return v
+}
+
+func (ec *executionContext) marshalNVariant2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariant(ctx context.Context, sel ast.SelectionSet, v model.Variant) graphql.Marshaler {
+	return ec._Variant(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNVariant2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Variant) graphql.Marshaler {
@@ -11802,6 +12251,11 @@ func (ec *executionContext) marshalNVariant2ᚖgithubᚗcomᚋundertheceaᚋmoni
 		return graphql.Null
 	}
 	return ec._Variant(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNVariantInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInput(ctx context.Context, v any) (model.VariantInput, error) {
+	res, err := ec.unmarshalInputVariantInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNVariantInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInputᚄ(ctx context.Context, v any) ([]*model.VariantInput, error) {

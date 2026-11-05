@@ -270,3 +270,67 @@ func (s *Store) CountVariants(ctx context.Context, coffeeID string) (int, error)
 	err := s.db.QueryRow(ctx, `SELECT count(*) FROM variants WHERE coffee_id = $1`, coffeeID).Scan(&n)
 	return n, mapErr(err)
 }
+
+const variantColumns = `id, coffee_id, grind, weight_g, price_twd, stock, is_available`
+
+func scanVariant(row interface{ Scan(...any) error }) (*Variant, error) {
+	var v Variant
+	if err := row.Scan(&v.ID, &v.CoffeeID, &v.Grind, &v.WeightG, &v.PriceTWD, &v.Stock, &v.IsAvailable); err != nil {
+		return nil, mapErr(err)
+	}
+	return &v, nil
+}
+
+// VariantByID fetches one variant.
+func (s *Store) VariantByID(ctx context.Context, id string) (*Variant, error) {
+	return scanVariant(s.db.QueryRow(ctx, `SELECT `+variantColumns+` FROM variants WHERE id = $1`, id))
+}
+
+// LockCoffee takes a row lock on a coffee for the rest of the transaction, so
+// variant-count checks can't race with each other or with publishing. It
+// returns whether the coffee is currently published. Call it inside InTx.
+func (s *Store) LockCoffee(ctx context.Context, id string) (published bool, err error) {
+	err = s.db.QueryRow(ctx, `SELECT is_published FROM coffees WHERE id = $1 FOR UPDATE`, id).Scan(&published)
+	return published, mapErr(err)
+}
+
+// AddVariant inserts one variant. A duplicate grind+weight for the same
+// coffee returns ErrConflict (unique index from migration 004).
+func (s *Store) AddVariant(ctx context.Context, coffeeID string, p CreateVariantParams) (*Variant, error) {
+	return scanVariant(s.db.QueryRow(ctx, `
+		INSERT INTO variants (coffee_id, grind, weight_g, price_twd, stock)
+		VALUES ($1, $2::grind_option, $3, $4, $5)
+		RETURNING `+variantColumns,
+		coffeeID, p.Grind, p.WeightG, p.PriceTWD, p.Stock))
+}
+
+// UpdateVariantParams holds optional variant fields; nil means "leave unchanged".
+type UpdateVariantParams struct {
+	PriceTWD    *int64
+	Stock       *int
+	IsAvailable *bool
+}
+
+// UpdateVariant applies a partial update to a variant.
+func (s *Store) UpdateVariant(ctx context.Context, id string, p UpdateVariantParams) (*Variant, error) {
+	return scanVariant(s.db.QueryRow(ctx, `
+		UPDATE variants SET
+			price_twd    = COALESCE($2, price_twd),
+			stock        = COALESCE($3, stock),
+			is_available = COALESCE($4, is_available)
+		WHERE id = $1
+		RETURNING `+variantColumns,
+		id, p.PriceTWD, p.Stock, p.IsAvailable))
+}
+
+// DeleteVariant removes a variant. ErrNotFound if it doesn't exist.
+func (s *Store) DeleteVariant(ctx context.Context, id string) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM variants WHERE id = $1`, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

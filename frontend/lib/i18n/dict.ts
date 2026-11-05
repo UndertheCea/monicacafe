@@ -221,7 +221,7 @@ const en: Messages = {
   "footer.copy": "© {year} MONI CAFE · Ships within Taiwan only",
 };
 
-const DICTS: Record<Locale, Messages> = { "zh-TW": zhTW, en };
+export const DICTS: Record<Locale, Messages> = { "zh-TW": zhTW, en };
 
 export function isLocale(v: unknown): v is Locale {
   return typeof v === "string" && (LOCALES as readonly string[]).includes(v);

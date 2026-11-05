@@ -274,6 +274,29 @@ same master commit. This branch keeps its own map/home implementation and adds t
 
 ---
 
+## Repo maintenance — branch cleanup + leftover tests
+
+After PR #3, five unmerged `claude/focused-mendel-*` branches remained from runs that duplicated iteration 5.
+Every feature on them is in master; the only code not yet ported was tests, now added:
+- `backend/internal/store/shops_test.go` (from `-8b57gy`, adapted): DB-backed `TestShopPins` (raw coordinates
+  round-trip for every shop) and `TestShopCoordinateConstraints` (migration 003 rejects out-of-range and NaN).
+  Both run inside a rolled-back transaction and skip without `TEST_DATABASE_URL`
+- `frontend/tests/i18n.test.mjs` (from `-h73xwl`): key parity, no empty strings, matching `{placeholders}` across
+  zh-TW / en, `t()` / `pick()` cases. Run with `npm test` (Node's built-in runner); added to CI
+- Not ported, by design: alternative pin helpers (`lib/map.ts`, `lib/mapPins.ts`) and `MapExplorer` (a map variant
+  where clicking the list pans the map) — they duplicate master's `/map` implementation
+
+New `.github/workflows/branch-cleanup.yml`:
+- On every merged PR, deletes the head branch (skips if new commits were pushed after the merge, or the branch is
+  the base of an open PR; never the default branch)
+- Manual run (Actions → Branch cleanup): empty input deletes every branch fully merged into master; listed branches
+  are deleted too, and any with commits not in master are first kept as tag `archive/<branch>`
+  (restore with `git push origin archive/<branch>:refs/heads/<branch>`)
+
+Scheduled runs now work on a branch, open a PR and merge it at the end of each session (see the routine prompt).
+
+---
+
 ## Component Status
 
 | Component | Status |
@@ -299,7 +322,6 @@ same master commit. This branch keeps its own map/home implementation and adds t
 2. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
 3. Seller dashboard: create shop, add / edit coffees + variants, publish / unpublish
 4. File uploads (S3-compatible) for logo / banner / coffee images; then tighten `images.remotePatterns`
-5. Make the scheduled routine start from the latest master so runs stop duplicating each other
 
 ---
 

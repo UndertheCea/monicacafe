@@ -189,3 +189,56 @@ export const SHOP = typed<
 export function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
+
+// ---------------------------------------------------------------------------
+// Map + home page
+// ---------------------------------------------------------------------------
+
+export interface ShopPin {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+export const SHOPS_FOR_MAP = typed<{ shopsForMap: ShopPin[] }>(/* GraphQL */ `
+  query ShopsForMap {
+    shopsForMap { id slug name city lat lng }
+  }
+`);
+
+/** A pin that can actually be placed on the map (finite, in-range lat/lng). */
+export type LocatedShopPin = ShopPin & { lat: number; lng: number };
+
+export function hasLocation(p: ShopPin): p is LocatedShopPin {
+  return (
+    typeof p.lat === "number" &&
+    typeof p.lng === "number" &&
+    Number.isFinite(p.lat) &&
+    Number.isFinite(p.lng) &&
+    Math.abs(p.lat) <= 90 &&
+    Math.abs(p.lng) <= 180
+  );
+}
+
+export const HOME = typed<
+  { popularCoffees: CoffeeCardData[]; shops: { total: number; nodes: ShopSummary[] } },
+  { popularLimit?: number; shopLimit?: number }
+>(/* GraphQL */ `
+  query Home($popularLimit: Int, $shopLimit: Int) {
+    popularCoffees(limit: $popularLimit) {
+      id slug name roastLevel flavorNotes imageUrls commentCount
+      shop { slug name city }
+      originCountry { nameEn nameZh }
+      processingMethod { nameEn nameZh }
+      variety { name }
+      variants { priceTwd isAvailable }
+    }
+    shops(limit: $shopLimit) {
+      total
+      nodes { id slug name description logoUrl bannerUrl city }
+    }
+  }
+`);

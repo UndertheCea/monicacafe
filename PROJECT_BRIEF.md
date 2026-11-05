@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-05 (after Session 7 / PR #23)
+Last updated: 2026-11-05 (after Session 8)
 
 ---
 
@@ -30,31 +30,32 @@ takes a commission on each sale).
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–004 | Done |
-| Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant add / update / delete |
-| Auth (JWT + refresh rotation; BFF cookie flow in Next) | Done |
+| DB schema + migrations 001–005 | Done |
+| Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft coffee |
+| Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — expired tokens pruned hourly |
 | Pages: home, /coffees (+filters), /coffees/[id] (+comments), /shops, /shops/[slug], /map | Done |
 | /login, /register, account menu | Done |
-| Seller dashboard: open shop, new coffee, options, publish / unpublish | Done |
-| Seller dashboard: edit coffee details, shop profile + map location | Done |
+| Seller dashboard: open shop, coffees (new / edit / options / publish / delete draft), shop profile + location | Done |
+| Draft preview for sellers (dashboard-only, #8 default) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
 | Content-Security-Policy (nonce'd, from Next middleware) | Done |
-| Draft preview for sellers (#19) | Todo |
-| Auth refresh race on fast navigation (#24) | Todo |
-| CI + branch cleanup workflow | Done |
-| Full `docker compose up` through nginx (#20) | Last verified session 4; now also SeaweedFS — re-check |
+| sitemap.xml + robots.txt (`SITE_URL`) | Done |
+| Rate limiting on auth mutations (#27) | Todo |
+| CI: backend, frontend, compose config, **full stack compose + smoke** | Done |
+| Full `docker compose up` through nginx | Verified session 8 (and now in CI) |
 
 ## Last session
 
-**Session 7 · PR #23** — edit coffee details (#13), shop profile + Leaflet location picker (#14), presigned image
-upload API with a hand-written SigV4 signer (#15), S3 store in compose + nginx `/media/` (#16; SeaweedFS because
-MinIO's images left Docker Hub), uploader for logo / banner / coffee gallery (#17), nonce'd CSP (#18). CI does a
-real presigned PUT against SeaweedFS. Not tested: `docker compose up` + `smoke.sh` (no Docker daemon).
+**Session 8** — refresh-token replay grace window (#24, migration 005) and hourly pruning of expired tokens (#25);
+seller draft preview (#19) and delete-draft (#26); sitemap.xml + robots.txt (#28). Proved `docker compose up` +
+`smoke.sh` on a real daemon (#20; smoke now drives the auth cookie through nginx) and added a CI `stack` job that
+does the same on every PR. Not seen in a browser: an actually aborted refresh (covered by smoke + integration test).
 
 ## Current focus
 
-Finish Stage 1: #20 (prove `docker compose up` + `smoke.sh` end to end, now including the image store — add a CI
-job if no Docker daemon), #19 (draft preview), #24 (refresh race). Then Stage 2, which is blocked on #9 and #12.
+Last Stage 1 slice: #27 (rate-limit login / register / refresh). After that Stage 1 is done; Stage 2 is blocked on
+the owner's answers to #9 (cart storage) and #12 (commission + payouts). Housekeeping queued for Stage 2: #29
+(orphaned images in the bucket).
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -90,4 +91,8 @@ Open questions for the owner (answer by commenting on the issue):
   the signed Content-Type / Content-Length cap type and size; only bucket URLs under the owner's prefix can be
   saved, so sellers can't hot-link or link out and the CSP stays narrow. SeaweedFS in dev (MinIO's images were
   pulled from Docker Hub); any S3 provider in production.
+- **Refresh replay grace (20 s) with a rotation chain** — browsers abort refreshes on fast navigation and keep the
+  old cookie; replaying the just-rotated token re-rotates instead of revoking everything. Cost: a theft replayed
+  inside the window isn't detected.
+- **Delete is drafts-only** — public links (and Stage 2 orders) never point at a coffee that silently vanished.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.

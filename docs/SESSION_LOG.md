@@ -15,6 +15,48 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 8 — 2026-11-05 — Stack proven end to end, refresh grace window, draft preview / delete, sitemap
+PR: (see the merged PR for this branch)
+
+### Shipped (one line per slice: area — what — key files)
+- #24 cross-cutting — refresh rotation is one transaction that records the successor (migration 005
+  `refresh_tokens.replaced_by`). A just-rotated token presented again within `auth.RefreshReuseGrace` (20 s) while
+  its successor is unused retires that successor and issues a new token; outside the window, after logout, or
+  once the successor was used, it is reuse and revokes everything — `internal/auth/refresh.go`
+  (`ClassifyRefresh`), `store.RotateRefreshToken`
+- #19 frontend — `/dashboard/coffees/[id]/preview`: client fetch with the seller's token, same
+  `CoffeeDetailView` as the public page (extracted from it), bilingual draft banner; public `/coffees/[id]` still
+  404s for drafts. `canManageCoffee` replaces the inline ownership check — `components/dashboard/CoffeePreview.tsx`
+- #20 cross-cutting — `docker compose up` + `smoke.sh` verified on a real Docker daemon; smoke now drives the
+  `/api/auth` cookie through nginx (register → refresh rotates → replay within grace → logout → 401). New CI job
+  `stack` runs compose + smoke on every PR
+- #25 backend — `store.PruneRefreshTokens` deletes expired rows in batches; the API runs it at start and every
+  `TOKEN_PRUNE_INTERVAL` (default 1h, ≥1m, 0 = off) — `cmd/server/main.go`, `config.TokenPruneEvery`
+- #26 cross-cutting — `deleteCoffee(id)`: owner/admin, drafts only (CONFLICT when published, checked under a row
+  lock), variants + comments cascade; dashboard Delete with inline confirm on list rows and the edit page
+- #28 frontend — `app/sitemap.ts` (static pages + every shop + every published coffee, paged through the API) and
+  `app/robots.ts` (replaces `public/robots.txt`; Sitemap line from new `SITE_URL`; disallows /dashboard, /api/)
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a local PostgreSQL 16 with migrations 001–005 + seed.
+  New: `TestClassifyRefresh`, `TestTokenPruneEvery`, `TestPruneRefreshTokens`, `TestDeleteCoffee`, and the
+  marketplace test now replays a rotated token inside (accepted) and outside (family revoked) the window.
+  `TestImageUploads` skipped locally (no `TEST_S3_*`); CI runs it.
+- Frontend: tsc, `npm test` (38 cases), `next build`.
+- Full stack: `dockerd` started in the session; images built with the sandbox's TLS-proxy CA injected through a
+  local-only Dockerfile copy (not committed — CI and real machines don't need it). `docker compose up --wait` on
+  fresh volumes: all services healthy; `smoke.sh` passes (pages, sitemap, robots, auth cookie flow, GraphQL,
+  `/media/` upload). Playwright against that stack: draft preview (banner, 404 publicly), delete from the list
+  and from the edit page, rapid navigation stays signed in.
+- NOT reproduced in a browser: an actually aborted refresh (Playwright's rapid navigation didn't abort one this
+  time); the replay path is covered by smoke.sh and the integration test instead. The new `stack` CI job runs for
+  the first time on this PR.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Grace window trade-off: a stolen refresh token replayed within 20 s of a legitimate rotation isn't detected.
+- Deleting a coffee leaves its images in the bucket (unreachable): new slice #29 (orphan-image cleanup, stage-2).
+- New slice #27: rate-limit login / register / refresh (no throttling today).
+
 ## Session 7 — 2026-11-05 — Dashboard edits, image uploads end to end, CSP
 PR: #23
 

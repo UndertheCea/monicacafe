@@ -76,10 +76,10 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `frontend/lib/` | `api.ts` (typed queries), `graphql.ts` (client), `i18n/`, `auth/`, `dashboard/`, `csp.ts` |
 | `frontend/middleware.ts` | Per-request nonce'd Content-Security-Policy |
 | `frontend/tests/*.test.mjs` | `npm test` (Node's built-in runner) |
-| `scripts/smoke.sh` | Hits every demo route plus GraphQL and an image upload after `docker compose up` |
+| `scripts/smoke.sh` | Hits every demo route, sitemap, the auth cookie flow, GraphQL and an image upload after `docker compose up` (CI job `stack`) |
 | `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
-| `.github/workflows/` | `ci.yml` (all checks), `branch-cleanup.yml` (deletes merged PR branches) |
+| `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |
 
 Stack: Go 1.24, chi v5, gqlgen v0.17.73, pgx v5 · Next.js 15 App Router, React 19, TypeScript strict, Tailwind
 CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).

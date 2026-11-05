@@ -1,4 +1,4 @@
-// Package storage presigns uploads to an S3-compatible object store (MinIO in
+// Package storage presigns uploads to an S3-compatible object store (SeaweedFS in
 // development; R2 / S3 / GCS interop in production — see question #7) and
 // decides which image URLs belong to it.
 //

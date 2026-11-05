@@ -7,7 +7,7 @@
 # Checks every demo route returns 200 (and an unknown route 404), that the
 # auth endpoints answer, that the API answers health + GraphQL, and that the
 # seed produced map pins and coffees, and that image uploads round-trip
-# through nginx to MinIO.
+# through nginx to the S3 store.
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost}"
@@ -40,8 +40,8 @@ else
   echo "ok   graphql ($pins map pins, popular coffees present)"
 fi
 
-# ── Image storage (MinIO behind nginx at /media/) ───────────────────────────
-# A missing object must come back from MinIO as 404 (not nginx's 502/404 page),
+# ── Image storage (S3 store behind nginx at /media/) ────────────────────────
+# A missing object must come back from the store as 404 (not nginx's 502/404 page),
 # and listing the bucket must be refused.
 check_status "$BASE_URL/media/shops/__no-such-image__.png" 404
 check_status "$BASE_URL/media/" 403

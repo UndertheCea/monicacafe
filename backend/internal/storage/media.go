@@ -45,7 +45,7 @@ func ImageExt(contentType string, size int64) (string, error) {
 type Config struct {
 	// Endpoint is the store's base URL *as the browser sees it*: presigned URLs
 	// are signed for this host, so it must be the host the browser PUTs to.
-	// In compose that is nginx (http://localhost), which proxies /<bucket>/ to MinIO.
+	// In compose that is nginx (http://localhost), which proxies /<bucket>/ to the store.
 	Endpoint  string
 	Bucket    string
 	Region    string

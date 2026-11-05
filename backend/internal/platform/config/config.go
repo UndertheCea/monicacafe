@@ -19,7 +19,7 @@ type Config struct {
 	AppEnv           string
 	Locale           string
 
-	// Object storage for uploaded images (S3-compatible; MinIO in compose).
+	// Object storage for uploaded images (S3-compatible; SeaweedFS in compose).
 	// Uploads are disabled when S3AccessKey is empty.
 	S3Endpoint     string
 	S3Bucket       string

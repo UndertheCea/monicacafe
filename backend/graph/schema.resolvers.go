@@ -464,6 +464,37 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 	return toCoffee(co), nil
 }
 
+// DeleteCoffee is the resolver for the deleteCoffee field.
+func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+		return false, err
+	}
+	// Lock the row so a concurrent publishCoffee can't slip in between the
+	// draft check and the delete. Uploaded images stay in the bucket; they are
+	// unreachable once the row is gone (orphan cleanup is a separate job).
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		published, err := tx.LockCoffee(ctx, id)
+		if err != nil {
+			return err
+		}
+		if published {
+			return errConflict("isPublished", "unpublish the coffee before deleting it")
+		}
+		return tx.DeleteCoffee(ctx, id)
+	})
+	if errors.Is(err, store.ErrNotFound) {
+		return false, errNotFound("coffee")
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // CreateImageUpload is the resolver for the createImageUpload field.
 func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.ImageUploadInput) (*model.ImageUpload, error) {
 	c, err := requireViewer(ctx)

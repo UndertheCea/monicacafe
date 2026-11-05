@@ -41,6 +41,9 @@ type Mutation {
   updateCoffee(id: ID!, input: UpdateCoffeeInput!): Coffee!
   publishCoffee(id: ID!): Coffee!
   unpublishCoffee(id: ID!): Coffee!
+  # Drafts only: a published coffee must be unpublished first, so public links
+  # never vanish silently. Variants and comments are deleted with it.
+  deleteCoffee(id: ID!): Boolean!
 
   # Image uploads (seller). Returns a short-lived presigned PUT URL; after the
   # PUT succeeds, save publicUrl via updateShop (logoUrl / bannerUrl) or

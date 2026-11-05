@@ -73,8 +73,10 @@ jobs:
       - run: npm run build
 
   compose:
-    name: docker compose config
+    name: compose config + docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: cp .env.example .env && docker compose config --quiet
+      - name: Project brief stays short and structured
+        run: ./scripts/check_brief.sh

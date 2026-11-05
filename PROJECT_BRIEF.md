@@ -2,7 +2,7 @@
 
 The one file every build session reads first. It holds the **current** picture: goal, plan, architecture and
 the reasons behind it. History lives in [`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) (newest first). Agents
-rewrite sections 3–5 each session; keep this file under ~250 lines by moving detail to the log.
+rewrite sections 2–5 each session; keep this file under ~250 lines by moving detail to the log.
 
 Last updated: 2026-11-05 (after Session 6 / PR #5)
 

@@ -54,6 +54,39 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # S3-compatible image storage (question #7, default MinIO). Images are
+  # uploaded with presigned PUTs and served through nginx at /media/.
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-monica_minio}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-monica_minio_secret}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot: creates the bucket and allows anonymous reads of image objects.
+  minio-init:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    entrypoint: ["/bin/sh", "/minio_init.sh"]
+    environment:
+      MINIO_URL: http://minio:9000
+      S3_BUCKET: ${S3_BUCKET:-media}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-monica_minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-monica_minio_secret}
+    volumes:
+      - ./scripts/minio_init.sh:/minio_init.sh:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build:
       context: ./backend
@@ -70,6 +103,14 @@ services:
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}
+      # Presigned upload URLs are signed for the host the browser uses (nginx),
+      # which proxies /<bucket>/ to MinIO.
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://localhost:${HTTP_PORT:-80}}
+      S3_BUCKET: ${S3_BUCKET:-media}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-monica_minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-monica_minio_secret}
+      MEDIA_PUBLIC_URL: ${MEDIA_PUBLIC_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,6 +144,10 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     ports:
       - "${HTTP_PORT:-80}:80"
     restart: unless-stopped
@@ -111,3 +156,4 @@ volumes:
   postgres_data:
   redis_data:
   meili_data:
+  minio_data:

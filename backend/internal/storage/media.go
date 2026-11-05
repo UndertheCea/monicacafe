@@ -79,6 +79,11 @@ func New(c Config) (*Media, error) {
 		return nil, fmt.Errorf("storage: S3_ENDPOINT must be an http(s) origin, got %q", c.Endpoint)
 	}
 	u.Path = ""
+	// Browsers omit the default port from the Host header, and the signature
+	// covers Host, so http://localhost:80 must be signed as "localhost".
+	if (u.Scheme == "http" && u.Port() == "80") || (u.Scheme == "https" && u.Port() == "443") {
+		u.Host = u.Hostname()
+	}
 	if c.Bucket == "" || strings.Contains(c.Bucket, "/") {
 		return nil, errors.New("storage: S3_BUCKET must be a bucket name")
 	}

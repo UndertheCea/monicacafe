@@ -47,6 +47,8 @@ func TestNew(t *testing.T) {
 		{name: "bad endpoint", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "localhost", Bucket: "media"}, wantErr: true},
 		{name: "endpoint with path", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost/x", Bucket: "media"}, wantErr: true},
 		{name: "no bucket", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost"}, wantErr: true},
+		{name: "default port dropped", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost:80", Bucket: "media"}, public: "http://localhost/media"},
+		{name: "custom port kept", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost:8080", Bucket: "media"}, public: "http://localhost:8080/media"},
 		{name: "default public", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost/", Bucket: "media"}, public: "http://localhost/media"},
 		{name: "cdn public", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "https://s3.example.com", Bucket: "media", PublicURL: "https://cdn.example.com/m/"}, public: "https://cdn.example.com/m"},
 		{name: "bad public", cfg: Config{AccessKey: "a", SecretKey: "s", Endpoint: "http://localhost", Bucket: "media", PublicURL: "ftp://x"}, wantErr: true},

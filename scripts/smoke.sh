@@ -30,6 +30,31 @@ code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST "$BASE_URL/a
 if [[ "$code" == "401" ]]; then echo "ok   401 POST /api/auth/refresh (no session)"; else echo "FAIL POST /api/auth/refresh → $code (want 401)"; fail=1; fi
 check_status "$API_URL/health" 200
 
+# Auth BFF through the proxy: register sets the httpOnly refresh cookie scoped
+# to /api/auth; refresh trades it for a new one; replaying the previous cookie
+# right away (an aborted refresh on fast navigation, #24) still works; after
+# logout the cookie is cleared and refresh is refused.
+jar=$(mktemp); old_jar=$(mktemp); trap 'rm -f "$jar" "$old_jar"' EXIT
+bff() { # action [json]
+  curl -s -o /dev/null -w '%{http_code}' --max-time 15 -b "$jar" -c "$jar" -X POST \
+    -H 'Content-Type: application/json' -d "${2:-{\}}" "$BASE_URL/api/auth/$1" || echo 000
+}
+cookie() { awk '$6 == "mc_rt" { print $3 " " $7 }' "$1" | tail -1; }
+bff_run="smokebff$(date +%s)$RANDOM"
+reg=$(bff register "$(printf '{"email":"%s@example.com","password":"smoke-test-pw","displayName":"Smoke"}' "$bff_run")")
+first=$(cookie "$jar"); cp "$jar" "$old_jar"
+ref=$(bff refresh); second=$(cookie "$jar")
+cp "$old_jar" "$jar"; replay=$(bff refresh); third=$(cookie "$jar")
+if [[ "$reg" == "200" && "${first%% *}" == "/api/auth" && "$ref" == "200" && -n "$second" && "$second" != "$first" \
+      && "$replay" == "200" && -n "$third" && "$third" != "$first" ]]; then
+  echo "ok   auth cookie: register → refresh rotates → replay within grace (via $BASE_URL)"
+else
+  echo "FAIL auth cookie: register $reg, cookie '${first%% *}', refresh $ref, replay $replay"; fail=1
+fi
+bff logout >/dev/null
+out=$(bff refresh)
+if [[ "$out" == "401" ]]; then echo "ok   401 refresh after logout"; else echo "FAIL refresh after logout → $out (want 401)"; fail=1; fi
+
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
   -d '{"query":"{ shopsForMap { slug lat lng } popularCoffees(limit: 1) { id } }"}') || body=""
 pins=$(grep -o '"lat":[0-9.-]*' <<<"$body" | wc -l || true)

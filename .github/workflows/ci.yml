@@ -98,3 +98,24 @@ jobs:
       - run: cp .env.example .env && docker compose config --quiet
       - name: Project brief stays short and structured
         run: ./scripts/check_brief.sh
+
+  stack:
+    name: Full stack (docker compose up + smoke.sh through nginx)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start every service
+        run: |
+          cp .env.example .env
+          docker compose up --build -d --wait --wait-timeout 300
+      - name: Smoke test via http://localhost
+        run: ./scripts/smoke.sh
+      - name: Service status and logs (on failure)
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --tail=80
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

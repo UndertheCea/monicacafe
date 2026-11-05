@@ -1362,6 +1362,8 @@ input UpdateCoffeeInput {
   processingMethodId: ID
   roastLevel: RoastLevel
   flavorNotes: [String!]
+  # true removes the variety (it's optional). Can't be combined with varietyId.
+  clearVariety: Boolean
 }
 
 input VariantInput {
@@ -9529,7 +9531,7 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -9585,6 +9587,13 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.FlavorNotes = data
+		case "clearVariety":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearVariety"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearVariety = data
 		}
 	}
 

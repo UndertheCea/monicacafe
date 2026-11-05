@@ -243,6 +243,8 @@ input UpdateCoffeeInput {
   processingMethodId: ID
   roastLevel: RoastLevel
   flavorNotes: [String!]
+  # true removes the variety (it's optional). Can't be combined with varietyId.
+  clearVariety: Boolean
 }
 
 input VariantInput {

@@ -114,6 +114,7 @@ type UpdateCoffeeInput struct {
 	ProcessingMethodID *string     `json:"processingMethodId,omitempty"`
 	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
+	ClearVariety       *bool       `json:"clearVariety,omitempty"`
 }
 
 type UpdateShopInput struct {

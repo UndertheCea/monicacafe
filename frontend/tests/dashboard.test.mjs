@@ -2,6 +2,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  coffeeDetailsPatch,
+  coffeeDetailsProblem,
   normaliseShopSlug,
   parseFlavorNotes,
   parseWhole,
@@ -71,4 +73,52 @@ test("variantProblems", () => {
     [4, "stock"],
     [5, "duplicate"],
   ]);
+});
+
+const ROASTS = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
+const baseCoffee = {
+  name: "Kochere",
+  description: "Floral",
+  originCountryId: "o1",
+  processingMethodId: "p1",
+  varietyId: "v1",
+  roastLevel: "LIGHT",
+  flavorNotes: ["Jasmine", "Peach"],
+};
+
+test("coffeeDetailsProblem", () => {
+  const cases = [
+    [{}, null],
+    [{ name: "  " }, "required"],
+    [{ originCountryId: "" }, "required"],
+    [{ processingMethodId: "" }, "required"],
+    [{ roastLevel: "BURNT" }, "required"],
+    [{ varietyId: null }, null],
+    [{ name: "咖".repeat(121) }, "required"],
+    [{ flavorNotes: Array.from({ length: 11 }, (_, i) => `n${i}`) }, "notes"],
+    [{ flavorNotes: ["香".repeat(31)] }, "notes"],
+    [{ flavorNotes: ["香".repeat(30)] }, null],
+  ];
+  for (const [patch, want] of cases) {
+    assert.equal(coffeeDetailsProblem({ ...baseCoffee, ...patch }, ROASTS), want, JSON.stringify(patch));
+  }
+});
+
+test("coffeeDetailsPatch sends only changed fields", () => {
+  const cases = [
+    [{}, {}],
+    [{ name: " Kochere " }, {}],
+    [{ name: "Kochere G1" }, { name: "Kochere G1" }],
+    [{ description: "Floral and bright" }, { description: "Floral and bright" }],
+    [{ roastLevel: "MEDIUM", originCountryId: "o2" }, { roastLevel: "MEDIUM", originCountryId: "o2" }],
+    [{ varietyId: "v2" }, { varietyId: "v2" }],
+    [{ varietyId: null }, { clearVariety: true }],
+    [{ flavorNotes: ["Peach", "Jasmine"] }, { flavorNotes: ["Peach", "Jasmine"] }],
+    [{ flavorNotes: [] }, { flavorNotes: [] }],
+  ];
+  for (const [patch, want] of cases) {
+    assert.deepEqual(coffeeDetailsPatch(baseCoffee, { ...baseCoffee, ...patch }), want, JSON.stringify(patch));
+  }
+  // Setting a variety on a coffee that had none.
+  assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, varietyId: null }, { ...baseCoffee, varietyId: "v1" }), { varietyId: "v1" });
 });

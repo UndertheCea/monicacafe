@@ -100,14 +100,44 @@ export const CREATE_COFFEE = typed<
 export interface EditableCoffee {
   id: string;
   name: string;
+  description: string;
+  originCountry: { id: string };
+  processingMethod: { id: string };
+  variety: { id: string } | null;
+  roastLevel: RoastLevel;
+  flavorNotes: string[];
+  imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
   variants: DashboardVariant[];
 }
 
+const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
+  roastLevel flavorNotes imageUrls isPublished shop { id }`;
+
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
-    coffee(id: $id) { id name isPublished shop { id } variants { ${VARIANT_FIELDS} } }
+    coffee(id: $id) { ${EDITABLE_COFFEE_FIELDS} variants { ${VARIANT_FIELDS} } }
+  }
+`);
+
+export interface UpdateCoffeeInput {
+  name?: string;
+  description?: string;
+  originCountryId?: string;
+  processingMethodId?: string;
+  varietyId?: string;
+  clearVariety?: boolean;
+  roastLevel?: string;
+  flavorNotes?: string[];
+}
+
+export const UPDATE_COFFEE = typed<
+  { updateCoffee: Omit<EditableCoffee, "variants"> },
+  { id: string; input: UpdateCoffeeInput }
+>(/* GraphQL */ `
+  mutation UpdateCoffee($id: ID!, $input: UpdateCoffeeInput!) {
+    updateCoffee(id: $id, input: $input) { ${EDITABLE_COFFEE_FIELDS} }
   }
 `);
 

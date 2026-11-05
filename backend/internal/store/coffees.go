@@ -185,6 +185,7 @@ type UpdateCoffeeParams struct {
 	ProcessingMethodID *string
 	RoastLevel         *string
 	FlavorNotes        []string // nil = unchanged; empty slice clears
+	ClearVariety       bool     // true sets variety_id to NULL (VarietyID must be nil)
 }
 
 // UpdateCoffee applies a partial update.
@@ -195,7 +196,7 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				name                 = COALESCE($2, name),
 				description          = COALESCE($3, description),
 				origin_country_id    = COALESCE($4, origin_country_id),
-				variety_id           = COALESCE($5, variety_id),
+				variety_id           = CASE WHEN $9 THEN NULL ELSE COALESCE($5, variety_id) END,
 				processing_method_id = COALESCE($6, processing_method_id),
 				roast_level          = COALESCE($7::roast_level, roast_level),
 				flavor_notes         = COALESCE($8, flavor_notes)
@@ -204,7 +205,7 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
-		p.RoastLevel, p.FlavorNotes))
+		p.RoastLevel, p.FlavorNotes, p.ClearVariety))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

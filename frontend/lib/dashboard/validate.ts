@@ -83,3 +83,58 @@ export function variantProblems(rows: VariantDraft[]): Map<number, VariantProble
   });
   return out;
 }
+
+// ── Coffee details (shared by the new-coffee and edit-coffee forms) ─────────
+
+/** A coffee's editable text fields. `varietyId` is null when none is set. */
+export interface CoffeeDetails {
+  name: string;
+  description: string;
+  originCountryId: string;
+  processingMethodId: string;
+  varietyId: string | null;
+  roastLevel: string;
+  flavorNotes: string[];
+}
+
+export type CoffeeDetailsProblem = "required" | "notes";
+
+/** First problem with a coffee's details, or null. Mirrors the backend checks. */
+export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly string[]): CoffeeDetailsProblem | null {
+  const name = d.name.trim();
+  if (!name || !d.originCountryId || !d.processingMethodId || !roastLevels.includes(d.roastLevel)) return "required";
+  if (runes(name) > LIMITS.coffeeName || runes(d.description.trim()) > LIMITS.coffeeDescription) return "required";
+  if (d.flavorNotes.length > LIMITS.flavorNotes || d.flavorNotes.some((n) => runes(n) > LIMITS.flavorNote)) return "notes";
+  return null;
+}
+
+/** The `updateCoffee` input for the fields that changed (empty object = nothing to save). */
+export interface CoffeeDetailsPatch {
+  name?: string;
+  description?: string;
+  originCountryId?: string;
+  processingMethodId?: string;
+  varietyId?: string;
+  clearVariety?: boolean;
+  roastLevel?: string;
+  flavorNotes?: string[];
+}
+
+export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails): CoffeeDetailsPatch {
+  const p: CoffeeDetailsPatch = {};
+  const name = after.name.trim();
+  const description = after.description.trim();
+  if (name !== before.name) p.name = name;
+  if (description !== before.description) p.description = description;
+  if (after.originCountryId !== before.originCountryId) p.originCountryId = after.originCountryId;
+  if (after.processingMethodId !== before.processingMethodId) p.processingMethodId = after.processingMethodId;
+  if (after.roastLevel !== before.roastLevel) p.roastLevel = after.roastLevel;
+  if (after.varietyId !== before.varietyId) {
+    if (after.varietyId) p.varietyId = after.varietyId;
+    else p.clearVariety = true;
+  }
+  const sameNotes =
+    after.flavorNotes.length === before.flavorNotes.length && after.flavorNotes.every((n, i) => n === before.flavorNotes[i]);
+  if (!sameNotes) p.flavorNotes = after.flavorNotes;
+  return p;
+}

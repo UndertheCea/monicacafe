@@ -380,6 +380,12 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	p.OriginCountryID, p.VarietyID, p.ProcessingMethodID = input.OriginCountryID, input.VarietyID, input.ProcessingMethodID
+	if input.ClearVariety != nil && *input.ClearVariety {
+		if input.VarietyID != nil {
+			return nil, errBadInput("clearVariety", "clearVariety can't be combined with varietyId")
+		}
+		p.ClearVariety = true
+	}
 	if p.FlavorNotes, err = cleanFlavorNotes(input.FlavorNotes); err != nil {
 		return nil, err
 	}

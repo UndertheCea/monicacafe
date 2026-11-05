@@ -304,6 +304,21 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatalf("update not applied: %+v", upd)
 	}
 
+	// clearVariety removes the optional variety; combining it with varietyId is rejected.
+	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!, $v: ID!) { updateCoffee(id: $id, input: {varietyId: $v, clearVariety: true}) { id } }`,
+		map[string]any{"id": co.ID, "v": refs.CoffeeVarieties[0].ID})
+	var cleared struct {
+		UpdateCoffee struct {
+			Name    string
+			Variety *struct{ ID string }
+		}
+	}
+	seller.mustDo(`mutation($id: ID!) { updateCoffee(id: $id, input: {clearVariety: true}) { name variety { id } } }`,
+		map[string]any{"id": co.ID}, &cleared)
+	if cleared.UpdateCoffee.Variety != nil || cleared.UpdateCoffee.Name != "Kochere G1" {
+		t.Fatalf("clearVariety not applied (or clobbered other fields): %+v", cleared)
+	}
+
 	// ── Browse & filter ─────────────────────────────────────────────────────
 	type listing struct {
 		Coffees struct {

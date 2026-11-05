@@ -254,11 +254,23 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
   no horizontal scroll at 390px. OSM tile requests are blocked in the build sandbox (grey map background there), so
   tile rendering itself was not visually verified. Full `docker compose up` was not re-run this session
 
+### Branch consolidation
+Five other scheduled runs had built this same iteration on separate `claude/focused-mendel-*` branches from the
+same master commit. This branch keeps its own map/home implementation and adds the useful parts of the others:
+- **CI** (`.github/workflows/ci.yml`, from `-4ft3fu`): backend gofmt / build / vet / `go test -race` with Postgres 17
+  + migrations + seed; frontend `npm ci` + `tsc --noEmit` + build; `docker compose config`
+- **Next.js 15.3.9 → 15.5.29** (from `-h73xwl`): clears the critical `npm audit` advisory; wildcard
+  `images.remotePatterns` removed (open image proxy, GHSA-9g9p-9gw9-jx7f; nothing uses `next/image` yet).
+  `package-lock.json` re-synced; plain `npm ci` used to fail
+- **Migration 003** (from `-8b57gy`): lat/lng range CHECKs on `shops`, NaN rejected
+- Discarded as duplicates: the other map / home pages, smoke scripts and shop-pin queries
+  (`-1xy7di`, `-6mkm6y` and the rest of `-4ft3fu`, `-8b57gy`, `-h73xwl`)
+- Remaining `npm audit`: 7 moderate, 2 high (sharp/libvips, eslint tooling). None critical
+
 ### Decisions / deferred
 - No CSP header yet; when one is added it must allow `img-src https://tile.openstreetmap.org`
 - OSM's public tile server is fine for a demo but its usage policy disallows heavy production traffic — switch to
   a tile provider (or self-hosted tiles) before launch
-- Next.js `npm audit` advisories unchanged (need the Next 16 upgrade)
 
 ---
 
@@ -267,7 +279,7 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 | Component | Status |
 |-----------|--------|
 | Repo scaffold & Docker Compose | Done — `docker compose up` verified (iteration 4) |
-| PostgreSQL schema / migrations | Done (001, 002) |
+| PostgreSQL schema / migrations | Done (001–003) |
 | Go data layer (store) | Done |
 | GraphQL API (Stage 1 queries + mutations) | Done |
 | JWT auth (register / login / refresh / logout) | Done |
@@ -287,7 +299,7 @@ Dropped: `producers` table, USD prices, Stripe references from previous scaffold
 2. Frontend auth: login / register pages, token storage + refresh, then the add-comment form on `/coffees/[id]`
 3. Seller dashboard: create shop, add / edit coffees + variants, publish / unpublish
 4. File uploads (S3-compatible) for logo / banner / coffee images; then tighten `images.remotePatterns`
-5. Next 16 upgrade to clear the remaining `npm audit` advisories
+5. Make the scheduled routine start from the latest master so runs stop duplicating each other
 
 ---
 

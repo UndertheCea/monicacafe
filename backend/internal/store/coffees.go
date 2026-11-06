@@ -58,6 +58,8 @@ type CoffeeFilter struct {
 	FlavorNote         *string
 	MinPriceTWD        *int64
 	MaxPriceTWD        *int64
+	// InStock keeps only coffees with an available variant that has stock.
+	InStock bool
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -106,6 +108,9 @@ func (f CoffeeFilter) where() (string, []any) {
 		}
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND "+
 			strings.Join(priceConds, " AND ")+")")
+	}
+	if f.InStock {
+		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")
 	}
 	if len(conds) == 0 {
 		return "", args

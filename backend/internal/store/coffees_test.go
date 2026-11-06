@@ -107,6 +107,20 @@ func TestListCoffeesSort(t *testing.T) {
 				return fmt.Errorf("sort %q: page 2 disagrees with the full list (%v)", tc.sort, err)
 			}
 		}
+		// InStock drops c (its only variant has no stock); d's available variant keeps it.
+		inStock := f
+		inStock.InStock = true
+		cs, total, err := tx.ListCoffees(ctx, inStock, store.SortPriceAsc, 10, 0)
+		if err != nil {
+			return err
+		}
+		var got []string
+		for _, c := range cs {
+			got = append(got, ids[c.ID])
+		}
+		if total != 3 || !slices.Equal(got, []string{"b", "a", "d"}) {
+			return fmt.Errorf("in stock: got %v (total %d), want b a d", got, total)
+		}
 		return errRollback
 	})
 	if !errors.Is(err, errRollback) {

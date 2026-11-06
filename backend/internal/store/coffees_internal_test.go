@@ -35,3 +35,29 @@ func TestCoffeeSortOrderBy(t *testing.T) {
 		})
 	}
 }
+
+func TestCoffeeFilterWhere(t *testing.T) {
+	id, lo := "x", int64(100)
+	const stock = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
+	cases := []struct {
+		name     string
+		f        CoffeeFilter
+		want     string
+		wantArgs int
+	}{
+		{"published only by default", CoffeeFilter{}, " WHERE c.is_published", 0},
+		{"drafts included, nothing else", CoffeeFilter{IncludeUnpublished: true}, "", 0},
+		{"in stock", CoffeeFilter{InStock: true}, " WHERE c.is_published AND " + stock, 0},
+		{"shop + in stock", CoffeeFilter{ShopID: &id, InStock: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND " + stock, 1},
+		{"min price keeps its own in-stock check", CoffeeFilter{MinPriceTWD: &lo, IncludeUnpublished: true},
+			" WHERE EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= $1)", 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, args := tc.f.where()
+			if got != tc.want || len(args) != tc.wantArgs {
+				t.Errorf("where() = %q (%d args), want %q (%d args)", got, len(args), tc.want, tc.wantArgs)
+			}
+		})
+	}
+}

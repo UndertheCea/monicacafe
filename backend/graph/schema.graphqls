@@ -337,6 +337,8 @@ input CoffeeFilter {
   flavorNote: String
   minPriceTwd: Int
   maxPriceTwd: Int
+  # true: only coffees with at least one available, in-stock variant.
+  inStock: Boolean
 }
 
 input AddCommentInput {

@@ -1,5 +1,5 @@
 import { ROAST_LEVELS, type CoffeeFilter, type RoastLevel } from "./api";
-import { parseSortParam, type SortParam } from "./coffeeQuery";
+import { parseInStockParam, parseSortParam, type SortParam } from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -26,6 +26,7 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sor
     flavorNote: one(sp.flavor),
     minPriceTwd: wholeNTD(one(sp.min)),
     maxPriceTwd: wholeNTD(one(sp.max)),
+    inStock: parseInStockParam(sp.instock) || undefined,
   };
   // Drop undefined keys so the GraphQL variables stay minimal.
   for (const k of Object.keys(filter) as (keyof CoffeeFilter)[]) {

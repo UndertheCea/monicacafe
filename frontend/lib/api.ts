@@ -31,6 +31,7 @@ export interface CoffeeFilter {
   flavorNote?: string;
   minPriceTwd?: number;
   maxPriceTwd?: number;
+  inStock?: boolean;
 }
 
 export interface CoffeeCardData {

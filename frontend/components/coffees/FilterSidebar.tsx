@@ -145,6 +145,17 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         </div>
       </fieldset>
 
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700">
+        <input
+          type="checkbox"
+          name="instock"
+          value="1"
+          defaultChecked={filter.inStock === true}
+          className="h-4 w-4 accent-amber-600"
+        />
+        {t(locale, "filter.inStock")}
+      </label>
+
       <div className="flex gap-2">
         <button
           type="submit"

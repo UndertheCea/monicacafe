@@ -584,6 +584,7 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		v := int64(*f.MaxPriceTwd)
 		out.MaxPriceTWD = &v
 	}
+	out.InStock = f.InStock != nil && *f.InStock
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")
 	}

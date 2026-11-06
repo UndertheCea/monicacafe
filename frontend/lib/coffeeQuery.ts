@@ -24,3 +24,9 @@ export function parseSortParam(v: string | string[] | undefined): SortParam {
 export function sortForApi(p: SortParam): CoffeeSort {
   return TO_API[p];
 }
+
+/** `?instock=1` (the sidebar checkbox) → true; anything else → no restriction. */
+export function parseInStockParam(v: string | string[] | undefined): boolean {
+  const s = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase();
+  return s === "1" || s === "true" || s === "on";
+}

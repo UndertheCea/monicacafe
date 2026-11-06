@@ -127,6 +127,15 @@ func TestStoreFilter(t *testing.T) {
 	if err != nil || f.FlavorNote != nil || f.IncludeUnpublished {
 		t.Fatalf("unexpected filter %+v %v", f, err)
 	}
+	for _, tc := range []struct {
+		in   *bool
+		want bool
+	}{{nil, false}, {boolPtr(false), false}, {boolPtr(true), true}} {
+		f, err := storeFilter(&model.CoffeeFilter{InStock: tc.in})
+		if err != nil || f.InStock != tc.want {
+			t.Errorf("inStock %v: got %v, %v", tc.in, f.InStock, err)
+		}
+	}
 }
 
 func TestStoreSort(t *testing.T) {
@@ -283,3 +292,4 @@ func TestValidatePasswordChange(t *testing.T) {
 		}
 	}
 }
+func boolPtr(v bool) *bool { return &v }

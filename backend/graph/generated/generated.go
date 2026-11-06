@@ -1574,6 +1574,8 @@ input CoffeeFilter {
   flavorNote: String
   minPriceTwd: Int
   maxPriceTwd: Int
+  # true: only coffees with at least one available, in-stock variant.
+  inStock: Boolean
 }
 
 input AddCommentInput {
@@ -10203,7 +10205,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "minPriceTwd", "maxPriceTwd"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "minPriceTwd", "maxPriceTwd", "inStock"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10259,6 +10261,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.MaxPriceTwd = data
+		case "inStock":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("inStock"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.InStock = data
 		}
 	}
 

@@ -7,6 +7,8 @@ import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { shareMetadata } from "@/lib/seo";
+import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
@@ -30,9 +32,20 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const shop = await loadShop(slug, parsePage(sp));
+    const page = parsePage(sp);
+    const shop = await loadShop(slug, page);
     if (!shop) return { title: t(locale, "shops.notFound") };
-    return { title: shop.name, description: shop.description.slice(0, 160) };
+    return {
+      title: shop.name,
+      ...shareMetadata({
+        base: siteBase(process.env.SITE_URL),
+        path: `/shops/${shop.slug}${page > 1 ? `?page=${page}` : ""}`,
+        title: shop.name,
+        description: shop.description,
+        images: [shop.bannerUrl, shop.logoUrl],
+        locale,
+      }),
+    };
   } catch {
     return { title: t(locale, "shops.title") };
   }

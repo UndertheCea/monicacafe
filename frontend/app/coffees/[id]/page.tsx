@@ -6,6 +6,8 @@ import { COFFEE, isUUID } from "@/lib/api";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { shareMetadata } from "@/lib/seo";
+import { siteBase } from "@/lib/sitemap";
 import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { CommentList } from "@/components/coffees/CommentList";
 import { ErrorState } from "@/components/ErrorState";
@@ -23,7 +25,19 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   try {
     const c = await loadCoffee(id);
     if (!c) return { title: t(locale, "coffee.notFound") };
-    return { title: `${c.name} · ${c.shop.name}`, description: c.description.slice(0, 160) };
+    const title = `${c.name} · ${c.shop.name}`;
+    return {
+      title,
+      ...shareMetadata({
+        base: siteBase(process.env.SITE_URL),
+        path: `/coffees/${c.id}`,
+        title,
+        description: c.description,
+        images: [c.imageUrls[0], c.shop.logoUrl],
+        locale,
+        type: "article",
+      }),
+    };
   } catch {
     return { title: t(locale, "coffees.title") };
   }

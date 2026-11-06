@@ -73,6 +73,25 @@ fi
 check_status "$BASE_URL/coffees/00000000-0000-4000-8000-00000000dead" 404
 check_status "$BASE_URL/__no-such-page__" 404
 
+# nginx (#64): text responses are gzipped when the client asks; the Server
+# header carries no version. Skipped when BASE_URL bypasses nginx.
+if [[ "$BASE_URL" == "$API_URL" ]]; then
+  gz_check() { # label curl-args...
+    local label=$1 hdrs; shift
+    hdrs=$(curl -s -o /dev/null -D - --max-time 15 -H 'Accept-Encoding: gzip' "$@") || hdrs=""
+    if grep -qi '^content-encoding: gzip' <<<"$hdrs" && grep -qi '^vary:.*accept-encoding' <<<"$hdrs"; then
+      echo "ok   gzip $label"
+    else
+      echo "FAIL $label not gzipped: $(grep -i '^content-\(encoding\|type\)' <<<"$hdrs" | tr -d '\r' | tr '\n' ' ')"; fail=1
+    fi
+  }
+  gz_check "/coffees (HTML)" "$BASE_URL/coffees"
+  gz_check "/graphql (JSON)" "$BASE_URL/graphql" -H 'Content-Type: application/json' \
+    -d '{"query":"{ originCountries { id nameEn nameZh region } processingMethods { id nameEn nameZh description } }"}'
+  server=$(curl -s -o /dev/null -D - --max-time 15 "$BASE_URL/robots.txt" | grep -i '^server:' | tr -d '\r' || true)
+  if [[ "$server" =~ [0-9] ]]; then echo "FAIL server version exposed: $server"; fail=1; else echo "ok   no server version (${server:-no Server header})"; fi
+fi
+
 robots=$(curl -s --max-time 15 "$BASE_URL/robots.txt") || robots=""
 if [[ "$robots" == *"Sitemap:"*"/sitemap.xml"* ]]; then echo "ok   robots.txt → sitemap"; else echo "FAIL robots.txt: ${robots:0:200}"; fail=1; fi
 

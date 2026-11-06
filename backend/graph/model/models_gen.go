@@ -51,6 +51,11 @@ type CoffeeVariety struct {
 	Description *string `json:"description,omitempty"`
 }
 
+type CommentConnection struct {
+	Nodes []*Comment `json:"nodes"`
+	Total int        `json:"total"`
+}
+
 type CreateCoffeeInput struct {
 	Name               string          `json:"name"`
 	Description        string          `json:"description"`

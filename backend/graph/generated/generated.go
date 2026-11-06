@@ -90,9 +90,15 @@ type ComplexityRoot struct {
 
 	Comment struct {
 		Body      func(childComplexity int) int
+		Coffee    func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
 		User      func(childComplexity int) int
+	}
+
+	CommentConnection struct {
+		Nodes func(childComplexity int) int
+		Total func(childComplexity int) int
 	}
 
 	ImageUpload struct {
@@ -153,18 +159,19 @@ type ComplexityRoot struct {
 	}
 
 	Shop struct {
-		BannerURL   func(childComplexity int) int
-		City        func(childComplexity int) int
-		CoffeeCount func(childComplexity int) int
-		Coffees     func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
-		CreatedAt   func(childComplexity int) int
-		Description func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Lat         func(childComplexity int) int
-		Lng         func(childComplexity int) int
-		LogoURL     func(childComplexity int) int
-		Name        func(childComplexity int) int
-		Slug        func(childComplexity int) int
+		BannerURL      func(childComplexity int) int
+		City           func(childComplexity int) int
+		CoffeeCount    func(childComplexity int) int
+		Coffees        func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
+		CreatedAt      func(childComplexity int) int
+		Description    func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Lat            func(childComplexity int) int
+		Lng            func(childComplexity int) int
+		LogoURL        func(childComplexity int) int
+		Name           func(childComplexity int) int
+		RecentComments func(childComplexity int, limit *int, offset *int) int
+		Slug           func(childComplexity int) int
 	}
 
 	ShopConnection struct {
@@ -218,6 +225,8 @@ type CoffeeResolver interface {
 }
 type CommentResolver interface {
 	User(ctx context.Context, obj *model.Comment) (*model.User, error)
+
+	Coffee(ctx context.Context, obj *model.Comment) (*model.Coffee, error)
 }
 type MutationResolver interface {
 	Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error)
@@ -256,6 +265,7 @@ type QueryResolver interface {
 type ShopResolver interface {
 	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 	CoffeeCount(ctx context.Context, obj *model.Shop) (int, error)
+	RecentComments(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CommentConnection, error)
 }
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
@@ -462,6 +472,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Comment.Body(childComplexity), true
 
+	case "Comment.coffee":
+		if e.complexity.Comment.Coffee == nil {
+			break
+		}
+
+		return e.complexity.Comment.Coffee(childComplexity), true
+
 	case "Comment.createdAt":
 		if e.complexity.Comment.CreatedAt == nil {
 			break
@@ -482,6 +499,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Comment.User(childComplexity), true
+
+	case "CommentConnection.nodes":
+		if e.complexity.CommentConnection.Nodes == nil {
+			break
+		}
+
+		return e.complexity.CommentConnection.Nodes(childComplexity), true
+
+	case "CommentConnection.total":
+		if e.complexity.CommentConnection.Total == nil {
+			break
+		}
+
+		return e.complexity.CommentConnection.Total(childComplexity), true
 
 	case "ImageUpload.expiresAt":
 		if e.complexity.ImageUpload.ExpiresAt == nil {
@@ -979,6 +1010,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Shop.Name(childComplexity), true
 
+	case "Shop.recentComments":
+		if e.complexity.Shop.RecentComments == nil {
+			break
+		}
+
+		args, err := ec.field_Shop_recentComments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Shop.RecentComments(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+
 	case "Shop.slug":
 		if e.complexity.Shop.Slug == nil {
 			break
@@ -1369,6 +1412,10 @@ type Shop {
   coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
+  # Newest-first comments on all of this shop's coffees (drafts included).
+  # Only the shop's owner or an admin: UNAUTHENTICATED when signed out,
+  # FORBIDDEN for anyone else.
+  recentComments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
 }
 
@@ -1504,7 +1551,15 @@ type Comment {
   id: ID!
   user: User!
   body: String!
+  # The coffee commented on; null when the viewer can't see it (a draft of
+  # someone else's shop).
+  coffee: Coffee
   createdAt: Time!
+}
+
+type CommentConnection {
+  nodes: [Comment!]!
+  total: Int!
 }
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -2710,6 +2765,57 @@ func (ec *executionContext) field_Shop_coffees_argsOffset(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Shop_recentComments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Shop_recentComments_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := ec.field_Shop_recentComments_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Shop_recentComments_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Shop_recentComments_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["offset"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3081,6 +3187,8 @@ func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field gr
 				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "coffeeCount":
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -3614,6 +3722,8 @@ func (ec *executionContext) fieldContext_Coffee_comments(ctx context.Context, fi
 				return ec.fieldContext_Comment_user(ctx, field)
 			case "body":
 				return ec.fieldContext_Comment_body(ctx, field)
+			case "coffee":
+				return ec.fieldContext_Comment_coffee(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Comment_createdAt(ctx, field)
 			}
@@ -4163,6 +4273,81 @@ func (ec *executionContext) fieldContext_Comment_body(_ context.Context, field g
 	return fc, nil
 }
 
+func (ec *executionContext) _Comment_coffee(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_coffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Comment().Coffee(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalOCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Comment_coffee(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Comment",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Comment_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Comment_createdAt(ctx, field)
 	if err != nil {
@@ -4202,6 +4387,106 @@ func (ec *executionContext) fieldContext_Comment_createdAt(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CommentConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.CommentConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CommentConnection_nodes(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Nodes, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Comment)
+	fc.Result = res
+	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CommentConnection_nodes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CommentConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Comment_id(ctx, field)
+			case "user":
+				return ec.fieldContext_Comment_user(ctx, field)
+			case "body":
+				return ec.fieldContext_Comment_body(ctx, field)
+			case "coffee":
+				return ec.fieldContext_Comment_coffee(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Comment_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CommentConnection_total(ctx context.Context, field graphql.CollectedField, obj *model.CommentConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CommentConnection_total(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Total, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CommentConnection_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CommentConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4815,6 +5100,8 @@ func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context
 				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "coffeeCount":
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -4896,6 +5183,8 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "coffeeCount":
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -5719,6 +6008,8 @@ func (ec *executionContext) fieldContext_Mutation_addComment(ctx context.Context
 				return ec.fieldContext_Comment_user(ctx, field)
 			case "body":
 				return ec.fieldContext_Comment_body(ctx, field)
+			case "coffee":
+				return ec.fieldContext_Comment_coffee(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Comment_createdAt(ctx, field)
 			}
@@ -6256,6 +6547,8 @@ func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field g
 				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "coffeeCount":
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -7411,6 +7704,67 @@ func (ec *executionContext) fieldContext_Shop_coffeeCount(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Shop_recentComments(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_recentComments(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Shop().RecentComments(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CommentConnection)
+	fc.Result = res
+	return ec.marshalNCommentConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_recentComments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_CommentConnection_nodes(ctx, field)
+			case "total":
+				return ec.fieldContext_CommentConnection_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CommentConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Shop_recentComments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Shop_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Shop_createdAt(ctx, field)
 	if err != nil {
@@ -7516,6 +7870,8 @@ func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context,
 				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "coffeeCount":
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -8146,6 +8502,8 @@ func (ec *executionContext) fieldContext_User_shop(_ context.Context, field grap
 				return ec.fieldContext_Shop_coffees(ctx, field)
 			case "coffeeCount":
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -11612,10 +11970,87 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "coffee":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Comment_coffee(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "createdAt":
 			out.Values[i] = ec._Comment_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var commentConnectionImplementors = []string{"CommentConnection"}
+
+func (ec *executionContext) _CommentConnection(ctx context.Context, sel ast.SelectionSet, obj *model.CommentConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, commentConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CommentConnection")
+		case "nodes":
+			out.Values[i] = ec._CommentConnection_nodes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._CommentConnection_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -12332,6 +12767,42 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Shop_coffeeCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "recentComments":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Shop_recentComments(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -13273,6 +13744,20 @@ func (ec *executionContext) marshalNComment2ᚖgithubᚗcomᚋundertheceaᚋmoni
 		return graphql.Null
 	}
 	return ec._Comment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCommentConnection2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentConnection(ctx context.Context, sel ast.SelectionSet, v model.CommentConnection) graphql.Marshaler {
+	return ec._CommentConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCommentConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentConnection(ctx context.Context, sel ast.SelectionSet, v *model.CommentConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CommentConnection(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNCreateCoffeeInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCreateCoffeeInput(ctx context.Context, v any) (model.CreateCoffeeInput, error) {

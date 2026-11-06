@@ -48,6 +48,24 @@ func (s *Store) CoffeeByID(ctx context.Context, id string) (*Coffee, error) {
 	return scanCoffee(s.db.QueryRow(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = $1`, id))
 }
 
+// CoffeesByIDs batch-loads coffees (drafts included; callers check
+// visibility). Missing IDs are absent from the map.
+func (s *Store) CoffeesByIDs(ctx context.Context, ids []string) (map[string]*Coffee, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = ANY($1::uuid[])`, ids)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	cs, err := collectCoffees(rows)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*Coffee, len(cs))
+	for _, c := range cs {
+		out[c.ID] = c
+	}
+	return out, nil
+}
+
 // CoffeeFilter narrows a coffee listing. Nil fields are ignored.
 type CoffeeFilter struct {
 	ShopID             *string

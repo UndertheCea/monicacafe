@@ -109,6 +109,10 @@ type Shop {
   coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
+  # Newest-first comments on all of this shop's coffees (drafts included).
+  # Only the shop's owner or an admin: UNAUTHENTICATED when signed out,
+  # FORBIDDEN for anyone else.
+  recentComments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
 }
 
@@ -244,7 +248,15 @@ type Comment {
   id: ID!
   user: User!
   body: String!
+  # The coffee commented on; null when the viewer can't see it (a draft of
+  # someone else's shop).
+  coffee: Coffee
   createdAt: Time!
+}
+
+type CommentConnection {
+  nodes: [Comment!]!
+  total: Int!
 }
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────

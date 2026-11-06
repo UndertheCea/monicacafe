@@ -164,6 +164,14 @@ func toComment(c *store.Comment) *model.Comment {
 	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt}
 }
 
+func toComments(cs []*store.Comment) []*model.Comment {
+	out := make([]*model.Comment, len(cs))
+	for i, c := range cs {
+		out[i] = toComment(c)
+	}
+	return out
+}
+
 // ─── Pagination ───────────────────────────────────────────────────────────────
 
 const (

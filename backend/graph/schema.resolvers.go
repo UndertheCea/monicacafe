@@ -84,11 +84,7 @@ func (r *coffeeResolver) Comments(ctx context.Context, obj *model.Coffee, limit 
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*model.Comment, len(cs))
-	for i, c := range cs {
-		out[i] = toComment(c)
-	}
-	return out, nil
+	return toComments(cs), nil
 }
 
 // CommentCount is the resolver for the commentCount field.
@@ -103,6 +99,24 @@ func (r *commentResolver) User(ctx context.Context, obj *model.Comment) (*model.
 		return nil, fmt.Errorf("load author %s of comment %s: %w", obj.UserID, obj.ID, err)
 	}
 	return toUser(u), nil
+}
+
+// Coffee is the resolver for the coffee field.
+func (r *commentResolver) Coffee(ctx context.Context, obj *model.Comment) (*model.Coffee, error) {
+	co, err := r.loadersFor(ctx).CoffeeByID.Load(ctx, obj.CoffeeID)
+	if err != nil {
+		if isLoaderNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load coffee %s of comment %s: %w", obj.CoffeeID, obj.ID, err)
+	}
+	if !co.IsPublished {
+		ok, err := r.canSeeDrafts(ctx, co.ShopID)
+		if err != nil || !ok {
+			return nil, err
+		}
+	}
+	return toCoffee(co), nil
 }
 
 // Register is the resolver for the register field.
@@ -979,6 +993,23 @@ func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model
 // CoffeeCount is the resolver for the coffeeCount field.
 func (r *shopResolver) CoffeeCount(ctx context.Context, obj *model.Shop) (int, error) {
 	return r.loadersFor(ctx).CoffeeCountByShop.Load(ctx, obj.ID)
+}
+
+// RecentComments is the resolver for the recentComments field.
+func (r *shopResolver) RecentComments(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CommentConnection, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if c.UserID != obj.OwnerID && !isAdmin(c) {
+		return nil, errForbidden("only the shop's owner can list its comments")
+	}
+	l, o := page(limit, offset)
+	cs, total, err := r.Store.CommentsByShop(ctx, obj.ID, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CommentConnection{Nodes: toComments(cs), Total: total}, nil
 }
 
 // Email is the resolver for the email field.

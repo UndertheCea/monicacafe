@@ -521,6 +521,24 @@ func (r *Resolver) validateRefs(ctx context.Context, originID, varietyID, method
 	return nil
 }
 
+// storeSort maps the public sort enum onto the store's (nil = newest first).
+func storeSort(s *model.CoffeeSort) (store.CoffeeSort, error) {
+	if s == nil {
+		return store.SortNewest, nil
+	}
+	switch *s {
+	case model.CoffeeSortNewest:
+		return store.SortNewest, nil
+	case model.CoffeeSortPriceAsc:
+		return store.SortPriceAsc, nil
+	case model.CoffeeSortPriceDesc:
+		return store.SortPriceDesc, nil
+	case model.CoffeeSortMostDiscussed:
+		return store.SortMostDiscussed, nil
+	}
+	return store.SortNewest, errBadInput("sort", "invalid sort")
+}
+
 // storeFilter converts and validates the public coffee filter. Only published
 // coffees are ever returned through it.
 func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {

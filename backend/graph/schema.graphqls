@@ -14,7 +14,8 @@ type Query {
 
   # Coffee browsing
   coffee(id: ID!): Coffee
-  coffees(filter: CoffeeFilter, limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST.
+  coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   popularCoffees(limit: Int): [Coffee!]!
 
   # Curated dropdown data
@@ -139,6 +140,15 @@ type Coffee {
   commentCount: Int!
   isPublished: Boolean!
   createdAt: Time!
+}
+
+# Price sorts use each coffee's lowest available, in-stock variant price;
+# sold-out coffees come last either way. Ties go newest first.
+enum CoffeeSort {
+  NEWEST
+  PRICE_ASC
+  PRICE_DESC
+  MOST_DISCUSSED
 }
 
 type CoffeeConnection {

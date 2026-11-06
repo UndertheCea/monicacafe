@@ -129,6 +129,28 @@ func TestStoreFilter(t *testing.T) {
 	}
 }
 
+func TestStoreSort(t *testing.T) {
+	s := func(v model.CoffeeSort) *model.CoffeeSort { return &v }
+	tests := []struct {
+		in      *model.CoffeeSort
+		want    store.CoffeeSort
+		wantErr bool
+	}{
+		{nil, store.SortNewest, false},
+		{s(model.CoffeeSortNewest), store.SortNewest, false},
+		{s(model.CoffeeSortPriceAsc), store.SortPriceAsc, false},
+		{s(model.CoffeeSortPriceDesc), store.SortPriceDesc, false},
+		{s(model.CoffeeSortMostDiscussed), store.SortMostDiscussed, false},
+		{s("CHEAPEST"), store.SortNewest, true},
+	}
+	for _, tc := range tests {
+		got, err := storeSort(tc.in)
+		if got != tc.want || (err != nil) != tc.wantErr {
+			t.Errorf("storeSort(%v) = %q, %v; want %q, err=%v", tc.in, got, err, tc.want, tc.wantErr)
+		}
+	}
+}
+
 func TestToShopPin(t *testing.T) {
 	f := func(v float64) *float64 { return &v }
 	tests := []struct {

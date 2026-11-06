@@ -113,18 +113,53 @@ func (f CoffeeFilter) where() (string, []any) {
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
 
-// ListCoffees returns a page of coffees (newest first) matching the filter,
-// plus the total number of matches.
-func (s *Store) ListCoffees(ctx context.Context, f CoffeeFilter, limit, offset int) ([]*Coffee, int, error) {
+// CoffeeSort orders a coffee listing. The zero value is SortNewest.
+type CoffeeSort string
+
+const (
+	SortNewest        CoffeeSort = ""
+	SortPriceAsc      CoffeeSort = "PRICE_ASC"
+	SortPriceDesc     CoffeeSort = "PRICE_DESC"
+	SortMostDiscussed CoffeeSort = "MOST_DISCUSSED"
+)
+
+// Lowest price among a coffee's available, in-stock variants (what the card
+// shows as "from NT$…"); NULL when it's sold out.
+const fromPriceJoin = ` LEFT JOIN LATERAL (SELECT min(v.price_twd) AS p FROM variants v
+		WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) fp ON true`
+
+const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id) cc ON true`
+
+// orderBy returns the extra join a sort needs and its ORDER BY list. Every
+// order ends on newest-then-id so offset paging is stable; sold-out coffees
+// go last in both price directions. Unknown values sort newest first.
+func (s CoffeeSort) orderBy() (join, order string) {
+	const tail = "c.created_at DESC, c.id"
+	switch s {
+	case SortPriceAsc:
+		return fromPriceJoin, "fp.p ASC NULLS LAST, " + tail
+	case SortPriceDesc:
+		return fromPriceJoin, "fp.p DESC NULLS LAST, " + tail
+	case SortMostDiscussed:
+		return commentCountJoin, "cc.n DESC, " + tail
+	default:
+		return "", tail
+	}
+}
+
+// ListCoffees returns a page of coffees matching the filter in the given
+// order, plus the total number of matches.
+func (s *Store) ListCoffees(ctx context.Context, f CoffeeFilter, sort CoffeeSort, limit, offset int) ([]*Coffee, int, error) {
 	where, args := f.where()
 	var total int
 	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees c`+where, args...).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)
 	}
+	join, order := sort.orderBy()
 	n := len(args)
 	args = append(args, limit, offset)
-	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM coffees c%s
-		ORDER BY c.created_at DESC, c.id LIMIT $%d OFFSET $%d`, coffeeColumns, where, n+1, n+2), args...)
+	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM coffees c%s%s
+		ORDER BY %s LIMIT $%d OFFSET $%d`, coffeeColumns, join, where, order, n+1, n+2), args...)
 	if err != nil {
 		return nil, 0, mapErr(err)
 	}

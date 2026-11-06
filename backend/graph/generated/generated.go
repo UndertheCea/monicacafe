@@ -1610,6 +1610,10 @@ input CoffeeFilter {
   processingMethodId: ID
   roastLevel: RoastLevel
   flavorNote: String
+  # Keywords (≤ 100 characters, ≤ 8 words). Every word must appear in the
+  # coffee's name, description, a flavor note, the shop name, or the origin /
+  # variety / process name (zh or en). Case-insensitive; blank is ignored.
+  search: String
   minPriceTwd: Int
   maxPriceTwd: Int
   # true: only coffees with at least one available, in-stock variant.
@@ -10485,7 +10489,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "minPriceTwd", "maxPriceTwd", "inStock"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -10527,6 +10531,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.FlavorNote = data
+		case "search":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("search"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Search = data
 		case "minPriceTwd":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minPriceTwd"))
 			data, err := ec.unmarshalOInt2ᚖint(ctx, v)

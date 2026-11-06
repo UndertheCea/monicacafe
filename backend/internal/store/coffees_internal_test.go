@@ -61,3 +61,19 @@ func TestCoffeeFilterWhere(t *testing.T) {
 		})
 	}
 }
+
+func TestLikePattern(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"geisha", "%geisha%"},
+		{"耶加雪菲", "%耶加雪菲%"},
+		{"100%", `%100\%%`},
+		{"a_b", `%a\_b%`},
+		{`c:\x`, `%c:\\x%`},
+		{`\%`, `%\\\%%`},
+	}
+	for _, tc := range cases {
+		if got := LikePattern(tc.in); got != tc.want {
+			t.Errorf("LikePattern(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}

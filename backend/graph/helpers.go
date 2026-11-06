@@ -568,6 +568,35 @@ func storeShopSort(s *model.ShopSort) (store.ShopSort, error) {
 	return store.ShopSortNewest, errBadInput("sort", "invalid sort")
 }
 
+const (
+	maxSearchLen   = 100
+	maxSearchTerms = 8
+)
+
+// searchTerms splits a search string into its whitespace-separated words
+// (nil for a blank one). Duplicates are dropped case-insensitively; the caps
+// keep a query from turning into dozens of ILIKE scans.
+func searchTerms(s string) ([]string, error) {
+	s = strings.TrimSpace(s)
+	if utf8.RuneCountInString(s) > maxSearchLen {
+		return nil, errBadInput("search", fmt.Sprintf("search must be at most %d characters", maxSearchLen))
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, w := range strings.Fields(s) {
+		k := strings.ToLower(w)
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, w)
+	}
+	if len(out) > maxSearchTerms {
+		return nil, errBadInput("search", fmt.Sprintf("search may have at most %d words", maxSearchTerms))
+	}
+	return out, nil
+}
+
 // storeFilter converts and validates the public coffee filter. Only published
 // coffees are ever returned through it.
 func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
@@ -598,6 +627,13 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		if note := strings.TrimSpace(*f.FlavorNote); note != "" {
 			out.FlavorNote = &note
 		}
+	}
+	if f.Search != nil {
+		terms, err := searchTerms(*f.Search)
+		if err != nil {
+			return out, err
+		}
+		out.SearchTerms = terms
 	}
 	if f.MinPriceTwd != nil {
 		if *f.MinPriceTwd < 0 {

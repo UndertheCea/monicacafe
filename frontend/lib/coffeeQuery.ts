@@ -46,3 +46,9 @@ export function parseSearchParam(v: string | string[] | undefined): string | und
   const s = [...words.join(" ")].slice(0, SEARCH_MAX_CHARS).join("").trim();
   return s || undefined;
 }
+
+/** Where the header search goes: /coffees?q=… (just /coffees for a blank search). */
+export function searchHref(q: string | undefined): string {
+  const s = parseSearchParam(q);
+  return s ? `/coffees?${new URLSearchParams({ q: s })}` : "/coffees";
+}

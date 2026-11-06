@@ -7,6 +7,7 @@ import {
   parseInStockParam,
   parseSearchParam,
   parseSortParam,
+  searchHref,
   sortForApi,
 } from "../lib/coffeeQuery.ts";
 
@@ -59,4 +60,12 @@ test("parseSearchParam trims, collapses and caps the search", () => {
   assert.equal(parseSearchParam("咖".repeat(150)), "咖".repeat(SEARCH_MAX_CHARS));
   assert.equal([...parseSearchParam("☕".repeat(120))].length, SEARCH_MAX_CHARS);
   assert.equal(parseSearchParam("a".repeat(99) + " bcd"), "a".repeat(99));
+});
+
+test("searchHref builds the header search target", () => {
+  assert.equal(searchHref(undefined), "/coffees");
+  assert.equal(searchHref("   "), "/coffees");
+  assert.equal(searchHref(" geisha "), "/coffees?q=geisha");
+  assert.equal(searchHref("耶加雪菲 淺焙"), "/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2+%E6%B7%BA%E7%84%99");
+  assert.equal(searchHref("100% & a=b"), "/coffees?q=100%25+%26+a%3Db");
 });

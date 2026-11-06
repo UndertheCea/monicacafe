@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { AccountMenu } from "./auth/AccountMenu";
+import { HeaderSearch, HeaderSearchForm } from "./HeaderSearch";
 import { LanguageToggle } from "./LanguageToggle";
 
 export function SiteHeader({ locale }: { locale: Locale }) {
@@ -21,6 +23,9 @@ export function SiteHeader({ locale }: { locale: Locale }) {
           <Link href="/map" className="hover:text-amber-700">
             {t(locale, "nav.map")}
           </Link>
+          <Suspense fallback={<HeaderSearchForm locale={locale} />}>
+            <HeaderSearch locale={locale} />
+          </Suspense>
           <LanguageToggle locale={locale} />
           <AccountMenu locale={locale} />
         </nav>

@@ -236,3 +236,8 @@ export const CREATE_IMAGE_UPLOAD = typed<
 export const DELETE_COFFEE = typed<{ deleteCoffee: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteCoffee($id: ID!) { deleteCoffee(id: $id) }
 `);
+
+/** Copies a coffee into a new draft (no photos, no comments). */
+export const DUPLICATE_COFFEE = typed<{ duplicateCoffee: { id: string } }, { id: string; name?: string }>(/* GraphQL */ `
+  mutation DuplicateCoffee($id: ID!, $name: String) { duplicateCoffee(id: $id, name: $name) { id } }
+`);

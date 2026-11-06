@@ -12,6 +12,7 @@ import { formatTWD } from "@/lib/utils";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
+import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
@@ -200,6 +201,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     >
                       {t(locale, c.isPublished ? "dash.unpublish" : "dash.publish")}
                     </button>
+                    <DuplicateCoffeeButton coffeeId={c.id} name={c.name} locale={locale} />
                     {!c.isPublished && (
                       <DeleteCoffeeButton
                         coffeeId={c.id}

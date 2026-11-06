@@ -51,6 +51,10 @@ type Mutation {
   # Drafts only: a published coffee must be unpublished first, so public links
   # never vanish silently. Variants and comments are deleted with it.
   deleteCoffee(id: ID!): Boolean!
+  # Copies a coffee you own into a new draft: details, flavour notes and options
+  # (with price, stock and availability). Photos and comments are not copied.
+  # name defaults to the original name + " (copy)".
+  duplicateCoffee(id: ID!, name: String): Coffee!
 
   # Image uploads (seller). Returns a short-lived presigned PUT URL; after the
   # PUT succeeds, save publicUrl via updateShop (logoUrl / bannerUrl) or

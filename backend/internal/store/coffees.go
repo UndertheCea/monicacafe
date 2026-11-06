@@ -216,6 +216,34 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes))
 }
 
+// DuplicateCoffee copies coffee srcID into a new draft in the same shop with
+// the given name and slug: details, flavour notes and every variant (grind,
+// weight, price, stock, availability). Photos are not copied (their URLs are
+// scoped to the source coffee) and neither are comments. Run it in a
+// transaction so a half-copied coffee can't be left behind.
+func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (*Coffee, error) {
+	co, err := scanCoffee(s.db.QueryRow(ctx, `
+		WITH c AS (
+			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
+				processing_method_id, roast_level, flavor_notes)
+			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
+				processing_method_id, roast_level, flavor_notes
+			FROM coffees WHERE id = $1
+			RETURNING *
+		)
+		SELECT `+coffeeColumns+` FROM c`, srcID, name, slug))
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.db.Exec(ctx, `
+		INSERT INTO variants (coffee_id, grind, weight_g, price_twd, stock, is_available)
+		SELECT $2, grind, weight_g, price_twd, stock, is_available
+		FROM variants WHERE coffee_id = $1`, srcID, co.ID); err != nil {
+		return nil, mapErr(err)
+	}
+	return co, nil
+}
+
 // UpdateCoffeeParams holds optional coffee fields; nil means "leave unchanged".
 type UpdateCoffeeParams struct {
 	Name               *string

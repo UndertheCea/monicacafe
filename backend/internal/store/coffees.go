@@ -48,6 +48,24 @@ func (s *Store) CoffeeByID(ctx context.Context, id string) (*Coffee, error) {
 	return scanCoffee(s.db.QueryRow(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = $1`, id))
 }
 
+// CoffeesByIDs batch-loads coffees (drafts included; callers check
+// visibility). Missing IDs are absent from the map.
+func (s *Store) CoffeesByIDs(ctx context.Context, ids []string) (map[string]*Coffee, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = ANY($1::uuid[])`, ids)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	cs, err := collectCoffees(rows)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]*Coffee, len(cs))
+	for _, c := range cs {
+		out[c.ID] = c
+	}
+	return out, nil
+}
+
 // CoffeeFilter narrows a coffee listing. Nil fields are ignored.
 type CoffeeFilter struct {
 	ShopID             *string
@@ -56,8 +74,12 @@ type CoffeeFilter struct {
 	ProcessingMethodID *string
 	RoastLevel         *string
 	FlavorNote         *string
-	MinPriceTWD        *int64
-	MaxPriceTWD        *int64
+	// SearchTerms: every term must appear (case-insensitive substring) in the
+	// coffee's name, description, a flavor note, its shop's name, or its
+	// origin / variety / process names. Terms are matched literally.
+	SearchTerms []string
+	MinPriceTWD *int64
+	MaxPriceTWD *int64
 	// InStock keeps only coffees with an available variant that has stock.
 	InStock bool
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
@@ -95,6 +117,9 @@ func (f CoffeeFilter) where() (string, []any) {
 		// Case-insensitive exact match on any flavor note.
 		add("EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE lower(n) = lower($%d))", *f.FlavorNote)
 	}
+	for _, term := range f.SearchTerms {
+		add(searchCond, LikePattern(term))
+	}
 	if f.MinPriceTWD != nil || f.MaxPriceTWD != nil {
 		// A coffee matches when at least one in-stock, available variant is within range.
 		var priceConds []string
@@ -117,6 +142,24 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
+
+// searchCond matches one search term (a LIKE pattern, $N) against every text
+// a buyer might type: names in both languages, notes, the shop.
+const searchCond = `(c.name ILIKE $%[1]d OR c.description ILIKE $%[1]d
+		OR EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE n ILIKE $%[1]d)
+		OR EXISTS (SELECT 1 FROM shops s WHERE s.id = c.shop_id AND s.name ILIKE $%[1]d)
+		OR EXISTS (SELECT 1 FROM origin_countries o WHERE o.id = c.origin_country_id AND (o.name_en ILIKE $%[1]d OR o.name_zh ILIKE $%[1]d))
+		OR EXISTS (SELECT 1 FROM coffee_varieties cv WHERE cv.id = c.variety_id AND cv.name ILIKE $%[1]d)
+		OR EXISTS (SELECT 1 FROM processing_methods pm WHERE pm.id = c.processing_method_id AND (pm.name_en ILIKE $%[1]d OR pm.name_zh ILIKE $%[1]d)))`
+
+// LikePattern turns a search term into a LIKE pattern that matches it as a
+// literal substring: the wildcards % and _ and the escape character \ are
+// escaped (Postgres' default LIKE escape is a backslash).
+func LikePattern(term string) string {
+	return "%" + likeEscaper.Replace(term) + "%"
+}
+
+var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // CoffeeSort orders a coffee listing. The zero value is SortNewest.
 type CoffeeSort string

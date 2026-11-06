@@ -80,3 +80,38 @@ func (s *Store) CommentCountsByCoffeeIDs(ctx context.Context, coffeeIDs []string
 	}
 	return out, mapErr(rows.Err())
 }
+
+// CommentsByShop lists a page of the comments on every coffee of a shop
+// (drafts included), newest first, plus the total.
+func (s *Store) CommentsByShop(ctx context.Context, shopID string, limit, offset int) ([]*Comment, int, error) {
+	return s.commentPage(ctx, `FROM comments cm JOIN coffees c ON c.id = cm.coffee_id WHERE c.shop_id = $1`, shopID, limit, offset)
+}
+
+// commentPage runs a newest-first, offset-paged comment listing over `from`
+// (a FROM … WHERE clause aliasing comments as cm, with one parameter $1).
+func (s *Store) commentPage(ctx context.Context, from string, arg any, limit, offset int) ([]*Comment, int, error) {
+	var total int
+	if err := s.db.QueryRow(ctx, `SELECT count(*) `+from, arg).Scan(&total); err != nil {
+		return nil, 0, mapErr(err)
+	}
+	rows, err := s.db.Query(ctx, `SELECT cm.id, cm.user_id, cm.coffee_id, cm.body, cm.created_at `+from+`
+		ORDER BY cm.created_at DESC, cm.id LIMIT $2 OFFSET $3`, arg, limit, offset)
+	if err != nil {
+		return nil, 0, mapErr(err)
+	}
+	defer rows.Close()
+	out := []*Comment{}
+	for rows.Next() {
+		c, err := scanComment(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		out = append(out, c)
+	}
+	return out, total, mapErr(rows.Err())
+}
+
+// CommentsByUser lists a page of a user's comments, newest first, plus the total.
+func (s *Store) CommentsByUser(ctx context.Context, userID string, limit, offset int) ([]*Comment, int, error) {
+	return s.commentPage(ctx, `FROM comments cm WHERE cm.user_id = $1`, userID, limit, offset)
+}

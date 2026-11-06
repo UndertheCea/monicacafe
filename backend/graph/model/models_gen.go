@@ -39,6 +39,7 @@ type CoffeeFilter struct {
 	ProcessingMethodID *string     `json:"processingMethodId,omitempty"`
 	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	FlavorNote         *string     `json:"flavorNote,omitempty"`
+	Search             *string     `json:"search,omitempty"`
 	MinPriceTwd        *int        `json:"minPriceTwd,omitempty"`
 	MaxPriceTwd        *int        `json:"maxPriceTwd,omitempty"`
 	InStock            *bool       `json:"inStock,omitempty"`
@@ -48,6 +49,11 @@ type CoffeeVariety struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
+}
+
+type CommentConnection struct {
+	Nodes []*Comment `json:"nodes"`
+	Total int        `json:"total"`
 }
 
 type CreateCoffeeInput struct {

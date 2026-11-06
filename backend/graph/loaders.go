@@ -15,6 +15,7 @@ import (
 type Loaders struct {
 	UserByID             *dataloadgen.Loader[string, *store.User]
 	ShopByID             *dataloadgen.Loader[string, *store.Shop]
+	CoffeeByID           *dataloadgen.Loader[string, *store.Coffee]
 	VariantsByCoffeeID   *dataloadgen.Loader[string, []*store.Variant]
 	CommentCountByCoffee *dataloadgen.Loader[string, int]
 	CoffeeCountByShop    *dataloadgen.Loader[string, int]
@@ -27,8 +28,9 @@ const loaderWait = 2 * time.Millisecond
 // NewLoaders builds a fresh set of request-scoped loaders.
 func NewLoaders(st *store.Store) *Loaders {
 	return &Loaders{
-		UserByID: dataloadgen.NewMappedLoader(st.UsersByIDs, dataloadgen.WithWait(loaderWait)),
-		ShopByID: dataloadgen.NewMappedLoader(st.ShopsByIDs, dataloadgen.WithWait(loaderWait)),
+		UserByID:   dataloadgen.NewMappedLoader(st.UsersByIDs, dataloadgen.WithWait(loaderWait)),
+		ShopByID:   dataloadgen.NewMappedLoader(st.ShopsByIDs, dataloadgen.WithWait(loaderWait)),
+		CoffeeByID: dataloadgen.NewMappedLoader(st.CoffeesByIDs, dataloadgen.WithWait(loaderWait)),
 		VariantsByCoffeeID: dataloadgen.NewLoader(func(ctx context.Context, ids []string) ([][]*store.Variant, []error) {
 			m, err := st.VariantsByCoffeeIDs(ctx, ids)
 			out := make([][]*store.Variant, len(ids))

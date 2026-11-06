@@ -6,7 +6,7 @@ import {
   type OriginCountry,
   type ProcessingMethod,
 } from "@/lib/api";
-import { SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
+import { SEARCH_MAX_CHARS, SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 
 interface Props {
@@ -31,6 +31,18 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
   return (
     <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
       <h2 className="text-base font-bold text-stone-900">{t(locale, "filter.title")}</h2>
+
+      <label className="block">
+        <span className={labelCls}>{t(locale, "filter.search")}</span>
+        <input
+          type="search"
+          name="q"
+          defaultValue={filter.search ?? ""}
+          placeholder={t(locale, "filter.searchPlaceholder")}
+          maxLength={SEARCH_MAX_CHARS}
+          className={fieldCls}
+        />
+      </label>
 
       <label className="block">
         <span className={labelCls}>{t(locale, "sort.label")}</span>

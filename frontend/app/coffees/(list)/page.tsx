@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { COFFEES, FILTER_OPTIONS } from "@/lib/api";
-import { PAGE_SIZE, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
+import Link from "next/link";
+import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { sortForApi } from "@/lib/coffeeQuery";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
@@ -33,6 +34,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
   const { options, list } = data;
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
+  const q = filter.search;
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-10">
@@ -54,12 +56,21 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
         </aside>
 
         <section aria-live="polite">
+          {q && <h2 className="mb-1 text-lg font-semibold text-stone-900">{t(locale, "coffees.results", { q })}</h2>}
           <p className="mb-4 text-sm text-stone-500">{t(locale, "coffees.count", { n: list.total })}</p>
 
           {list.nodes.length === 0 ? (
-            <p className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
-              {t(locale, "coffees.empty")}
-            </p>
+            <div className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+              <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
+              {q && (
+                <Link
+                  href={pageHref({ ...sp, q: undefined }, 1)}
+                  className="mt-4 inline-block text-sm font-semibold text-amber-700 hover:underline"
+                >
+                  {t(locale, "coffees.clearSearch")}
+                </Link>
+              )}
+            </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {list.nodes.map((c) => (

@@ -30,6 +30,8 @@ export interface CoffeeFilter {
   processingMethodId?: string;
   roastLevel?: RoastLevel;
   flavorNote?: string;
+  /** Keywords; every word must match (see CoffeeFilter.search in the schema). */
+  search?: string;
   minPriceTwd?: number;
   maxPriceTwd?: number;
   inStock?: boolean;

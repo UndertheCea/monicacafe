@@ -1,7 +1,7 @@
 // Comment paging helpers (lib/comments.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { COMMENTS_PAGE, appendComments, hasMoreComments } from "../lib/comments.ts";
+import { COMMENTS_PAGE, COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withoutComment } from "../lib/comments.ts";
 
 test("appendComments keeps order and drops ids already shown", () => {
   const cases = [
@@ -26,4 +26,25 @@ test("hasMoreComments: more to fetch only while short of the total and the last 
   for (const [name, shown, total, last, want] of cases) {
     assert.equal(hasMoreComments(shown, total, last), want, name);
   }
+});
+
+test("hasMoreComments takes the list's own page size", () => {
+  assert.equal(hasMoreComments(COMMENT_LIST_PAGE, 15, COMMENT_LIST_PAGE, COMMENT_LIST_PAGE), true);
+  assert.equal(hasMoreComments(COMMENT_LIST_PAGE, 15, COMMENT_LIST_PAGE), false, "default page size is COMMENTS_PAGE");
+  assert.equal(hasMoreComments(15, 15, 5, COMMENT_LIST_PAGE), false);
+});
+
+test("commentCoffeeHref links published coffees publicly and drafts to the preview", () => {
+  assert.equal(commentCoffeeHref({ id: "abc", isPublished: true }), "/coffees/abc");
+  assert.equal(commentCoffeeHref({ id: "abc", isPublished: false }), "/dashboard/coffees/abc/preview");
+  assert.equal(commentCoffeeHref({ id: "a/b?c", isPublished: true }), "/coffees/a%2Fb%3Fc");
+  assert.equal(commentCoffeeHref(null), null);
+  assert.equal(commentCoffeeHref(undefined), null);
+});
+
+test("withoutComment drops the row and its count once", () => {
+  const page = { total: 12, nodes: [{ id: "a" }, { id: "b" }] };
+  assert.deepEqual(withoutComment(page, "a"), { total: 11, nodes: [{ id: "b" }] });
+  assert.deepEqual(withoutComment(page, "zzz"), page, "unknown id: unchanged");
+  assert.deepEqual(withoutComment({ total: 0, nodes: [{ id: "a" }] }, "a"), { total: 0, nodes: [] }, "never negative");
 });

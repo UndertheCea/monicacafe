@@ -30,3 +30,25 @@ export function parseInStockParam(v: string | string[] | undefined): boolean {
   const s = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase();
   return s === "1" || s === "true" || s === "on";
 }
+
+/** Longest search the API accepts (characters) and most words it matches. */
+export const SEARCH_MAX_CHARS = 100;
+export const SEARCH_MAX_WORDS = 8;
+
+/**
+ * `?q=` → the API's `filter.search`: whitespace collapsed, at most
+ * SEARCH_MAX_WORDS words and SEARCH_MAX_CHARS characters (code points, like
+ * the API counts), so a long paste narrows the search instead of erroring.
+ * Blank → undefined.
+ */
+export function parseSearchParam(v: string | string[] | undefined): string | undefined {
+  const words = ((Array.isArray(v) ? v[0] : v) ?? "").split(/\s+/).filter(Boolean).slice(0, SEARCH_MAX_WORDS);
+  const s = [...words.join(" ")].slice(0, SEARCH_MAX_CHARS).join("").trim();
+  return s || undefined;
+}
+
+/** Where the header search goes: /coffees?q=… (just /coffees for a blank search). */
+export function searchHref(q: string | undefined): string {
+  const s = parseSearchParam(q);
+  return s ? `/coffees?${new URLSearchParams({ q: s })}` : "/coffees";
+}

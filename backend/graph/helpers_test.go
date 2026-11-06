@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -136,6 +137,39 @@ func TestStoreFilter(t *testing.T) {
 		if err != nil || f.InStock != tc.want {
 			t.Errorf("inStock %v: got %v, %v", tc.in, f.InStock, err)
 		}
+	}
+}
+
+func TestSearchTerms(t *testing.T) {
+	cases := []struct {
+		in      string
+		want    []string
+		wantErr bool
+	}{
+		{"", nil, false},
+		{"   ", nil, false},
+		{"geisha", []string{"geisha"}, false},
+		{"  耶加雪菲   Geisha\t淺焙 ", []string{"耶加雪菲", "Geisha", "淺焙"}, false},
+		{"Geisha geisha GEISHA", []string{"Geisha"}, false},
+		{"100% a_b", []string{"100%", "a_b"}, false},
+		{"a b c d e f g h", []string{"a", "b", "c", "d", "e", "f", "g", "h"}, false},
+		{"a b c d e f g h i", nil, true},
+		{strings.Repeat("咖", 100), []string{strings.Repeat("咖", 100)}, false},
+		{strings.Repeat("咖", 101), nil, true},
+	}
+	for _, tc := range cases {
+		got, err := searchTerms(tc.in)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("searchTerms(%q) error %v, wantErr %v", tc.in, err, tc.wantErr)
+			continue
+		}
+		if !tc.wantErr && !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("searchTerms(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+	f, err := storeFilter(&model.CoffeeFilter{Search: strPtr(" a  b ")})
+	if err != nil || !reflect.DeepEqual(f.SearchTerms, []string{"a", "b"}) {
+		t.Errorf("storeFilter search: %+v %v", f.SearchTerms, err)
 	}
 }
 
@@ -339,3 +373,4 @@ func TestCopyName(t *testing.T) {
 		})
 	}
 }
+func strPtr(v string) *string { return &v }

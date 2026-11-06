@@ -241,3 +241,36 @@ export const DELETE_COFFEE = typed<{ deleteCoffee: boolean }, { id: string }>(/*
 export const DUPLICATE_COFFEE = typed<{ duplicateCoffee: { id: string } }, { id: string; name?: string }>(/* GraphQL */ `
   mutation DuplicateCoffee($id: ID!, $name: String) { duplicateCoffee(id: $id, name: $name) { id } }
 `);
+
+/** A comment in a cross-coffee list (dashboard "Recent comments", /account "My comments"). */
+export interface ListedComment {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: { id: string; displayName: string };
+  /** null when the API hides the coffee from this viewer (someone else's draft). */
+  coffee: { id: string; name: string; isPublished: boolean } | null;
+}
+
+export type CommentPage = { total: number; nodes: ListedComment[] };
+
+export const LISTED_COMMENT_FIELDS = `id body createdAt user { id displayName } coffee { id name isPublished }`;
+
+/** A page of comments across the signed-in seller's coffees, newest first (owner-only). */
+export const MY_SHOP_COMMENTS = typed<
+  { me: { id: string; shop: { id: string; recentComments: CommentPage } | null } | null },
+  { limit: number; offset: number }
+>(/* GraphQL */ `
+  query MyShopComments($limit: Int!, $offset: Int!) {
+    me { id shop { id recentComments(limit: $limit, offset: $offset) { total nodes { ${LISTED_COMMENT_FIELDS} } } } }
+  }
+`);
+
+/** A page of the signed-in user's own comments, newest first (/account). */
+export const MY_COMMENTS = typed<{ me: { id: string; comments: CommentPage } | null }, { limit: number; offset: number }>(
+  /* GraphQL */ `
+    query MyComments($limit: Int!, $offset: Int!) {
+      me { id comments(limit: $limit, offset: $offset) { total nodes { ${LISTED_COMMENT_FIELDS} } } }
+    }
+  `,
+);

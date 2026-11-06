@@ -1,9 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice, inputCls } from "@/components/dashboard/ui";
+import { CommentFeed } from "@/components/CommentFeed";
+import { COMMENT_LIST_PAGE } from "@/lib/comments";
+import { MY_COMMENTS } from "@/lib/dashboard/queries";
 import { cleanDisplayName, passwordChangeProblem, passwordErrorKey } from "@/lib/auth/account";
 import { UPDATE_PROFILE } from "@/lib/auth/session";
 import { rateLimitMessage } from "@/lib/errors";
@@ -36,7 +39,30 @@ export function AccountSettings({ locale }: { locale: Locale }) {
     <div className="space-y-6">
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
+      <MyComments locale={locale} />
     </div>
+  );
+}
+
+function MyComments({ locale }: { locale: Locale }) {
+  const { request } = useAuth();
+  const fetchPage = useCallback(
+    async (offset: number) => {
+      const r = await request(MY_COMMENTS, { limit: COMMENT_LIST_PAGE, offset });
+      if (!r.me) throw new Error("signed out");
+      return r.me.comments;
+    },
+    [request],
+  );
+  return (
+    <CommentFeed
+      locale={locale}
+      id="my-comments"
+      title="account.myComments"
+      empty="account.noComments"
+      showAuthor={false}
+      fetchPage={fetchPage}
+    />
   );
 }
 

@@ -116,7 +116,7 @@ func run() error {
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.ClientIPMiddleware(proxies))
 	r.Use(middleware.AccessLog(slog.Default()))
-	r.Use(chimiddleware.Recoverer)
+	r.Use(middleware.Recover(slog.Default()))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},

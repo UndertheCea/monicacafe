@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { fromPrice } from "@/lib/api";
-import { MY_SHOP, PUBLISH_COFFEE, UNPUBLISH_COFFEE, type DashboardShop } from "@/lib/dashboard/queries";
+import { appendCoffeePage, hasMoreCoffees, withPublished } from "@/lib/dashboard/coffeePages";
+import { MY_SHOP, MY_SHOP_COFFEES, PUBLISH_COFFEE, UNPUBLISH_COFFEE, type DashboardShop } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
@@ -13,18 +14,24 @@ import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
 
-type Load = { state: "loading" } | { state: "error" } | { state: "ready"; shop: DashboardShop | null };
+// lastPage: size of the last coffee page fetched (a short one means the end).
+type Load =
+  | { state: "loading" }
+  | { state: "error" }
+  | { state: "ready"; shop: DashboardShop | null; lastPage: number };
 
 export function Dashboard({ locale }: { locale: Locale }) {
   const { status, request } = useAuth();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [rowError, setRowError] = useState<{ id: string; key: MessageKey } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [more, setMore] = useState<"idle" | "loading" | "error">("idle");
 
   const loadShop = useCallback(async (): Promise<Load> => {
     try {
       const r = await request(MY_SHOP);
-      return { state: "ready", shop: r.me?.shop ?? null };
+      const shop = r.me?.shop ?? null;
+      return { state: "ready", shop, lastPage: shop?.coffees.nodes.length ?? 0 };
     } catch {
       return { state: "error" };
     }
@@ -49,14 +56,19 @@ export function Dashboard({ locale }: { locale: Locale }) {
   if (!load.shop) return <CreateShopForm locale={locale} onCreated={() => void fetchShop()} />;
 
   const shop = load.shop;
+  const lastPage = load.lastPage;
+  const setCoffees = (coffees: DashboardShop["coffees"], last = lastPage) =>
+    setLoad({ state: "ready", shop: { ...shop, coffees }, lastPage: last });
 
   async function toggle(id: string, publish: boolean) {
     setPending(id);
     setRowError(null);
     try {
-      if (publish) await request(PUBLISH_COFFEE, { id });
-      else await request(UNPUBLISH_COFFEE, { id });
-      await fetchShop();
+      // Update the row in place: a refetch would drop rows loaded with "load more".
+      const isPublished = publish
+        ? (await request(PUBLISH_COFFEE, { id })).publishCoffee.isPublished
+        : (await request(UNPUBLISH_COFFEE, { id })).unpublishCoffee.isPublished;
+      setCoffees(withPublished(shop.coffees, id, isPublished));
     } catch (err) {
       const e = toApiError(err);
       setRowError({
@@ -65,6 +77,19 @@ export function Dashboard({ locale }: { locale: Locale }) {
       });
     } finally {
       setPending(null);
+    }
+  }
+
+  async function loadMore() {
+    setMore("loading");
+    try {
+      const r = await request(MY_SHOP_COFFEES, { offset: shop.coffees.nodes.length });
+      const page = r.me?.shop?.coffees;
+      if (!page) throw new Error("shop gone");
+      setCoffees(appendCoffeePage(shop.coffees, page), page.nodes.length);
+      setMore("idle");
+    } catch {
+      setMore("error");
     }
   }
 
@@ -179,9 +204,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       <DeleteCoffeeButton
                         coffeeId={c.id}
                         locale={locale}
-                        onDeleted={() =>
-                          setLoad({ state: "ready", shop: { ...shop, coffees: withoutCoffee(shop.coffees, c.id) } })
-                        }
+                        onDeleted={() => setCoffees(withoutCoffee(shop.coffees, c.id))}
                       />
                     )}
                   </div>
@@ -189,6 +212,22 @@ export function Dashboard({ locale }: { locale: Locale }) {
               );
             })}
           </ul>
+        )}
+
+        {hasMoreCoffees(shop.coffees.nodes.length, shop.coffees.total, lastPage) && (
+          <div className="mt-4 flex flex-col items-center gap-2">
+            {more === "error" && <FormError>{t(locale, "dash.error.generic")}</FormError>}
+            <button
+              type="button"
+              disabled={more === "loading"}
+              onClick={() => void loadMore()}
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500 disabled:opacity-50"
+            >
+              {t(locale, more === "loading" ? "dash.loading" : "dash.moreCoffees", {
+                n: shop.coffees.total - shop.coffees.nodes.length,
+              })}
+            </button>
+          </div>
         )}
       </section>
     </div>

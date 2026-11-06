@@ -1,6 +1,7 @@
 // GraphQL documents for the seller dashboard (all require a signed-in user).
 import type { GrindOption, RoastLevel } from "../api";
 import { typed } from "../graphql";
+import { DASH_COFFEES_PAGE } from "./coffeePages";
 
 export interface DashboardVariant {
   id: string;
@@ -31,18 +32,30 @@ export interface DashboardShop {
 
 const VARIANT_FIELDS = `id grind weightG priceTwd stock isAvailable`;
 
-/** The signed-in seller's shop with every coffee, drafts included (owner-only). */
+const DASHBOARD_COFFEE_FIELDS = `id name isPublished commentCount createdAt variants { ${VARIANT_FIELDS} }`;
+
+/** The signed-in seller's shop with its first page of coffees, drafts included (owner-only). */
 export const MY_SHOP = typed<{ me: { id: string; shop: DashboardShop | null } | null }>(/* GraphQL */ `
   query MyShop {
     me {
       id
       shop {
         id slug name city description
-        coffees(limit: 100) {
-          total
-          nodes { id name isPublished commentCount createdAt variants { ${VARIANT_FIELDS} } }
-        }
+        coffees(limit: ${DASH_COFFEES_PAGE}) { total nodes { ${DASHBOARD_COFFEE_FIELDS} } }
       }
+    }
+  }
+`);
+
+/** A later page of the seller's coffees ("load more" on the dashboard). */
+export const MY_SHOP_COFFEES = typed<
+  { me: { id: string; shop: { id: string; coffees: DashboardShop["coffees"] } | null } | null },
+  { offset: number }
+>(/* GraphQL */ `
+  query MyShopCoffees($offset: Int!) {
+    me {
+      id
+      shop { id coffees(limit: ${DASH_COFFEES_PAGE}, offset: $offset) { total nodes { ${DASHBOARD_COFFEE_FIELDS} } } }
     }
   }
 `);

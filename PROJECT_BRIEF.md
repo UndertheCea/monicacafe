@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-06 (after Session 12)
+Last updated: 2026-11-06 (after Session 13)
 
 ---
 
@@ -33,8 +33,8 @@ takes a commission on each sale).
 | DB schema + migrations 001–005 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — expired tokens pruned hourly |
-| Pages: home, /coffees (+filters, sort, in-stock), /coffees/[id] (+paged comments, more from shop, NT$/100 g), /shops, /shops/[slug] (+sort), /map | Done |
-| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages | Done |
+| Pages: home, /coffees (+filters, sort, in-stock), /coffees/[id] (+paged comments, more from shop, NT$/100 g, photo gallery), /shops (+sort, coffee counts), /shops/[slug] (+sort), /map | Done |
+| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product JSON-LD | Done |
 | /login, /register, account menu, /account (display name, change password) | Done |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location | Done |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
@@ -48,19 +48,20 @@ takes a commission on each sale).
 | Structured JSON access + panic logs (slog, request id + trusted client IP) | Done (#48, #53) |
 | Postgres pool cap + statement timeout from env | Done (#52) |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
+| nginx: gzip for text responses, no server version | Done (#64) |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 12** — still no pickable slices, so six gaps were filed and shipped: DB pool cap + statement timeout
-(#52), JSON panic logs (#53), duplicate a coffee as a new draft (#54), sort on shop pages (#55), price per 100 g
-(#56), dashboard sold-out / low-stock badges (#57). Not run here: full compose + smoke (no Docker; CI `stack`
-job covers it).
+**Session 13** — still no pickable slices, so six gaps were filed and shipped: `Shop.coffeeCount` (#59),
+`shops(sort:)` (#60), counts + sort on /shops (#61), clickable photo gallery (#62), Product JSON-LD (#63), nginx
+gzip + `server_tokens off` (#64). Smoke ran through the real nginx config against local API + Next (all green
+except `/media/`, no SeaweedFS here); `docker compose build` can't reach the Go / npm proxies in this sandbox.
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain; next sessions should file real gaps or wait for #9 / #12
+#12 (commission + payouts). No pickable slices remain after Session 13; next sessions should file real gaps or wait for #9 / #12
 (and #50 for a /shops city filter). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
@@ -117,3 +118,5 @@ Open questions for the owner (answer by commenting on the issue):
 - **Price sort = cheapest available, in-stock variant; sold-out last** — matches the "from NT$…" on cards (#44).
 - **Duplicate copies details + options, never photos or comments** — image keys are scoped to the source coffee,
   so sharing them would let the orphan sweep or a later edit of one break the other (#54).
+- **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
+  `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).

@@ -28,24 +28,3 @@ export function ListSkeleton({ locale, cards = 6 }: { locale: Locale; cards?: nu
     </main>
   );
 }
-
-/** Placeholder for a detail page (image + text column). */
-export function DetailSkeleton({ locale }: { locale: Locale }) {
-  return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
-      <Status locale={locale} />
-      <div aria-hidden>
-        <div className={`${block} h-4 w-24`} />
-        <div className="mt-6 grid gap-8 md:grid-cols-2">
-          <div className={`${block} aspect-square`} />
-          <div className="space-y-4">
-            <div className={`${block} h-9 w-3/4`} />
-            <div className={`${block} h-5 w-1/2`} />
-            <div className={`${block} h-24`} />
-            <div className={`${block} h-12 w-40`} />
-          </div>
-        </div>
-      </div>
-    </main>
-  );
-}

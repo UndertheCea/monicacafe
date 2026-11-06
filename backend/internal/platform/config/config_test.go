@@ -143,3 +143,43 @@ func TestMediaCleanup(t *testing.T) {
 		}
 	}
 }
+
+func TestDBPool(t *testing.T) {
+	tests := []struct {
+		name        string
+		max, tmo    string
+		wantMax     int32
+		wantTimeout time.Duration
+		wantErr     bool
+	}{
+		{"defaults when blank", "", "", 10, 0, false},
+		{"explicit", "25", "10s", 25, 10 * time.Second, false},
+		{"timeout off", "5", "0", 5, 0, false},
+		{"spaces", " 3 ", " 2s ", 3, 2 * time.Second, false},
+		{"zero conns", "0", "10s", 0, 0, true},
+		{"too many conns", "1001", "10s", 0, 0, true},
+		{"not a number", "ten", "10s", 0, 0, true},
+		{"timeout too short", "10", "500ms", 0, 0, true},
+		{"timeout garbage", "10", "soon", 0, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Config{DBMaxConns: tt.max, DBStatementTimeout: tt.tmo}
+			gotMax, gotTimeout, err := c.DBPool()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && (gotMax != tt.wantMax || gotTimeout != tt.wantTimeout) {
+				t.Fatalf("got (%d, %s), want (%d, %s)", gotMax, gotTimeout, tt.wantMax, tt.wantTimeout)
+			}
+			if tt.wantErr && (Config{DBMaxConns: tt.max, DBStatementTimeout: tt.tmo}).Validate() == nil {
+				t.Fatal("Validate should reject it too")
+			}
+		})
+	}
+	t.Setenv("DB_MAX_CONNS", "")
+	t.Setenv("DB_STATEMENT_TIMEOUT", "")
+	if c := Load(); c.DBMaxConns != "10" || c.DBStatementTimeout != "10s" {
+		t.Fatalf("Load defaults = %q / %q, want 10 / 10s", c.DBMaxConns, c.DBStatementTimeout)
+	}
+}

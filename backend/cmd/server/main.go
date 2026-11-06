@@ -54,7 +54,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := db.New(ctx, cfg.DatabaseURL)
+	maxConns, stmtTimeout, _ := cfg.DBPool() // checked by cfg.Validate
+	pool, err := db.New(ctx, cfg.DatabaseURL, db.Options{MaxConns: maxConns, StatementTimeout: stmtTimeout})
 	if err != nil {
 		return err
 	}

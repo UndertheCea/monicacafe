@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-06 (after Session 13)
+Last updated: 2026-11-06 (after Session 14)
 
 ---
 
@@ -33,10 +33,10 @@ takes a commission on each sale).
 | DB schema + migrations 001–005 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — expired tokens pruned hourly |
-| Pages: home, /coffees (+filters, sort, in-stock), /coffees/[id] (+paged comments, more from shop, NT$/100 g, photo gallery), /shops (+sort, coffee counts), /shops/[slug] (+sort), /map | Done |
+| Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, NT$/100 g, photo gallery), /shops (+sort, coffee counts), /shops/[slug] (+sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product JSON-LD | Done |
-| /login, /register, account menu, /account (display name, change password) | Done |
-| Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location | Done |
+| /login, /register, account menu, /account (display name, change password, my comments) | Done |
+| Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location, recent comments | Done |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
 | Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
@@ -53,15 +53,15 @@ takes a commission on each sale).
 
 ## Last session
 
-**Session 13** — still no pickable slices, so six gaps were filed and shipped: `Shop.coffeeCount` (#59),
-`shops(sort:)` (#60), counts + sort on /shops (#61), clickable photo gallery (#62), Product JSON-LD (#63), nginx
-gzip + `server_tokens off` (#64). Smoke ran through the real nginx config against local API + Next (all green
-except `/media/`, no SeaweedFS here); `docker compose build` can't reach the Go / npm proxies in this sandbox.
+**Session 14** — still no pickable slices, so six gaps were filed and shipped: `CoffeeFilter.search` (#66), a
+search box on /coffees (#67) and in the header (#68), `Shop.recentComments` + `Comment.coffee` (#69), a dashboard
+"Recent comments" panel (#70), and "My comments" on /account (#71). Verified with race tests on PostgreSQL,
+Playwright and smoke against a local API + Next (all green except `/media/`, no SeaweedFS here).
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 13; next sessions should file real gaps or wait for #9 / #12
+#12 (commission + payouts). No pickable slices remain after Session 14; next sessions should file real gaps or wait for #9 / #12
 (and #50 for a /shops city filter). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
@@ -118,5 +118,9 @@ Open questions for the owner (answer by commenting on the issue):
 - **Price sort = cheapest available, in-stock variant; sold-out last** — matches the "from NT$…" on cards (#44).
 - **Duplicate copies details + options, never photos or comments** — image keys are scoped to the source coffee,
   so sharing them would let the orphan sweep or a later edit of one break the other (#54).
+- **Keyword search = Postgres ILIKE per word (AND), wildcards escaped** — enough for Stage 1's catalogue with no
+  new infra; Meilisearch (Stage 3) can replace it behind the same `CoffeeFilter.search` field (#66).
+- **`Comment.coffee` is nullable** — a comment can outlive its coffee's publication; non-owners get null rather
+  than a draft (#69). `User.comments` is empty, not an error, for other viewers (#71).
 - **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).

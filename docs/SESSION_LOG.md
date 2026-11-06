@@ -15,6 +15,43 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 14 — 2026-11-06 — Coffee keyword search, seller recent comments, My comments
+PR: (this session's PR into master)
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code.
+
+### Shipped (one line per slice: area — what — key files)
+- #66 backend — `CoffeeFilter.search`: every word must appear (ILIKE substring, `% _ \` escaped by
+  `store.LikePattern`) in name, description, a flavor note, shop name, origin / variety / process (zh + en);
+  > 100 chars or > 8 words → `BAD_USER_INPUT` (`searchTerms` in `graph/helpers.go`)
+- #67 frontend — /coffees search field (`?q=`, `parseSearchParam` collapses + caps to the API limits), results
+  heading, search-specific empty state with "clear search" that keeps other filters
+- #68 frontend — header `role="search"` GET form → `/coffees?q=` (`HeaderSearch`, `searchHref`), works without JS,
+  prefilled on /coffees; hidden below `sm` (the /coffees form covers phones)
+- #69 backend — `Shop.recentComments(limit, offset): CommentConnection!` (owner / admin; drafts included) and
+  `Comment.coffee: Coffee` (nullable; `CoffeeByID` loader; null for someone else's draft)
+- #70 frontend — dashboard "最新留言 / Recent comments" via a shared `CommentFeed` (author, coffee link — public page
+  or draft preview — date, text-only body, load more, delete for your own rows)
+- #71 cross-cutting — `User.comments` (self / admin; empty for others, never an error) + /account "我的留言 / My
+  comments" with delete and load more (`withoutComment`, `commentCoffeeHref` in `lib/comments.ts`)
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestLikePattern`, `TestSearchTerms`, `TestCoffeeSearch`, `TestShopRecentComments`, `TestUserComments`.
+- Frontend: tsc, lint, `npm test` (82), `next build`; `docker compose config`, `check_brief.sh`.
+- Ran the API binary + Next standalone locally; Playwright: header search → /coffees?q= with both fields prefilled,
+  empty state + clear link keeps `roast`, dashboard shows a buyer comment (`<b>` rendered as text), /account lists
+  it and deletes it (empty state after). Only console errors: the existing anonymous `/api/auth/refresh` 401.
+- `scripts/smoke.sh` (with new search checks) against that local stack: all ok except the two `/media/` checks (no
+  SeaweedFS / nginx here). Not run: `docker compose up --build` (Go / npm proxies fail inside the build here).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Search is Postgres ILIKE (no index): fine for the Stage 1 catalogue; Stage 3 swaps in Meilisearch behind the same
+  `CoffeeFilter.search` field.
+- Sellers still can't delete buyers' comments in the new dashboard panel (#42 default); the delete button there
+  only appears on comments the viewer wrote (or for admins).
+
 ## Session 13 — 2026-11-06 — Shop coffee counts + sort, photo gallery, Product JSON-LD, nginx gzip
 PR: (this session's PR into master)
 

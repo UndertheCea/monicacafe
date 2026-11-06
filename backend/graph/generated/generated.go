@@ -155,7 +155,7 @@ type ComplexityRoot struct {
 	Shop struct {
 		BannerURL   func(childComplexity int) int
 		City        func(childComplexity int) int
-		Coffees     func(childComplexity int, limit *int, offset *int) int
+		Coffees     func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt   func(childComplexity int) int
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
@@ -253,7 +253,7 @@ type QueryResolver interface {
 	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
 }
 type ShopResolver interface {
-	Coffees(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CoffeeConnection, error)
+	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 }
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
@@ -919,7 +919,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Shop.Coffees(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Shop.Coffees(childComplexity, args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Shop.createdAt":
 		if e.complexity.Shop.CreatedAt == nil {
@@ -1355,7 +1355,8 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  coffees(limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees).
+  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 
@@ -2592,18 +2593,41 @@ func (ec *executionContext) field_Query_shops_argsOffset(
 func (ec *executionContext) field_Shop_coffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
+	arg0, err := ec.field_Shop_coffees_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg0
-	arg1, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	args["sort"] = arg0
+	arg1, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg1
+	args["limit"] = arg1
+	arg2, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
 	return args, nil
 }
+func (ec *executionContext) field_Shop_coffees_argsSort(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.CoffeeSort, error) {
+	if _, ok := rawArgs["sort"]; !ok {
+		var zeroVal *model.CoffeeSort
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sort"))
+	if tmp, ok := rawArgs["sort"]; ok {
+		return ec.unmarshalOCoffeeSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeSort(ctx, tmp)
+	}
+
+	var zeroVal *model.CoffeeSort
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Shop_coffees_argsLimit(
 	ctx context.Context,
 	rawArgs map[string]any,
@@ -7242,7 +7266,7 @@ func (ec *executionContext) _Shop_coffees(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["sort"].(*model.CoffeeSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

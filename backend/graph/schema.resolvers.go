@@ -954,14 +954,18 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 }
 
 // Coffees is the resolver for the coffees field.
-func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CoffeeConnection, error) {
+func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
 	c := viewer(ctx)
 	f := store.CoffeeFilter{
 		ShopID:             &obj.ID,
 		IncludeUnpublished: c != nil && (c.UserID == obj.OwnerID || isAdmin(c)),
 	}
+	so, err := storeSort(sort)
+	if err != nil {
+		return nil, err
+	}
 	l, o := page(limit, offset)
-	cs, total, err := r.Store.ListCoffees(ctx, f, store.SortNewest, l, o)
+	cs, total, err := r.Store.ListCoffees(ctx, f, so, l, o)
 	if err != nil {
 		return nil, err
 	}

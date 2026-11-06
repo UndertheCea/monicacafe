@@ -104,7 +104,8 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  coffees(limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees).
+  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 

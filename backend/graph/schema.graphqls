@@ -106,6 +106,8 @@ type Shop {
   lng: Float
   # sort defaults to NEWEST (same orders as Query.coffees).
   coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # Published coffees only (drafts are never counted, even for the owner).
+  coffeeCount: Int!
   createdAt: Time!
 }
 

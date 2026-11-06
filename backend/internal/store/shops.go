@@ -121,6 +121,32 @@ func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) 
 	return out, total, mapErr(rows.Err())
 }
 
+// PublishedCoffeeCountsByShopIDs batch-counts published coffees per shop.
+// Shops with none are absent from the map (callers treat that as zero);
+// drafts are never counted, so the number is safe to show publicly.
+func (s *Store) PublishedCoffeeCountsByShopIDs(ctx context.Context, shopIDs []string) (map[string]int, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT shop_id, count(*) FROM coffees
+		WHERE shop_id = ANY($1::uuid[]) AND is_published
+		GROUP BY shop_id`, shopIDs)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := make(map[string]int, len(shopIDs))
+	for rows.Next() {
+		var (
+			id string
+			n  int
+		)
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, mapErr(err)
+		}
+		out[id] = n
+	}
+	return out, mapErr(rows.Err())
+}
+
 // ShopPin is the lightweight projection of a shop used by the map page.
 type ShopPin struct {
 	ID   string

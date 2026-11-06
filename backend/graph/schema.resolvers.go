@@ -972,6 +972,11 @@ func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model
 	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
 }
 
+// CoffeeCount is the resolver for the coffeeCount field.
+func (r *shopResolver) CoffeeCount(ctx context.Context, obj *model.Shop) (int, error) {
+	return r.loadersFor(ctx).CoffeeCountByShop.Load(ctx, obj.ID)
+}
+
 // Email is the resolver for the email field.
 func (r *userResolver) Email(ctx context.Context, obj *model.User) (*string, error) {
 	c := viewer(ctx)

@@ -155,6 +155,7 @@ type ComplexityRoot struct {
 	Shop struct {
 		BannerURL   func(childComplexity int) int
 		City        func(childComplexity int) int
+		CoffeeCount func(childComplexity int) int
 		Coffees     func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt   func(childComplexity int) int
 		Description func(childComplexity int) int
@@ -254,6 +255,7 @@ type QueryResolver interface {
 }
 type ShopResolver interface {
 	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
+	CoffeeCount(ctx context.Context, obj *model.Shop) (int, error)
 }
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
@@ -909,6 +911,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Shop.City(childComplexity), true
 
+	case "Shop.coffeeCount":
+		if e.complexity.Shop.CoffeeCount == nil {
+			break
+		}
+
+		return e.complexity.Shop.CoffeeCount(childComplexity), true
+
 	case "Shop.coffees":
 		if e.complexity.Shop.Coffees == nil {
 			break
@@ -1357,6 +1366,8 @@ type Shop {
   lng: Float
   # sort defaults to NEWEST (same orders as Query.coffees).
   coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # Published coffees only (drafts are never counted, even for the owner).
+  coffeeCount: Int!
   createdAt: Time!
 }
 
@@ -3033,6 +3044,8 @@ func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field gr
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -4765,6 +4778,8 @@ func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -4844,6 +4859,8 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -6202,6 +6219,8 @@ func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field g
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -7313,6 +7332,50 @@ func (ec *executionContext) fieldContext_Shop_coffees(ctx context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Shop_coffeeCount(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_coffeeCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Shop().CoffeeCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_coffeeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Shop_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Shop_createdAt(ctx, field)
 	if err != nil {
@@ -7416,6 +7479,8 @@ func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context,
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -8044,6 +8109,8 @@ func (ec *executionContext) fieldContext_User_shop(_ context.Context, field grap
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -12187,6 +12254,42 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Shop_coffees(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "coffeeCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Shop_coffeeCount(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

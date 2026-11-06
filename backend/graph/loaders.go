@@ -17,6 +17,7 @@ type Loaders struct {
 	ShopByID             *dataloadgen.Loader[string, *store.Shop]
 	VariantsByCoffeeID   *dataloadgen.Loader[string, []*store.Variant]
 	CommentCountByCoffee *dataloadgen.Loader[string, int]
+	CoffeeCountByShop    *dataloadgen.Loader[string, int]
 }
 
 type loadersKey struct{}
@@ -39,17 +40,23 @@ func NewLoaders(st *store.Store) *Loaders {
 			}
 			return out, nil
 		}, dataloadgen.WithWait(loaderWait)),
-		CommentCountByCoffee: dataloadgen.NewLoader(func(ctx context.Context, ids []string) ([]int, []error) {
-			m, err := st.CommentCountsByCoffeeIDs(ctx, ids)
-			out := make([]int, len(ids))
-			if err != nil {
-				return out, fillErr(len(ids), err)
-			}
-			for i, id := range ids {
-				out[i] = m[id]
-			}
-			return out, nil
-		}, dataloadgen.WithWait(loaderWait)),
+		CommentCountByCoffee: dataloadgen.NewLoader(countLoader(st.CommentCountsByCoffeeIDs), dataloadgen.WithWait(loaderWait)),
+		CoffeeCountByShop:    dataloadgen.NewLoader(countLoader(st.PublishedCoffeeCountsByShopIDs), dataloadgen.WithWait(loaderWait)),
+	}
+}
+
+// countLoader adapts a batch count query (absent keys mean zero) to a loader.
+func countLoader(batch func(context.Context, []string) (map[string]int, error)) func(context.Context, []string) ([]int, []error) {
+	return func(ctx context.Context, ids []string) ([]int, []error) {
+		m, err := batch(ctx, ids)
+		out := make([]int, len(ids))
+		if err != nil {
+			return out, fillErr(len(ids), err)
+		}
+		for i, id := range ids {
+			out[i] = m[id]
+		}
+		return out, nil
 	}
 }
 

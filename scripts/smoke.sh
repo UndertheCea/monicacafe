@@ -25,6 +25,17 @@ for path in / /coffees /shops /map /login /register /account /dashboard /dashboa
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
 
+# Content-Security-Policy from frontend/proxy.ts: a fresh nonce per request,
+# and Next puts that same nonce on its own <script> tags.
+csp_page=$(curl -s -D - --max-time 15 "$BASE_URL/") || csp_page=""
+csp_nonce=$(grep -i '^content-security-policy:' <<<"$csp_page" | grep -o "'nonce-[^']*'" | head -1 | sed "s/'nonce-//; s/'//" || true)
+csp_again=$(curl -s -D - -o /dev/null --max-time 15 "$BASE_URL/" | grep -i '^content-security-policy:' | grep -o "'nonce-[^']*'" | head -1 || true)
+if [[ -n "$csp_nonce" && "$csp_page" == *"nonce=\"$csp_nonce\""* && "$csp_again" != "'nonce-$csp_nonce'" ]]; then
+  echo "ok   CSP nonce on / (per request, on Next's scripts)"
+else
+  echo "FAIL CSP nonce: header nonce '${csp_nonce}', second request '${csp_again}'"; fail=1
+fi
+
 # sitemap.xml lists the seeded shops and coffees; robots.txt points at it.
 sitemap=$(curl -s --max-time 15 "$BASE_URL/sitemap.xml") || sitemap=""
 if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* ]]; then

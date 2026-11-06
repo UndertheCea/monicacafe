@@ -11,7 +11,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # GRAPHQL_URL_INTERNAL at runtime instead).
 ARG NEXT_PUBLIC_GRAPHQL_URL=http://localhost/graphql
 ENV NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL}
-# Where uploaded images live; used by the Content-Security-Policy (middleware.ts).
+# Where uploaded images live; used by the Content-Security-Policy (proxy.ts).
 ARG NEXT_PUBLIC_MEDIA_URL=http://localhost/media
 ENV NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
 COPY --from=deps /app/node_modules ./node_modules

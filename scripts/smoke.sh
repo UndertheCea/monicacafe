@@ -170,6 +170,21 @@ else
   echo "ok   graphql ($pins map pins, popular coffees present)"
 fi
 
+# Keyword search (CoffeeFilter.search): the seeded 耶加雪菲 coffee is found by
+# a zh word plus its shop's English name, and /coffees?q= renders the results.
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ coffees(filter: { search: \"耶加雪菲 dawn\" }) { total nodes { id } } }"}') || body=""
+if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-000000000201"'* ]]; then
+  echo "FAIL search: expected the seeded 耶加雪菲 coffee, got: ${body:0:300}"; fail=1
+else
+  echo "ok   graphql search"
+fi
+if curl -s --max-time 15 "$BASE_URL/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2" | grep -q '/coffees/00000000-0000-4000-8000-000000000201'; then
+  echo "ok   /coffees?q= lists the match"
+else
+  echo "FAIL /coffees?q= did not list the seeded match"; fail=1
+fi
+
 # ── Image storage (S3 store behind nginx at /media/) ────────────────────────
 # A missing object must come back from the store as 404 (not nginx's 502/404 page),
 # and listing the bucket must be refused.

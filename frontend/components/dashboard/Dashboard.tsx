@@ -10,6 +10,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
+import { stockStatus } from "@/lib/dashboard/stockStatus";
 import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
@@ -156,6 +157,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       >
                         {t(locale, c.isPublished ? "dash.published" : "dash.draft")}
                       </span>
+                      <StockBadge locale={locale} variants={c.variants} />
                       <span className="truncate font-semibold text-stone-900">{c.name}</span>
                     </div>
                     <p className="mt-1 text-sm text-stone-500">
@@ -234,4 +236,24 @@ export function Dashboard({ locale }: { locale: Locale }) {
       </section>
     </div>
   );
+}
+
+/** "Sold out" / "Low stock (n)" next to a coffee that needs restocking. */
+function StockBadge({ locale, variants }: { locale: Locale; variants: DashboardShop["coffees"]["nodes"][number]["variants"] }) {
+  const s = stockStatus(variants);
+  if (s.kind === "out") {
+    return (
+      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">
+        {t(locale, "dash.stockOut")}
+      </span>
+    );
+  }
+  if (s.kind === "low") {
+    return (
+      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+        {t(locale, "dash.stockLow", { n: s.units })}
+      </span>
+    );
+  }
+  return null;
 }

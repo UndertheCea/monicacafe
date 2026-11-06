@@ -2,6 +2,7 @@
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
 import { COMMENTS_PAGE } from "./comments";
+import type { CoffeeSort } from "./coffeeQuery";
 
 export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
 export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
@@ -61,10 +62,10 @@ export const FILTER_OPTIONS = typed<{
 
 export const COFFEES = typed<
   { coffees: { total: number; nodes: CoffeeCardData[] } },
-  { filter?: CoffeeFilter; limit?: number; offset?: number }
+  { filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Coffees($filter: CoffeeFilter, $limit: Int, $offset: Int) {
-    coffees(filter: $filter, limit: $limit, offset: $offset) {
+  query Coffees($filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int) {
+    coffees(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
       total
       nodes {
         id slug name roastLevel flavorNotes imageUrls commentCount

@@ -6,11 +6,13 @@ import {
   type OriginCountry,
   type ProcessingMethod,
 } from "@/lib/api";
+import { SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 
 interface Props {
   locale: Locale;
   filter: CoffeeFilter;
+  sort: SortParam;
   origins: OriginCountry[];
   varieties: CoffeeVariety[];
   methods: ProcessingMethod[];
@@ -21,7 +23,7 @@ const fieldCls =
 const labelCls = "block text-xs font-semibold uppercase tracking-wide text-stone-500";
 
 // Plain GET form: works without JavaScript and keeps filters in the URL.
-export function FilterSidebar({ locale, filter, origins, varieties, methods }: Props) {
+export function FilterSidebar({ locale, filter, sort, origins, varieties, methods }: Props) {
   // Group origins by region for an <optgroup> per continent.
   const regions = new Map<string, OriginCountry[]>();
   for (const o of origins) regions.set(o.region, [...(regions.get(o.region) ?? []), o]);
@@ -29,6 +31,17 @@ export function FilterSidebar({ locale, filter, origins, varieties, methods }: P
   return (
     <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
       <h2 className="text-base font-bold text-stone-900">{t(locale, "filter.title")}</h2>
+
+      <label className="block">
+        <span className={labelCls}>{t(locale, "sort.label")}</span>
+        <select name="sort" defaultValue={sort} className={fieldCls}>
+          {SORT_PARAMS.map((p) => (
+            <option key={p || "newest"} value={p}>
+              {t(locale, `sort.${p || "newest"}`)}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="block">
         <span className={labelCls}>{t(locale, "filter.origin")}</span>

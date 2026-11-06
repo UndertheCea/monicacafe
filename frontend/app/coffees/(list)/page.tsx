@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { COFFEES, FILTER_OPTIONS } from "@/lib/api";
 import { PAGE_SIZE, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
+import { sortForApi } from "@/lib/coffeeQuery";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -17,13 +18,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const locale = await getLocale();
-  const { filter, page } = parseCoffeeSearch(sp);
+  const { filter, sort, page } = parseCoffeeSearch(sp);
 
   let data;
   try {
     const [options, list] = await Promise.all([
       query(FILTER_OPTIONS),
-      query(COFFEES, { filter, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
+      query(COFFEES, { filter, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     ]);
     data = { options, list: list.coffees };
   } catch (err) {
@@ -45,6 +46,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           <FilterSidebar
             locale={locale}
             filter={filter}
+            sort={sort}
             origins={options.originCountries}
             varieties={options.coffeeVarieties}
             methods={options.processingMethods}

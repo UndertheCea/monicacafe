@@ -497,9 +497,6 @@ func validateCoords(lat, lng *float64) error {
 	return nil
 }
 
-// maxCommentsPerCoffee caps Coffee.comments; clients use commentCount for totals.
-const maxCommentsPerCoffee = 100
-
 // validateRefs checks optional curated reference IDs exist. Nil IDs are skipped.
 func (r *Resolver) validateRefs(ctx context.Context, originID, varietyID, methodID *string) error {
 	refs, err := r.refs.get(ctx)

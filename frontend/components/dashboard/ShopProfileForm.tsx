@@ -44,18 +44,25 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
   const { status, request } = useAuth();
   const [load, setLoad] = useState<Load>({ state: "loading" });
 
-  const fetchShop = useCallback(async () => {
+  const loadShop = useCallback(async (): Promise<Load> => {
     try {
       const r = await request(MY_SHOP_PROFILE);
-      setLoad({ state: "ready", shop: r.me?.shop ?? null });
+      return { state: "ready", shop: r.me?.shop ?? null };
     } catch {
-      setLoad({ state: "error" });
+      return { state: "error" };
     }
   }, [request]);
 
+  // Fetch on sign-in; setState happens in the promise callback, and a stale
+  // response (status changed meanwhile) is dropped.
   useEffect(() => {
-    if (status === "authenticated") void fetchShop();
-  }, [status, fetchShop]);
+    if (status !== "authenticated") return;
+    let live = true;
+    void loadShop().then((l) => live && setLoad(l));
+    return () => {
+      live = false;
+    };
+  }, [status, loadShop]);
 
   if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (status === "anonymous") return <LoginNeeded locale={locale} next="/dashboard/shop" />;

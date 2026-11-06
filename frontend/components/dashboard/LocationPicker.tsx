@@ -29,7 +29,9 @@ export function LocationPicker({
   const markerRef = useRef<import("leaflet").Marker | null>(null);
   const LRef = useRef<typeof import("leaflet") | null>(null);
   const onPickRef = useRef(onPick);
-  onPickRef.current = onPick;
+  useEffect(() => {
+    onPickRef.current = onPick;
+  }, [onPick]);
   const initial = useRef(value);
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
 

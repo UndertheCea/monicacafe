@@ -1,4 +1,4 @@
-// Content-Security-Policy for every page (set by middleware.ts). No imports:
+// Content-Security-Policy for every page (set by proxy.ts). No imports:
 // `node --test` loads this directly.
 
 /** Map tiles used by components/map (OSM for the demo; see question #10). */

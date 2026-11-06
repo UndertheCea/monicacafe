@@ -54,7 +54,7 @@ every `Closes #N` in the PR body) so merging the PR closes the issue. If you sto
 ## Architecture
 
 ```
-browser ──► nginx :80 ──┬─► frontend (Next.js 15, :3000) ──► backend /graphql (server components fetch directly)
+browser ──► nginx :80 ──┬─► frontend (Next.js 16, :3000) ──► backend /graphql (server components fetch directly)
                         │        └─ /api/auth/* route handlers (hold the refresh token in an httpOnly cookie)
                         ├─► backend (Go, :4000) /graphql, /health
                         └─► /media/ ─► S3 store (SeaweedFS :8333 in compose; browsers PUT via presigned URLs)
@@ -76,14 +76,14 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `migrations/NNN_*.sql` | Plain SQL, applied in order by `scripts/initdb.sh`, then `scripts/seed_dev.sql` |
 | `frontend/app/` | App Router pages; `api/auth/[action]` is the auth backend-for-frontend |
 | `frontend/lib/` | `api.ts` (typed queries), `graphql.ts` (client), `i18n/`, `auth/`, `dashboard/`, `csp.ts` |
-| `frontend/middleware.ts` | Per-request nonce'd Content-Security-Policy |
+| `frontend/proxy.ts` | Next 16 proxy (was middleware): per-request nonce'd Content-Security-Policy |
 | `frontend/tests/*.test.mjs` | `npm test` (Node's built-in runner) |
 | `scripts/smoke.sh` | Hits every demo route, sitemap, the auth cookie flow, GraphQL and an image upload after `docker compose up` (CI job `stack`) |
 | `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |
 
-Stack: Go 1.24, chi v5, gqlgen v0.17.73, pgx v5 · Next.js 15 App Router, React 19, TypeScript strict, Tailwind
+Stack: Go 1.24, chi v5, gqlgen v0.17.73, pgx v5 · Next.js 16 App Router, React 19, TypeScript strict, Tailwind
 CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).
 
 ## How to verify
@@ -91,7 +91,7 @@ CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).
 ```bash
 cd backend && gofmt -l . && go build ./... && go vet ./... && go test ./... -count=1
 # with a migrated DB: TEST_DATABASE_URL=postgres://monica:monica_secret@localhost:5432/monicacafe go test -race ./...
-cd frontend && npm ci && npx tsc --noEmit && npm test && npm run build
+cd frontend && npm ci && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd .. && docker compose config --quiet && ./scripts/check_brief.sh
 # full stack: docker compose up --build -d && ./scripts/smoke.sh
 ```

@@ -60,7 +60,7 @@ type ComplexityRoot struct {
 
 	Coffee struct {
 		CommentCount     func(childComplexity int) int
-		Comments         func(childComplexity int) int
+		Comments         func(childComplexity int, limit *int, offset *int) int
 		CreatedAt        func(childComplexity int) int
 		Description      func(childComplexity int) int
 		FlavorNotes      func(childComplexity int) int
@@ -211,7 +211,7 @@ type CoffeeResolver interface {
 	ProcessingMethod(ctx context.Context, obj *model.Coffee) (*model.ProcessingMethod, error)
 
 	Variants(ctx context.Context, obj *model.Coffee) ([]*model.Variant, error)
-	Comments(ctx context.Context, obj *model.Coffee) ([]*model.Comment, error)
+	Comments(ctx context.Context, obj *model.Coffee, limit *int, offset *int) ([]*model.Comment, error)
 	CommentCount(ctx context.Context, obj *model.Coffee) (int, error)
 }
 type CommentResolver interface {
@@ -311,7 +311,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.Coffee.Comments(childComplexity), true
+		args, err := ec.field_Coffee_comments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Coffee.Comments(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Coffee.createdAt":
 		if e.complexity.Coffee.CreatedAt == nil {
@@ -1365,8 +1370,9 @@ type Coffee {
   flavorNotes: [String!]!
   imageUrls: [String!]!
   variants: [Variant!]!
-  # Newest first, capped at 100. Use commentCount for the full total.
-  comments: [Comment!]!
+  # Newest first. limit defaults to 20 (max 100); page with offset and use
+  # commentCount for the full total.
+  comments(limit: Int, offset: Int): [Comment!]!
   commentCount: Int!
   isPublished: Boolean!
   createdAt: Time!
@@ -1571,6 +1577,57 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Coffee_comments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Coffee_comments_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := ec.field_Coffee_comments_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Coffee_comments_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Coffee_comments_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["offset"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
 
 func (ec *executionContext) field_Mutation_addComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -3350,7 +3407,7 @@ func (ec *executionContext) _Coffee_comments(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Coffee().Comments(rctx, obj)
+		return ec.resolvers.Coffee().Comments(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3367,7 +3424,7 @@ func (ec *executionContext) _Coffee_comments(ctx context.Context, field graphql.
 	return ec.marshalNComment2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCommentᚄ(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Coffee_comments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Coffee_comments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Coffee",
 		Field:      field,
@@ -3386,6 +3443,17 @@ func (ec *executionContext) fieldContext_Coffee_comments(_ context.Context, fiel
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Coffee_comments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }

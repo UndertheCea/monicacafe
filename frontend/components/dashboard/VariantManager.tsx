@@ -36,19 +36,27 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
   const router = useRouter();
   const [load, setLoad] = useState<Load>({ state: "loading" });
 
-  const fetchCoffee = useCallback(async () => {
-    if (!isUUID(coffeeId)) return setLoad({ state: "missing" });
+  const loadCoffee = useCallback(async (): Promise<Load> => {
+    if (!isUUID(coffeeId)) return { state: "missing" };
     try {
       const r = await request(EDIT_COFFEE, { id: coffeeId });
-      setLoad(r.coffee ? { state: "ready", coffee: r.coffee } : { state: "missing" });
+      return r.coffee ? { state: "ready", coffee: r.coffee } : { state: "missing" };
     } catch {
-      setLoad({ state: "error" });
+      return { state: "error" };
     }
   }, [coffeeId, request]);
+  const fetchCoffee = useCallback(() => loadCoffee().then(setLoad), [loadCoffee]);
 
+  // Fetch on sign-in; setState happens in the promise callback, and a stale
+  // response (status changed meanwhile) is dropped.
   useEffect(() => {
-    if (status === "authenticated") void fetchCoffee();
-  }, [status, fetchCoffee]);
+    if (status !== "authenticated") return;
+    let live = true;
+    void loadCoffee().then((l) => live && setLoad(l));
+    return () => {
+      live = false;
+    };
+  }, [status, loadCoffee]);
 
   if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (status === "anonymous") return <LoginNeeded locale={locale} next={`/dashboard/coffees/${coffeeId}`} />;

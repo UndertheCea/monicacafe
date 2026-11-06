@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCsp } from "@/lib/csp";
 
-// Sets a per-request nonce'd Content-Security-Policy. Next reads the policy
+// Next 16 "proxy" (formerly middleware). Sets a per-request nonce'd Content-Security-Policy. Next reads the policy
 // from the *request* headers and puts the nonce on its own <script> tags, so
 // pages render dynamically (they already do: everything is ƒ).
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
   const csp = buildCsp({
     nonce,

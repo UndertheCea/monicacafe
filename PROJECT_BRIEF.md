@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-05 (after Session 9)
+Last updated: 2026-11-06 (after Session 10)
 
 ---
 
@@ -33,43 +33,43 @@ takes a commission on each sale).
 | DB schema + migrations 001–005 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — expired tokens pruned hourly |
-| Pages: home, /coffees (+filters), /coffees/[id] (+comments), /shops, /shops/[slug], /map | Done |
+| Pages: home, /coffees (+filters), /coffees/[id] (+paged comments), /shops, /shops/[slug], /map | Done |
+| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages | Done |
 | /login, /register, account menu, /account (display name, change password) | Done |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / delete draft), shop profile + location | Done |
-| Draft preview for sellers (dashboard-only, #8 default) | Done |
+| Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
 | Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
-| Content-Security-Policy (nonce'd, from Next middleware) | Done |
+| Content-Security-Policy (nonce'd, from the Next 16 proxy) | Done |
+| Frontend on Next.js 16; `npm audit` has no high advisories | Done (#35) |
 | sitemap.xml + robots.txt (`SITE_URL`) | Done |
 | Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user | Done |
 | Error contract (`graph/errors.go` ↔ `lib/errors.ts`, pinned by a Go test) | Done |
-| CI: backend, frontend, compose config, **full stack compose + smoke** | Done |
+| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 9** — Stage 1 finished. Rate limits on auth (#27) and on comments / uploads (#31), with a trusted-proxy
-client-IP middleware; account API (#32) and `/account` page (#33) — password change revokes other sessions, and
-deliberately revoked refresh tokens no longer trigger reuse detection; one documented error contract, dead
-`apperr` removed (#34); orphaned-image cleanup (#29). Verified with Postgres + SeaweedFS integration tests and the
-full compose stack + smoke. Not driven in a browser: the `/account` forms.
+**Session 10** — Next.js 16 (#35, audit highs gone) with lint as a CI gate (#37); comments page past 100 with
+"load more" (#38); bilingual global 404 / error boundary / list skeletons (#39); share cards + canonical URLs
+(#40); smoke now loads real detail pages (#41) — which caught skeletons turning missing pages into 200s, fixed.
+Owner answers to #8 and #11 recorded. Not run here: full compose + smoke (CI `stack` job covers it).
 
 ## Current focus
 
-Stage 1 has no open slices. Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage)
-and #12 (commission + payouts). Until then: #35 (Next.js 16 upgrade — #11's safe default was "after Stage 1").
-Production readiness to keep in mind: set `TRUSTED_PROXIES` to the real proxies only.
+Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
+#12 (commission + payouts). No pickable slices remain; next sessions should file real gaps (e.g. ask about a city
+filter on /shops) or wait for #9 / #12. Production readiness: set `TRUSTED_PROXIES` to the real proxies only.
 
 Open questions for the owner (answer by commenting on the issue):
 
 | Issue | Question | Default | Safe? |
 |---|---|---|---|
 | #7 | Image storage | S3-compatible (SeaweedFS in dev) | yes |
-| #8 | Draft previews | dashboard-only preview | yes |
 | #9 | Cart storage (Stage 2) | Postgres | **no** — blocks #21 |
 | #10 | Production map tiles | keep OSM for the demo | yes |
-| #11 | Next.js 16 upgrade | after Stage 1 | yes |
 | #12 | Commission + payouts (Stage 2) | none | **no** |
+| #42 | Sellers delete comments on their coffees? | no change (author / admin only) | yes |
 
 ## Decisions (why it looks like this)
 
@@ -79,7 +79,7 @@ Open questions for the owner (answer by commenting on the issue):
   access token lives only in memory. Refreshes are serialised across tabs because reusing a rotated refresh
   token revokes every session (theft detection).
 - **Server components fetch anonymously** — simple caching, no token on the server; the cost is that draft
-  pages 404 publicly (#8).
+  pages 404 publicly. Owner chose (b) on #8: drafts stay dashboard-only with a client-rendered preview.
 - **Prices as integer NT$** — TWD has no minor unit in practice; integers avoid rounding bugs.
 - **UUID keys** — safe to expose in URLs, no enumeration.
 - **Bilingual `t()` dictionary instead of an i18n library** — two locales; TypeScript enforces key parity and
@@ -105,3 +105,7 @@ Open questions for the owner (answer by commenting on the issue):
 - **Orphan cleanup matches keys by shape after listing first** — a CDN / `MEDIA_PUBLIC_URL` change can't make saved
   images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.
+- **Next.js 16 after Stage 1** — owner's answer on #11; done in Session 10 (#35).
+- **Loading skeletons only on list pages** — a loading boundary above a detail page streams the response, so
+  `notFound()` can't set a 404; list pages sit in `(list)` route groups instead.
+- **Comment pages by offset, not cursor** — simple; "load more" dedupes by id, so a new comment can't show twice.

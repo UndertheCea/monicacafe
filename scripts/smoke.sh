@@ -25,6 +25,17 @@ for path in / /coffees /shops /map /login /register /account /dashboard /dashboa
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
 
+# Content-Security-Policy from frontend/proxy.ts: a fresh nonce per request,
+# and Next puts that same nonce on its own <script> tags.
+csp_page=$(curl -s -D - --max-time 15 "$BASE_URL/") || csp_page=""
+csp_nonce=$(grep -i '^content-security-policy:' <<<"$csp_page" | grep -o "'nonce-[^']*'" | head -1 | sed "s/'nonce-//; s/'//" || true)
+csp_again=$(curl -s -D - -o /dev/null --max-time 15 "$BASE_URL/" | grep -i '^content-security-policy:' | grep -o "'nonce-[^']*'" | head -1 || true)
+if [[ -n "$csp_nonce" && "$csp_page" == *"nonce=\"$csp_nonce\""* && "$csp_again" != "'nonce-$csp_nonce'" ]]; then
+  echo "ok   CSP nonce on / (per request, on Next's scripts)"
+else
+  echo "FAIL CSP nonce: header nonce '${csp_nonce}', second request '${csp_again}'"; fail=1
+fi
+
 # sitemap.xml lists the seeded shops and coffees; robots.txt points at it.
 sitemap=$(curl -s --max-time 15 "$BASE_URL/sitemap.xml") || sitemap=""
 if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* ]]; then
@@ -32,6 +43,31 @@ if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"
 else
   echo "FAIL sitemap.xml: ${sitemap:0:200}"; fail=1
 fi
+# Detail pages (#41): one seeded coffee and shop from the sitemap render with
+# their name and share-card tags (#40); unknown ids / pages are branded 404s.
+html_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g' <<<"$1"; }
+detail_check() { # path graphql-query
+  local html name
+  html=$(curl -s --max-time 15 -w '\n%{http_code}' "$BASE_URL$1") || html="000"
+  name=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' -d "$2" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+  if [[ "${html##*$'\n'}" == "200" && -n "$name" && "$html" == *"$(html_escape "$name")"* \
+        && "$html" == *'property="og:url"'* && "$html" == *'rel="canonical"'* ]]; then
+    echo "ok   200 $1 (\"$name\", og + canonical)"
+  else
+    echo "FAIL $1 → ${html##*$'\n'}, name '$name', og:url $([[ "$html" == *'og:url'* ]] && echo yes || echo no)"; fail=1
+  fi
+}
+coffee_path=$(grep -o '<loc>[^<]*/coffees/[0-9a-f-]\{36\}</loc>' <<<"$sitemap" | head -1 | sed 's#<loc>[a-z]*://[^/]*##; s#</loc>##' || true)
+shop_path=$(grep -o '<loc>[^<]*/shops/[a-z0-9-]*</loc>' <<<"$sitemap" | head -1 | sed 's#<loc>[a-z]*://[^/]*##; s#</loc>##' || true)
+if [[ -z "$coffee_path" || -z "$shop_path" ]]; then
+  echo "FAIL detail pages: no coffee / shop URL in sitemap.xml"; fail=1
+else
+  detail_check "$coffee_path" "$(printf '{"query":"{ coffee(id: \\"%s\\") { name } }"}' "${coffee_path##*/}")"
+  detail_check "$shop_path" "$(printf '{"query":"{ shop(slug: \\"%s\\") { name } }"}' "${shop_path##*/}")"
+fi
+check_status "$BASE_URL/coffees/00000000-0000-4000-8000-00000000dead" 404
+check_status "$BASE_URL/__no-such-page__" 404
+
 robots=$(curl -s --max-time 15 "$BASE_URL/robots.txt") || robots=""
 if [[ "$robots" == *"Sitemap:"*"/sitemap.xml"* ]]; then echo "ok   robots.txt → sitemap"; else echo "FAIL robots.txt: ${robots:0:200}"; fail=1; fi
 

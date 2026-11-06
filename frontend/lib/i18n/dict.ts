@@ -85,6 +85,15 @@ const zhTW = {
   "roast.MEDIUM": "中焙",
   "roast.MEDIUM_DARK": "中深焙",
   "roast.DARK": "深焙",
+  "page.nav": "分頁",
+  "notFound.title": "找不到這個頁面",
+  "notFound.body": "網址可能打錯了，或這個頁面已經不存在。",
+  "notFound.home": "回到首頁",
+  "notFound.coffees": "逛逛咖啡豆",
+  "crash.title": "頁面出了點問題",
+  "crash.body": "我們沒辦法顯示這個頁面，請再試一次。",
+  "crash.retry": "重新載入",
+  "loading.label": "載入中…",
   "page.prev": "上一頁",
   "page.next": "下一頁",
   "page.of": "第 {page} / {pages} 頁",
@@ -133,6 +142,9 @@ const zhTW = {
   "comments.draftClosed": "咖啡上架後才能留言。",
   "comments.error": "留言失敗，請再試一次。",
   "comments.deleteError": "刪除失敗，請再試一次。",
+  "comments.more": "載入更多留言",
+  "comments.loadingMore": "載入中…",
+  "comments.moreError": "無法載入更多留言，請再試一次。",
   "shops.title": "精選店家",
   "shops.subtitle": "認識台灣各地的烘豆師與咖啡店",
   "shops.count": "共 {n} 間店家",
@@ -384,6 +396,15 @@ const en: Messages = {
   "roast.MEDIUM": "Medium",
   "roast.MEDIUM_DARK": "Medium-dark",
   "roast.DARK": "Dark",
+  "page.nav": "Pagination",
+  "notFound.title": "Page not found",
+  "notFound.body": "The address may be mistyped, or this page no longer exists.",
+  "notFound.home": "Back to the home page",
+  "notFound.coffees": "Browse coffees",
+  "crash.title": "Something went wrong",
+  "crash.body": "We couldn't show this page. Please try again.",
+  "crash.retry": "Try again",
+  "loading.label": "Loading…",
   "page.prev": "Previous",
   "page.next": "Next",
   "page.of": "Page {page} of {pages}",
@@ -432,6 +453,9 @@ const en: Messages = {
   "comments.draftClosed": "Comments open once this coffee is published.",
   "comments.error": "Couldn't post your comment. Please try again.",
   "comments.deleteError": "Couldn't delete the comment. Please try again.",
+  "comments.more": "Load more comments",
+  "comments.loadingMore": "Loading…",
+  "comments.moreError": "Couldn't load more comments. Please try again.",
   "shops.title": "Shops",
   "shops.subtitle": "Meet roasters and cafés from across Taiwan",
   "shops.count": "{n} shops",
@@ -618,6 +642,11 @@ export function t(
   return msg.replace(/\{(\w+)\}/g, (m, name: string) =>
     name in vars ? String(vars[name]) : m,
   );
+}
+
+/** Locale from `<html lang>` (set by the root layout), for client components with no locale prop. */
+export function localeFromLang(lang: string | null | undefined): Locale {
+  return isLocale(lang) ? lang : DEFAULT_LOCALE;
 }
 
 /** Pick the zh or en variant of a bilingual DB field. */

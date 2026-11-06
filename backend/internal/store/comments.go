@@ -36,11 +36,12 @@ func (s *Store) DeleteComment(ctx context.Context, id string) error {
 	return nil
 }
 
-// CommentsByCoffee lists a coffee's comments, newest first.
-func (s *Store) CommentsByCoffee(ctx context.Context, coffeeID string, limit int) ([]*Comment, error) {
+// CommentsByCoffee lists a page of a coffee's comments, newest first (ties
+// broken by id, so pages don't overlap).
+func (s *Store) CommentsByCoffee(ctx context.Context, coffeeID string, limit, offset int) ([]*Comment, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT `+commentColumns+` FROM comments
-		WHERE coffee_id = $1 ORDER BY created_at DESC, id LIMIT $2`, coffeeID, limit)
+		WHERE coffee_id = $1 ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`, coffeeID, limit, offset)
 	if err != nil {
 		return nil, mapErr(err)
 	}

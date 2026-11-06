@@ -3,6 +3,7 @@ import type { CoffeeDetail } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
 import { formatTWD } from "@/lib/utils";
+import { PhotoGallery } from "./PhotoGallery";
 
 /**
  * The body of a coffee page: images, facts, flavour notes, description,
@@ -10,7 +11,6 @@ import { formatTWD } from "@/lib/utils";
  * server page and the seller's client-side draft preview share it.
  */
 export function CoffeeDetailView({ coffee, locale }: { coffee: CoffeeDetail; locale: Locale }) {
-  const [hero, ...thumbs] = coffee.imageUrls;
   const facts: [string, string][] = [
     [t(locale, "coffee.origin"), pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)],
     [t(locale, "coffee.process"), pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)],
@@ -21,29 +21,7 @@ export function CoffeeDetailView({ coffee, locale }: { coffee: CoffeeDetail; loc
   return (
     <div className="mt-6 grid gap-10 lg:grid-cols-2">
       {/* Images */}
-      <div>
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-amber-100 via-stone-100 to-stone-200 ring-1 ring-stone-200">
-          {hero ? (
-            // Seller images come from our media bucket (backend/internal/storage).
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={hero} alt={coffee.name} className="h-full w-full object-cover" />
-          ) : (
-            <span aria-hidden className="absolute inset-0 grid place-items-center text-8xl">
-              ☕
-            </span>
-          )}
-        </div>
-        {thumbs.length > 0 && (
-          <ul className="mt-3 grid grid-cols-4 gap-3">
-            {thumbs.slice(0, 4).map((src, i) => (
-              <li key={src} className="aspect-square overflow-hidden rounded-xl ring-1 ring-stone-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={t(locale, "img.photoAlt", { name: coffee.name, n: i + 2 })} className="h-full w-full object-cover" loading="lazy" />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <PhotoGallery images={coffee.imageUrls} name={coffee.name} locale={locale} />
 
       {/* Details */}
       <div>

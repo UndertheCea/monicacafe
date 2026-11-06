@@ -14,7 +14,12 @@ export function AccountMenu({ locale }: { locale: Locale }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => setOpen(false), [pathname]);
+  // Close on navigation: adjust state while rendering (no effect, no extra pass).
+  const [shownFor, setShownFor] = useState(pathname);
+  if (shownFor !== pathname) {
+    setShownFor(pathname);
+    setOpen(false);
+  }
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {

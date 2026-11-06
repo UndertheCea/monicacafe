@@ -113,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initial load + cross-tab sync.
   useEffect(() => {
-    void reload();
+    refreshSession().then(apply, () => apply(null)); // same as reload(), state set in the callback
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel(CHANNEL);
     channelRef.current = ch;

@@ -21,7 +21,7 @@ export function CoffeePreview({ coffeeId, locale }: { coffeeId: string; locale: 
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    if (!isUUID(coffeeId)) return setLoad({ state: "missing" });
+    if (!isUUID(coffeeId)) return; // rendered as "missing" below
     let live = true;
     request(COFFEE, { id: coffeeId })
       .then((r) => live && setLoad(r.coffee ? { state: "ready", coffee: r.coffee } : { state: "missing" }))
@@ -34,6 +34,7 @@ export function CoffeePreview({ coffeeId, locale }: { coffeeId: string; locale: 
   const next = `/dashboard/coffees/${coffeeId}/preview`;
   if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (status === "anonymous") return <LoginNeeded locale={locale} next={next} />;
+  if (!isUUID(coffeeId)) return <Notice>{t(locale, "cf.notYours")}</Notice>;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
   if (load.state === "missing" || !canManageCoffee(load.coffee.shop.id, user)) {

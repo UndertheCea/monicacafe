@@ -35,3 +35,10 @@ export function commentCoffeeHref(coffee: { id: string; isPublished: boolean } |
   const id = encodeURIComponent(coffee.id);
   return coffee.isPublished ? `/coffees/${id}` : `/dashboard/coffees/${id}/preview`;
 }
+
+/** A comment list after deleting one row: the row goes and the total drops (only if it was there). */
+export function withoutComment<T extends { id: string }>(page: { total: number; nodes: T[] }, id: string) {
+  const nodes = page.nodes.filter((c) => c.id !== id);
+  const removed = page.nodes.length - nodes.length;
+  return { total: Math.max(0, page.total - removed), nodes };
+}

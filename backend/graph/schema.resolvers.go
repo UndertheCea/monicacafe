@@ -1034,6 +1034,20 @@ func (r *userResolver) Shop(ctx context.Context, obj *model.User) (*model.Shop, 
 	return toShop(sh), nil
 }
 
+// Comments is the resolver for the comments field.
+func (r *userResolver) Comments(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CommentConnection, error) {
+	c := viewer(ctx)
+	if c == nil || (c.UserID != obj.ID && !isAdmin(c)) {
+		return &model.CommentConnection{Nodes: []*model.Comment{}}, nil
+	}
+	l, o := page(limit, offset)
+	cs, total, err := r.Store.CommentsByUser(ctx, obj.ID, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CommentConnection{Nodes: toComments(cs), Total: total}, nil
+}
+
 // Coffee returns generated.CoffeeResolver implementation.
 func (r *Resolver) Coffee() generated.CoffeeResolver { return &coffeeResolver{r} }
 

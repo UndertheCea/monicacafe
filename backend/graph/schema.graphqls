@@ -84,6 +84,10 @@ type User {
   displayName: String!
   role: UserRole!
   shop: Shop
+  # The user's own comments, newest first. Only for the user themself or an
+  # admin; for anyone else it is empty (never an error: User appears on every
+  # comment).
+  comments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
 }
 

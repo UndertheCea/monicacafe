@@ -110,3 +110,8 @@ func (s *Store) commentPage(ctx context.Context, from string, arg any, limit, of
 	}
 	return out, total, mapErr(rows.Err())
 }
+
+// CommentsByUser lists a page of a user's comments, newest first, plus the total.
+func (s *Store) CommentsByUser(ctx context.Context, userID string, limit, offset int) ([]*Comment, int, error) {
+	return s.commentPage(ctx, `FROM comments cm WHERE cm.user_id = $1`, userID, limit, offset)
+}

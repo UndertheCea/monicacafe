@@ -1,7 +1,7 @@
 // Comment paging helpers (lib/comments.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { COMMENTS_PAGE, COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments } from "../lib/comments.ts";
+import { COMMENTS_PAGE, COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withoutComment } from "../lib/comments.ts";
 
 test("appendComments keeps order and drops ids already shown", () => {
   const cases = [
@@ -40,4 +40,11 @@ test("commentCoffeeHref links published coffees publicly and drafts to the previ
   assert.equal(commentCoffeeHref({ id: "a/b?c", isPublished: true }), "/coffees/a%2Fb%3Fc");
   assert.equal(commentCoffeeHref(null), null);
   assert.equal(commentCoffeeHref(undefined), null);
+});
+
+test("withoutComment drops the row and its count once", () => {
+  const page = { total: 12, nodes: [{ id: "a" }, { id: "b" }] };
+  assert.deepEqual(withoutComment(page, "a"), { total: 11, nodes: [{ id: "b" }] });
+  assert.deepEqual(withoutComment(page, "zzz"), page, "unknown id: unchanged");
+  assert.deepEqual(withoutComment({ total: 0, nodes: [{ id: "a" }] }, "a"), { total: 0, nodes: [] }, "never negative");
 });

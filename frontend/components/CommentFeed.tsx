@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DeleteCommentButton } from "@/components/coffees/CommentForm";
-import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments } from "@/lib/comments";
+import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withoutComment } from "@/lib/comments";
 import type { CommentPage } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
@@ -67,14 +67,7 @@ export function CommentFeed({
   }, [s, fetchPage]);
 
   const removed = (cid: string) =>
-    setS((cur) =>
-      cur.state === "ready"
-        ? {
-            ...cur,
-            page: { total: Math.max(0, cur.page.total - 1), nodes: cur.page.nodes.filter((c) => c.id !== cid) },
-          }
-        : cur,
-    );
+    setS((cur) => (cur.state === "ready" ? { ...cur, page: withoutComment(cur.page, cid) } : cur));
 
   return (
     <section aria-labelledby={id}>

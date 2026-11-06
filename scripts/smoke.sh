@@ -63,6 +63,11 @@ if [[ -z "$coffee_path" || -z "$shop_path" ]]; then
   echo "FAIL detail pages: no coffee / shop URL in sitemap.xml"; fail=1
 else
   detail_check "$coffee_path" "$(printf '{"query":"{ coffee(id: \\"%s\\") { name } }"}' "${coffee_path##*/}")"
+  if curl -s --max-time 15 "$BASE_URL$coffee_path" | grep -q '<script type="application/ld+json"[^>]*>{"@context":"https://schema.org","@type":"Product"'; then
+    echo "ok   Product JSON-LD on $coffee_path"
+  else
+    echo "FAIL no Product JSON-LD on $coffee_path"; fail=1
+  fi
   detail_check "$shop_path" "$(printf '{"query":"{ shop(slug: \\"%s\\") { name } }"}' "${shop_path##*/}")"
 fi
 check_status "$BASE_URL/coffees/00000000-0000-4000-8000-00000000dead" 404

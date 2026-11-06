@@ -62,3 +62,64 @@ export function shareMetadata(i: ShareInput) {
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// schema.org structured data (JSON-LD)
+// ---------------------------------------------------------------------------
+
+export interface JsonLdCoffee {
+  id: string;
+  name: string;
+  description: string;
+  imageUrls: string[];
+  shop: { name: string };
+  variants: { priceTwd: number; stock: number; isAvailable: boolean }[];
+}
+
+/**
+ * A schema.org Product for a published coffee. The offer covers the options a
+ * buyer can pick (available ones); it's InStock when any of them has stock.
+ * No variants → no offer.
+ */
+export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unknown> {
+  const url = absoluteUrl(`/coffees/${c.id}`, base) ?? base;
+  const images = c.imageUrls.map((s) => absoluteUrl(s, base)).filter((s): s is string => s !== null);
+  const available = c.variants.filter((v) => v.isAvailable);
+  const priced = available.length > 0 ? available : c.variants;
+  const prices = priced.map((v) => v.priceTwd).filter((p) => Number.isInteger(p) && p > 0);
+  const inStock = available.some((v) => v.stock > 0);
+
+  const ld: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": url,
+    url,
+    sku: c.id,
+    name: c.name,
+    brand: { "@type": "Brand", name: c.shop.name },
+  };
+  const description = shareDescription(c.description, 500);
+  if (description) ld.description = description;
+  if (images.length > 0) ld.image = images;
+  if (prices.length > 0) {
+    ld.offers = {
+      "@type": "AggregateOffer",
+      priceCurrency: "TWD",
+      lowPrice: Math.min(...prices),
+      highPrice: Math.max(...prices),
+      offerCount: prices.length,
+      availability: inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      url,
+    };
+  }
+  return ld;
+}
+
+/**
+ * JSON for a <script type="application/ld+json"> body. `<`, `>` and `&` are
+ * escaped so seller text can never close the script element or open a
+ * comment, and U+2028/U+2029 so the output is also valid JavaScript.
+ */
+export function serializeJsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/[<>&\u2028\u2029]/g, (ch) => `\\u${ch.charCodeAt(0).toString(16).padStart(4, "0")}`);
+}

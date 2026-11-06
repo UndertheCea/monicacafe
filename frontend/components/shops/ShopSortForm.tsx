@@ -1,20 +1,54 @@
 import { SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
 
 /** Sort for a shop's coffees: a plain GET form (works without JavaScript); submitting resets to page 1. */
 export function ShopSortForm({ locale, sort, action }: { locale: Locale; sort: SortParam; action: string }) {
+  return (
+    <SortForm
+      locale={locale}
+      action={action}
+      value={sort}
+      options={SORT_PARAMS.map((p) => ({ value: p, label: t(locale, `sort.${p || "newest"}`) }))}
+    />
+  );
+}
+
+/** Sort for the /shops list (newest / name / most coffees). */
+export function ShopListSortForm({ locale, sort }: { locale: Locale; sort: ShopSortParam }) {
+  return (
+    <SortForm
+      locale={locale}
+      action="/shops"
+      value={sort}
+      options={SHOP_SORT_PARAMS.map((p) => ({ value: p, label: t(locale, `shopSort.${p || "newest"}`) }))}
+    />
+  );
+}
+
+function SortForm({
+  locale,
+  action,
+  value,
+  options,
+}: {
+  locale: Locale;
+  action: string;
+  value: string;
+  options: { value: string; label: string }[];
+}) {
   return (
     <form method="get" action={action} className="flex items-center gap-2 text-sm">
       <label className="flex items-center gap-2">
         <span className="text-stone-500">{t(locale, "sort.label")}</span>
         <select
           name="sort"
-          defaultValue={sort}
+          defaultValue={value}
           className="rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
         >
-          {SORT_PARAMS.map((p) => (
-            <option key={p || "newest"} value={p}>
-              {t(locale, `sort.${p || "newest"}`)}
+          {options.map((o) => (
+            <option key={o.value || "newest"} value={o.value}>
+              {o.label}
             </option>
           ))}
         </select>

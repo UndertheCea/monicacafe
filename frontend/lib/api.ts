@@ -3,6 +3,7 @@
 import { typed } from "./graphql";
 import { COMMENTS_PAGE } from "./comments";
 import type { CoffeeSort } from "./coffeeQuery";
+import type { ShopSort } from "./shopQuery";
 
 export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
 export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
@@ -186,16 +187,20 @@ export interface ShopSummary {
   logoUrl: string | null;
   bannerUrl: string | null;
   city: string;
+  /** Published coffees only. */
+  coffeeCount: number;
 }
+
+const SHOP_FIELDS = "id slug name description logoUrl bannerUrl city coffeeCount";
 
 export const SHOPS = typed<
   { shops: { total: number; nodes: ShopSummary[] } },
-  { city?: string; limit?: number; offset?: number }
+  { city?: string; sort?: ShopSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Shops($city: String, $limit: Int, $offset: Int) {
-    shops(city: $city, limit: $limit, offset: $offset) {
+  query Shops($city: String, $sort: ShopSort, $limit: Int, $offset: Int) {
+    shops(city: $city, sort: $sort, limit: $limit, offset: $offset) {
       total
-      nodes { id slug name description logoUrl bannerUrl city }
+      nodes { ${SHOP_FIELDS} }
     }
   }
 `);
@@ -206,7 +211,7 @@ export const SHOP = typed<
 >(/* GraphQL */ `
   query Shop($slug: String!, $sort: CoffeeSort, $limit: Int, $offset: Int) {
     shop(slug: $slug) {
-      id slug name description logoUrl bannerUrl city
+      ${SHOP_FIELDS}
       coffees(sort: $sort, limit: $limit, offset: $offset) {
         total
         nodes { ${CARD_FIELDS} }
@@ -241,7 +246,7 @@ export const HOME = typed<
   query Home($popular: Int, $shops: Int) {
     popularCoffees(limit: $popular) { ${CARD_FIELDS} }
     shops(limit: $shops) {
-      nodes { id slug name description logoUrl bannerUrl city }
+      nodes { ${SHOP_FIELDS} }
     }
   }
 `);

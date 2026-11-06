@@ -112,6 +112,7 @@ type ComplexityRoot struct {
 		DeleteCoffee      func(childComplexity int, id string) int
 		DeleteComment     func(childComplexity int, id string) int
 		DeleteVariant     func(childComplexity int, id string) int
+		DuplicateCoffee   func(childComplexity int, id string, name *string) int
 		Login             func(childComplexity int, input model.LoginInput) int
 		Logout            func(childComplexity int) int
 		PublishCoffee     func(childComplexity int, id string) int
@@ -154,7 +155,7 @@ type ComplexityRoot struct {
 	Shop struct {
 		BannerURL   func(childComplexity int) int
 		City        func(childComplexity int) int
-		Coffees     func(childComplexity int, limit *int, offset *int) int
+		Coffees     func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt   func(childComplexity int) int
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
@@ -231,6 +232,7 @@ type MutationResolver interface {
 	PublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
 	UnpublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
 	DeleteCoffee(ctx context.Context, id string) (bool, error)
+	DuplicateCoffee(ctx context.Context, id string, name *string) (*model.Coffee, error)
 	CreateImageUpload(ctx context.Context, input model.ImageUploadInput) (*model.ImageUpload, error)
 	AddVariant(ctx context.Context, coffeeID string, input model.VariantInput) (*model.Variant, error)
 	UpdateVariant(ctx context.Context, id string, input model.UpdateVariantInput) (*model.Variant, error)
@@ -251,7 +253,7 @@ type QueryResolver interface {
 	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
 }
 type ShopResolver interface {
-	Coffees(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CoffeeConnection, error)
+	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 }
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
@@ -615,6 +617,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.DeleteVariant(childComplexity, args["id"].(string)), true
 
+	case "Mutation.duplicateCoffee":
+		if e.complexity.Mutation.DuplicateCoffee == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_duplicateCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DuplicateCoffee(childComplexity, args["id"].(string), args["name"].(*string)), true
+
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
 			break
@@ -905,7 +919,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Shop.Coffees(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Shop.Coffees(childComplexity, args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Shop.createdAt":
 		if e.complexity.Shop.CreatedAt == nil {
@@ -1288,6 +1302,10 @@ type Mutation {
   # Drafts only: a published coffee must be unpublished first, so public links
   # never vanish silently. Variants and comments are deleted with it.
   deleteCoffee(id: ID!): Boolean!
+  # Copies a coffee you own into a new draft: details, flavour notes and options
+  # (with price, stock and availability). Photos and comments are not copied.
+  # name defaults to the original name + " (copy)".
+  duplicateCoffee(id: ID!, name: String): Coffee!
 
   # Image uploads (seller). Returns a short-lived presigned PUT URL; after the
   # PUT succeeds, save publicUrl via updateShop (logoUrl / bannerUrl) or
@@ -1337,7 +1355,8 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  coffees(limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees).
+  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 
@@ -1913,6 +1932,57 @@ func (ec *executionContext) field_Mutation_deleteVariant_argsID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_duplicateCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_duplicateCoffee_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Mutation_duplicateCoffee_argsName(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["name"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_duplicateCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_duplicateCoffee_argsName(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["name"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+	if tmp, ok := rawArgs["name"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -2523,18 +2593,41 @@ func (ec *executionContext) field_Query_shops_argsOffset(
 func (ec *executionContext) field_Shop_coffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
+	arg0, err := ec.field_Shop_coffees_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg0
-	arg1, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	args["sort"] = arg0
+	arg1, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg1
+	args["limit"] = arg1
+	arg2, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg2
 	return args, nil
 }
+func (ec *executionContext) field_Shop_coffees_argsSort(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.CoffeeSort, error) {
+	if _, ok := rawArgs["sort"]; !ok {
+		var zeroVal *model.CoffeeSort
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sort"))
+	if tmp, ok := rawArgs["sort"]; ok {
+		return ec.unmarshalOCoffeeSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeSort(ctx, tmp)
+	}
+
+	var zeroVal *model.CoffeeSort
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Shop_coffees_argsLimit(
 	ctx context.Context,
 	rawArgs map[string]any,
@@ -5182,6 +5275,95 @@ func (ec *executionContext) fieldContext_Mutation_deleteCoffee(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_duplicateCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_duplicateCoffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DuplicateCoffee(rctx, fc.Args["id"].(string), fc.Args["name"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_duplicateCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_duplicateCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createImageUpload(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createImageUpload(ctx, field)
 	if err != nil {
@@ -7084,7 +7266,7 @@ func (ec *executionContext) _Shop_coffees(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["sort"].(*model.CoffeeSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -11509,6 +11691,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "deleteCoffee":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "duplicateCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_duplicateCoffee(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

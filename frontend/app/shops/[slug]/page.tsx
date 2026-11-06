@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { SHOP } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
+import { parseSortParam, sortForApi, type SortParam } from "@/lib/coffeeQuery";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
+import { ShopSortForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 
@@ -17,9 +19,9 @@ type Params = Promise<{ slug: string }>;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const loadShop = cache(async (slug: string, page: number) =>
+const loadShop = cache(async (slug: string, page: number, sort: SortParam) =>
   SLUG_RE.test(slug)
-    ? (await query(SHOP, { slug, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })).shop
+    ? (await query(SHOP, { slug, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })).shop
     : null,
 );
 
@@ -33,7 +35,7 @@ export async function generateMetadata({
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
     const page = parsePage(sp);
-    const shop = await loadShop(slug, page);
+    const shop = await loadShop(slug, page, parseSortParam(sp.sort));
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
@@ -60,10 +62,11 @@ export default async function ShopPage({
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   const page = parsePage(sp);
+  const sort = parseSortParam(sp.sort);
 
   let shop;
   try {
-    shop = await loadShop(slug, page);
+    shop = await loadShop(slug, page, sort);
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -101,11 +104,14 @@ export default async function ShopPage({
         )}
 
         <section className="mt-10 pb-12" aria-labelledby="shop-coffees">
-          <div className="mb-4 flex items-baseline justify-between">
-            <h2 id="shop-coffees" className="text-xl font-bold text-stone-900">
-              {t(locale, "shops.coffees")}
-            </h2>
-            <span className="text-sm text-stone-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-baseline gap-3">
+              <h2 id="shop-coffees" className="text-xl font-bold text-stone-900">
+                {t(locale, "shops.coffees")}
+              </h2>
+              <span className="text-sm text-stone-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
+            </div>
+            {shop.coffees.total > 1 && <ShopSortForm locale={locale} sort={sort} action={`/shops/${shop.slug}`} />}
           </div>
 
           {shop.coffees.nodes.length === 0 ? (

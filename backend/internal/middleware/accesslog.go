@@ -27,7 +27,7 @@ func accessLevel(path string, status int) slog.Level {
 // AccessLog writes one structured record per request to logger, replacing
 // chi's plain-text Logger so access lines share the app's JSON format. The
 // path is logged without its query string (it can carry tokens). Mount it
-// after RequestID and ClientIPMiddleware, and before Recoverer so a
+// after RequestID and ClientIPMiddleware, and before Recover so a
 // recovered panic is logged as the 500 it became.
 func AccessLog(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {

@@ -15,6 +15,43 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 12 — 2026-11-06 — DB pool limits, JSON panic logs, duplicate coffee, shop sort, per-100 g, stock badges
+PR: (this session's PR into master)
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code.
+
+### Shipped (one line per slice: area — what — key files)
+- #52 backend — `DB_MAX_CONNS` (10) and `DB_STATEMENT_TIMEOUT` (10s, 0 = off), validated by `config.DBPool`,
+  applied by `db.New(ctx, dsn, db.Options)` over the DSN; `.env.example` + compose
+- #53 backend — `middleware.Recover` replaces chi's `Recoverer`: one slog Error record (panic, stack, method, path,
+  request_id, headers_sent), 500 unless headers went out, `http.ErrAbortHandler` re-panicked
+- #54 cross-cutting — `duplicateCoffee(id, name)`: new draft in one transaction with details, notes and every
+  variant (price, stock, availability); no photos (keys are scoped to the source coffee), no comments. Dashboard
+  "Duplicate" → opens the copy's edit page; name gets a localized suffix trimmed to 120 chars (`copyName` in Go
+  and `lib/dashboard/duplicateCoffee.ts`)
+- #55 cross-cutting — `Shop.coffees(sort:)` reuses `storeSort`; `/shops/[slug]` GET sort form (`ShopSortForm`),
+  kept across pagination, canonical unchanged
+- #56 frontend — "NT$X / 100 g" under each variant price (`lib/pricing.ts`, integer round-half-up; hidden for
+  100 g bags), on the coffee page and the draft preview
+- #57 frontend — dashboard "Sold out" / "Low stock (n)" badges (`lib/dashboard/stockStatus.ts`, low ≤ 5 units
+  across available options)
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestPoolConfig`, `TestDBPool`, `TestRecover`, `TestRecoverRepanicsAbortHandler`, `TestCopyName`,
+  `TestDuplicateCoffee`, `TestShopCoffeesSort`. S3 tests skipped (no store).
+- Frontend: tsc, lint, `npm test` (68), `next build`. Ran the standalone server against the local API and drove
+  it with Playwright: shop sort form → `?sort=price_asc` gives Cheap, Mid, Pricey, SoldOut; coffee page shows
+  "每 100 g NT$150"; dashboard shows 已售完 / 庫存偏低（3）badges; "複製" opens the new draft named
+  "Low Bean（複本）" and the list grows to 4. No page errors.
+- NOT run here: `docker compose up` + `smoke.sh` (no Docker daemon) — left to the CI `stack` job. The statement
+  timeout was checked by unit test only (no slow-query test against a live server).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `duplicateCoffee` copies variant stock as-is; sellers adjust it on the edit page.
+- Names: the frontend sends the localized copy name; the API's default suffix is " (copy)".
+
 ## Session 11 — 2026-11-06 — Sorting, in-stock filter, more-from-shop, JSON access logs, dashboard paging
 PR: (this session's PR into master)
 

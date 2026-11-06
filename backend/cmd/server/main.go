@@ -54,7 +54,8 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	pool, err := db.New(ctx, cfg.DatabaseURL)
+	maxConns, stmtTimeout, _ := cfg.DBPool() // checked by cfg.Validate
+	pool, err := db.New(ctx, cfg.DatabaseURL, db.Options{MaxConns: maxConns, StatementTimeout: stmtTimeout})
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func run() error {
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.ClientIPMiddleware(proxies))
 	r.Use(middleware.AccessLog(slog.Default()))
-	r.Use(chimiddleware.Recoverer)
+	r.Use(middleware.Recover(slog.Default()))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},

@@ -379,7 +379,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 		return nil, err
 	}
 
-	name, err := cleanText("name", input.Name, 1, 120)
+	name, err := cleanText("name", input.Name, 1, maxCoffeeName)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +446,7 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	var p store.UpdateCoffeeParams
-	if p.Name, err = cleanOptText("name", input.Name, 1, 120); err != nil {
+	if p.Name, err = cleanOptText("name", input.Name, 1, maxCoffeeName); err != nil {
 		return nil, err
 	}
 	if p.Description, err = cleanOptText("description", input.Description, 0, 5000); err != nil {
@@ -566,6 +566,47 @@ func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, e
 		return false, err
 	}
 	return true, nil
+}
+
+// DuplicateCoffee is the resolver for the duplicateCoffee field.
+func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name *string) (*model.Coffee, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	src, err := r.ownedCoffee(ctx, c, id)
+	if err != nil {
+		return nil, err
+	}
+	newName := copyName(src.Name, " (copy)")
+	if name != nil {
+		if newName, err = cleanText("name", *name, 1, maxCoffeeName); err != nil {
+			return nil, err
+		}
+	}
+	base := slugify(newName)
+	for attempt := 0; ; attempt++ {
+		suffix, err := randomSuffix(6)
+		if err != nil {
+			return nil, err
+		}
+		var co *store.Coffee
+		err = r.Store.InTx(ctx, func(tx *store.Store) error {
+			var err error
+			co, err = tx.DuplicateCoffee(ctx, src.ID, newName, base+"-"+suffix)
+			return err
+		})
+		if errors.Is(err, store.ErrConflict) && attempt < 3 {
+			continue // slug collision: retry with a new suffix
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			return nil, errNotFound("coffee") // deleted meanwhile
+		}
+		if err != nil {
+			return nil, err
+		}
+		return toCoffee(co), nil
+	}
 }
 
 // CreateImageUpload is the resolver for the createImageUpload field.
@@ -913,14 +954,18 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 }
 
 // Coffees is the resolver for the coffees field.
-func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CoffeeConnection, error) {
+func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
 	c := viewer(ctx)
 	f := store.CoffeeFilter{
 		ShopID:             &obj.ID,
 		IncludeUnpublished: c != nil && (c.UserID == obj.OwnerID || isAdmin(c)),
 	}
+	so, err := storeSort(sort)
+	if err != nil {
+		return nil, err
+	}
 	l, o := page(limit, offset)
-	cs, total, err := r.Store.ListCoffees(ctx, f, store.SortNewest, l, o)
+	cs, total, err := r.Store.ListCoffees(ctx, f, so, l, o)
 	if err != nil {
 		return nil, err
 	}

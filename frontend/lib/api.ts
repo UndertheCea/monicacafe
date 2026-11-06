@@ -202,12 +202,12 @@ export const SHOPS = typed<
 
 export const SHOP = typed<
   { shop: (ShopSummary & { coffees: { total: number; nodes: CoffeeCardData[] } }) | null },
-  { slug: string; limit?: number; offset?: number }
+  { slug: string; sort?: CoffeeSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Shop($slug: String!, $limit: Int, $offset: Int) {
+  query Shop($slug: String!, $sort: CoffeeSort, $limit: Int, $offset: Int) {
     shop(slug: $slug) {
       id slug name description logoUrl bannerUrl city
-      coffees(limit: $limit, offset: $offset) {
+      coffees(sort: $sort, limit: $limit, offset: $offset) {
         total
         nodes { ${CARD_FIELDS} }
       }

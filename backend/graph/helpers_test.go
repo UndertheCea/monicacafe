@@ -3,6 +3,7 @@ package graph
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/underthecea/monicacafe/backend/graph/model"
 	"github.com/underthecea/monicacafe/backend/internal/store"
@@ -293,3 +294,27 @@ func TestValidatePasswordChange(t *testing.T) {
 	}
 }
 func boolPtr(v bool) *bool { return &v }
+
+func TestCopyName(t *testing.T) {
+	long := strings.Repeat("咖", 120)
+	tests := []struct {
+		name, in, suffix, want string
+	}{
+		{"short", "Kenya AA", " (copy)", "Kenya AA (copy)"},
+		{"chinese suffix", "肯亞", "（複本）", "肯亞（複本）"},
+		{"trimmed to fit", long, " (copy)", strings.Repeat("咖", 113) + " (copy)"},
+		{"trailing space dropped after trim", strings.Repeat("a", 112) + " bcd", " (copy)", strings.Repeat("a", 112) + " (copy)"},
+		{"exactly fits", strings.Repeat("b", 113), " (copy)", strings.Repeat("b", 113) + " (copy)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := copyName(tt.in, tt.suffix)
+			if got != tt.want {
+				t.Fatalf("copyName = %q, want %q", got, tt.want)
+			}
+			if n := utf8.RuneCountInString(got); n > maxCoffeeName {
+				t.Fatalf("%d runes > %d", n, maxCoffeeName)
+			}
+		})
+	}
+}

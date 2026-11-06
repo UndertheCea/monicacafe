@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,6 +43,11 @@ type Config struct {
 	// How often the API deletes expired refresh tokens (Go duration, e.g.
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
 	TokenPruneInterval string
+
+	// Postgres pool: maximum open connections and the per-statement timeout
+	// (Go duration; "0" = no timeout). Parsed by DBPool.
+	DBMaxConns         string
+	DBStatementTimeout string
 
 	// Comma-separated CIDRs / IPs whose X-Forwarded-For header is believed
 	// when working out the client IP (nginx and the Next.js BFF in compose).
@@ -91,6 +97,8 @@ func Load() Config {
 		MediaCleanupMinAge:   get("MEDIA_CLEANUP_MIN_AGE", "24h"),
 
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
+		DBMaxConns:         get("DB_MAX_CONNS", "10"),
+		DBStatementTimeout: get("DB_STATEMENT_TIMEOUT", "10s"),
 		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
 
 		RateLimitLoginIP:      get("RATE_LIMIT_LOGIN_IP", "20/1m"),
@@ -140,6 +148,34 @@ func (c Config) TokenPruneEvery() (time.Duration, error) {
 		return 0, fmt.Errorf("config: TOKEN_PRUNE_INTERVAL must be a duration of at least %s (or 0 to disable), got %q", minPruneInterval, v)
 	}
 	return d, nil
+}
+
+// Bounds for the Postgres pool settings. A statement timeout under a second
+// would cancel ordinary queries under load; 1000 connections exceeds any sane
+// Postgres max_connections for one API instance.
+const (
+	maxDBConns          = 1000
+	minStatementTimeout = time.Second
+)
+
+// DBPool parses DB_MAX_CONNS and DB_STATEMENT_TIMEOUT (0 = no timeout).
+func (c Config) DBPool() (maxConns int32, statementTimeout time.Duration, err error) {
+	v := strings.TrimSpace(c.DBMaxConns)
+	if v == "" {
+		v = "10"
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 1 || n > maxDBConns {
+		return 0, 0, fmt.Errorf("config: DB_MAX_CONNS must be a whole number from 1 to %d, got %q", maxDBConns, c.DBMaxConns)
+	}
+	v = strings.TrimSpace(c.DBStatementTimeout)
+	if v != "" && v != "0" {
+		statementTimeout, err = time.ParseDuration(v)
+		if err != nil || statementTimeout < minStatementTimeout {
+			return 0, 0, fmt.Errorf("config: DB_STATEMENT_TIMEOUT must be a duration of at least %s (or 0 to disable), got %q", minStatementTimeout, v)
+		}
+	}
+	return int32(n), statementTimeout, nil
 }
 
 // DefaultTrustedProxies covers loopback and the private ranges docker
@@ -208,6 +244,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if _, err := c.TokenPruneEvery(); err != nil {
+		return err
+	}
+	if _, _, err := c.DBPool(); err != nil {
 		return err
 	}
 	if _, err := c.RateLimits(); err != nil {

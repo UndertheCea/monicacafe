@@ -105,6 +105,8 @@ services:
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
       TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
+      DB_MAX_CONNS: ${DB_MAX_CONNS:-10}
+      DB_STATEMENT_TIMEOUT: ${DB_STATEMENT_TIMEOUT:-10s}
       # nginx and the Next.js BFF sit on the compose network; their
       # X-Forwarded-For is believed when rate-limiting auth per client IP.
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7}

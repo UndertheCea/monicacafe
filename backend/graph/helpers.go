@@ -281,6 +281,19 @@ func slugify(name string) string {
 	return s
 }
 
+// maxCoffeeName is the longest coffee name (runes) the API accepts.
+const maxCoffeeName = 120
+
+// copyName appends suffix to name, trimming the end of name (by runes, then
+// trailing spaces) so the result fits maxCoffeeName.
+func copyName(name, suffix string) string {
+	room := maxCoffeeName - utf8.RuneCountInString(suffix)
+	if r := []rune(name); len(r) > room {
+		name = strings.TrimRight(string(r[:room]), " ")
+	}
+	return name + suffix
+}
+
 const suffixAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"
 
 // randomSuffix returns n characters from an unambiguous lowercase alphabet.

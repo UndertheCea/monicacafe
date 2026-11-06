@@ -425,6 +425,32 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatalf("comment detail wrong or email leaked: %+v", detail.Coffee)
 	}
 
+	// Comment pages (#38): newest first, limit + offset, no overlap.
+	for _, body := range []string{"第二則", "third"} {
+		buyer.mustDo(`mutation($in: AddCommentInput!) { addComment(input: $in) { id } }`,
+			map[string]any{"in": map[string]any{"coffeeId": co.ID, "body": body}}, nil)
+	}
+	var pages [2]struct {
+		Coffee struct {
+			Comments []struct{ ID, Body string }
+		}
+	}
+	const pageQ = `query($id: ID!, $o: Int) { coffee(id: $id) { comments(limit: 2, offset: $o) { id body } } }`
+	anon.mustDo(pageQ, map[string]any{"id": co.ID, "o": 0}, &pages[0])
+	anon.mustDo(pageQ, map[string]any{"id": co.ID, "o": 2}, &pages[1])
+	var bodies []string
+	for _, p := range pages {
+		for _, c := range p.Coffee.Comments {
+			bodies = append(bodies, c.Body)
+		}
+	}
+	if want := []string{"third", "第二則", "好喝！花香很明顯"}; fmt.Sprint(bodies) != fmt.Sprint(want) {
+		t.Fatalf("comment pages = %q, want %q", bodies, want)
+	}
+	for _, c := range pages[0].Coffee.Comments {
+		buyer.mustDo(`mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": c.ID}, nil)
+	}
+
 	seller.expectCode(graph.CodeForbidden, `mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID})
 	buyer.mustDo(`mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID}, nil)
 	buyer.expectCode(graph.CodeNotFound, `mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID})

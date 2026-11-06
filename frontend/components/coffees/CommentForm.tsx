@@ -100,10 +100,13 @@ export function DeleteCommentButton({
   commentId,
   authorId,
   locale,
+  onDeleted,
 }: {
   commentId: string;
   authorId: string;
   locale: Locale;
+  /** For rows outside the server-rendered page ("load more"), which a refresh doesn't remove. */
+  onDeleted?: (id: string) => void;
 }) {
   const { user, request } = useAuth();
   const router = useRouter();
@@ -125,6 +128,7 @@ export function DeleteCommentButton({
           setFailed(false);
           try {
             await request(DELETE_COMMENT_DOC, { id: commentId });
+            onDeleted?.(commentId);
             startTransition(() => router.refresh());
           } catch {
             setFailed(true);

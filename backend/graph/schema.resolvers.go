@@ -78,8 +78,9 @@ func (r *coffeeResolver) Variants(ctx context.Context, obj *model.Coffee) ([]*mo
 }
 
 // Comments is the resolver for the comments field.
-func (r *coffeeResolver) Comments(ctx context.Context, obj *model.Coffee) ([]*model.Comment, error) {
-	cs, err := r.Store.CommentsByCoffee(ctx, obj.ID, maxCommentsPerCoffee)
+func (r *coffeeResolver) Comments(ctx context.Context, obj *model.Coffee, limit *int, offset *int) ([]*model.Comment, error) {
+	l, o := page(limit, offset)
+	cs, err := r.Store.CommentsByCoffee(ctx, obj.ID, l, o)
 	if err != nil {
 		return nil, err
 	}

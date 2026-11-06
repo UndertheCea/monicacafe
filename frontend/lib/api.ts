@@ -1,6 +1,7 @@
 // Typed queries against backend/graph/schema.graphqls. Keep these types in
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
+import { COMMENTS_PAGE } from "./comments";
 
 export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
 export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
@@ -132,7 +133,19 @@ export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* 
       processingMethod { nameEn nameZh }
       variety { name }
       variants { id grind weightG priceTwd stock isAvailable }
-      comments { id body createdAt user { id displayName } }
+      comments(limit: ${COMMENTS_PAGE}) { id body createdAt user { id displayName } }
+    }
+  }
+`);
+
+/** A later page of a coffee's comments ("load more" on the coffee page). */
+export const COFFEE_COMMENTS = typed<
+  { coffee: { comments: CommentData[] } | null },
+  { id: string; limit: number; offset: number }
+>(/* GraphQL */ `
+  query CoffeeComments($id: ID!, $limit: Int!, $offset: Int!) {
+    coffee(id: $id) {
+      comments(limit: $limit, offset: $offset) { id body createdAt user { id displayName } }
     }
   }
 `);

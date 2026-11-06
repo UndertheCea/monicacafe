@@ -42,6 +42,7 @@ func TestPage(t *testing.T) {
 		{nil, nil, defaultPageSize, 0},
 		{ip(0), ip(-5), 1, 0},
 		{ip(1000), ip(40), maxPageSize, 40},
+		{ip(2), ip(4), 2, 4},
 	}
 	for _, tc := range tests {
 		l, o := page(tc.limit, tc.offset)

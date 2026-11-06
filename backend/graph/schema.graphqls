@@ -133,8 +133,9 @@ type Coffee {
   flavorNotes: [String!]!
   imageUrls: [String!]!
   variants: [Variant!]!
-  # Newest first, capped at 100. Use commentCount for the full total.
-  comments: [Comment!]!
+  # Newest first. limit defaults to 20 (max 100); page with offset and use
+  # commentCount for the full total.
+  comments(limit: Int, offset: Int): [Comment!]!
   commentCount: Int!
   isPublished: Boolean!
   createdAt: Time!

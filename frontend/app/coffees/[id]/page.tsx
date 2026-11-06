@@ -2,21 +2,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { COFFEE, isUUID } from "@/lib/api";
+import { COFFEE_PAGE, isUUID } from "@/lib/api";
 import { query } from "@/lib/graphql";
+import { MORE_FROM_SHOP, moreFromShop } from "@/lib/moreFromShop";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { CommentList } from "@/components/coffees/CommentList";
+import { MoreFromShop } from "@/components/coffees/MoreFromShop";
 import { ErrorState } from "@/components/ErrorState";
 
 type Params = Promise<{ id: string }>;
 
 // Deduplicate the fetch between generateMetadata and the page render.
 const loadCoffee = cache(async (id: string) =>
-  isUUID(id) ? (await query(COFFEE, { id })).coffee : null,
+  isUUID(id) ? (await query(COFFEE_PAGE, { id, more: MORE_FROM_SHOP + 1 })).coffee : null,
 );
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
@@ -67,6 +69,13 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         coffeeId={coffee.id}
         isPublished={coffee.isPublished}
         comments={coffee.comments} total={coffee.commentCount} locale={locale} />
+
+      <MoreFromShop
+        coffees={moreFromShop(coffee.more.coffees.nodes, coffee.id)}
+        total={coffee.more.coffees.total}
+        shop={coffee.shop}
+        locale={locale}
+      />
     </main>
   );
 }

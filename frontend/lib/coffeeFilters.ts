@@ -1,5 +1,5 @@
 import { ROAST_LEVELS, type CoffeeFilter, type RoastLevel } from "./api";
-import { parseInStockParam, parseSortParam, type SortParam } from "./coffeeQuery";
+import { parseInStockParam, parseSearchParam, parseSortParam, type SortParam } from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -15,7 +15,7 @@ function wholeNTD(v: string | undefined): number | undefined {
   return Number(v);
 }
 
-/** Parse `/coffees?origin=…&roast=…&sort=…&page=2` into a CoffeeFilter, sort + page. */
+/** Parse `/coffees?q=…&origin=…&roast=…&sort=…&page=2` into a CoffeeFilter, sort + page. */
 export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sort: SortParam; page: number } {
   const roast = one(sp.roast);
   const filter: CoffeeFilter = {
@@ -24,6 +24,7 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sor
     processingMethodId: one(sp.process),
     roastLevel: ROAST_LEVELS.includes(roast as RoastLevel) ? (roast as RoastLevel) : undefined,
     flavorNote: one(sp.flavor),
+    search: parseSearchParam(sp.q),
     minPriceTwd: wholeNTD(one(sp.min)),
     maxPriceTwd: wholeNTD(one(sp.max)),
     inStock: parseInStockParam(sp.instock) || undefined,

@@ -127,6 +127,37 @@ func TestStoreFilter(t *testing.T) {
 	if err != nil || f.FlavorNote != nil || f.IncludeUnpublished {
 		t.Fatalf("unexpected filter %+v %v", f, err)
 	}
+	for _, tc := range []struct {
+		in   *bool
+		want bool
+	}{{nil, false}, {boolPtr(false), false}, {boolPtr(true), true}} {
+		f, err := storeFilter(&model.CoffeeFilter{InStock: tc.in})
+		if err != nil || f.InStock != tc.want {
+			t.Errorf("inStock %v: got %v, %v", tc.in, f.InStock, err)
+		}
+	}
+}
+
+func TestStoreSort(t *testing.T) {
+	s := func(v model.CoffeeSort) *model.CoffeeSort { return &v }
+	tests := []struct {
+		in      *model.CoffeeSort
+		want    store.CoffeeSort
+		wantErr bool
+	}{
+		{nil, store.SortNewest, false},
+		{s(model.CoffeeSortNewest), store.SortNewest, false},
+		{s(model.CoffeeSortPriceAsc), store.SortPriceAsc, false},
+		{s(model.CoffeeSortPriceDesc), store.SortPriceDesc, false},
+		{s(model.CoffeeSortMostDiscussed), store.SortMostDiscussed, false},
+		{s("CHEAPEST"), store.SortNewest, true},
+	}
+	for _, tc := range tests {
+		got, err := storeSort(tc.in)
+		if got != tc.want || (err != nil) != tc.wantErr {
+			t.Errorf("storeSort(%v) = %q, %v; want %q, err=%v", tc.in, got, err, tc.want, tc.wantErr)
+		}
+	}
 }
 
 func TestToShopPin(t *testing.T) {
@@ -261,3 +292,4 @@ func TestValidatePasswordChange(t *testing.T) {
 		}
 	}
 }
+func boolPtr(v bool) *bool { return &v }

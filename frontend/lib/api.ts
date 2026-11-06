@@ -2,6 +2,7 @@
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
 import { COMMENTS_PAGE } from "./comments";
+import type { CoffeeSort } from "./coffeeQuery";
 
 export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
 export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
@@ -30,6 +31,7 @@ export interface CoffeeFilter {
   flavorNote?: string;
   minPriceTwd?: number;
   maxPriceTwd?: number;
+  inStock?: boolean;
 }
 
 export interface CoffeeCardData {
@@ -59,21 +61,24 @@ export const FILTER_OPTIONS = typed<{
   }
 `);
 
+/** Fields every CoffeeCard needs (keep in sync with CoffeeCardData). */
+const CARD_FIELDS = `
+  id slug name roastLevel flavorNotes imageUrls commentCount
+  shop { slug name city }
+  originCountry { nameEn nameZh }
+  processingMethod { nameEn nameZh }
+  variety { name }
+  variants { priceTwd isAvailable }
+`;
+
 export const COFFEES = typed<
   { coffees: { total: number; nodes: CoffeeCardData[] } },
-  { filter?: CoffeeFilter; limit?: number; offset?: number }
+  { filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Coffees($filter: CoffeeFilter, $limit: Int, $offset: Int) {
-    coffees(filter: $filter, limit: $limit, offset: $offset) {
+  query Coffees($filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int) {
+    coffees(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
       total
-      nodes {
-        id slug name roastLevel flavorNotes imageUrls commentCount
-        shop { slug name city }
-        originCountry { nameEn nameZh }
-        processingMethod { nameEn nameZh }
-        variety { name }
-        variants { priceTwd isAvailable }
-      }
+      nodes { ${CARD_FIELDS} }
     }
   }
 `);
@@ -124,16 +129,35 @@ export interface CoffeeDetail {
   comments: CommentData[];
 }
 
+const COFFEE_DETAIL_FIELDS = `
+  id slug name description roastLevel flavorNotes imageUrls isPublished commentCount
+  shop { id slug name city description logoUrl }
+  originCountry { nameEn nameZh region }
+  processingMethod { nameEn nameZh }
+  variety { name }
+  variants { id grind weightG priceTwd stock isAvailable }
+  comments(limit: ${COMMENTS_PAGE}) { id body createdAt user { id displayName } }
+`;
+
 export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* GraphQL */ `
   query Coffee($id: ID!) {
+    coffee(id: $id) { ${COFFEE_DETAIL_FIELDS} }
+  }
+`);
+
+/**
+ * The public coffee page: the coffee plus a few more from its shop (one more
+ * than shown, since the list can include this coffee). Anonymous server
+ * fetches only ever see published coffees there.
+ */
+export const COFFEE_PAGE = typed<
+  { coffee: (CoffeeDetail & { more: { coffees: { total: number; nodes: CoffeeCardData[] } } }) | null },
+  { id: string; more: number }
+>(/* GraphQL */ `
+  query CoffeePage($id: ID!, $more: Int!) {
     coffee(id: $id) {
-      id slug name description roastLevel flavorNotes imageUrls isPublished commentCount
-      shop { id slug name city description logoUrl }
-      originCountry { nameEn nameZh region }
-      processingMethod { nameEn nameZh }
-      variety { name }
-      variants { id grind weightG priceTwd stock isAvailable }
-      comments(limit: ${COMMENTS_PAGE}) { id body createdAt user { id displayName } }
+      ${COFFEE_DETAIL_FIELDS}
+      more: shop { coffees(limit: $more) { total nodes { ${CARD_FIELDS} } } }
     }
   }
 `);
@@ -185,14 +209,7 @@ export const SHOP = typed<
       id slug name description logoUrl bannerUrl city
       coffees(limit: $limit, offset: $offset) {
         total
-        nodes {
-          id slug name roastLevel flavorNotes imageUrls commentCount
-          shop { slug name city }
-          originCountry { nameEn nameZh }
-          processingMethod { nameEn nameZh }
-          variety { name }
-          variants { priceTwd isAvailable }
-        }
+        nodes { ${CARD_FIELDS} }
       }
     }
   }
@@ -222,14 +239,7 @@ export const HOME = typed<
   { popular: number; shops: number }
 >(/* GraphQL */ `
   query Home($popular: Int, $shops: Int) {
-    popularCoffees(limit: $popular) {
-      id slug name roastLevel flavorNotes imageUrls commentCount
-      shop { slug name city }
-      originCountry { nameEn nameZh }
-      processingMethod { nameEn nameZh }
-      variety { name }
-      variants { priceTwd isAvailable }
-    }
+    popularCoffees(limit: $popular) { ${CARD_FIELDS} }
     shops(limit: $shops) {
       nodes { id slug name description logoUrl bannerUrl city }
     }

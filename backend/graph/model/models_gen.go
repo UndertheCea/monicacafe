@@ -41,6 +41,7 @@ type CoffeeFilter struct {
 	FlavorNote         *string     `json:"flavorNote,omitempty"`
 	MinPriceTwd        *int        `json:"minPriceTwd,omitempty"`
 	MaxPriceTwd        *int        `json:"maxPriceTwd,omitempty"`
+	InStock            *bool       `json:"inStock,omitempty"`
 }
 
 type CoffeeVariety struct {
@@ -177,6 +178,65 @@ type VariantInput struct {
 	WeightG  int         `json:"weightG"`
 	PriceTwd int         `json:"priceTwd"`
 	Stock    int         `json:"stock"`
+}
+
+type CoffeeSort string
+
+const (
+	CoffeeSortNewest        CoffeeSort = "NEWEST"
+	CoffeeSortPriceAsc      CoffeeSort = "PRICE_ASC"
+	CoffeeSortPriceDesc     CoffeeSort = "PRICE_DESC"
+	CoffeeSortMostDiscussed CoffeeSort = "MOST_DISCUSSED"
+)
+
+var AllCoffeeSort = []CoffeeSort{
+	CoffeeSortNewest,
+	CoffeeSortPriceAsc,
+	CoffeeSortPriceDesc,
+	CoffeeSortMostDiscussed,
+}
+
+func (e CoffeeSort) IsValid() bool {
+	switch e {
+	case CoffeeSortNewest, CoffeeSortPriceAsc, CoffeeSortPriceDesc, CoffeeSortMostDiscussed:
+		return true
+	}
+	return false
+}
+
+func (e CoffeeSort) String() string {
+	return string(e)
+}
+
+func (e *CoffeeSort) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CoffeeSort(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CoffeeSort", str)
+	}
+	return nil
+}
+
+func (e CoffeeSort) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CoffeeSort) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CoffeeSort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type GrindOption string

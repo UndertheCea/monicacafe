@@ -1,4 +1,5 @@
 import { ROAST_LEVELS, type CoffeeFilter, type RoastLevel } from "./api";
+import { parseInStockParam, parseSortParam, type SortParam } from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -14,8 +15,8 @@ function wholeNTD(v: string | undefined): number | undefined {
   return Number(v);
 }
 
-/** Parse `/coffees?origin=…&roast=…&page=2` into a CoffeeFilter + page. */
-export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; page: number } {
+/** Parse `/coffees?origin=…&roast=…&sort=…&page=2` into a CoffeeFilter, sort + page. */
+export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sort: SortParam; page: number } {
   const roast = one(sp.roast);
   const filter: CoffeeFilter = {
     originCountryId: one(sp.origin),
@@ -25,12 +26,13 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; pag
     flavorNote: one(sp.flavor),
     minPriceTwd: wholeNTD(one(sp.min)),
     maxPriceTwd: wholeNTD(one(sp.max)),
+    inStock: parseInStockParam(sp.instock) || undefined,
   };
   // Drop undefined keys so the GraphQL variables stay minimal.
   for (const k of Object.keys(filter) as (keyof CoffeeFilter)[]) {
     if (filter[k] === undefined) delete filter[k];
   }
-  return { filter, page: parsePage(sp) };
+  return { filter, sort: parseSortParam(sp.sort), page: parsePage(sp) };
 }
 
 /** Parse a 1-based `?page=` param (anything invalid → 1). */

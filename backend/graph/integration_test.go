@@ -377,6 +377,12 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatal("price filter should exclude coffees whose only matching variant is out of range or unavailable")
 	}
 	anon.expectCode(graph.CodeBadInput, `{ coffees(filter: {minPriceTwd: 10, maxPriceTwd: 5}) { total } }`, nil)
+	// Sorting by price still finds it (store tests cover the order itself).
+	anon.mustDo(`query($f: CoffeeFilter) { coffees(filter: $f, sort: PRICE_ASC) { total nodes { id shop { slug } } } }`,
+		map[string]any{"f": map[string]any{"flavorNote": "PEACH-" + run}}, &l)
+	if l.Coffees.Total != 1 || l.Coffees.Nodes[0].ID != co.ID {
+		t.Fatalf("sorted listing did not find coffee: %+v", l)
+	}
 
 	var shopQ struct {
 		Shop *struct {

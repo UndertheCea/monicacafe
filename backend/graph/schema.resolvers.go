@@ -858,13 +858,17 @@ func (r *queryResolver) Coffee(ctx context.Context, id string) (*model.Coffee, e
 }
 
 // Coffees is the resolver for the coffees field.
-func (r *queryResolver) Coffees(ctx context.Context, filter *model.CoffeeFilter, limit *int, offset *int) (*model.CoffeeConnection, error) {
+func (r *queryResolver) Coffees(ctx context.Context, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
 	f, err := storeFilter(filter)
 	if err != nil {
 		return nil, err
 	}
+	srt, err := storeSort(sort)
+	if err != nil {
+		return nil, err
+	}
 	l, o := page(limit, offset)
-	cs, total, err := r.Store.ListCoffees(ctx, f, l, o)
+	cs, total, err := r.Store.ListCoffees(ctx, f, srt, l, o)
 	if err != nil {
 		return nil, err
 	}
@@ -916,7 +920,7 @@ func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, limit *int,
 		IncludeUnpublished: c != nil && (c.UserID == obj.OwnerID || isAdmin(c)),
 	}
 	l, o := page(limit, offset)
-	cs, total, err := r.Store.ListCoffees(ctx, f, l, o)
+	cs, total, err := r.Store.ListCoffees(ctx, f, store.SortNewest, l, o)
 	if err != nil {
 		return nil, err
 	}

@@ -114,7 +114,7 @@ func run() error {
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.ClientIPMiddleware(proxies))
-	r.Use(chimiddleware.Logger)
+	r.Use(middleware.AccessLog(slog.Default()))
 	r.Use(chimiddleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins(),

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { pricePer100g } from "@/lib/pricing";
 import { formatTWD } from "@/lib/utils";
 
 /**
@@ -111,7 +112,10 @@ export function CoffeeDetailView({ coffee, locale }: { coffee: CoffeeDetail; loc
                   <tr key={v.id} className={v.isAvailable ? "" : "text-stone-400"}>
                     <td className="px-4 py-2">{t(locale, `grind.${v.grind}`)}</td>
                     <td className="px-4 py-2">{v.weightG} g</td>
-                    <td className="px-4 py-2 font-semibold">NT${formatTWD(v.priceTwd)}</td>
+                    <td className="px-4 py-2">
+                      <span className="font-semibold">NT${formatTWD(v.priceTwd)}</span>
+                      <Per100g locale={locale} priceTwd={v.priceTwd} weightG={v.weightG} />
+                    </td>
                     <td className="px-4 py-2">
                       {v.isAvailable ? t(locale, "coffee.inStock", { n: v.stock }) : t(locale, "coffees.soldOut")}
                     </td>
@@ -148,5 +152,16 @@ export function CoffeeDetailView({ coffee, locale }: { coffee: CoffeeDetail; loc
         </aside>
       </div>
     </div>
+  );
+}
+
+/** "NT$X / 100 g" under a variant price; nothing for 100 g bags or bad weights. */
+function Per100g({ locale, priceTwd, weightG }: { locale: Locale; priceTwd: number; weightG: number }) {
+  const per100 = pricePer100g(priceTwd, weightG);
+  if (per100 === null || weightG === 100) return null;
+  return (
+    <span className="block text-xs font-normal text-stone-500">
+      {t(locale, "coffee.per100g", { price: formatTWD(per100) })}
+    </span>
   );
 }

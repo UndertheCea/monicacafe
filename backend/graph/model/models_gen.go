@@ -416,6 +416,63 @@ func (e RoastLevel) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type ShopSort string
+
+const (
+	ShopSortNewest      ShopSort = "NEWEST"
+	ShopSortName        ShopSort = "NAME"
+	ShopSortMostCoffees ShopSort = "MOST_COFFEES"
+)
+
+var AllShopSort = []ShopSort{
+	ShopSortNewest,
+	ShopSortName,
+	ShopSortMostCoffees,
+}
+
+func (e ShopSort) IsValid() bool {
+	switch e {
+	case ShopSortNewest, ShopSortName, ShopSortMostCoffees:
+		return true
+	}
+	return false
+}
+
+func (e ShopSort) String() string {
+	return string(e)
+}
+
+func (e *ShopSort) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ShopSort(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ShopSort", str)
+	}
+	return nil
+}
+
+func (e ShopSort) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ShopSort) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ShopSort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type UserRole string
 
 const (

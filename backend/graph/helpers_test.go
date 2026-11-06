@@ -161,6 +161,27 @@ func TestStoreSort(t *testing.T) {
 	}
 }
 
+func TestStoreShopSort(t *testing.T) {
+	s := func(v model.ShopSort) *model.ShopSort { return &v }
+	tests := []struct {
+		in      *model.ShopSort
+		want    store.ShopSort
+		wantErr bool
+	}{
+		{nil, store.ShopSortNewest, false},
+		{s(model.ShopSortNewest), store.ShopSortNewest, false},
+		{s(model.ShopSortName), store.ShopSortName, false},
+		{s(model.ShopSortMostCoffees), store.ShopSortMostCoffees, false},
+		{s("BIGGEST"), store.ShopSortNewest, true},
+	}
+	for _, tc := range tests {
+		got, err := storeShopSort(tc.in)
+		if got != tc.want || (err != nil) != tc.wantErr {
+			t.Errorf("storeShopSort(%v) = %q, %v; want %q, err=%v", tc.in, got, err, tc.want, tc.wantErr)
+		}
+	}
+}
+
 func TestToShopPin(t *testing.T) {
 	f := func(v float64) *float64 { return &v }
 	tests := []struct {

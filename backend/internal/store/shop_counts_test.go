@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -80,6 +81,65 @@ func TestPublishedCoffeeCountsByShopIDs(t *testing.T) {
 		empty, err := tx.PublishedCoffeeCountsByShopIDs(ctx, nil)
 		if err != nil || len(empty) != 0 {
 			t.Errorf("no ids: got %v, %v", empty, err)
+		}
+		return errRollback
+	})
+	if !errors.Is(err, errRollback) {
+		t.Fatal(err)
+	}
+}
+
+func TestListShopsSort(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	city := "測試市-" + suffix // isolates these shops from seed data
+
+	err := s.InTx(ctx, func(tx *store.Store) error {
+		ids := seedShops(t, ctx, tx, suffix, []struct {
+			name              string
+			published, drafts int
+		}{{"Bravo", 1, 3}, {"Alpha", 0, 0}, {"Delta", 2, 0}, {"Charlie", 1, 0}})
+		names := map[string]string{}
+		for i, n := range []string{"Bravo", "Alpha", "Delta", "Charlie"} {
+			names[ids[i]] = n
+			c := city
+			if _, err := tx.UpdateShop(ctx, ids[i], store.UpdateShopParams{City: &c}); err != nil {
+				return err
+			}
+		}
+		// Shops created in one transaction share now(); spread created_at so
+		// "newest" is well defined.
+		for i, id := range ids {
+			var got string
+			if err := tx.QueryRowForTest(ctx, `UPDATE shops SET created_at = now() - make_interval(mins => $2)
+				WHERE id = $1 RETURNING id`, id, 10-i).Scan(&got); err != nil {
+				return err
+			}
+		}
+
+		for _, tc := range []struct {
+			sort          store.ShopSort
+			limit, offset int
+			want          string
+		}{
+			{store.ShopSortNewest, 10, 0, "Charlie,Delta,Alpha,Bravo"},
+			{store.ShopSortName, 10, 0, "Alpha,Bravo,Charlie,Delta"},
+			// Bravo's drafts don't count; Bravo and Charlie tie at 1 → newer first.
+			{store.ShopSortMostCoffees, 10, 0, "Delta,Charlie,Bravo,Alpha"},
+			{store.ShopSortMostCoffees, 2, 1, "Charlie,Bravo"},
+		} {
+			got, total, err := tx.ListShops(ctx, &city, tc.sort, tc.limit, tc.offset)
+			if err != nil {
+				return err
+			}
+			var out []string
+			for _, sh := range got {
+				out = append(out, names[sh.ID])
+			}
+			if s := strings.Join(out, ","); s != tc.want || total != 4 {
+				t.Errorf("%q limit %d offset %d: got %s (total %d), want %s (total 4)", tc.sort, tc.limit, tc.offset, s, total, tc.want)
+			}
 		}
 		return errRollback
 	})

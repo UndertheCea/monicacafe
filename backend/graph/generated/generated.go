@@ -148,7 +148,7 @@ type ComplexityRoot struct {
 		PopularCoffees    func(childComplexity int, limit *int) int
 		ProcessingMethods func(childComplexity int) int
 		Shop              func(childComplexity int, slug string) int
-		Shops             func(childComplexity int, city *string, limit *int, offset *int) int
+		Shops             func(childComplexity int, city *string, sort *model.ShopSort, limit *int, offset *int) int
 		ShopsForMap       func(childComplexity int) int
 	}
 
@@ -244,7 +244,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	Shop(ctx context.Context, slug string) (*model.Shop, error)
-	Shops(ctx context.Context, city *string, limit *int, offset *int) (*model.ShopConnection, error)
+	Shops(ctx context.Context, city *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
 	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
 	Coffee(ctx context.Context, id string) (*model.Coffee, error)
 	Coffees(ctx context.Context, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
@@ -888,7 +888,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["sort"].(*model.ShopSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Query.shopsForMap":
 		if e.complexity.Query.ShopsForMap == nil {
@@ -1269,7 +1269,8 @@ type Query {
 
   # Shop discovery
   shop(slug: String!): Shop
-  shops(city: String, limit: Int, offset: Int): ShopConnection!
+  # sort defaults to NEWEST.
+  shops(city: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing
@@ -1369,6 +1370,13 @@ type Shop {
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
   createdAt: Time!
+}
+
+# MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
+enum ShopSort {
+  NEWEST
+  NAME
+  MOST_COFFEES
 }
 
 type ShopConnection {
@@ -2535,16 +2543,21 @@ func (ec *executionContext) field_Query_shops_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["city"] = arg0
-	arg1, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
+	arg1, err := ec.field_Query_shops_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg1
-	arg2, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	args["sort"] = arg1
+	arg2, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg2
+	args["limit"] = arg2
+	arg3, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg3
 	return args, nil
 }
 func (ec *executionContext) field_Query_shops_argsCity(
@@ -2562,6 +2575,24 @@ func (ec *executionContext) field_Query_shops_argsCity(
 	}
 
 	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_shops_argsSort(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.ShopSort, error) {
+	if _, ok := rawArgs["sort"]; !ok {
+		var zeroVal *model.ShopSort
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sort"))
+	if tmp, ok := rawArgs["sort"]; ok {
+		return ec.unmarshalOShopSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopSort(ctx, tmp)
+	}
+
+	var zeroVal *model.ShopSort
 	return zeroVal, nil
 }
 
@@ -6255,7 +6286,7 @@ func (ec *executionContext) _Query_shops(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["sort"].(*model.ShopSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -14224,6 +14255,22 @@ func (ec *executionContext) marshalOShop2ᚖgithubᚗcomᚋundertheceaᚋmonicac
 		return graphql.Null
 	}
 	return ec._Shop(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOShopSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopSort(ctx context.Context, v any) (*model.ShopSort, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ShopSort)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOShopSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopSort(ctx context.Context, sel ast.SelectionSet, v *model.ShopSort) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

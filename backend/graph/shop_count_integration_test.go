@@ -82,4 +82,26 @@ func TestShopCoffeeCount(t *testing.T) {
 	if !found {
 		t.Errorf("new shop not in the first 50 shops")
 	}
+
+	// Every sort resolves through the API; MOST_COFFEES is non-increasing.
+	for _, sort := range []string{"NEWEST", "NAME", "MOST_COFFEES"} {
+		var out struct {
+			Shops struct {
+				Total int
+				Nodes []struct{ CoffeeCount int }
+			}
+		}
+		anon.mustDo(`query($s: ShopSort) { shops(sort: $s, limit: 20) { total nodes { coffeeCount } } }`,
+			map[string]any{"s": sort}, &out)
+		if out.Shops.Total == 0 || len(out.Shops.Nodes) == 0 {
+			t.Fatalf("%s: no shops", sort)
+		}
+		if sort == "MOST_COFFEES" {
+			for i := 1; i < len(out.Shops.Nodes); i++ {
+				if out.Shops.Nodes[i].CoffeeCount > out.Shops.Nodes[i-1].CoffeeCount {
+					t.Fatalf("MOST_COFFEES out of order at %d: %+v", i, out.Shops.Nodes)
+				}
+			}
+		}
+	}
 }

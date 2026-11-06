@@ -4,7 +4,7 @@
 // tests catch what the types can't: empty strings and mismatched {placeholders}.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DICTS, LOCALES, pick, t } from "../lib/i18n/dict.ts";
+import { DICTS, LOCALES, localeFromLang, pick, t } from "../lib/i18n/dict.ts";
 
 const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
@@ -41,4 +41,16 @@ test("t() interpolates and leaves unknown placeholders alone", async (tt) => {
 test("pick()", () => {
   assert.equal(pick("zh-TW", "水洗", "Washed"), "水洗");
   assert.equal(pick("en", "水洗", "Washed"), "Washed");
+});
+
+test("localeFromLang reads <html lang> and falls back to zh-TW", () => {
+  const cases = [
+    ["en", "en"],
+    ["zh-TW", "zh-TW"],
+    ["", "zh-TW"],
+    [null, "zh-TW"],
+    [undefined, "zh-TW"],
+    ["fr", "zh-TW"],
+  ];
+  for (const [lang, want] of cases) assert.equal(localeFromLang(lang), want, String(lang));
 });

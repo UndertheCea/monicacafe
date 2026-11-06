@@ -20,7 +20,7 @@ export function Pagination({
 }) {
   if (pages <= 1) return null;
   return (
-    <nav className="mt-8 flex items-center justify-center gap-4 text-sm" aria-label="pagination">
+    <nav className="mt-8 flex items-center justify-center gap-4 text-sm" aria-label={t(locale, "page.nav")}>
       {page > 1 ? (
         <Link href={pageHref(sp, page - 1, base)} className={btn}>
           {t(locale, "page.prev")}

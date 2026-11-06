@@ -15,6 +15,42 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 11 — 2026-11-06 — Sorting, in-stock filter, more-from-shop, JSON access logs, dashboard paging
+PR: (this session's PR into master)
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12), so the six below were filed from gaps
+found in the code.
+
+### Shipped (one line per slice: area — what — key files)
+- #44 backend — `coffees(filter, sort, …)` with `CoffeeSort { NEWEST PRICE_ASC PRICE_DESC MOST_DISCUSSED }`;
+  price sorts use the lowest available, in-stock variant (LATERAL join), sold-out last both ways, ties
+  newest-then-id — `store.CoffeeSort.orderBy`, `graph.storeSort`
+- #45 frontend — sort `<select>` in the GET filter form, `?sort=price_asc|price_desc|discussed` —
+  `lib/coffeeQuery.ts` (import-free so `npm test` loads it)
+- #46 cross-cutting — `CoffeeFilter.inStock` (EXISTS an available variant with stock) + sidebar checkbox
+  `?instock=1`; store `where()` now has a table-driven test
+- #47 frontend — "More from {shop}" on the coffee page: `COFFEE_PAGE` aliases `more: shop { coffees(limit: 5) }`
+  in the same request (no extra fetch, none on 404); `lib/moreFromShop.ts`; shared `CARD_FIELDS`
+- #48 backend — `middleware.AccessLog` (slog JSON: method, path without query, status, bytes, duration_ms,
+  request_id, client_ip) replaces chi's text Logger; 5xx Error, 4xx Warn, `/health` Debug (hidden)
+- #49 frontend — dashboard lists 50 coffees + "load more" (`MY_SHOP_COFFEES`, `lib/dashboard/coffeePages.ts`);
+  publish / unpublish update the row in place instead of refetching page one
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestListCoffeesSort` (all four orders, paging, in-stock), `TestCoffeeSortOrderBy`,
+  `TestCoffeeFilterWhere`, `TestStoreSort`, `TestAccessLevel` / `TestAccessLog`. S3 tests skipped (no store).
+- Frontend: tsc, lint, `npm test` (63), `next build`. Ran the standalone server against the local API and drove
+  it with Playwright: sort + in-stock via the form (kept after submit), "more from" shows 2 cards on a 3-coffee
+  shop and nothing on a 1-coffee shop, dashboard with 57 coffees shows 50 → 57 after "load more", publishing a
+  loaded-more row keeps all 57. Access log lines checked by eye in the server output.
+- NOT run here: `docker compose up` + `smoke.sh` — left to the CI `stack` job.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- New question #50: city filter on /shops? Safe default: no (nothing built).
+- `sort` is a top-level argument, not part of `CoffeeFilter` (it orders, it doesn't narrow).
+- chi's `Recoverer` still prints panic stacks as text to stderr; the access log records the resulting 500.
+
 ## Session 10 — 2026-11-06 — Next.js 16, lint gate, comment paging, 404/error/loading pages, share cards
 PR: (this session's PR into master)
 

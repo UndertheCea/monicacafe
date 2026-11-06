@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 )
 
 const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at`
@@ -93,18 +94,47 @@ func (s *Store) ShopsByIDs(ctx context.Context, ids []string) (map[string]*Shop,
 	return out, mapErr(rows.Err())
 }
 
-// ListShops returns a page of shops (newest first), optionally filtered by city,
-// together with the total number of matching shops.
-func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) ([]*Shop, int, error) {
+// ShopSort is a whitelisted shop-listing order ("" = newest first).
+type ShopSort string
+
+const (
+	ShopSortNewest      ShopSort = ""
+	ShopSortName        ShopSort = "NAME"
+	ShopSortMostCoffees ShopSort = "MOST_COFFEES"
+)
+
+// Published coffees per shop, the same number Shop.coffeeCount shows.
+const shopCoffeeCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM coffees c
+		WHERE c.shop_id = s.id AND c.is_published) cn ON true`
+
+// orderBy returns the extra join a sort needs and its ORDER BY list. Every
+// order ends on newest-then-id so offset paging is stable. Unknown values sort
+// newest first.
+func (o ShopSort) orderBy() (join, order string) {
+	const tail = "s.created_at DESC, s.id"
+	switch o {
+	case ShopSortName:
+		return "", "s.name, " + tail
+	case ShopSortMostCoffees:
+		return shopCoffeeCountJoin, "cn.n DESC, " + tail
+	default:
+		return "", tail
+	}
+}
+
+// ListShops returns a page of shops in the given order, optionally filtered by
+// city, together with the total number of matching shops.
+func (s *Store) ListShops(ctx context.Context, city *string, sort ShopSort, limit, offset int) ([]*Shop, int, error) {
 	var total int
 	if err := s.db.QueryRow(ctx,
 		`SELECT count(*) FROM shops WHERE ($1::text IS NULL OR city = $1)`, city).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)
 	}
+	join, order := sort.orderBy()
 	rows, err := s.db.Query(ctx, `
-		SELECT `+shopColumns+` FROM shops
-		WHERE ($1::text IS NULL OR city = $1)
-		ORDER BY created_at DESC, id
+		SELECT `+shopColumnsAs("s")+` FROM shops s`+join+`
+		WHERE ($1::text IS NULL OR s.city = $1)
+		ORDER BY `+order+`
 		LIMIT $2 OFFSET $3`, city, limit, offset)
 	if err != nil {
 		return nil, 0, mapErr(err)
@@ -119,6 +149,41 @@ func (s *Store) ListShops(ctx context.Context, city *string, limit, offset int) 
 		out = append(out, sh)
 	}
 	return out, total, mapErr(rows.Err())
+}
+
+// shopColumnsAs qualifies shopColumns with a table alias.
+func shopColumnsAs(alias string) string {
+	cols := strings.Split(shopColumns, ", ")
+	for i, c := range cols {
+		cols[i] = alias + "." + c
+	}
+	return strings.Join(cols, ", ")
+}
+
+// PublishedCoffeeCountsByShopIDs batch-counts published coffees per shop.
+// Shops with none are absent from the map (callers treat that as zero);
+// drafts are never counted, so the number is safe to show publicly.
+func (s *Store) PublishedCoffeeCountsByShopIDs(ctx context.Context, shopIDs []string) (map[string]int, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT shop_id, count(*) FROM coffees
+		WHERE shop_id = ANY($1::uuid[]) AND is_published
+		GROUP BY shop_id`, shopIDs)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := make(map[string]int, len(shopIDs))
+	for rows.Next() {
+		var (
+			id string
+			n  int
+		)
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, mapErr(err)
+		}
+		out[id] = n
+	}
+	return out, mapErr(rows.Err())
 }
 
 // ShopPin is the lightweight projection of a shop used by the map page.

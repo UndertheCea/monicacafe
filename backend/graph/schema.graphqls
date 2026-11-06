@@ -9,7 +9,8 @@ type Query {
 
   # Shop discovery
   shop(slug: String!): Shop
-  shops(city: String, limit: Int, offset: Int): ShopConnection!
+  # sort defaults to NEWEST.
+  shops(city: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing
@@ -106,7 +107,16 @@ type Shop {
   lng: Float
   # sort defaults to NEWEST (same orders as Query.coffees).
   coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # Published coffees only (drafts are never counted, even for the owner).
+  coffeeCount: Int!
   createdAt: Time!
+}
+
+# MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
+enum ShopSort {
+  NEWEST
+  NAME
+  MOST_COFFEES
 }
 
 type ShopConnection {

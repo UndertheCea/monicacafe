@@ -15,6 +15,42 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 13 — 2026-11-06 — Shop coffee counts + sort, photo gallery, Product JSON-LD, nginx gzip
+PR: (this session's PR into master)
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code.
+
+### Shipped (one line per slice: area — what — key files)
+- #59 backend — `Shop.coffeeCount` (published only, even for the owner) via a `CoffeeCountByShop` dataloader
+  (`store.PublishedCoffeeCountsByShopIDs`); count loaders share `countLoader`
+- #60 backend — `shops(city, sort: ShopSort { NEWEST NAME MOST_COFFEES })`; whitelisted `store.ShopSort.orderBy`,
+  ties newest-then-id; MOST_COFFEES counts published coffees like `coffeeCount`
+- #61 frontend — shop cards show "N 款咖啡" / "尚未上架咖啡" (also on home); `/shops` GET sort form
+  (`?sort=name|coffees`, kept across pages) — `lib/shopQuery.ts`, shared `SortForm` in `ShopSortForm.tsx`
+- #62 frontend — `PhotoGallery` (client): every photo (≤ 8) as a thumbnail button (`aria-pressed`, arrow keys),
+  click swaps the large image; used by the public page and the draft preview — `lib/gallery.ts`
+- #63 frontend — schema.org `Product` + TWD `AggregateOffer` JSON-LD on public coffee pages (`coffeeJsonLd`,
+  `serializeJsonLd` escaping `< > &` U+2028/9 in `lib/seo.ts`), with the CSP nonce; smoke checks it
+- #64 cross-cutting — nginx `gzip` for text types (HTML, JS, CSS, JSON, XML, SVG; ≥ 1 KB, `Vary`) and
+  `server_tokens off`; smoke checks both
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestPublishedCoffeeCountsByShopIDs`, `TestListShopsSort`, `TestShopSortOrderBy`,
+  `TestShopColumnsAs`, `TestStoreShopSort`, `TestShopCoffeeCount` (incl. every sort through the API).
+- Frontend: tsc, lint, `npm test` (77), `next build`.
+- Stack: `docker compose up --build` can't build here (Go / npm proxies fail TLS inside the build). Instead ran
+  the API binary + Next standalone locally behind the real `nginx/nginx.conf` (nginx:1.27-alpine container,
+  upstreams pointed at localhost) and ran `scripts/smoke.sh`: everything passed (incl. new gzip, server version
+  and JSON-LD checks) except the two `/media/` checks — no SeaweedFS here (502). CI `stack` covers media.
+- Playwright: `/shops?sort=coffees` orders by count and keeps the sort on page links; a coffee with 3 photos
+  shows 3 thumbnails, click and ArrowRight swap the hero; JSON-LD present. No page errors.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- JSON-LD is the one `dangerouslySetInnerHTML` in the app: JSON escaped by `serializeJsonLd` (tested), no HTML.
+- Shop page header keeps using `coffees.total` (anonymous fetch = published only), same number as `coffeeCount`.
+
 ## Session 12 — 2026-11-06 — DB pool limits, JSON panic logs, duplicate coffee, shop sort, per-100 g, stock badges
 PR: (this session's PR into master)
 

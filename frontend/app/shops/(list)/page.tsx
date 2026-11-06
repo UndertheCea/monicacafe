@@ -7,6 +7,8 @@ import { getLocale } from "@/lib/i18n/server";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopCard } from "@/components/shops/ShopCard";
+import { ShopListSortForm } from "@/components/shops/ShopSortForm";
+import { parseShopSortParam, shopSortForApi } from "@/lib/shopQuery";
 
 const SHOPS_PAGE_SIZE = 12;
 
@@ -19,10 +21,17 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const locale = await getLocale();
   const page = parsePage(sp);
+  const sort = parseShopSortParam(sp.sort);
 
   let shops;
   try {
-    shops = (await query(SHOPS, { limit: SHOPS_PAGE_SIZE, offset: (page - 1) * SHOPS_PAGE_SIZE })).shops;
+    shops = (
+      await query(SHOPS, {
+        sort: shopSortForApi(sort),
+        limit: SHOPS_PAGE_SIZE,
+        offset: (page - 1) * SHOPS_PAGE_SIZE,
+      })
+    ).shops;
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -34,7 +43,10 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
         <h1 className="text-3xl font-bold text-stone-900">{t(locale, "shops.title")}</h1>
         <p className="mt-2 text-stone-600">{t(locale, "shops.subtitle")}</p>
       </header>
-      <p className="mb-4 text-sm text-stone-500">{t(locale, "shops.count", { n: shops.total })}</p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-stone-500">{t(locale, "shops.count", { n: shops.total })}</p>
+        {shops.total > 1 && <ShopListSortForm locale={locale} sort={sort} />}
+      </div>
 
       {shops.nodes.length === 0 ? (
         <p className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">

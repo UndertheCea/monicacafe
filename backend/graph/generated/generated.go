@@ -148,13 +148,14 @@ type ComplexityRoot struct {
 		PopularCoffees    func(childComplexity int, limit *int) int
 		ProcessingMethods func(childComplexity int) int
 		Shop              func(childComplexity int, slug string) int
-		Shops             func(childComplexity int, city *string, limit *int, offset *int) int
+		Shops             func(childComplexity int, city *string, sort *model.ShopSort, limit *int, offset *int) int
 		ShopsForMap       func(childComplexity int) int
 	}
 
 	Shop struct {
 		BannerURL   func(childComplexity int) int
 		City        func(childComplexity int) int
+		CoffeeCount func(childComplexity int) int
 		Coffees     func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt   func(childComplexity int) int
 		Description func(childComplexity int) int
@@ -243,7 +244,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	Shop(ctx context.Context, slug string) (*model.Shop, error)
-	Shops(ctx context.Context, city *string, limit *int, offset *int) (*model.ShopConnection, error)
+	Shops(ctx context.Context, city *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
 	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
 	Coffee(ctx context.Context, id string) (*model.Coffee, error)
 	Coffees(ctx context.Context, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
@@ -254,6 +255,7 @@ type QueryResolver interface {
 }
 type ShopResolver interface {
 	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
+	CoffeeCount(ctx context.Context, obj *model.Shop) (int, error)
 }
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
@@ -886,7 +888,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["sort"].(*model.ShopSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Query.shopsForMap":
 		if e.complexity.Query.ShopsForMap == nil {
@@ -908,6 +910,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Shop.City(childComplexity), true
+
+	case "Shop.coffeeCount":
+		if e.complexity.Shop.CoffeeCount == nil {
+			break
+		}
+
+		return e.complexity.Shop.CoffeeCount(childComplexity), true
 
 	case "Shop.coffees":
 		if e.complexity.Shop.Coffees == nil {
@@ -1260,7 +1269,8 @@ type Query {
 
   # Shop discovery
   shop(slug: String!): Shop
-  shops(city: String, limit: Int, offset: Int): ShopConnection!
+  # sort defaults to NEWEST.
+  shops(city: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing
@@ -1357,7 +1367,16 @@ type Shop {
   lng: Float
   # sort defaults to NEWEST (same orders as Query.coffees).
   coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # Published coffees only (drafts are never counted, even for the owner).
+  coffeeCount: Int!
   createdAt: Time!
+}
+
+# MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
+enum ShopSort {
+  NEWEST
+  NAME
+  MOST_COFFEES
 }
 
 type ShopConnection {
@@ -2524,16 +2543,21 @@ func (ec *executionContext) field_Query_shops_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["city"] = arg0
-	arg1, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
+	arg1, err := ec.field_Query_shops_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg1
-	arg2, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	args["sort"] = arg1
+	arg2, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg2
+	args["limit"] = arg2
+	arg3, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg3
 	return args, nil
 }
 func (ec *executionContext) field_Query_shops_argsCity(
@@ -2551,6 +2575,24 @@ func (ec *executionContext) field_Query_shops_argsCity(
 	}
 
 	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_shops_argsSort(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.ShopSort, error) {
+	if _, ok := rawArgs["sort"]; !ok {
+		var zeroVal *model.ShopSort
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sort"))
+	if tmp, ok := rawArgs["sort"]; ok {
+		return ec.unmarshalOShopSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopSort(ctx, tmp)
+	}
+
+	var zeroVal *model.ShopSort
 	return zeroVal, nil
 }
 
@@ -3033,6 +3075,8 @@ func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field gr
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -4765,6 +4809,8 @@ func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -4844,6 +4890,8 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -6202,6 +6250,8 @@ func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field g
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -6236,7 +6286,7 @@ func (ec *executionContext) _Query_shops(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["sort"].(*model.ShopSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7313,6 +7363,50 @@ func (ec *executionContext) fieldContext_Shop_coffees(ctx context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Shop_coffeeCount(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_coffeeCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Shop().CoffeeCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_coffeeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Shop_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Shop_createdAt(ctx, field)
 	if err != nil {
@@ -7416,6 +7510,8 @@ func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context,
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -8044,6 +8140,8 @@ func (ec *executionContext) fieldContext_User_shop(_ context.Context, field grap
 				return ec.fieldContext_Shop_lng(ctx, field)
 			case "coffees":
 				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			}
@@ -12213,6 +12311,42 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "coffeeCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Shop_coffeeCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "createdAt":
 			out.Values[i] = ec._Shop_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14121,6 +14255,22 @@ func (ec *executionContext) marshalOShop2ᚖgithubᚗcomᚋundertheceaᚋmonicac
 		return graphql.Null
 	}
 	return ec._Shop(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOShopSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopSort(ctx context.Context, v any) (*model.ShopSort, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ShopSort)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOShopSort2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopSort(ctx context.Context, sel ast.SelectionSet, v *model.ShopSort) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {

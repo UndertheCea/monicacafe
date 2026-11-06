@@ -27,7 +27,14 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
         </h2>
         {shop.city && <p className="text-xs text-stone-500">{shop.city}</p>}
         {shop.description && <p className="mt-2 line-clamp-3 text-sm text-stone-600">{shop.description}</p>}
-        <span className="mt-auto pt-4 text-sm font-medium text-amber-700">{t(locale, "shops.view")} →</span>
+        <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-sm">
+          <span className="text-stone-500">
+            {shop.coffeeCount > 0
+              ? t(locale, "shops.coffeesCount", { n: shop.coffeeCount })
+              : t(locale, "shops.cardNoCoffees")}
+          </span>
+          <span className="font-medium text-amber-700">{t(locale, "shops.view")} →</span>
+        </div>
       </div>
     </article>
   );

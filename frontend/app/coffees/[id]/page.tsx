@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { COFFEE_PAGE, isUUID } from "@/lib/api";
@@ -7,7 +8,7 @@ import { query } from "@/lib/graphql";
 import { MORE_FROM_SHOP, moreFromShop } from "@/lib/moreFromShop";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
-import { shareMetadata } from "@/lib/seo";
+import { coffeeJsonLd, serializeJsonLd, shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { CommentList } from "@/components/coffees/CommentList";
@@ -56,9 +57,17 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
     return <ErrorState locale={locale} error={err} />;
   }
   if (!coffee) notFound();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-10">
+      {/* Structured data for search engines. Public, published pages only (the
+          draft preview never renders this page); serializeJsonLd escapes seller text. */}
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(coffeeJsonLd(coffee, siteBase(process.env.SITE_URL))) }}
+      />
       <Link href="/coffees" className="text-sm font-medium text-amber-700 hover:underline">
         {t(locale, "coffee.back")}
       </Link>

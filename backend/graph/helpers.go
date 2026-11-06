@@ -552,6 +552,22 @@ func storeSort(s *model.CoffeeSort) (store.CoffeeSort, error) {
 	return store.SortNewest, errBadInput("sort", "invalid sort")
 }
 
+// storeShopSort maps the public shop sort to the store's whitelisted order.
+func storeShopSort(s *model.ShopSort) (store.ShopSort, error) {
+	if s == nil {
+		return store.ShopSortNewest, nil
+	}
+	switch *s {
+	case model.ShopSortNewest:
+		return store.ShopSortNewest, nil
+	case model.ShopSortName:
+		return store.ShopSortName, nil
+	case model.ShopSortMostCoffees:
+		return store.ShopSortMostCoffees, nil
+	}
+	return store.ShopSortNewest, errBadInput("sort", "invalid sort")
+}
+
 // storeFilter converts and validates the public coffee filter. Only published
 // coffees are ever returned through it.
 func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {

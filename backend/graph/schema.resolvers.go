@@ -848,9 +848,13 @@ func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, err
 }
 
 // Shops is the resolver for the shops field.
-func (r *queryResolver) Shops(ctx context.Context, city *string, limit *int, offset *int) (*model.ShopConnection, error) {
+func (r *queryResolver) Shops(ctx context.Context, city *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error) {
+	so, err := storeShopSort(sort)
+	if err != nil {
+		return nil, err
+	}
 	l, o := page(limit, offset)
-	shops, total, err := r.Store.ListShops(ctx, city, l, o)
+	shops, total, err := r.Store.ListShops(ctx, city, so, l, o)
 	if err != nil {
 		return nil, err
 	}
@@ -970,6 +974,11 @@ func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model
 		return nil, err
 	}
 	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
+}
+
+// CoffeeCount is the resolver for the coffeeCount field.
+func (r *shopResolver) CoffeeCount(ctx context.Context, obj *model.Shop) (int, error) {
+	return r.loadersFor(ctx).CoffeeCountByShop.Load(ctx, obj.ID)
 }
 
 // Email is the resolver for the email field.

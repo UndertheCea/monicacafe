@@ -15,6 +15,45 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 10 — 2026-11-06 — Next.js 16, lint gate, comment paging, 404/error/loading pages, share cards
+PR: (this session's PR into master)
+
+### Shipped (one line per slice: area — what — key files)
+- #35 frontend — Next 16.4.5 / React 19.3.1; `middleware.ts` → `proxy.ts` (Next 16 rename, same nonce'd CSP);
+  `next lint` gone → flat `eslint.config.mjs`; tsconfig `jsx: react-jsx`. `npm audit`: 0 high (sharp + Next's
+  bundled postcss fixed), 8 moderate left in eslint/typescript-eslint dev tooling. smoke checks the CSP nonce
+- #37 cross-cutting — `npm run lint` (`--max-warnings 0`) passes and runs in CI; fixed 7 react-hooks errors
+  (dashboard loaders return the next state and the mount effect sets it from the promise with a stale-response
+  guard; AccountMenu closes on navigation during render; LocationPicker ref updated in an effect)
+- #38 cross-cutting — `Coffee.comments(limit, offset)` (default 20, max 100; was a fixed 100). Coffee page
+  server-renders 20 + "load more" (`MoreComments`, `lib/comments.ts` dedupes rows shifted by new comments);
+  deleting a loaded-more comment removes it locally
+- #39 frontend — global `app/not-found.tsx` (zh/en) and `app/error.tsx` (locale from `<html lang>` via
+  `useHtmlLocale`), list-page skeletons, Pagination aria-label via t(). Skeletons sit in `(list)` route groups:
+  a loading boundary above `/coffees/[id]` streamed the response and turned `notFound()` into **200**
+- #40 frontend — `lib/seo.ts`: canonical + Open Graph + Twitter card on coffee and shop pages from `SITE_URL`
+  (first usable image made absolute; non-http schemes dropped)
+- #41 cross-cutting — smoke loads one coffee + one shop from the sitemap (200, name, og:url, canonical), and
+  expects 404 for an unknown coffee id and an unknown path
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed); `TestMarketplaceFlow` now pages three comments over two pages. No S3 store this session, so the S3 tests
+  skipped.
+- Frontend: tsc, lint, `npm test` (56), `next build`. Ran the standalone server against the local backend: the
+  smoke route/CSP/sitemap/detail/404 sections pass; Playwright clicked "load more" on a coffee with 45 comments
+  (20 → 40 → 45, no duplicates, button gone at the end); zh/en 404 checked with the locale cookie.
+- NOT run here: `docker compose up` + the full `smoke.sh` (nginx, media, BFF) — left to the CI `stack` job.
+  `app/error.tsx` wasn't triggered by a real render error.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Owner answered #8 (b) and #11 (b): recorded in the brief, both closed.
+- New question #42: may sellers delete comments on their coffees? Safe default: no change.
+- Detail pages have no loading skeleton on purpose (status codes > skeletons). The comment offset paging can skip
+  one row if someone *else* deletes a comment between two "load more" clicks; acceptable for now.
+- Shops could be filtered by city (the API supports it) but nothing in the UI uses it; not filed because rule 9
+  (no location-based *coffee* filters) makes it worth asking first.
+
 ## Session 9 — 2026-11-05 — Rate limits, account settings, orphaned-image cleanup, one error contract
 PR: #36
 

@@ -18,6 +18,20 @@ export function appendComments<T extends { id: string }>(shown: T[], page: T[]):
  * the last page wasn't short (a short page means the end, even if the count
  * was stale).
  */
-export function hasMoreComments(shown: number, total: number, lastPageSize: number): boolean {
-  return shown < total && lastPageSize >= COMMENTS_PAGE;
+export function hasMoreComments(shown: number, total: number, lastPageSize: number, pageSize = COMMENTS_PAGE): boolean {
+  return shown < total && lastPageSize >= pageSize;
+}
+
+/** Comments per page in the dashboard's "Recent comments" and /account's "My comments". */
+export const COMMENT_LIST_PAGE = 10;
+
+/**
+ * Where a comment in a cross-coffee list links: the public page for a
+ * published coffee, the dashboard preview for a draft (only its owner gets
+ * one back from the API), nowhere when the API hid the coffee (null).
+ */
+export function commentCoffeeHref(coffee: { id: string; isPublished: boolean } | null | undefined): string | null {
+  if (!coffee) return null;
+  const id = encodeURIComponent(coffee.id);
+  return coffee.isPublished ? `/coffees/${id}` : `/dashboard/coffees/${id}/preview`;
 }

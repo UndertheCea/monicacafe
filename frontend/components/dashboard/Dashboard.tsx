@@ -5,12 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { fromPrice } from "@/lib/api";
 import { appendCoffeePage, hasMoreCoffees, withPublished } from "@/lib/dashboard/coffeePages";
-import { MY_SHOP, MY_SHOP_COFFEES, PUBLISH_COFFEE, UNPUBLISH_COFFEE, type DashboardShop } from "@/lib/dashboard/queries";
+import { COMMENT_LIST_PAGE } from "@/lib/comments";
+import { MY_SHOP, MY_SHOP_COFFEES, MY_SHOP_COMMENTS, PUBLISH_COFFEE, UNPUBLISH_COFFEE, type DashboardShop } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
+import { CommentFeed } from "@/components/CommentFeed";
 import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
@@ -28,6 +30,16 @@ export function Dashboard({ locale }: { locale: Locale }) {
   const [rowError, setRowError] = useState<{ id: string; key: MessageKey } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [more, setMore] = useState<"idle" | "loading" | "error">("idle");
+
+  const fetchComments = useCallback(
+    async (offset: number) => {
+      const r = await request(MY_SHOP_COMMENTS, { limit: COMMENT_LIST_PAGE, offset });
+      const page = r.me?.shop?.recentComments;
+      if (!page) throw new Error("shop gone");
+      return page;
+    },
+    [request],
+  );
 
   const loadShop = useCallback(async (): Promise<Load> => {
     try {
@@ -234,6 +246,15 @@ export function Dashboard({ locale }: { locale: Locale }) {
           </div>
         )}
       </section>
+
+      <CommentFeed
+        locale={locale}
+        id="recent-comments"
+        title="dash.recentComments"
+        empty="dash.noRecentComments"
+        showAuthor
+        fetchPage={fetchComments}
+      />
     </div>
   );
 }

@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-07 (after Session 18)
+Last updated: 2026-11-07 (after Session 19)
 
 ---
 
@@ -30,7 +30,7 @@ takes a commission on each sale).
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–008 | Done |
+| DB schema + migrations 001–009 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
@@ -39,6 +39,7 @@ takes a commission on each sale).
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Skip-to-content link, one `main` landmark per page | Done (#85) |
 | Saved coffees: save toggle + count on coffee pages, list on /account, "Most saved" sort | Done (#87–#89, #97, #98) |
+| Followed shops: follow toggle + count on shop pages, list on /account, home "From roasters you follow", "Most followed" sort, follower count on cards + dashboard | Done (#102–#107) |
 | Account deletion for buyers (password re-check; comments, saves, sessions removed) | Done (#90, #91); sellers: #93 |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments | Done (#99) |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
@@ -57,15 +58,16 @@ takes a commission on each sale).
 
 ## Last session
 
-**Session 18** — no pickable slices again, so six gaps were filed and shipped: `Comment.fromShop` (#95) with a
-"店家 / Roaster" badge on the shop owner's replies (#96); a `MOST_SAVED` coffee sort (#97) exposed as "最多收藏 / Most
-saved" (#98); saves + comments per coffee on the dashboard (#99); Permissions-Policy, no X-Powered-By and API nosniff
-(#100). Verified with race tests on PostgreSQL, smoke + Playwright on a local API + Next.
+**Session 19** — no pickable slices again, so a "follow roasters" feature was filed and shipped as six slices: the
+follow API with migration 009 (#102), a follow button on shop pages (#103), "Shops you follow" on /account (#104),
+`followingCoffees` (#105) feeding a home-page "From roasters you follow" section (#106), and "Most followed" shop sort
+with follower counts on cards and the dashboard (#107). Verified with race tests on PostgreSQL, smoke + Playwright
+on a local API + Next.
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 18; next sessions should file real gaps or wait for #9 / #12
+#12 (commission + payouts). No pickable slices remain after Session 19; next sessions should file real gaps or wait for #9 / #12
 (and #50 for a /shops city filter, #93 for seller account closure). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
@@ -142,3 +144,5 @@ Open questions for the owner (answer by commenting on the issue):
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).
 - **"Roaster" badge derived from shop ownership, not stored** — `Comment.fromShop` is an `EXISTS` on every read, so
   there is no flag to forge or keep in sync (#95).
+- **Follows: public count, private list** — like saves; nobody (the seller included) sees who follows a shop, and
+  owners can't follow themselves, so the count means other people (#102).

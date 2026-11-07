@@ -115,6 +115,68 @@ export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unkn
   return ld;
 }
 
+export interface JsonLdShop {
+  slug: string;
+  name: string;
+  description: string;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  city: string;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+/**
+ * A schema.org Store for a shop page: name, description, images, the city as
+ * its locality in Taiwan, coordinates when the seller set valid ones, and an
+ * OfferCatalog naming the coffees passed in (the ones listed on the page; pass
+ * none to leave the catalogue out, e.g. on a filtered list).
+ */
+export function shopJsonLd(s: JsonLdShop, coffees: { id: string; name: string }[], base: string): Record<string, unknown> {
+  const url = absoluteUrl(`/shops/${encodeURIComponent(s.slug)}`, base) ?? base;
+  const ld: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "@id": url,
+    url,
+    name: s.name,
+    address: {
+      "@type": "PostalAddress",
+      addressCountry: "TW",
+      ...(s.city ? { addressLocality: s.city } : {}),
+    },
+  };
+  const description = shareDescription(s.description, 500);
+  if (description) ld.description = description;
+  const logo = s.logoUrl ? absoluteUrl(s.logoUrl, base) : null;
+  if (logo) ld.logo = logo;
+  const images = [s.bannerUrl, s.logoUrl].map((src) => (src ? absoluteUrl(src, base) : null)).filter((x): x is string => x !== null);
+  if (images.length > 0) ld.image = images;
+  const { lat, lng } = s;
+  if (
+    typeof lat === "number" && typeof lng === "number" && Number.isFinite(lat) && Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 && Math.abs(lng) <= 180
+  ) {
+    ld.geo = { "@type": "GeoCoordinates", latitude: lat, longitude: lng };
+  }
+  if (coffees.length > 0) {
+    ld.hasOfferCatalog = {
+      "@type": "OfferCatalog",
+      name: s.name,
+      itemListElement: coffees.map((c, i) => {
+        const href = absoluteUrl(`/coffees/${encodeURIComponent(c.id)}`, base) ?? base;
+        return {
+          "@type": "Offer",
+          position: i + 1,
+          url: href,
+          itemOffered: { "@type": "Product", "@id": href, name: c.name, url: href },
+        };
+      }),
+    };
+  }
+  return ld;
+}
+
 /**
  * JSON for a <script type="application/ld+json"> body. `<`, `>` and `&` are
  * escaped so seller text can never close the script element or open a

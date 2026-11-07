@@ -67,10 +67,12 @@ type ComplexityRoot struct {
 		ID               func(childComplexity int) int
 		ImageUrls        func(childComplexity int) int
 		IsPublished      func(childComplexity int) int
+		IsSaved          func(childComplexity int) int
 		Name             func(childComplexity int) int
 		OriginCountry    func(childComplexity int) int
 		ProcessingMethod func(childComplexity int) int
 		RoastLevel       func(childComplexity int) int
+		SaveCount        func(childComplexity int) int
 		Shop             func(childComplexity int) int
 		Similar          func(childComplexity int, limit *int) int
 		Slug             func(childComplexity int) int
@@ -118,6 +120,7 @@ type ComplexityRoot struct {
 		CreateCoffee      func(childComplexity int, input model.CreateCoffeeInput) int
 		CreateImageUpload func(childComplexity int, input model.ImageUploadInput) int
 		CreateShop        func(childComplexity int, input model.CreateShopInput) int
+		DeleteAccount     func(childComplexity int, password string) int
 		DeleteCoffee      func(childComplexity int, id string) int
 		DeleteComment     func(childComplexity int, id string) int
 		DeleteVariant     func(childComplexity int, id string) int
@@ -128,7 +131,9 @@ type ComplexityRoot struct {
 		PublishCoffee     func(childComplexity int, id string) int
 		RefreshToken      func(childComplexity int, token string) int
 		Register          func(childComplexity int, input model.RegisterInput) int
+		SaveCoffee        func(childComplexity int, id string) int
 		UnpublishCoffee   func(childComplexity int, id string) int
+		UnsaveCoffee      func(childComplexity int, id string) int
 		UpdateCoffee      func(childComplexity int, id string, input model.UpdateCoffeeInput) int
 		UpdateComment     func(childComplexity int, id string, body string) int
 		UpdateProfile     func(childComplexity int, input model.UpdateProfileInput) int
@@ -200,13 +205,14 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		Comments    func(childComplexity int, limit *int, offset *int) int
-		CreatedAt   func(childComplexity int) int
-		DisplayName func(childComplexity int) int
-		Email       func(childComplexity int) int
-		ID          func(childComplexity int) int
-		Role        func(childComplexity int) int
-		Shop        func(childComplexity int) int
+		Comments     func(childComplexity int, limit *int, offset *int) int
+		CreatedAt    func(childComplexity int) int
+		DisplayName  func(childComplexity int) int
+		Email        func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Role         func(childComplexity int) int
+		SavedCoffees func(childComplexity int, limit *int, offset *int) int
+		Shop         func(childComplexity int) int
 	}
 
 	Variant struct {
@@ -230,6 +236,8 @@ type CoffeeResolver interface {
 	Comments(ctx context.Context, obj *model.Coffee, limit *int, offset *int) ([]*model.Comment, error)
 	CommentCount(ctx context.Context, obj *model.Coffee) (int, error)
 	Similar(ctx context.Context, obj *model.Coffee, limit *int) ([]*model.Coffee, error)
+	IsSaved(ctx context.Context, obj *model.Coffee) (bool, error)
+	SaveCount(ctx context.Context, obj *model.Coffee) (int, error)
 }
 type CommentResolver interface {
 	User(ctx context.Context, obj *model.Comment) (*model.User, error)
@@ -244,6 +252,7 @@ type MutationResolver interface {
 	LogoutEverywhere(ctx context.Context) (bool, error)
 	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*model.User, error)
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.AuthPayload, error)
+	DeleteAccount(ctx context.Context, password string) (bool, error)
 	CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error)
 	UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error)
 	CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error)
@@ -259,6 +268,8 @@ type MutationResolver interface {
 	AddComment(ctx context.Context, input model.AddCommentInput) (*model.Comment, error)
 	UpdateComment(ctx context.Context, id string, body string) (*model.Comment, error)
 	DeleteComment(ctx context.Context, id string) (bool, error)
+	SaveCoffee(ctx context.Context, id string) (*model.Coffee, error)
+	UnsaveCoffee(ctx context.Context, id string) (*model.Coffee, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
@@ -282,6 +293,7 @@ type UserResolver interface {
 
 	Shop(ctx context.Context, obj *model.User) (*model.Shop, error)
 	Comments(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CommentConnection, error)
+	SavedCoffees(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CoffeeConnection, error)
 }
 
 type executableSchema struct {
@@ -385,6 +397,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Coffee.IsPublished(childComplexity), true
 
+	case "Coffee.isSaved":
+		if e.complexity.Coffee.IsSaved == nil {
+			break
+		}
+
+		return e.complexity.Coffee.IsSaved(childComplexity), true
+
 	case "Coffee.name":
 		if e.complexity.Coffee.Name == nil {
 			break
@@ -412,6 +431,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Coffee.RoastLevel(childComplexity), true
+
+	case "Coffee.saveCount":
+		if e.complexity.Coffee.SaveCount == nil {
+			break
+		}
+
+		return e.complexity.Coffee.SaveCount(childComplexity), true
 
 	case "Coffee.shop":
 		if e.complexity.Coffee.Shop == nil {
@@ -651,6 +677,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.CreateShop(childComplexity, args["input"].(model.CreateShopInput)), true
 
+	case "Mutation.deleteAccount":
+		if e.complexity.Mutation.DeleteAccount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAccount_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteAccount(childComplexity, args["password"].(string)), true
+
 	case "Mutation.deleteCoffee":
 		if e.complexity.Mutation.DeleteCoffee == nil {
 			break
@@ -766,6 +804,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.Register(childComplexity, args["input"].(model.RegisterInput)), true
 
+	case "Mutation.saveCoffee":
+		if e.complexity.Mutation.SaveCoffee == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_saveCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.SaveCoffee(childComplexity, args["id"].(string)), true
+
 	case "Mutation.unpublishCoffee":
 		if e.complexity.Mutation.UnpublishCoffee == nil {
 			break
@@ -777,6 +827,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UnpublishCoffee(childComplexity, args["id"].(string)), true
+
+	case "Mutation.unsaveCoffee":
+		if e.complexity.Mutation.UnsaveCoffee == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_unsaveCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UnsaveCoffee(childComplexity, args["id"].(string)), true
 
 	case "Mutation.updateCoffee":
 		if e.complexity.Mutation.UpdateCoffee == nil {
@@ -1214,6 +1276,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.User.Role(childComplexity), true
 
+	case "User.savedCoffees":
+		if e.complexity.User.SavedCoffees == nil {
+			break
+		}
+
+		args, err := ec.field_User_savedCoffees_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.User.SavedCoffees(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+
 	case "User.shop":
 		if e.complexity.User.Shop == nil {
 			break
@@ -1431,6 +1505,11 @@ type Mutation {
   # Checks currentPassword, stores the new one and ends every other session
   # (all refresh tokens are revoked); returns fresh tokens for this one.
   changePassword(input: ChangePasswordInput!): AuthPayload!
+  # Permanently deletes the signed-in account after re-checking its password:
+  # the user, their comments, saved coffees and every session. Accounts that
+  # own a shop (and admins) are refused with FORBIDDEN. Access tokens already
+  # issued stop working on the next request that loads the user.
+  deleteAccount(password: String!): Boolean!
 
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
@@ -1468,6 +1547,13 @@ type Mutation {
   updateComment(id: ID!, body: String!): Comment!
   deleteComment(id: ID!): Boolean!
 
+  # Saved coffees (signed in). Only published coffees can be saved (a draft is
+  # NOT_FOUND). Unsaving works whatever the coffee's state, and returns null
+  # when the coffee is gone or is a draft the viewer can't see. Both are
+  # idempotent and return the coffee with its new isSaved / saveCount.
+  saveCoffee(id: ID!): Coffee!
+  unsaveCoffee(id: ID!): Coffee
+
   # Stage 2: cart, orders, ECPay checkout — parked
 }
 
@@ -1484,6 +1570,10 @@ type User {
   # admin; for anyone else it is empty (never an error: User appears on every
   # comment).
   comments(limit: Int, offset: Int): CommentConnection!
+  # Published coffees the user saved, most recently saved first (coffees moved
+  # back to draft are hidden). Same visibility as comments: the user themself or
+  # an admin; empty for anyone else. limit defaults to 20 (max 100).
+  savedCoffees(limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 
@@ -1566,6 +1656,10 @@ type Coffee {
   # alone doesn't count). In-stock first, then most similar, then newest.
   # limit defaults to 4 (max 12).
   similar(limit: Int): [Coffee!]!
+  # Whether the signed-in viewer saved this coffee; false when signed out.
+  isSaved: Boolean!
+  # How many people saved it.
+  saveCount: Int!
   isPublished: Boolean!
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).
@@ -2067,6 +2161,34 @@ func (ec *executionContext) field_Mutation_createShop_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteAccount_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteAccount_argsPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteAccount_argsPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["password"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+	if tmp, ok := rawArgs["password"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_deleteCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2342,6 +2464,34 @@ func (ec *executionContext) field_Mutation_register_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_saveCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_saveCoffee_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_saveCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_unpublishCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2353,6 +2503,34 @@ func (ec *executionContext) field_Mutation_unpublishCoffee_args(ctx context.Cont
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_unpublishCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_unsaveCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_unsaveCoffee_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_unsaveCoffee_argsID(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
@@ -3130,6 +3308,57 @@ func (ec *executionContext) field_User_comments_argsOffset(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_User_savedCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_User_savedCoffees_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := ec.field_User_savedCoffees_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_User_savedCoffees_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_User_savedCoffees_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["offset"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field___Directive_args_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3389,6 +3618,8 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_shop(ctx, field)
 			case "comments":
 				return ec.fieldContext_User_comments(ctx, field)
+			case "savedCoffees":
+				return ec.fieldContext_User_savedCoffees(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -4177,6 +4408,10 @@ func (ec *executionContext) fieldContext_Coffee_similar(ctx context.Context, fie
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -4197,6 +4432,94 @@ func (ec *executionContext) fieldContext_Coffee_similar(ctx context.Context, fie
 	if fc.Args, err = ec.field_Coffee_similar_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_isSaved(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_isSaved(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Coffee().IsSaved(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_isSaved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_saveCount(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_saveCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Coffee().SaveCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_saveCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
 	}
 	return fc, nil
 }
@@ -4402,6 +4725,10 @@ func (ec *executionContext) fieldContext_CoffeeConnection_nodes(_ context.Contex
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -4683,6 +5010,8 @@ func (ec *executionContext) fieldContext_Comment_user(_ context.Context, field g
 				return ec.fieldContext_User_shop(ctx, field)
 			case "comments":
 				return ec.fieldContext_User_comments(ctx, field)
+			case "savedCoffees":
+				return ec.fieldContext_User_savedCoffees(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -4802,6 +5131,10 @@ func (ec *executionContext) fieldContext_Comment_coffee(_ context.Context, field
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -5523,6 +5856,8 @@ func (ec *executionContext) fieldContext_Mutation_updateProfile(ctx context.Cont
 				return ec.fieldContext_User_shop(ctx, field)
 			case "comments":
 				return ec.fieldContext_User_comments(ctx, field)
+			case "savedCoffees":
+				return ec.fieldContext_User_savedCoffees(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -5600,6 +5935,61 @@ func (ec *executionContext) fieldContext_Mutation_changePassword(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_changePassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAccount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteAccount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteAccount(rctx, fc.Args["password"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAccount(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAccount_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5845,6 +6235,10 @@ func (ec *executionContext) fieldContext_Mutation_createCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -5938,6 +6332,10 @@ func (ec *executionContext) fieldContext_Mutation_updateCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -6031,6 +6429,10 @@ func (ec *executionContext) fieldContext_Mutation_publishCoffee(ctx context.Cont
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -6124,6 +6526,10 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -6272,6 +6678,10 @@ func (ec *executionContext) fieldContext_Mutation_duplicateCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -6747,6 +7157,197 @@ func (ec *executionContext) fieldContext_Mutation_deleteComment(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_saveCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_saveCoffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SaveCoffee(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_saveCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_saveCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unsaveCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_unsaveCoffee(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UnsaveCoffee(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Coffee)
+	fc.Result = res
+	return ec.marshalOCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_unsaveCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unsaveCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _OriginCountry_id(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OriginCountry_id(ctx, field)
 	if err != nil {
@@ -7144,6 +7745,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_shop(ctx, field)
 			case "comments":
 				return ec.fieldContext_User_comments(ctx, field)
+			case "savedCoffees":
+				return ec.fieldContext_User_savedCoffees(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -7420,6 +8023,10 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -7574,6 +8181,10 @@ func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Contex
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
 			case "similar":
 				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isSaved":
+				return ec.fieldContext_Coffee_isSaved(ctx, field)
+			case "saveCount":
+				return ec.fieldContext_Coffee_saveCount(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
@@ -9290,6 +9901,67 @@ func (ec *executionContext) fieldContext_User_comments(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_User_comments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_savedCoffees(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_savedCoffees(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().SavedCoffees(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CoffeeConnection)
+	fc.Result = res
+	return ec.marshalNCoffeeConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_savedCoffees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_CoffeeConnection_nodes(ctx, field)
+			case "total":
+				return ec.fieldContext_CoffeeConnection_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CoffeeConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_User_savedCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12609,6 +13281,78 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "isSaved":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Coffee_isSaved(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "saveCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Coffee_saveCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "isPublished":
 			out.Values[i] = ec._Coffee_isPublished(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -13023,6 +13767,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "deleteAccount":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAccount(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createShop":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createShop(ctx, field)
@@ -13128,6 +13879,17 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "saveCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_saveCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unsaveCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unsaveCoffee(ctx, field)
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13950,6 +14712,42 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._User_comments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "savedCoffees":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_savedCoffees(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

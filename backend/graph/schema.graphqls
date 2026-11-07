@@ -48,6 +48,11 @@ type Mutation {
   # Checks currentPassword, stores the new one and ends every other session
   # (all refresh tokens are revoked); returns fresh tokens for this one.
   changePassword(input: ChangePasswordInput!): AuthPayload!
+  # Permanently deletes the signed-in account after re-checking its password:
+  # the user, their comments, saved coffees and every session. Accounts that
+  # own a shop (and admins) are refused with FORBIDDEN. Access tokens already
+  # issued expire within 15 minutes and are refused wherever the account is needed.
+  deleteAccount(password: String!): Boolean!
 
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
@@ -85,6 +90,13 @@ type Mutation {
   updateComment(id: ID!, body: String!): Comment!
   deleteComment(id: ID!): Boolean!
 
+  # Saved coffees (signed in). Only published coffees can be saved (a draft is
+  # NOT_FOUND). Unsaving works whatever the coffee's state, and returns null
+  # when the coffee is gone or is a draft the viewer can't see. Both are
+  # idempotent and return the coffee with its new isSaved / saveCount.
+  saveCoffee(id: ID!): Coffee!
+  unsaveCoffee(id: ID!): Coffee
+
   # Stage 2: cart, orders, ECPay checkout — parked
 }
 
@@ -101,6 +113,10 @@ type User {
   # admin; for anyone else it is empty (never an error: User appears on every
   # comment).
   comments(limit: Int, offset: Int): CommentConnection!
+  # Published coffees the user saved, most recently saved first (coffees moved
+  # back to draft are hidden). Same visibility as comments: the user themself or
+  # an admin; empty for anyone else. limit defaults to 20 (max 100).
+  savedCoffees(limit: Int, offset: Int): CoffeeConnection!
   createdAt: Time!
 }
 
@@ -183,6 +199,10 @@ type Coffee {
   # alone doesn't count). In-stock first, then most similar, then newest.
   # limit defaults to 4 (max 12).
   similar(limit: Int): [Coffee!]!
+  # Whether the signed-in viewer saved this coffee; false when signed out.
+  isSaved: Boolean!
+  # How many people saved it.
+  saveCount: Int!
   isPublished: Boolean!
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).

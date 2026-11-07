@@ -85,6 +85,7 @@ func run() error {
 		CommentUser:  ratelimit.New(rules.CommentUser),
 		UploadUser:   ratelimit.New(rules.UploadUser),
 		PasswordUser: ratelimit.New(rules.PasswordUser),
+		SaveUser:     ratelimit.New(rules.SaveUser),
 	}
 	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
 	if err != nil {

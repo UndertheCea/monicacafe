@@ -25,6 +25,8 @@ var (
 	// ErrRefreshReuse is returned when a revoked refresh token is presented
 	// again outside the rotation grace window (possible theft).
 	ErrRefreshReuse = errors.New("store: refresh token reuse")
+	// ErrOwnsShop is returned when deleting an account that owns a shop.
+	ErrOwnsShop = errors.New("store: account owns a shop")
 )
 
 // DB is the subset of pgx used by the store; satisfied by *pgxpool.Pool and pgx.Tx.

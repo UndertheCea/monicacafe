@@ -1,7 +1,7 @@
 // Share-card metadata helpers (lib/seo.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { absoluteUrl, coffeeJsonLd, serializeJsonLd, shareDescription, shareMetadata } from "../lib/seo.ts";
+import { absoluteUrl, coffeeJsonLd, serializeJsonLd, shareDescription, shareMetadata, shopJsonLd } from "../lib/seo.ts";
 
 const base = "https://moni.cafe";
 
@@ -98,4 +98,54 @@ test("serializeJsonLd can't be broken out of by seller text", () => {
   const out = serializeJsonLd(evil);
   assert.ok(!/[<>&\u2028\u2029]/.test(out), out);
   assert.deepEqual(JSON.parse(out), evil);
+});
+
+const shop = {
+  slug: "moon-roast",
+  name: "月光烘焙",
+  description: "  台中的小烘豆室\n\n手工烘焙  ",
+  logoUrl: "/media/shops/1/logo.png",
+  bannerUrl: "https://moni.cafe/media/shops/1/banner.jpg",
+  city: "台中市",
+  lat: 24.1477,
+  lng: 120.6736,
+};
+
+test("shopJsonLd describes a Store in Taiwan with geo and the listed coffees", () => {
+  const ld = shopJsonLd(shop, [{ id: "c1", name: "耶加雪菲" }, { id: "c2", name: "Kenya AA" }], base);
+  assert.equal(ld["@type"], "Store");
+  assert.equal(ld.url, "https://moni.cafe/shops/moon-roast");
+  assert.equal(ld.description, "台中的小烘豆室 手工烘焙");
+  assert.equal(ld.logo, "https://moni.cafe/media/shops/1/logo.png");
+  assert.deepEqual(ld.image, ["https://moni.cafe/media/shops/1/banner.jpg", "https://moni.cafe/media/shops/1/logo.png"]);
+  assert.deepEqual(ld.address, { "@type": "PostalAddress", addressCountry: "TW", addressLocality: "台中市" });
+  assert.deepEqual(ld.geo, { "@type": "GeoCoordinates", latitude: 24.1477, longitude: 120.6736 });
+  const items = ld.hasOfferCatalog.itemListElement;
+  assert.equal(items.length, 2);
+  assert.equal(items[1].position, 2);
+  assert.equal(items[1].url, "https://moni.cafe/coffees/c2");
+  assert.equal(items[0].itemOffered.name, "耶加雪菲");
+});
+
+test("shopJsonLd leaves out what the shop doesn't have", () => {
+  const cases = [
+    { name: "no coords", patch: { lat: null, lng: null }, absent: ["geo"] },
+    { name: "one coord", patch: { lat: 24.1, lng: undefined }, absent: ["geo"] },
+    { name: "out of range", patch: { lat: 124.1, lng: 120 }, absent: ["geo"] },
+    { name: "no images", patch: { logoUrl: null, bannerUrl: null }, absent: ["logo", "image"] },
+    { name: "bad image scheme", patch: { logoUrl: "javascript:alert(1)", bannerUrl: null }, absent: ["logo", "image"] },
+    { name: "no description", patch: { description: "   " }, absent: ["description"] },
+  ];
+  for (const c of cases) {
+    const ld = shopJsonLd({ ...shop, ...c.patch }, [], base);
+    for (const key of c.absent) assert.equal(ld[key], undefined, `${c.name}: ${key}`);
+    assert.equal(ld.hasOfferCatalog, undefined, `${c.name}: catalogue without coffees`);
+  }
+  const noCity = shopJsonLd({ ...shop, city: "" }, [], base);
+  assert.deepEqual(noCity.address, { "@type": "PostalAddress", addressCountry: "TW" });
+});
+
+test("shopJsonLd output stays inside its script element", () => {
+  const out = serializeJsonLd(shopJsonLd({ ...shop, name: "</script><script>alert(1)</script>" }, [], base));
+  assert.ok(!out.includes("<"), out);
 });

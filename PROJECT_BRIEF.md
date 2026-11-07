@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-07 (after Session 16)
+Last updated: 2026-11-07 (after Session 17)
 
 ---
 
@@ -30,14 +30,16 @@ takes a commission on each sale).
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–007 | Done |
+| DB schema + migrations 001–008 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
-| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product JSON-LD | Done |
-| /login, /register, account menu, /account (display name, change password, my comments) | Done |
+| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
+| /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker) | Done (#81, #82) |
 | Skip-to-content link, one `main` landmark per page | Done (#85) |
+| Saved coffees: save toggle + count on coffee pages, list on /account | Done (#87–#89) |
+| Account deletion for buyers (password re-check; comments, saves, sessions removed) | Done (#90, #91); sellers: #93 |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location, recent comments | Done |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
@@ -55,16 +57,16 @@ takes a commission on each sale).
 
 ## Last session
 
-**Session 16** — no pickable slices again, so six gaps were filed and shipped: `Shop/Coffee.updatedAt` (variant
-changes touch the coffee) + sitemap `<lastmod>` (#80); `updateComment` + `editedAt` (#81) with inline editing on the
-coffee page and /account (#82); `Coffee.similar` (#83) + "You may also like" on coffee pages (#84); a skip link and a
-single `main` landmark (#85). Verified with race tests on PostgreSQL, Playwright and smoke on a local API + Next.
+**Session 17** — no pickable slices again, so six gaps were filed and shipped: saved coffees — API with `isSaved` /
+`saveCount` / `User.savedCoffees` (#87), a save toggle on coffee pages (#88) and a list on /account (#89);
+`deleteAccount` for buyers (#90) with a BFF route that clears the cookie and an /account section (#91); schema.org
+`Store` JSON-LD on shop pages (#92). Verified with race tests on PostgreSQL, Playwright and smoke on a local API + Next.
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 16; next sessions should file real gaps or wait for #9 / #12
-(and #50 for a /shops city filter). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
+#12 (commission + payouts). No pickable slices remain after Session 17; next sessions should file real gaps or wait for #9 / #12
+(and #50 for a /shops city filter, #93 for seller account closure). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
 Open questions for the owner (answer by commenting on the issue):
@@ -77,6 +79,7 @@ Open questions for the owner (answer by commenting on the issue):
 | #12 | Commission + payouts (Stage 2) | none | **no** |
 | #42 | Sellers delete comments on their coffees? | no change (author / admin only) | yes |
 | #50 | City filter on /shops? | no (use /map) | yes |
+| #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 
 ## Decisions (why it looks like this)
 
@@ -131,5 +134,9 @@ Open questions for the owner (answer by commenting on the issue):
   words; an "edited" marker is shown instead of keeping old versions (#81).
 - **Similar coffees = a SQL score over origin / process / roast / notes, other shops only** — cross-shop discovery
   without new infra; a shared roast alone isn't "similar" (#83).
+- **Saved coffees: public count, private list** — the list is self / admin only like "My comments"; drafts drop out of
+  it but can still be unsaved; saving a draft is NOT_FOUND, even for its owner (#87).
+- **Account deletion deletes comments, refuses shop owners and admins** — personal data goes with the account
+  (PDPA); a shop's coffees and links depend on its owner, so seller closure waits on #93 (#90).
 - **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).

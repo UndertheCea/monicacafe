@@ -34,6 +34,7 @@ type Limits struct {
 	CommentUser  *ratelimit.Limiter
 	UploadUser   *ratelimit.Limiter
 	PasswordUser *ratelimit.Limiter
+	SaveUser     *ratelimit.Limiter
 }
 
 // allowIP spends a token for the request's client IP. Requests whose IP is

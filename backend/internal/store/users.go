@@ -77,6 +77,35 @@ func (s *Store) ChangePassword(ctx context.Context, userID, passwordHash string)
 	})
 }
 
+// DeleteUser removes an account and the personal data hanging off it: its
+// comments, saved coffees and refresh tokens (the last two cascade). An
+// account that owns a shop is refused with ErrOwnsShop, since its coffees and
+// public links depend on it. The user row is locked first, so a shop created
+// concurrently (its foreign key check waits on the lock) can't slip in
+// between the check and the delete. Returns ErrNotFound for unknown users.
+func (s *Store) DeleteUser(ctx context.Context, userID string) error {
+	return s.InTx(ctx, func(tx *Store) error {
+		var id string
+		if err := tx.db.QueryRow(ctx, `SELECT id FROM users WHERE id = $1 FOR UPDATE`, userID).Scan(&id); err != nil {
+			return mapErr(err)
+		}
+		var owns bool
+		if err := tx.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM shops WHERE owner_id = $1)`, userID).Scan(&owns); err != nil {
+			return mapErr(err)
+		}
+		if owns {
+			return ErrOwnsShop
+		}
+		if _, err := tx.db.Exec(ctx, `DELETE FROM comments WHERE user_id = $1`, userID); err != nil {
+			return mapErr(err)
+		}
+		if _, err := tx.db.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID); err != nil {
+			return mapErr(err)
+		}
+		return nil
+	})
+}
+
 // PromoteToSeller upgrades a BUYER to SELLER. ADMIN and SELLER roles are left unchanged.
 func (s *Store) PromoteToSeller(ctx context.Context, userID string) error {
 	_, err := s.db.Exec(ctx, `UPDATE users SET role = 'SELLER' WHERE id = $1 AND role = 'BUYER'`, userID)

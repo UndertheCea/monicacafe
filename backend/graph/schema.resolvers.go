@@ -101,6 +101,19 @@ func (r *coffeeResolver) Similar(ctx context.Context, obj *model.Coffee, limit *
 	return toCoffees(cs), nil
 }
 
+// IsSaved is the resolver for the isSaved field.
+func (r *coffeeResolver) IsSaved(ctx context.Context, obj *model.Coffee) (bool, error) {
+	if viewer(ctx) == nil {
+		return false, nil
+	}
+	return r.loadersFor(ctx).SavedByCoffee.Load(ctx, obj.ID)
+}
+
+// SaveCount is the resolver for the saveCount field.
+func (r *coffeeResolver) SaveCount(ctx context.Context, obj *model.Coffee) (int, error) {
+	return r.loadersFor(ctx).SaveCountByCoffee.Load(ctx, obj.ID)
+}
+
 // User is the resolver for the user field.
 func (r *commentResolver) User(ctx context.Context, obj *model.Comment) (*model.User, error) {
 	u, err := r.loadersFor(ctx).UserByID.Load(ctx, obj.UserID)
@@ -316,6 +329,45 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 		return nil, err
 	}
 	return r.issueTokens(ctx, u)
+}
+
+// DeleteAccount is the resolver for the deleteAccount field.
+func (r *mutationResolver) DeleteAccount(ctx context.Context, password string) (bool, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	// Same bucket as changePassword: each attempt runs a bcrypt check.
+	if err := allowKey(r.Limits.PasswordUser, c.UserID); err != nil {
+		return false, err
+	}
+	if password == "" {
+		return false, errBadInput("password", "password is required")
+	}
+	u, err := r.Store.UserByID(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return false, errUnauthenticated()
+	}
+	if err != nil {
+		return false, err
+	}
+	if !auth.CheckPassword(u.PasswordHash, password) {
+		// BAD_USER_INPUT, not UNAUTHENTICATED (see changePassword).
+		return false, errBadInput("password", "password is wrong")
+	}
+	if u.Role == string(model.UserRoleAdmin) {
+		return false, errForbidden("admin accounts can't be deleted here")
+	}
+	err = r.Store.DeleteUser(ctx, u.ID)
+	switch {
+	case errors.Is(err, store.ErrOwnsShop):
+		return false, errForbidden("accounts that own a shop can't be deleted")
+	case errors.Is(err, store.ErrNotFound):
+		return false, errUnauthenticated()
+	case err != nil:
+		return false, err
+	}
+	return true, nil
 }
 
 // CreateShop is the resolver for the createShop field.
@@ -913,6 +965,73 @@ func (r *mutationResolver) DeleteComment(ctx context.Context, id string) (bool, 
 	return true, nil
 }
 
+// SaveCoffee is the resolver for the saveCoffee field.
+func (r *mutationResolver) SaveCoffee(ctx context.Context, id string) (*model.Coffee, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, errNotFound("coffee")
+	}
+	co, err := r.Store.CoffeeByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee")
+	}
+	if err != nil {
+		return nil, err
+	}
+	// Drafts can't be saved, even by their owner: a saved list is for coffees
+	// people can actually look at.
+	if !co.IsPublished {
+		return nil, errNotFound("coffee")
+	}
+	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
+		return nil, err
+	}
+	if err := r.Store.SaveCoffee(ctx, c.UserID, co.ID); err != nil {
+		if errors.Is(err, store.ErrInvalidReference) {
+			// The account was deleted (or the coffee) between the checks.
+			return nil, errUnauthenticated()
+		}
+		return nil, err
+	}
+	return toCoffee(co), nil
+}
+
+// UnsaveCoffee is the resolver for the unsaveCoffee field.
+func (r *mutationResolver) UnsaveCoffee(ctx context.Context, id string) (*model.Coffee, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, nil
+	}
+	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
+		return nil, err
+	}
+	// Remove first, whatever the coffee's state: a coffee that went back to
+	// draft must still be removable from the list.
+	if err := r.Store.UnsaveCoffee(ctx, c.UserID, id); err != nil {
+		return nil, err
+	}
+	co, err := r.Store.CoffeeByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !co.IsPublished {
+		ok, err := r.canSeeDrafts(ctx, co.ShopID)
+		if err != nil || !ok {
+			return nil, err
+		}
+	}
+	return toCoffee(co), nil
+}
+
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	c := viewer(ctx)
@@ -1136,6 +1255,20 @@ func (r *userResolver) Comments(ctx context.Context, obj *model.User, limit *int
 		return nil, err
 	}
 	return &model.CommentConnection{Nodes: toComments(cs), Total: total}, nil
+}
+
+// SavedCoffees is the resolver for the savedCoffees field.
+func (r *userResolver) SavedCoffees(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	c := viewer(ctx)
+	if c == nil || (c.UserID != obj.ID && !isAdmin(c)) {
+		return &model.CoffeeConnection{Nodes: []*model.Coffee{}}, nil
+	}
+	l, o := page(limit, offset)
+	cs, total, err := r.Store.SavedCoffeesByUser(ctx, obj.ID, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
 }
 
 // Coffee returns generated.CoffeeResolver implementation.

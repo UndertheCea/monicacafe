@@ -19,6 +19,10 @@ type Loaders struct {
 	VariantsByCoffeeID   *dataloadgen.Loader[string, []*store.Variant]
 	CommentCountByCoffee *dataloadgen.Loader[string, int]
 	CoffeeCountByShop    *dataloadgen.Loader[string, int]
+	SaveCountByCoffee    *dataloadgen.Loader[string, int]
+	// SavedByCoffee answers Coffee.isSaved for the request's viewer (the
+	// loader is request-scoped, so there is only ever one viewer).
+	SavedByCoffee *dataloadgen.Loader[string, bool]
 }
 
 type loadersKey struct{}
@@ -44,6 +48,22 @@ func NewLoaders(st *store.Store) *Loaders {
 		}, dataloadgen.WithWait(loaderWait)),
 		CommentCountByCoffee: dataloadgen.NewLoader(countLoader(st.CommentCountsByCoffeeIDs), dataloadgen.WithWait(loaderWait)),
 		CoffeeCountByShop:    dataloadgen.NewLoader(countLoader(st.PublishedCoffeeCountsByShopIDs), dataloadgen.WithWait(loaderWait)),
+		SaveCountByCoffee:    dataloadgen.NewLoader(countLoader(st.SaveCountsByCoffeeIDs), dataloadgen.WithWait(loaderWait)),
+		SavedByCoffee: dataloadgen.NewLoader(func(ctx context.Context, ids []string) ([]bool, []error) {
+			out := make([]bool, len(ids))
+			c := viewer(ctx)
+			if c == nil {
+				return out, nil
+			}
+			m, err := st.SavedCoffeeIDs(ctx, c.UserID, ids)
+			if err != nil {
+				return out, fillErr(len(ids), err)
+			}
+			for i, id := range ids {
+				out[i] = m[id]
+			}
+			return out, nil
+		}, dataloadgen.WithWait(loaderWait)),
 	}
 }
 

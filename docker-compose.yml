@@ -117,6 +117,7 @@ services:
       RATE_LIMIT_COMMENT_USER: ${RATE_LIMIT_COMMENT_USER:-5/5m}
       RATE_LIMIT_UPLOAD_USER: ${RATE_LIMIT_UPLOAD_USER:-30/10m}
       RATE_LIMIT_PASSWORD_USER: ${RATE_LIMIT_PASSWORD_USER:-5/15m}
+      RATE_LIMIT_SAVE_USER: ${RATE_LIMIT_SAVE_USER:-60/5m}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost,http://localhost:3000}

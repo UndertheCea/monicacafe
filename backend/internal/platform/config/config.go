@@ -64,6 +64,7 @@ type Config struct {
 	RateLimitCommentUser  string
 	RateLimitUploadUser   string
 	RateLimitPasswordUser string
+	RateLimitSaveUser     string
 }
 
 func get(k, d string) string {
@@ -108,6 +109,7 @@ func Load() Config {
 		RateLimitCommentUser:  get("RATE_LIMIT_COMMENT_USER", "5/5m"),
 		RateLimitUploadUser:   get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
 		RateLimitPasswordUser: get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
+		RateLimitSaveUser:     get("RATE_LIMIT_SAVE_USER", "60/5m"),
 	}
 }
 
@@ -186,6 +188,7 @@ const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.
 type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
+	SaveUser                                   ratelimit.Rule
 }
 
 // RateLimits parses the RATE_LIMIT_* settings.
@@ -202,6 +205,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_COMMENT_USER", c.RateLimitCommentUser, &r.CommentUser},
 		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
+		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)
 		if err != nil {

@@ -48,6 +48,11 @@ type Mutation {
   # Checks currentPassword, stores the new one and ends every other session
   # (all refresh tokens are revoked); returns fresh tokens for this one.
   changePassword(input: ChangePasswordInput!): AuthPayload!
+  # Permanently deletes the signed-in account after re-checking its password:
+  # the user, their comments, saved coffees and every session. Accounts that
+  # own a shop (and admins) are refused with FORBIDDEN. Access tokens already
+  # issued expire within 15 minutes and are refused wherever the account is needed.
+  deleteAccount(password: String!): Boolean!
 
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!

@@ -120,6 +120,7 @@ type ComplexityRoot struct {
 		CreateCoffee      func(childComplexity int, input model.CreateCoffeeInput) int
 		CreateImageUpload func(childComplexity int, input model.ImageUploadInput) int
 		CreateShop        func(childComplexity int, input model.CreateShopInput) int
+		DeleteAccount     func(childComplexity int, password string) int
 		DeleteCoffee      func(childComplexity int, id string) int
 		DeleteComment     func(childComplexity int, id string) int
 		DeleteVariant     func(childComplexity int, id string) int
@@ -251,6 +252,7 @@ type MutationResolver interface {
 	LogoutEverywhere(ctx context.Context) (bool, error)
 	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*model.User, error)
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.AuthPayload, error)
+	DeleteAccount(ctx context.Context, password string) (bool, error)
 	CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error)
 	UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error)
 	CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error)
@@ -674,6 +676,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateShop(childComplexity, args["input"].(model.CreateShopInput)), true
+
+	case "Mutation.deleteAccount":
+		if e.complexity.Mutation.DeleteAccount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAccount_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteAccount(childComplexity, args["password"].(string)), true
 
 	case "Mutation.deleteCoffee":
 		if e.complexity.Mutation.DeleteCoffee == nil {
@@ -1491,6 +1505,11 @@ type Mutation {
   # Checks currentPassword, stores the new one and ends every other session
   # (all refresh tokens are revoked); returns fresh tokens for this one.
   changePassword(input: ChangePasswordInput!): AuthPayload!
+  # Permanently deletes the signed-in account after re-checking its password:
+  # the user, their comments, saved coffees and every session. Accounts that
+  # own a shop (and admins) are refused with FORBIDDEN. Access tokens already
+  # issued stop working on the next request that loads the user.
+  deleteAccount(password: String!): Boolean!
 
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
@@ -2139,6 +2158,34 @@ func (ec *executionContext) field_Mutation_createShop_argsInput(
 	}
 
 	var zeroVal model.CreateShopInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteAccount_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteAccount_argsPassword(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["password"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteAccount_argsPassword(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["password"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+	if tmp, ok := rawArgs["password"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -5888,6 +5935,61 @@ func (ec *executionContext) fieldContext_Mutation_changePassword(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_changePassword_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAccount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteAccount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteAccount(rctx, fc.Args["password"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAccount(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAccount_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13661,6 +13763,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "changePassword":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_changePassword(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAccount":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAccount(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

@@ -331,6 +331,45 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 	return r.issueTokens(ctx, u)
 }
 
+// DeleteAccount is the resolver for the deleteAccount field.
+func (r *mutationResolver) DeleteAccount(ctx context.Context, password string) (bool, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return false, err
+	}
+	// Same bucket as changePassword: each attempt runs a bcrypt check.
+	if err := allowKey(r.Limits.PasswordUser, c.UserID); err != nil {
+		return false, err
+	}
+	if password == "" {
+		return false, errBadInput("password", "password is required")
+	}
+	u, err := r.Store.UserByID(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return false, errUnauthenticated()
+	}
+	if err != nil {
+		return false, err
+	}
+	if !auth.CheckPassword(u.PasswordHash, password) {
+		// BAD_USER_INPUT, not UNAUTHENTICATED (see changePassword).
+		return false, errBadInput("password", "password is wrong")
+	}
+	if u.Role == string(model.UserRoleAdmin) {
+		return false, errForbidden("admin accounts can't be deleted here")
+	}
+	err = r.Store.DeleteUser(ctx, u.ID)
+	switch {
+	case errors.Is(err, store.ErrOwnsShop):
+		return false, errForbidden("accounts that own a shop can't be deleted")
+	case errors.Is(err, store.ErrNotFound):
+		return false, errUnauthenticated()
+	case err != nil:
+		return false, err
+	}
+	return true, nil
+}
+
 // CreateShop is the resolver for the createShop field.
 func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error) {
 	c, err := requireViewer(ctx)

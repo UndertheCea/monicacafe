@@ -27,6 +27,28 @@ export interface SitemapEntry {
   url: string;
   changeFrequency: "daily" | "weekly";
   priority: number;
+  /** ISO 8601; only for shop and coffee pages, from the API's updatedAt. */
+  lastModified?: string;
+}
+
+export interface SitemapShop {
+  slug: string;
+  updatedAt: string;
+}
+
+export interface SitemapCoffee {
+  id: string;
+  updatedAt: string;
+  shop: { slug: string };
+}
+
+/** The later of two ISO timestamps; an unparseable value loses (both bad → undefined). */
+export function laterDate(a: string | undefined, b: string | undefined): string | undefined {
+  const ta = a ? Date.parse(a) : NaN;
+  const tb = b ? Date.parse(b) : NaN;
+  if (Number.isNaN(ta) && Number.isNaN(tb)) return undefined;
+  if (Number.isNaN(tb) || ta >= tb) return new Date(ta).toISOString();
+  return new Date(tb).toISOString();
 }
 
 const STATIC_PATHS: [string, SitemapEntry["changeFrequency"], number][] = [
@@ -38,19 +60,27 @@ const STATIC_PATHS: [string, SitemapEntry["changeFrequency"], number][] = [
 
 /**
  * Sitemap entries for the public pages, every shop and every published coffee.
- * Slugs and ids are URL-encoded; duplicates are dropped.
+ * Slugs and ids are URL-encoded; duplicates are dropped. A coffee's lastmod is
+ * its updatedAt (which follows its options too); a shop's is the later of its
+ * own and its listed coffees', because the shop page shows those coffees.
  */
-export function sitemapEntries(base: string, shopSlugs: string[], coffeeIds: string[]): SitemapEntry[] {
+export function sitemapEntries(base: string, shops: SitemapShop[], coffees: SitemapCoffee[]): SitemapEntry[] {
+  const shopLatest = new Map<string, string | undefined>();
+  for (const s of shops) shopLatest.set(s.slug, laterDate(shopLatest.get(s.slug), s.updatedAt));
+  for (const c of coffees) {
+    if (shopLatest.has(c.shop.slug)) shopLatest.set(c.shop.slug, laterDate(shopLatest.get(c.shop.slug), c.updatedAt));
+  }
+
   const seen = new Set<string>();
   const out: SitemapEntry[] = [];
-  const add = (path: string, changeFrequency: SitemapEntry["changeFrequency"], priority: number) => {
+  const add = (path: string, changeFrequency: SitemapEntry["changeFrequency"], priority: number, lastModified?: string) => {
     const url = base + path;
     if (seen.has(url)) return;
     seen.add(url);
-    out.push({ url, changeFrequency, priority });
+    out.push(lastModified ? { url, changeFrequency, priority, lastModified } : { url, changeFrequency, priority });
   };
   for (const [p, f, pr] of STATIC_PATHS) add(p, f, pr);
-  for (const s of shopSlugs) add(`/shops/${encodeURIComponent(s)}`, "weekly", 0.7);
-  for (const id of coffeeIds) add(`/coffees/${encodeURIComponent(id)}`, "weekly", 0.6);
+  for (const s of shops) add(`/shops/${encodeURIComponent(s.slug)}`, "weekly", 0.7, shopLatest.get(s.slug));
+  for (const c of coffees) add(`/coffees/${encodeURIComponent(c.id)}`, "weekly", 0.6, laterDate(c.updatedAt, undefined));
   return out;
 }

@@ -4,6 +4,7 @@ import { typed } from "./graphql";
 import { COMMENTS_PAGE } from "./comments";
 import type { CoffeeSort, RoastLevel } from "./coffeeQuery";
 import type { ShopSort } from "./shopQuery";
+import type { SitemapCoffee, SitemapShop } from "./sitemap";
 
 export { ROAST_LEVELS, type RoastLevel } from "./coffeeQuery";
 
@@ -297,18 +298,18 @@ export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(
 // Sitemap (public data only: the API never returns drafts to anonymous callers)
 // ---------------------------------------------------------------------------
 
-export const SITEMAP_SHOPS = typed<{ shops: { total: number; nodes: { slug: string }[] } }, { limit: number; offset: number }>(
+export const SITEMAP_SHOPS = typed<{ shops: { total: number; nodes: SitemapShop[] } }, { limit: number; offset: number }>(
   /* GraphQL */ `
     query SitemapShops($limit: Int, $offset: Int) {
-      shops(limit: $limit, offset: $offset) { total nodes { slug } }
+      shops(limit: $limit, offset: $offset) { total nodes { slug updatedAt } }
     }
   `,
 );
 
-export const SITEMAP_COFFEES = typed<{ coffees: { total: number; nodes: { id: string }[] } }, { limit: number; offset: number }>(
+export const SITEMAP_COFFEES = typed<{ coffees: { total: number; nodes: SitemapCoffee[] } }, { limit: number; offset: number }>(
   /* GraphQL */ `
     query SitemapCoffees($limit: Int, $offset: Int) {
-      coffees(limit: $limit, offset: $offset) { total nodes { id } }
+      coffees(limit: $limit, offset: $offset) { total nodes { id updatedAt shop { slug } } }
     }
   `,
 );

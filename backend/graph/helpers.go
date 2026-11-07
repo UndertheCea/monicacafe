@@ -131,7 +131,7 @@ func toShop(s *store.Shop) *model.Shop {
 	return &model.Shop{
 		ID: s.ID, OwnerID: s.OwnerID, Slug: s.Slug, Name: s.Name, Description: s.Description,
 		LogoURL: s.LogoURL, BannerURL: s.BannerURL, City: s.City, Lat: s.Lat, Lng: s.Lng,
-		CreatedAt: s.CreatedAt,
+		CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
 }
 
@@ -141,7 +141,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
 		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: model.RoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
-		CreatedAt: c.CreatedAt,
+		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }
 

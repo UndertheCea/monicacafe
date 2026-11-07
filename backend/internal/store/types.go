@@ -25,6 +25,7 @@ type Shop struct {
 	Lat         *float64
 	Lng         *float64
 	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // Coffee is a coffee listing belonging to a shop.
@@ -42,6 +43,7 @@ type Coffee struct {
 	ImageURLs          []string
 	IsPublished        bool
 	CreatedAt          time.Time
+	UpdatedAt          time.Time // also moves when a variant changes (migration 006)
 }
 
 // Variant is a purchasable size/grind of a coffee.

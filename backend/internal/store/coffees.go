@@ -7,13 +7,13 @@ import (
 )
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
-	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at`
+	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
-		&c.IsPublished, &c.CreatedAt); err != nil {
+		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {

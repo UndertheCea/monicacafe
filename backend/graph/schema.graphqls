@@ -129,6 +129,8 @@ type Shop {
   # FORBIDDEN for anyone else.
   recentComments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
+  # Last change to the shop's profile.
+  updatedAt: Time!
 }
 
 # MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
@@ -174,6 +176,8 @@ type Coffee {
   commentCount: Int!
   isPublished: Boolean!
   createdAt: Time!
+  # Last change to the coffee or any of its options (price, stock, …).
+  updatedAt: Time!
 }
 
 # Price sorts use each coffee's lowest available, in-stock variant price;

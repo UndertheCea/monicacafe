@@ -73,6 +73,7 @@ type ComplexityRoot struct {
 		RoastLevel       func(childComplexity int) int
 		Shop             func(childComplexity int) int
 		Slug             func(childComplexity int) int
+		UpdatedAt        func(childComplexity int) int
 		Variants         func(childComplexity int) int
 		Variety          func(childComplexity int) int
 	}
@@ -173,6 +174,7 @@ type ComplexityRoot struct {
 		Name           func(childComplexity int) int
 		RecentComments func(childComplexity int, limit *int, offset *int) int
 		Slug           func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
 	}
 
 	ShopConnection struct {
@@ -419,6 +421,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Coffee.Slug(childComplexity), true
+
+	case "Coffee.updatedAt":
+		if e.complexity.Coffee.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Coffee.UpdatedAt(childComplexity), true
 
 	case "Coffee.variants":
 		if e.complexity.Coffee.Variants == nil {
@@ -1045,6 +1054,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Shop.Slug(childComplexity), true
 
+	case "Shop.updatedAt":
+		if e.complexity.Shop.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Shop.UpdatedAt(childComplexity), true
+
 	case "ShopConnection.nodes":
 		if e.complexity.ShopConnection.Nodes == nil {
 			break
@@ -1460,6 +1476,8 @@ type Shop {
   # FORBIDDEN for anyone else.
   recentComments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
+  # Last change to the shop's profile.
+  updatedAt: Time!
 }
 
 # MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
@@ -1505,6 +1523,8 @@ type Coffee {
   commentCount: Int!
   isPublished: Boolean!
   createdAt: Time!
+  # Last change to the coffee or any of its options (price, stock, …).
+  updatedAt: Time!
 }
 
 # Price sorts use each coffee's lowest available, in-stock variant price;
@@ -3361,6 +3381,8 @@ func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field gr
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -4046,6 +4068,50 @@ func (ec *executionContext) fieldContext_Coffee_createdAt(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Coffee_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CoffeeConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CoffeeConnection_nodes(ctx, field)
 	if err != nil {
@@ -4117,6 +4183,8 @@ func (ec *executionContext) fieldContext_CoffeeConnection_nodes(_ context.Contex
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -4513,6 +4581,8 @@ func (ec *executionContext) fieldContext_Comment_coffee(_ context.Context, field
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5333,6 +5403,8 @@ func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -5416,6 +5488,8 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -5505,6 +5579,8 @@ func (ec *executionContext) fieldContext_Mutation_createCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5594,6 +5670,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5683,6 +5761,8 @@ func (ec *executionContext) fieldContext_Mutation_publishCoffee(ctx context.Cont
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5772,6 +5852,8 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5916,6 +5998,8 @@ func (ec *executionContext) fieldContext_Mutation_duplicateCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -6782,6 +6866,8 @@ func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field g
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -6987,6 +7073,8 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -7137,6 +7225,8 @@ func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Contex
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -8040,6 +8130,50 @@ func (ec *executionContext) fieldContext_Shop_createdAt(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Shop_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ShopConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.ShopConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ShopConnection_nodes(ctx, field)
 	if err != nil {
@@ -8105,6 +8239,8 @@ func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context,
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -8737,6 +8873,8 @@ func (ec *executionContext) fieldContext_User_shop(_ context.Context, field grap
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -12092,6 +12230,11 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "updatedAt":
+			out.Values[i] = ec._Coffee_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13130,6 +13273,11 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "createdAt":
 			out.Values[i] = ec._Shop_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Shop_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

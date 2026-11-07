@@ -36,9 +36,9 @@ else
   echo "FAIL CSP nonce: header nonce '${csp_nonce}', second request '${csp_again}'"; fail=1
 fi
 
-# sitemap.xml lists the seeded shops and coffees; robots.txt points at it.
+# sitemap.xml lists the seeded shops and coffees with <lastmod> (#80); robots.txt points at it.
 sitemap=$(curl -s --max-time 15 "$BASE_URL/sitemap.xml") || sitemap=""
-if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* ]]; then
+if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* && "$sitemap" == *"<lastmod>"* ]]; then
   echo "ok   sitemap.xml ($(grep -o '<loc>' <<<"$sitemap" | wc -l) URLs)"
 else
   echo "FAIL sitemap.xml: ${sitemap:0:200}"; fail=1

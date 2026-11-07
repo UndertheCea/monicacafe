@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-07 (after Session 17)
+Last updated: 2026-11-07 (after Session 18)
 
 ---
 
@@ -36,15 +36,15 @@ takes a commission on each sale).
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
-| Comments: add, delete, edit own (with "edited" marker) | Done (#81, #82) |
+| Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Skip-to-content link, one `main` landmark per page | Done (#85) |
-| Saved coffees: save toggle + count on coffee pages, list on /account | Done (#87–#89) |
+| Saved coffees: save toggle + count on coffee pages, list on /account, "Most saved" sort | Done (#87–#89, #97, #98) |
 | Account deletion for buyers (password re-check; comments, saves, sessions removed) | Done (#90, #91); sellers: #93 |
-| Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location, recent comments | Done |
+| Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments | Done (#99) |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
 | Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
-| Content-Security-Policy (nonce'd, from the Next 16 proxy) | Done |
+| Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff | Done (#100) |
 | Frontend on Next.js 16; `npm audit` has no high advisories | Done (#35) |
 | sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done |
 | Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user | Done |
@@ -57,15 +57,15 @@ takes a commission on each sale).
 
 ## Last session
 
-**Session 17** — no pickable slices again, so six gaps were filed and shipped: saved coffees — API with `isSaved` /
-`saveCount` / `User.savedCoffees` (#87), a save toggle on coffee pages (#88) and a list on /account (#89);
-`deleteAccount` for buyers (#90) with a BFF route that clears the cookie and an /account section (#91); schema.org
-`Store` JSON-LD on shop pages (#92). Verified with race tests on PostgreSQL, Playwright and smoke on a local API + Next.
+**Session 18** — no pickable slices again, so six gaps were filed and shipped: `Comment.fromShop` (#95) with a
+"店家 / Roaster" badge on the shop owner's replies (#96); a `MOST_SAVED` coffee sort (#97) exposed as "最多收藏 / Most
+saved" (#98); saves + comments per coffee on the dashboard (#99); Permissions-Policy, no X-Powered-By and API nosniff
+(#100). Verified with race tests on PostgreSQL, smoke + Playwright on a local API + Next.
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 17; next sessions should file real gaps or wait for #9 / #12
+#12 (commission + payouts). No pickable slices remain after Session 18; next sessions should file real gaps or wait for #9 / #12
 (and #50 for a /shops city filter, #93 for seller account closure). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
@@ -140,3 +140,5 @@ Open questions for the owner (answer by commenting on the issue):
   (PDPA); a shop's coffees and links depend on its owner, so seller closure waits on #93 (#90).
 - **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).
+- **"Roaster" badge derived from shop ownership, not stored** — `Comment.fromShop` is an `EXISTS` on every read, so
+  there is no flag to forge or keep in sync (#95).

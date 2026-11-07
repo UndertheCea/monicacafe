@@ -23,3 +23,16 @@ export function parseShopSortParam(v: string | string[] | undefined): ShopSortPa
 export function shopSortForApi(p: ShopSortParam): ShopSort {
   return TO_API[p];
 }
+
+/**
+ * A /shops URL for a search + sort (page 1). Blank / default values are left
+ * out, so "clear search" with the default sort is just /shops.
+ */
+export function shopListHref(p: { q?: string; sort?: ShopSortParam }): string {
+  const params = new URLSearchParams();
+  const q = p.q?.trim();
+  if (q) params.set("q", q);
+  if (p.sort) params.set("sort", p.sort);
+  const qs = params.toString();
+  return qs ? `/shops?${qs}` : "/shops";
+}

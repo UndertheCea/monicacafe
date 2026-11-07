@@ -197,10 +197,10 @@ const SHOP_FIELDS = "id slug name description logoUrl bannerUrl city coffeeCount
 
 export const SHOPS = typed<
   { shops: { total: number; nodes: ShopSummary[] } },
-  { city?: string; sort?: ShopSort; limit?: number; offset?: number }
+  { city?: string; search?: string; sort?: ShopSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Shops($city: String, $sort: ShopSort, $limit: Int, $offset: Int) {
-    shops(city: $city, sort: $sort, limit: $limit, offset: $offset) {
+  query Shops($city: String, $search: String, $sort: ShopSort, $limit: Int, $offset: Int) {
+    shops(city: $city, search: $search, sort: $sort, limit: $limit, offset: $offset) {
       total
       nodes { ${SHOP_FIELDS} }
     }

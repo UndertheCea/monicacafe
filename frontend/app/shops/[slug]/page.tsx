@@ -4,14 +4,22 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { SHOP } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
-import { parseSortParam, sortForApi, type SortParam } from "@/lib/coffeeQuery";
+import {
+  parseRoastParam,
+  parseSearchParam,
+  parseSortParam,
+  shopCoffeesHref,
+  sortForApi,
+  type RoastLevel,
+  type SortParam,
+} from "@/lib/coffeeQuery";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
-import { ShopSortForm } from "@/components/shops/ShopSortForm";
+import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 
@@ -19,11 +27,25 @@ type Params = Promise<{ slug: string }>;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const loadShop = cache(async (slug: string, page: number, sort: SortParam) =>
+// Primitive arguments only: cache() matches calls by argument identity.
+const loadShop = cache(async (slug: string, page: number, sort: SortParam, q?: string, roast?: RoastLevel) =>
   SLUG_RE.test(slug)
-    ? (await query(SHOP, { slug, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })).shop
+    ? (
+        await query(SHOP, {
+          slug,
+          filter: { ...(q ? { search: q } : {}), ...(roast ? { roastLevel: roast } : {}) },
+          sort: sortForApi(sort),
+          limit: PAGE_SIZE,
+          offset: (page - 1) * PAGE_SIZE,
+        })
+      ).shop
     : null,
 );
+
+/** The shop page's list options from the URL (same parsing as /coffees). */
+function listOptions(sp: SearchParams) {
+  return { page: parsePage(sp), sort: parseSortParam(sp.sort), q: parseSearchParam(sp.q), roast: parseRoastParam(sp.roast) };
+}
 
 export async function generateMetadata({
   params,
@@ -34,8 +56,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const page = parsePage(sp);
-    const shop = await loadShop(slug, page, parseSortParam(sp.sort));
+    const { page, sort, q, roast } = listOptions(sp);
+    const shop = await loadShop(slug, page, sort, q, roast);
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
@@ -61,12 +83,12 @@ export default async function ShopPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
-  const page = parsePage(sp);
-  const sort = parseSortParam(sp.sort);
+  const { page, sort, q, roast } = listOptions(sp);
+  const filtering = Boolean(q || roast);
 
   let shop;
   try {
-    shop = await loadShop(slug, page, sort);
+    shop = await loadShop(slug, page, sort, q, roast);
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -111,13 +133,28 @@ export default async function ShopPage({
               </h2>
               <span className="text-sm text-stone-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
             </div>
-            {shop.coffees.total > 1 && <ShopSortForm locale={locale} sort={sort} action={`/shops/${shop.slug}`} />}
+            {(shop.coffeeCount > 1 || filtering) && (
+              <ShopCoffeesForm locale={locale} sort={sort} q={q} roast={roast} action={`/shops/${shop.slug}`} />
+            )}
           </div>
+          {q && (
+            <p className="mb-4 text-sm font-semibold text-stone-900" aria-live="polite">
+              {t(locale, "shops.coffeeResults", { q })}
+            </p>
+          )}
 
           {shop.coffees.nodes.length === 0 ? (
-            <p className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
-              {t(locale, "shops.noCoffees")}
-            </p>
+            <div className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+              <p>{filtering ? t(locale, "shops.noMatches") : t(locale, "shops.noCoffees")}</p>
+              {filtering && (
+                <Link
+                  href={shopCoffeesHref(shop.slug, { sort })}
+                  className="mt-4 inline-block text-sm font-semibold text-amber-700 hover:underline"
+                >
+                  {t(locale, "shops.clearFilters")}
+                </Link>
+              )}
+            </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {shop.coffees.nodes.map((c) => (

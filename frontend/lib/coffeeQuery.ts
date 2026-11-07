@@ -3,6 +3,15 @@
 
 export type CoffeeSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC" | "MOST_DISCUSSED";
 
+export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
+export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
+
+/** Parse `?roast=` (case-insensitive); anything unknown → undefined (all roasts). */
+export function parseRoastParam(v: string | string[] | undefined): RoastLevel | undefined {
+  const s = (Array.isArray(v) ? v[0] : v)?.trim().toUpperCase() ?? "";
+  return (ROAST_LEVELS as string[]).includes(s) ? (s as RoastLevel) : undefined;
+}
+
 /** `?sort=` values in the order the dropdown lists them ("" = newest, the default). */
 export const SORT_PARAMS = ["", "price_asc", "price_desc", "discussed"] as const;
 export type SortParam = (typeof SORT_PARAMS)[number];
@@ -51,4 +60,18 @@ export function parseSearchParam(v: string | string[] | undefined): string | und
 export function searchHref(q: string | undefined): string {
   const s = parseSearchParam(q);
   return s ? `/coffees?${new URLSearchParams({ q: s })}` : "/coffees";
+}
+
+/**
+ * A shop page URL (page 1) for a keyword search, roast and sort. Blank and
+ * default values are left out, so clearing everything gives /shops/<slug>.
+ */
+export function shopCoffeesHref(slug: string, p: { q?: string; roast?: RoastLevel; sort?: SortParam }): string {
+  const params = new URLSearchParams();
+  const q = p.q?.trim();
+  if (q) params.set("q", q);
+  if (p.roast) params.set("roast", p.roast);
+  if (p.sort) params.set("sort", p.sort);
+  const qs = params.toString();
+  return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;
 }

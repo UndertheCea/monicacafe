@@ -1,19 +1,48 @@
-import { SEARCH_MAX_CHARS, SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
+import { ROAST_LEVELS, SEARCH_MAX_CHARS, SORT_PARAMS, type RoastLevel, type SortParam } from "@/lib/coffeeQuery";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
 
 const fieldCls =
   "rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500";
 
-/** Sort for a shop's coffees: a plain GET form (works without JavaScript); submitting resets to page 1. */
-export function ShopSortForm({ locale, sort, action }: { locale: Locale; sort: SortParam; action: string }) {
+/**
+ * Search, roast and sort for one shop's coffees: a plain GET form (works
+ * without JavaScript); submitting keeps all three and resets to page 1.
+ */
+export function ShopCoffeesForm({
+  locale,
+  action,
+  sort,
+  q,
+  roast,
+}: {
+  locale: Locale;
+  action: string;
+  sort: SortParam;
+  q?: string;
+  roast?: RoastLevel;
+}) {
   return (
     <SortForm
       locale={locale}
       action={action}
       value={sort}
       options={SORT_PARAMS.map((p) => ({ value: p, label: t(locale, `sort.${p || "newest"}`) }))}
-    />
+      submit="filter.apply"
+    >
+      <SearchField locale={locale} q={q} label="shops.searchCoffees" placeholder="shops.searchCoffeesPlaceholder" />
+      <label className="flex items-center gap-2">
+        <span className="text-stone-500">{t(locale, "filter.roast")}</span>
+        <select name="roast" defaultValue={roast ?? ""} className={fieldCls}>
+          <option value="">{t(locale, "filter.any")}</option>
+          {ROAST_LEVELS.map((r) => (
+            <option key={r} value={r}>
+              {t(locale, `roast.${r}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+    </SortForm>
   );
 }
 

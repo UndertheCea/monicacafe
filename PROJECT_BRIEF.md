@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-06 (after Session 14)
+Last updated: 2026-11-07 (after Session 15)
 
 ---
 
@@ -32,8 +32,8 @@ takes a commission on each sale).
 |---|---|
 | DB schema + migrations 001–005 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
-| Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — expired tokens pruned hourly |
-| Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, NT$/100 g, photo gallery), /shops (+sort, coffee counts), /shops/[slug] (+sort), /map | Done |
+| Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
+| Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product JSON-LD | Done |
 | /login, /register, account menu, /account (display name, change password, my comments) | Done |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location, recent comments | Done |
@@ -53,15 +53,16 @@ takes a commission on each sale).
 
 ## Last session
 
-**Session 14** — still no pickable slices, so six gaps were filed and shipped: `CoffeeFilter.search` (#66), a
-search box on /coffees (#67) and in the header (#68), `Shop.recentComments` + `Comment.coffee` (#69), a dashboard
-"Recent comments" panel (#70), and "My comments" on /account (#71). Verified with race tests on PostgreSQL,
-Playwright and smoke against a local API + Next (all green except `/media/`, no SeaweedFS here).
+**Session 15** — no pickable slices again, so six gaps were filed and shipped: `logout(refreshToken)` ends only this
+device's session (#73; it used to end all of them) with a BFF cookie flow and an /account "sign out of all devices"
+(#74); `shops(search:)` (#75) + a /shops search box (#76); `Shop.coffees(filter:)` (#77) + search and roast filter on
+shop pages (#78). Verified with race tests on PostgreSQL, Playwright and smoke on a local API + Next (all green
+except `/media/`, no SeaweedFS here).
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 14; next sessions should file real gaps or wait for #9 / #12
+#12 (commission + payouts). No pickable slices remain after Session 15; next sessions should file real gaps or wait for #9 / #12
 (and #50 for a /shops city filter). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
@@ -122,5 +123,8 @@ Open questions for the owner (answer by commenting on the issue):
   new infra; Meilisearch (Stage 3) can replace it behind the same `CoffeeFilter.search` field (#66).
 - **`Comment.coffee` is nullable** — a comment can outlive its coffee's publication; non-owners get null rather
   than a draft (#69). `User.comments` is empty, not an error, for other viewers (#71).
+- **Logout ends one device; `logoutEverywhere` ends all** — the cookie's refresh token proves the session, so it
+  works with an expired access token; revoked tokens leave the rotation chain so a late replay isn't "theft" (#73).
+- **Shop search covers name + description, not city** — a city filter is still the owner's call (#50) (#75).
 - **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).

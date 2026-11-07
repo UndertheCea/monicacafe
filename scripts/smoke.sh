@@ -121,9 +121,21 @@ if [[ "$reg" == "200" && "${first%% *}" == "/api/auth" && "$ref" == "200" && -n 
 else
   echo "FAIL auth cookie: register $reg, cookie '${first%% *}', refresh $ref, replay $replay"; fail=1
 fi
+# Logout (#74) ends only this browser's session, server-side, with no access
+# token: the saved pre-logout cookie is refused, a second session still refreshes.
+other_jar=$(mktemp); trap 'rm -f "$jar" "$old_jar" "$other_jar"' EXIT
+curl -s -o /dev/null --max-time 15 -c "$other_jar" -X POST -H 'Content-Type: application/json' \
+  -d "$(printf '{"email":"%s@example.com","password":"smoke-test-pw"}' "$bff_run")" "$BASE_URL/api/auth/login" || true
+cp "$jar" "$old_jar"
 bff logout >/dev/null
 out=$(bff refresh)
-if [[ "$out" == "401" ]]; then echo "ok   401 refresh after logout"; else echo "FAIL refresh after logout → $out (want 401)"; fail=1; fi
+cp "$old_jar" "$jar"; revoked=$(bff refresh)
+cp "$other_jar" "$jar"; kept=$(bff refresh)
+if [[ "$out" == "401" && "$revoked" == "401" && "$kept" == "200" ]]; then
+  echo "ok   logout: cookie cleared, old token refused, other session kept"
+else
+  echo "FAIL logout: refresh $out (want 401), old cookie $revoked (want 401), other session $kept (want 200)"; fail=1
+fi
 
 # Change password through the BFF (#33): log in again, change it with the
 # access token; the response sets a new cookie that refreshes, and the

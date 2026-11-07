@@ -82,3 +82,12 @@ export function forwardedFor(header: string | null): string | undefined {
   // Keep the rightmost hops: those were appended by our own proxies.
   return hops.length ? hops.slice(-5).join(", ") : undefined;
 }
+
+/**
+ * The token from an `Authorization: Bearer …` header, or null when the header
+ * is missing, uses another scheme, or carries no token.
+ */
+export function bearerToken(header: string | null): string | null {
+  const m = /^Bearer\s+(\S+)\s*$/i.exec(header ?? "");
+  return m ? m[1] : null;
+}

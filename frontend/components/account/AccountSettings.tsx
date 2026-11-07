@@ -40,6 +40,7 @@ export function AccountSettings({ locale }: { locale: Locale }) {
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
       <MyComments locale={locale} />
+      <Sessions locale={locale} />
     </div>
   );
 }
@@ -191,5 +192,60 @@ function PasswordForm({ locale }: { locale: Locale }) {
         {done && <Saved>{t(locale, "account.passwordChanged")}</Saved>}
       </div>
     </form>
+  );
+}
+
+function Sessions({ locale }: { locale: Locale }) {
+  const { logoutEverywhere } = useAuth();
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<MessageKey | null>(null);
+
+  async function onConfirm() {
+    setBusy(true);
+    setError(null);
+    try {
+      await logoutEverywhere();
+      router.replace("/");
+    } catch (err) {
+      setError(toApiError(err).code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.sessions");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={sectionCls} aria-labelledby="sessions-title">
+      <h2 id="sessions-title" className="text-lg font-semibold text-stone-900">
+        {t(locale, "account.sessions")}
+      </h2>
+      <p className="text-sm text-stone-600">{t(locale, "account.sessionsHint")}</p>
+      {error && <FormError>{t(locale, error)}</FormError>}
+      {confirming ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-stone-900">{t(locale, "account.logoutAllConfirm")}</span>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className="rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+          >
+            {busy ? t(locale, "account.loggingOut") : t(locale, "account.logoutAllYes")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={busy}
+            className="text-sm font-medium text-stone-600 underline-offset-2 hover:underline"
+          >
+            {t(locale, "account.cancel")}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} className={buttonCls}>
+          {t(locale, "account.logoutAll")}
+        </button>
+      )}
+    </section>
   );
 }

@@ -1,13 +1,14 @@
 // Backend-for-frontend auth endpoints. The refresh token never reaches page
 // JavaScript: it lives in an httpOnly cookie scoped to /api/auth, and these
 // handlers trade it for short-lived access tokens (kept in memory by
-// AuthProvider). POST /api/auth/{login,register,refresh,logout,password}.
+// AuthProvider). POST /api/auth/{login,register,refresh,logout,logout-all,password}.
 import { NextResponse, type NextRequest } from "next/server";
 import { authedClient, forwardingClient, query, toApiError } from "@/lib/graphql";
 import {
   CHANGE_PASSWORD,
   LOGIN,
   LOGOUT,
+  LOGOUT_EVERYWHERE,
   REFRESH,
   REGISTER,
   type SessionErrorBody,
@@ -17,6 +18,7 @@ import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
   REFRESH_MAX_AGE_S,
+  bearerToken,
   forwardedFor,
   jwtExpiryMs,
 } from "@/lib/auth/token";
@@ -128,7 +130,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     case "password": {
       // changePassword revokes every refresh token and returns a new pair, so
       // the new refresh token has to land in the cookie here.
-      const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+      const bearer = bearerToken(req.headers.get("authorization"));
       if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
       const b = await readJSON(req);
       try {
@@ -143,14 +145,27 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       }
     }
     case "logout": {
-      // Revoke server-side sessions when we can; always clear the cookie.
-      const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-      if (bearer) {
+      // End this browser's session (the cookie's refresh token proves it, so
+      // an expired access token doesn't matter); always clear the cookie.
+      const token = req.cookies.get(REFRESH_COOKIE)?.value;
+      if (token) {
         try {
-          await query(LOGOUT, undefined, authedClient(bearer));
+          await query(LOGOUT, { refreshToken: token }, client);
         } catch {
-          // Expired access token or backend down: the cookie is still cleared.
+          // Backend down: the cookie is still cleared; the token expires on its own.
         }
+      }
+      return clearCookie(NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }));
+    }
+    case "logout-all": {
+      // Every session of the user, this one included. Needs a valid access
+      // token: on 401 the browser refreshes and retries.
+      const bearer = bearerToken(req.headers.get("authorization"));
+      if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
+      try {
+        await query(LOGOUT_EVERYWHERE, undefined, authedClient(bearer));
+      } catch (err) {
+        return fromError(err);
       }
       return clearCookie(NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }));
     }

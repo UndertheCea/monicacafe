@@ -1,7 +1,7 @@
 // Typed queries against backend/graph/schema.graphqls. Keep these types in
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
-import { COMMENTS_PAGE } from "./comments";
+import { COMMENTS_PAGE, COMMENT_MAX_CHARS } from "./comments";
 import type { CoffeeSort, RoastLevel } from "./coffeeQuery";
 import type { ShopSort } from "./shopQuery";
 import type { SitemapCoffee, SitemapShop } from "./sitemap";
@@ -111,6 +111,8 @@ export interface CommentData {
   id: string;
   body: string;
   createdAt: string;
+  /** Set once the author has edited the text. */
+  editedAt: string | null;
   user: { id: string; displayName: string };
 }
 
@@ -139,7 +141,7 @@ const COFFEE_DETAIL_FIELDS = `
   processingMethod { nameEn nameZh }
   variety { name }
   variants { id grind weightG priceTwd stock isAvailable }
-  comments(limit: ${COMMENTS_PAGE}) { id body createdAt user { id displayName } }
+  comments(limit: ${COMMENTS_PAGE}) { id body createdAt editedAt user { id displayName } }
 `;
 
 export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* GraphQL */ `
@@ -172,7 +174,7 @@ export const COFFEE_COMMENTS = typed<
 >(/* GraphQL */ `
   query CoffeeComments($id: ID!, $limit: Int!, $offset: Int!) {
     coffee(id: $id) {
-      comments(limit: $limit, offset: $offset) { id body createdAt user { id displayName } }
+      comments(limit: $limit, offset: $offset) { id body createdAt editedAt user { id displayName } }
     }
   }
 `);
@@ -280,7 +282,7 @@ export function isUUID(id: string): boolean {
 // ---------------------------------------------------------------------------
 
 /** Backend limit for comment bodies (rune count). */
-export const COMMENT_MAX = 500;
+export const COMMENT_MAX = COMMENT_MAX_CHARS;
 
 export const ADD_COMMENT = typed<{ addComment: { id: string } }, { input: { coffeeId: string; body: string } }>(
   /* GraphQL */ `
@@ -289,6 +291,13 @@ export const ADD_COMMENT = typed<{ addComment: { id: string } }, { input: { coff
     }
   `,
 );
+
+export const UPDATE_COMMENT = typed<
+  { updateComment: { id: string; body: string; editedAt: string | null } },
+  { id: string; body: string }
+>(/* GraphQL */ `
+  mutation UpdateComment($id: ID!, $body: String!) { updateComment(id: $id, body: $body) { id body editedAt } }
+`);
 
 export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteComment($id: ID!) { deleteComment(id: $id) }

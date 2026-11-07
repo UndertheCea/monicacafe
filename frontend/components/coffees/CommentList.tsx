@@ -31,10 +31,10 @@ export function CommentList({
         <div className="mt-4 rounded-2xl bg-white ring-1 ring-stone-200">
           <ul className="divide-y divide-stone-200">
             {comments.map((c) => (
-              <CommentItem key={c.id} comment={c} locale={locale} />
+              <CommentItem key={c.id} comment={c} coffeePublished={isPublished} locale={locale} />
             ))}
           </ul>
-          <MoreComments coffeeId={coffeeId} first={comments} total={total} locale={locale} />
+          <MoreComments coffeeId={coffeeId} coffeePublished={isPublished} first={comments} total={total} locale={locale} />
         </div>
       )}
       {isPublished ? (

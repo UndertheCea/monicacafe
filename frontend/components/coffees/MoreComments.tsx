@@ -13,11 +13,13 @@ import { CommentItem } from "./CommentItem";
  */
 export function MoreComments({
   coffeeId,
+  coffeePublished,
   first,
   total,
   locale,
 }: {
   coffeeId: string;
+  coffeePublished: boolean;
   first: CommentData[];
   total: number;
   locale: Locale;
@@ -56,6 +58,7 @@ export function MoreComments({
             <CommentItem
               key={c.id}
               comment={c}
+              coffeePublished={coffeePublished}
               locale={locale}
               onDeleted={(id) => setExtra((prev) => prev.filter((x) => x.id !== id))}
             />

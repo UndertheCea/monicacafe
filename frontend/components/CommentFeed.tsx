@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { CommentBody } from "@/components/coffees/CommentBody";
 import { DeleteCommentButton } from "@/components/coffees/CommentForm";
-import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withoutComment } from "@/lib/comments";
+import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
 import type { CommentPage } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
@@ -16,7 +17,7 @@ type State =
 /**
  * A newest-first list of comments across coffees (dashboard "Recent comments",
  * /account "My comments"): each row names its coffee and links to it. Rows the
- * viewer wrote get a delete button. Seller text is rendered as text only.
+ * viewer wrote get edit (published coffees only) and delete buttons. Seller text is rendered as text only.
  */
 export function CommentFeed({
   locale,
@@ -66,6 +67,8 @@ export function CommentFeed({
     }
   }, [s, fetchPage]);
 
+  const edited = (e: { id: string; body: string; editedAt: string | null }) =>
+    setS((cur) => (cur.state === "ready" ? { ...cur, page: withEditedComment(cur.page, e) } : cur));
   const removed = (cid: string) =>
     setS((cur) => (cur.state === "ready" ? { ...cur, page: withoutComment(cur.page, cid) } : cur));
 
@@ -120,7 +123,12 @@ export function CommentFeed({
                     </time>
                   </span>
                 </div>
-                <p className="mt-1 whitespace-pre-line break-words text-stone-700">{c.body}</p>
+                <CommentBody
+                  comment={c}
+                  coffeePublished={!!c.coffee?.isPublished}
+                  locale={locale}
+                  onEdited={edited}
+                />
               </li>
             );
           })}

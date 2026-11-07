@@ -1,15 +1,19 @@
 import type { CommentData } from "@/lib/api";
 import type { Locale } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
+import { CommentBody } from "./CommentBody";
 import { DeleteCommentButton } from "./CommentForm";
 
 /** One comment row; used by the server-rendered first page and by "load more". */
 export function CommentItem({
   comment: c,
+  coffeePublished,
   locale,
   onDeleted,
 }: {
   comment: CommentData;
+  /** Edits are allowed only while the coffee is published. */
+  coffeePublished: boolean;
   locale: Locale;
   onDeleted?: (id: string) => void;
 }) {
@@ -24,7 +28,7 @@ export function CommentItem({
           </time>
         </span>
       </div>
-      <p className="mt-1 whitespace-pre-line break-words text-stone-700">{c.body}</p>
+      <CommentBody comment={c} coffeePublished={coffeePublished} locale={locale} />
     </li>
   );
 }

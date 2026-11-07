@@ -118,8 +118,10 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  # sort defaults to NEWEST (same orders as Query.coffees).
-  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees). filter is validated
+  # like Query.coffees' and narrows this shop's coffees; the owner (and admins)
+  # also get drafts.
+  coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
   # Newest-first comments on all of this shop's coffees (drafts included).

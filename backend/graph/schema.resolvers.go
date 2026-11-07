@@ -997,12 +997,16 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 }
 
 // Coffees is the resolver for the coffees field.
-func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
-	c := viewer(ctx)
-	f := store.CoffeeFilter{
-		ShopID:             &obj.ID,
-		IncludeUnpublished: c != nil && (c.UserID == obj.OwnerID || isAdmin(c)),
+func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	f, err := storeFilter(filter)
+	if err != nil {
+		return nil, err
 	}
+	// Set after storeFilter: the shop scope and draft visibility come from
+	// the parent shop and the viewer, never from the client.
+	c := viewer(ctx)
+	f.ShopID = &obj.ID
+	f.IncludeUnpublished = c != nil && (c.UserID == obj.OwnerID || isAdmin(c))
 	so, err := storeSort(sort)
 	if err != nil {
 		return nil, err

@@ -163,7 +163,7 @@ type ComplexityRoot struct {
 		BannerURL      func(childComplexity int) int
 		City           func(childComplexity int) int
 		CoffeeCount    func(childComplexity int) int
-		Coffees        func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
+		Coffees        func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt      func(childComplexity int) int
 		Description    func(childComplexity int) int
 		ID             func(childComplexity int) int
@@ -266,7 +266,7 @@ type QueryResolver interface {
 	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
 }
 type ShopResolver interface {
-	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
+	Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 	CoffeeCount(ctx context.Context, obj *model.Shop) (int, error)
 	RecentComments(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CommentConnection, error)
 }
@@ -975,7 +975,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Shop.Coffees(childComplexity, args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Shop.Coffees(childComplexity, args["filter"].(*model.CoffeeFilter), args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Shop.createdAt":
 		if e.complexity.Shop.CreatedAt == nil {
@@ -1449,8 +1449,10 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  # sort defaults to NEWEST (same orders as Query.coffees).
-  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees). filter is validated
+  # like Query.coffees' and narrows this shop's coffees; the owner (and admins)
+  # also get drafts.
+  coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
   # Newest-first comments on all of this shop's coffees (drafts included).
@@ -2786,23 +2788,46 @@ func (ec *executionContext) field_Query_shops_argsOffset(
 func (ec *executionContext) field_Shop_coffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Shop_coffees_argsSort(ctx, rawArgs)
+	arg0, err := ec.field_Shop_coffees_argsFilter(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["sort"] = arg0
-	arg1, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
+	args["filter"] = arg0
+	arg1, err := ec.field_Shop_coffees_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg1
-	arg2, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	args["sort"] = arg1
+	arg2, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg2
+	args["limit"] = arg2
+	arg3, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg3
 	return args, nil
 }
+func (ec *executionContext) field_Shop_coffees_argsFilter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.CoffeeFilter, error) {
+	if _, ok := rawArgs["filter"]; !ok {
+		var zeroVal *model.CoffeeFilter
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("filter"))
+	if tmp, ok := rawArgs["filter"]; ok {
+		return ec.unmarshalOCoffeeFilter2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeFilter(ctx, tmp)
+	}
+
+	var zeroVal *model.CoffeeFilter
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Shop_coffees_argsSort(
 	ctx context.Context,
 	rawArgs map[string]any,
@@ -7819,7 +7844,7 @@ func (ec *executionContext) _Shop_coffees(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["sort"].(*model.CoffeeSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["filter"].(*model.CoffeeFilter), fc.Args["sort"].(*model.CoffeeSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)

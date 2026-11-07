@@ -152,17 +152,26 @@ export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* 
 
 /**
  * The public coffee page: the coffee plus a few more from its shop (one more
- * than shown, since the list can include this coffee). Anonymous server
+ * than shown, since the list can include this coffee) and similar coffees from
+ * other shops. Anonymous server
  * fetches only ever see published coffees there.
  */
 export const COFFEE_PAGE = typed<
-  { coffee: (CoffeeDetail & { more: { coffees: { total: number; nodes: CoffeeCardData[] } } }) | null },
-  { id: string; more: number }
+  {
+    coffee:
+      | (CoffeeDetail & {
+          more: { coffees: { total: number; nodes: CoffeeCardData[] } };
+          similar: CoffeeCardData[];
+        })
+      | null;
+  },
+  { id: string; more: number; similar: number }
 >(/* GraphQL */ `
-  query CoffeePage($id: ID!, $more: Int!) {
+  query CoffeePage($id: ID!, $more: Int!, $similar: Int!) {
     coffee(id: $id) {
       ${COFFEE_DETAIL_FIELDS}
       more: shop { coffees(limit: $more) { total nodes { ${CARD_FIELDS} } } }
+      similar(limit: $similar) { ${CARD_FIELDS} }
     }
   }
 `);

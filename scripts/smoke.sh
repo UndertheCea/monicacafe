@@ -213,6 +213,14 @@ else
   echo "FAIL shop page filter: search+LIGHT should list the 耶加雪菲 coffee, DARK should list none of the shop's"; fail=1
 fi
 
+# "You may also like" (#83, #84): the seeded 耶加雪菲 page links the seeded Kenya
+# washed coffee from another shop (same process; only reachable via Coffee.similar).
+if curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201" | grep -q '/coffees/00000000-0000-4000-8000-000000000204'; then
+  echo "ok   coffee page: you may also like"
+else
+  echo "FAIL coffee page: expected a similar coffee from another shop (…0204)"; fail=1
+fi
+
 # ── Image storage (S3 store behind nginx at /media/) ────────────────────────
 # A missing object must come back from the store as 404 (not nginx's 502/404 page),
 # and listing the bucket must be refused.

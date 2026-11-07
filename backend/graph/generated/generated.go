@@ -126,6 +126,7 @@ type ComplexityRoot struct {
 		DeleteComment     func(childComplexity int, id string) int
 		DeleteVariant     func(childComplexity int, id string) int
 		DuplicateCoffee   func(childComplexity int, id string, name *string) int
+		FollowShop        func(childComplexity int, id string) int
 		Login             func(childComplexity int, input model.LoginInput) int
 		Logout            func(childComplexity int, refreshToken *string) int
 		LogoutEverywhere  func(childComplexity int) int
@@ -133,6 +134,7 @@ type ComplexityRoot struct {
 		RefreshToken      func(childComplexity int, token string) int
 		Register          func(childComplexity int, input model.RegisterInput) int
 		SaveCoffee        func(childComplexity int, id string) int
+		UnfollowShop      func(childComplexity int, id string) int
 		UnpublishCoffee   func(childComplexity int, id string) int
 		UnsaveCoffee      func(childComplexity int, id string) int
 		UpdateCoffee      func(childComplexity int, id string, input model.UpdateCoffeeInput) int
@@ -160,6 +162,7 @@ type ComplexityRoot struct {
 		Coffee            func(childComplexity int, id string) int
 		CoffeeVarieties   func(childComplexity int) int
 		Coffees           func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
+		FollowingCoffees  func(childComplexity int, limit *int, offset *int) int
 		Me                func(childComplexity int) int
 		OriginCountries   func(childComplexity int) int
 		PopularCoffees    func(childComplexity int, limit *int) int
@@ -176,7 +179,9 @@ type ComplexityRoot struct {
 		Coffees        func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt      func(childComplexity int) int
 		Description    func(childComplexity int) int
+		FollowerCount  func(childComplexity int) int
 		ID             func(childComplexity int) int
+		IsFollowed     func(childComplexity int) int
 		Lat            func(childComplexity int) int
 		Lng            func(childComplexity int) int
 		LogoURL        func(childComplexity int) int
@@ -206,14 +211,15 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		Comments     func(childComplexity int, limit *int, offset *int) int
-		CreatedAt    func(childComplexity int) int
-		DisplayName  func(childComplexity int) int
-		Email        func(childComplexity int) int
-		ID           func(childComplexity int) int
-		Role         func(childComplexity int) int
-		SavedCoffees func(childComplexity int, limit *int, offset *int) int
-		Shop         func(childComplexity int) int
+		Comments      func(childComplexity int, limit *int, offset *int) int
+		CreatedAt     func(childComplexity int) int
+		DisplayName   func(childComplexity int) int
+		Email         func(childComplexity int) int
+		FollowedShops func(childComplexity int, limit *int, offset *int) int
+		ID            func(childComplexity int) int
+		Role          func(childComplexity int) int
+		SavedCoffees  func(childComplexity int, limit *int, offset *int) int
+		Shop          func(childComplexity int) int
 	}
 
 	Variant struct {
@@ -271,6 +277,8 @@ type MutationResolver interface {
 	DeleteComment(ctx context.Context, id string) (bool, error)
 	SaveCoffee(ctx context.Context, id string) (*model.Coffee, error)
 	UnsaveCoffee(ctx context.Context, id string) (*model.Coffee, error)
+	FollowShop(ctx context.Context, id string) (*model.Shop, error)
+	UnfollowShop(ctx context.Context, id string) (*model.Shop, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
@@ -280,6 +288,7 @@ type QueryResolver interface {
 	Coffee(ctx context.Context, id string) (*model.Coffee, error)
 	Coffees(ctx context.Context, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 	PopularCoffees(ctx context.Context, limit *int) ([]*model.Coffee, error)
+	FollowingCoffees(ctx context.Context, limit *int, offset *int) (*model.CoffeeConnection, error)
 	OriginCountries(ctx context.Context) ([]*model.OriginCountry, error)
 	CoffeeVarieties(ctx context.Context) ([]*model.CoffeeVariety, error)
 	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
@@ -288,6 +297,8 @@ type ShopResolver interface {
 	Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 	CoffeeCount(ctx context.Context, obj *model.Shop) (int, error)
 	RecentComments(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CommentConnection, error)
+	IsFollowed(ctx context.Context, obj *model.Shop) (bool, error)
+	FollowerCount(ctx context.Context, obj *model.Shop) (int, error)
 }
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
@@ -295,6 +306,7 @@ type UserResolver interface {
 	Shop(ctx context.Context, obj *model.User) (*model.Shop, error)
 	Comments(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CommentConnection, error)
 	SavedCoffees(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CoffeeConnection, error)
+	FollowedShops(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.ShopConnection, error)
 }
 
 type executableSchema struct {
@@ -745,6 +757,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.DuplicateCoffee(childComplexity, args["id"].(string), args["name"].(*string)), true
 
+	case "Mutation.followShop":
+		if e.complexity.Mutation.FollowShop == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_followShop_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.FollowShop(childComplexity, args["id"].(string)), true
+
 	case "Mutation.login":
 		if e.complexity.Mutation.Login == nil {
 			break
@@ -823,6 +847,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SaveCoffee(childComplexity, args["id"].(string)), true
+
+	case "Mutation.unfollowShop":
+		if e.complexity.Mutation.UnfollowShop == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_unfollowShop_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UnfollowShop(childComplexity, args["id"].(string)), true
 
 	case "Mutation.unpublishCoffee":
 		if e.complexity.Mutation.UnpublishCoffee == nil {
@@ -995,6 +1031,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.Coffees(childComplexity, args["filter"].(*model.CoffeeFilter), args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
 
+	case "Query.followingCoffees":
+		if e.complexity.Query.FollowingCoffees == nil {
+			break
+		}
+
+		args, err := ec.field_Query_followingCoffees_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.FollowingCoffees(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
 			break
@@ -1106,12 +1154,26 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Shop.Description(childComplexity), true
 
+	case "Shop.followerCount":
+		if e.complexity.Shop.FollowerCount == nil {
+			break
+		}
+
+		return e.complexity.Shop.FollowerCount(childComplexity), true
+
 	case "Shop.id":
 		if e.complexity.Shop.ID == nil {
 			break
 		}
 
 		return e.complexity.Shop.ID(childComplexity), true
+
+	case "Shop.isFollowed":
+		if e.complexity.Shop.IsFollowed == nil {
+			break
+		}
+
+		return e.complexity.Shop.IsFollowed(childComplexity), true
 
 	case "Shop.lat":
 		if e.complexity.Shop.Lat == nil {
@@ -1269,6 +1331,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.User.Email(childComplexity), true
+
+	case "User.followedShops":
+		if e.complexity.User.FollowedShops == nil {
+			break
+		}
+
+		args, err := ec.field_User_followedShops_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.User.FollowedShops(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
 
 	case "User.id":
 		if e.complexity.User.ID == nil {
@@ -1485,6 +1559,9 @@ type Query {
   # sort defaults to NEWEST.
   coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   popularCoffees(limit: Int): [Coffee!]!
+  # Published coffees from the shops the signed-in user follows, newest first.
+  # UNAUTHENTICATED when signed out. limit defaults to 20 (max 100).
+  followingCoffees(limit: Int, offset: Int): CoffeeConnection!
 
   # Curated dropdown data
   originCountries: [OriginCountry!]!
@@ -1562,6 +1639,13 @@ type Mutation {
   saveCoffee(id: ID!): Coffee!
   unsaveCoffee(id: ID!): Coffee
 
+  # Followed shops (signed in). Following your own shop is BAD_USER_INPUT; an
+  # unknown shop is NOT_FOUND. Unfollowing returns null when the shop is gone.
+  # Both are idempotent and return the shop with its new isFollowed /
+  # followerCount.
+  followShop(id: ID!): Shop!
+  unfollowShop(id: ID!): Shop
+
   # Stage 2: cart, orders, ECPay checkout — parked
 }
 
@@ -1582,6 +1666,9 @@ type User {
   # back to draft are hidden). Same visibility as comments: the user themself or
   # an admin; empty for anyone else. limit defaults to 20 (max 100).
   savedCoffees(limit: Int, offset: Int): CoffeeConnection!
+  # Shops the user follows, most recently followed first. Same visibility as
+  # savedCoffees. limit defaults to 20 (max 100).
+  followedShops(limit: Int, offset: Int): ShopConnection!
   createdAt: Time!
 }
 
@@ -1613,16 +1700,22 @@ type Shop {
   # Only the shop's owner or an admin: UNAUTHENTICATED when signed out,
   # FORBIDDEN for anyone else.
   recentComments(limit: Int, offset: Int): CommentConnection!
+  # Whether the signed-in viewer follows this shop; false when signed out.
+  isFollowed: Boolean!
+  # How many people follow it.
+  followerCount: Int!
   createdAt: Time!
   # Last change to the shop's profile.
   updatedAt: Time!
 }
 
-# MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
+# MOST_COFFEES counts published coffees (Shop.coffeeCount), MOST_FOLLOWED
+# counts followers (Shop.followerCount). Ties go newest first.
 enum ShopSort {
   NEWEST
   NAME
   MOST_COFFEES
+  MOST_FOLLOWED
 }
 
 type ShopConnection {
@@ -2337,6 +2430,34 @@ func (ec *executionContext) field_Mutation_duplicateCoffee_argsName(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_followShop_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_followShop_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_followShop_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2488,6 +2609,34 @@ func (ec *executionContext) field_Mutation_saveCoffee_args(ctx context.Context, 
 	return args, nil
 }
 func (ec *executionContext) field_Mutation_saveCoffee_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_unfollowShop_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_unfollowShop_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_unfollowShop_argsID(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (string, error) {
@@ -2946,6 +3095,57 @@ func (ec *executionContext) field_Query_coffees_argsOffset(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Query_followingCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_followingCoffees_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := ec.field_Query_followingCoffees_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_followingCoffees_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_followingCoffees_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["offset"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query_popularCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3321,6 +3521,57 @@ func (ec *executionContext) field_User_comments_argsOffset(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_User_followedShops_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_User_followedShops_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := ec.field_User_followedShops_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_User_followedShops_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_User_followedShops_argsOffset(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["offset"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
+	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_User_savedCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3633,6 +3884,8 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 				return ec.fieldContext_User_comments(ctx, field)
 			case "savedCoffees":
 				return ec.fieldContext_User_savedCoffees(ctx, field)
+			case "followedShops":
+				return ec.fieldContext_User_followedShops(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -3749,6 +4002,10 @@ func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field gr
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "recentComments":
 				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			case "updatedAt":
@@ -5027,6 +5284,8 @@ func (ec *executionContext) fieldContext_Comment_user(_ context.Context, field g
 				return ec.fieldContext_User_comments(ctx, field)
 			case "savedCoffees":
 				return ec.fieldContext_User_savedCoffees(ctx, field)
+			case "followedShops":
+				return ec.fieldContext_User_followedShops(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -5919,6 +6178,8 @@ func (ec *executionContext) fieldContext_Mutation_updateProfile(ctx context.Cont
 				return ec.fieldContext_User_comments(ctx, field)
 			case "savedCoffees":
 				return ec.fieldContext_User_savedCoffees(ctx, field)
+			case "followedShops":
+				return ec.fieldContext_User_followedShops(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -6120,6 +6381,10 @@ func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "recentComments":
 				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			case "updatedAt":
@@ -6205,6 +6470,10 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "recentComments":
 				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			case "updatedAt":
@@ -7413,6 +7682,181 @@ func (ec *executionContext) fieldContext_Mutation_unsaveCoffee(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_followShop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_followShop(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().FollowShop(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Shop)
+	fc.Result = res
+	return ec.marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_followShop(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_followShop_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_unfollowShop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_unfollowShop(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UnfollowShop(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Shop)
+	fc.Result = res
+	return ec.marshalOShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_unfollowShop(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_unfollowShop_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _OriginCountry_id(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_OriginCountry_id(ctx, field)
 	if err != nil {
@@ -7812,6 +8256,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 				return ec.fieldContext_User_comments(ctx, field)
 			case "savedCoffees":
 				return ec.fieldContext_User_savedCoffees(ctx, field)
+			case "followedShops":
+				return ec.fieldContext_User_followedShops(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_User_createdAt(ctx, field)
 			}
@@ -7881,6 +8327,10 @@ func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field g
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "recentComments":
 				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			case "updatedAt":
@@ -8268,6 +8718,67 @@ func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_popularCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_followingCoffees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_followingCoffees(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().FollowingCoffees(rctx, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.CoffeeConnection)
+	fc.Result = res
+	return ec.marshalNCoffeeConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_followingCoffees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_CoffeeConnection_nodes(ctx, field)
+			case "total":
+				return ec.fieldContext_CoffeeConnection_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type CoffeeConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_followingCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -9115,6 +9626,94 @@ func (ec *executionContext) fieldContext_Shop_recentComments(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Shop_isFollowed(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_isFollowed(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Shop().IsFollowed(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_isFollowed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Shop_followerCount(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_followerCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Shop().FollowerCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_followerCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Shop_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Shop_createdAt(ctx, field)
 	if err != nil {
@@ -9266,6 +9865,10 @@ func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context,
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "recentComments":
 				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			case "updatedAt":
@@ -9900,6 +10503,10 @@ func (ec *executionContext) fieldContext_User_shop(_ context.Context, field grap
 				return ec.fieldContext_Shop_coffeeCount(ctx, field)
 			case "recentComments":
 				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
 			case "updatedAt":
@@ -10027,6 +10634,67 @@ func (ec *executionContext) fieldContext_User_savedCoffees(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_User_savedCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_followedShops(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_followedShops(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.User().FollowedShops(rctx, obj, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.ShopConnection)
+	fc.Result = res
+	return ec.marshalNShopConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShopConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_followedShops(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "nodes":
+				return ec.fieldContext_ShopConnection_nodes(ctx, field)
+			case "total":
+				return ec.fieldContext_ShopConnection_total(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ShopConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_User_followedShops_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13960,6 +14628,17 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_unsaveCoffee(ctx, field)
 			})
+		case "followShop":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_followShop(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unfollowShop":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_unfollowShop(ctx, field)
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14252,6 +14931,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "followingCoffees":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_followingCoffees(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "originCountries":
 			field := field
 
@@ -14475,6 +15176,78 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._Shop_recentComments(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "isFollowed":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Shop_isFollowed(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "followerCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Shop_followerCount(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -14818,6 +15591,42 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 					}
 				}()
 				res = ec._User_savedCoffees(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "followedShops":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._User_followedShops(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

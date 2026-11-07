@@ -32,6 +32,7 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
             {shop.coffeeCount > 0
               ? t(locale, "shops.coffeesCount", { n: shop.coffeeCount })
               : t(locale, "shops.cardNoCoffees")}
+            {shop.followerCount > 0 && <> · {t(locale, "follow.count", { n: shop.followerCount })}</>}
           </span>
           <span className="font-medium text-amber-700">{t(locale, "shops.view")} →</span>
         </div>

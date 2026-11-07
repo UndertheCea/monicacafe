@@ -246,6 +246,16 @@ else
   echo "FAIL shop page filter: search+LIGHT should list the 耶加雪菲 coffee, DARK should list none of the shop's"; fail=1
 fi
 
+# Most followed (#107): the seed gives 府城焙煎所 two followers, so it is the
+# first shop link on /shops?sort=followers and its card shows the count.
+followed=$(curl -s --max-time 15 "$BASE_URL/shops?sort=followers") || followed=""
+first_shop=$(grep -o 'href="/shops/[a-z0-9-]*"' <<<"$followed" | grep -v 'href="/shops/"' | head -1 || true)
+if [[ "$first_shop" == 'href="/shops/fucheng-roasting"' && "$followed" == *'2 人追蹤'* ]]; then
+  echo "ok   /shops?sort=followers puts the most-followed shop first"
+else
+  echo "FAIL /shops?sort=followers: first shop was ${first_shop:-none}, want fucheng-roasting with 2 人追蹤"; fail=1
+fi
+
 # "You may also like" (#83, #84): the seeded 耶加雪菲 page links the seeded Kenya
 # washed coffee from another shop (same process; only reachable via Coffee.similar).
 if curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201" | grep -q '/coffees/00000000-0000-4000-8000-000000000204'; then

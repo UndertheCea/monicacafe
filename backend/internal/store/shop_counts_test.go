@@ -118,6 +118,17 @@ func TestListShopsSort(t *testing.T) {
 			}
 		}
 
+		// Followers: Alpha 2, Bravo 1, Charlie 1, Delta 0.
+		for i, shop := range []int{1, 1, 0, 3} { // ids order: Bravo, Alpha, Delta, Charlie
+			u, err := tx.CreateUser(ctx, fmt.Sprintf("sortfol-%s-%d@example.test", suffix, i), "x", "f")
+			if err != nil {
+				return err
+			}
+			if err := tx.FollowShop(ctx, u.ID, ids[shop]); err != nil {
+				return err
+			}
+		}
+
 		for _, tc := range []struct {
 			sort          store.ShopSort
 			limit, offset int
@@ -128,6 +139,9 @@ func TestListShopsSort(t *testing.T) {
 			// Bravo's drafts don't count; Bravo and Charlie tie at 1 → newer first.
 			{store.ShopSortMostCoffees, 10, 0, "Delta,Charlie,Bravo,Alpha"},
 			{store.ShopSortMostCoffees, 2, 1, "Charlie,Bravo"},
+			// Bravo and Charlie tie at 1 → newer first; nobody follows Delta.
+			{store.ShopSortMostFollowed, 10, 0, "Alpha,Charlie,Bravo,Delta"},
+			{store.ShopSortMostFollowed, 1, 3, "Delta"},
 		} {
 			got, total, err := tx.ListShops(ctx, store.ShopFilter{City: &city}, tc.sort, tc.limit, tc.offset)
 			if err != nil {

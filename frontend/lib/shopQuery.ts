@@ -1,16 +1,17 @@
 // URL ⇄ API mapping for the /shops sort. No imports, so `npm test` can load it
 // directly.
 
-export type ShopSort = "NEWEST" | "NAME" | "MOST_COFFEES";
+export type ShopSort = "NEWEST" | "NAME" | "MOST_COFFEES" | "MOST_FOLLOWED";
 
 /** `?sort=` values in the order the dropdown lists them ("" = newest, the default). */
-export const SHOP_SORT_PARAMS = ["", "name", "coffees"] as const;
+export const SHOP_SORT_PARAMS = ["", "name", "coffees", "followers"] as const;
 export type ShopSortParam = (typeof SHOP_SORT_PARAMS)[number];
 
 const TO_API: Record<ShopSortParam, ShopSort> = {
   "": "NEWEST",
   name: "NAME",
   coffees: "MOST_COFFEES",
+  followers: "MOST_FOLLOWED",
 };
 
 /** Parse `/shops?sort=`; anything unknown falls back to newest (""). */

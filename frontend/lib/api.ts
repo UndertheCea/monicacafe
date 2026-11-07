@@ -205,12 +205,13 @@ export interface ShopSummary {
   city: string;
   /** Published coffees only. */
   coffeeCount: number;
+  followerCount: number;
 }
 
 /** A shop page also needs the location (structured data). */
 export type ShopDetail = ShopSummary & { lat: number | null; lng: number | null };
 
-const SHOP_FIELDS = "id slug name description logoUrl bannerUrl city coffeeCount";
+const SHOP_FIELDS = "id slug name description logoUrl bannerUrl city coffeeCount followerCount";
 
 export const SHOPS = typed<
   { shops: { total: number; nodes: ShopSummary[] } },
@@ -348,6 +349,49 @@ export const MY_SAVED_COFFEES = typed<
 >(/* GraphQL */ `
   query MySavedCoffees($limit: Int, $offset: Int) {
     me { savedCoffees(limit: $limit, offset: $offset) { total nodes { ${CARD_FIELDS} } } }
+  }
+`);
+
+// ---------------------------------------------------------------------------
+// Followed shops (signed-in users)
+// ---------------------------------------------------------------------------
+
+export interface FollowResult {
+  id: string;
+  isFollowed: boolean;
+  followerCount: number;
+}
+
+/** The viewer's follow state for one shop (the public page is rendered anonymously). */
+export const SHOP_FOLLOWED = typed<{ shop: FollowResult | null }, { slug: string }>(/* GraphQL */ `
+  query ShopFollowed($slug: String!) { shop(slug: $slug) { id isFollowed followerCount } }
+`);
+
+export const FOLLOW_SHOP = typed<{ followShop: FollowResult }, { id: string }>(/* GraphQL */ `
+  mutation FollowShop($id: ID!) { followShop(id: $id) { id isFollowed followerCount } }
+`);
+
+export const UNFOLLOW_SHOP = typed<{ unfollowShop: FollowResult | null }, { id: string }>(/* GraphQL */ `
+  mutation UnfollowShop($id: ID!) { unfollowShop(id: $id) { id isFollowed followerCount } }
+`);
+
+/** A page of the shops the viewer follows (/account). */
+export const MY_FOLLOWED_SHOPS = typed<
+  { me: { followedShops: { total: number; nodes: ShopSummary[] } } | null },
+  { limit: number; offset: number }
+>(/* GraphQL */ `
+  query MyFollowedShops($limit: Int, $offset: Int) {
+    me { followedShops(limit: $limit, offset: $offset) { total nodes { ${SHOP_FIELDS} } } }
+  }
+`);
+
+/** Newest coffees from the shops the viewer follows (home page). */
+export const FOLLOWING_COFFEES = typed<
+  { followingCoffees: { total: number; nodes: CoffeeCardData[] } },
+  { limit: number; offset?: number }
+>(/* GraphQL */ `
+  query FollowingCoffees($limit: Int, $offset: Int) {
+    followingCoffees(limit: $limit, offset: $offset) { total nodes { ${CARD_FIELDS} } }
   }
 `);
 

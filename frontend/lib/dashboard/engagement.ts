@@ -1,6 +1,7 @@
 // Buyer engagement line on the dashboard coffee list. Import-free so `npm test` loads it.
 
 export type EngagementKey = "dash.comments.one" | "dash.comments.other" | "dash.saves.one" | "dash.saves.other";
+export type FollowerKey = "dash.followers.one" | "dash.followers.other";
 
 /**
  * The message keys (with counts) for a coffee's "N comments · N saves" line,
@@ -18,4 +19,10 @@ export function engagementParts(c: { commentCount?: number | null; saveCount?: n
     { key: comments === 1 ? "dash.comments.one" : "dash.comments.other", n: comments },
     { key: saves === 1 ? "dash.saves.one" : "dash.saves.other", n: saves },
   ];
+}
+
+/** The dashboard header's "N followers" (singular for exactly one; bad counts read as zero). */
+export function followerPart(followerCount: number | null | undefined): { key: FollowerKey; n: number } {
+  const n = typeof followerCount === "number" && followerCount > 0 ? Math.floor(followerCount) : 0;
+  return { key: n === 1 ? "dash.followers.one" : "dash.followers.other", n };
 }

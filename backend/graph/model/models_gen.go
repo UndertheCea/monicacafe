@@ -427,20 +427,22 @@ func (e RoastLevel) MarshalJSON() ([]byte, error) {
 type ShopSort string
 
 const (
-	ShopSortNewest      ShopSort = "NEWEST"
-	ShopSortName        ShopSort = "NAME"
-	ShopSortMostCoffees ShopSort = "MOST_COFFEES"
+	ShopSortNewest       ShopSort = "NEWEST"
+	ShopSortName         ShopSort = "NAME"
+	ShopSortMostCoffees  ShopSort = "MOST_COFFEES"
+	ShopSortMostFollowed ShopSort = "MOST_FOLLOWED"
 )
 
 var AllShopSort = []ShopSort{
 	ShopSortNewest,
 	ShopSortName,
 	ShopSortMostCoffees,
+	ShopSortMostFollowed,
 }
 
 func (e ShopSort) IsValid() bool {
 	switch e {
-	case ShopSortNewest, ShopSortName, ShopSortMostCoffees:
+	case ShopSortNewest, ShopSortName, ShopSortMostCoffees, ShopSortMostFollowed:
 		return true
 	}
 	return false

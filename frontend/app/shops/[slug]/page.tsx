@@ -20,6 +20,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
+import { FollowButton } from "@/components/shops/FollowButton";
 import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
@@ -124,6 +125,7 @@ export default async function ShopPage({
           <div className="sm:pt-14">
             <h1 className="text-3xl font-bold text-stone-900">{shop.name}</h1>
             {shop.city && <p className="text-sm text-stone-500">{shop.city}</p>}
+            <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
           </div>
         </div>
 

@@ -9,6 +9,7 @@ test("parseShopSortParam accepts known values and falls back to newest", () => {
     ["", ""],
     ["name", "name"],
     [" COFFEES ", "coffees"],
+    ["followers", "followers"],
     [["coffees", "name"], "coffees"],
     ["price_asc", ""], // a coffee sort isn't a shop sort
     ["name; DROP", ""],
@@ -18,7 +19,7 @@ test("parseShopSortParam accepts known values and falls back to newest", () => {
 
 test("every shop sort param maps to a distinct API enum", () => {
   const apis = SHOP_SORT_PARAMS.map(shopSortForApi);
-  assert.deepEqual(apis, ["NEWEST", "NAME", "MOST_COFFEES"]);
+  assert.deepEqual(apis, ["NEWEST", "NAME", "MOST_COFFEES", "MOST_FOLLOWED"]);
   assert.equal(new Set(apis).size, SHOP_SORT_PARAMS.length);
 });
 

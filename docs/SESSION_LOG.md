@@ -15,6 +15,47 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 19 — 2026-11-07 — Follow roasters: follows, following feed, most-followed shops
+PR: #108
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from a gap in the product: the brief calls Moni Cafe a "Shop app for roasters", yet a buyer
+could save a coffee but had no way to keep track of a roaster, and sellers had no audience signal for their shop.
+
+### Shipped (one line per slice: area — what — key files)
+- #102 backend — migration 009 `shop_follows` (UUID id, unique per user + shop, both sides cascade);
+  `followShop` (own shop → BAD_USER_INPUT, unknown → NOT_FOUND) / `unfollowShop` (null when the shop is gone), both
+  idempotent, `SaveUser` rate-limit bucket; `Shop.isFollowed` + `followerCount` via request-scoped loaders (the
+  viewer-flag loader is now shared with `Coffee.isSaved`: `viewerFlagLoader`); `User.followedShops` (self / admin
+  only) (`store/follows.go`)
+- #103 frontend — `FollowButton` on shop pages: login link signed out, count only for the shop's owner, optimistic
+  toggle with rollback (`followControl`, `toggleFollow`, `settleFollow` in `lib/follows.ts`)
+- #104 frontend — /account "追蹤的店家 / Shops you follow": logo, city, coffee count, Unfollow, load more
+  (`FollowedShops`; reuses the generic list helpers in `lib/saved.ts`)
+- #105 backend — `Query.followingCoffees(limit, offset)`: published coffees from followed shops, newest first,
+  UNAUTHENTICATED when signed out (`store.FollowingCoffees`)
+- #106 frontend — home page "你追蹤的烘豆師 / From roasters you follow": client-side section, hidden when signed out,
+  on error or when empty (`FollowingFeed`, `showFollowingFeed`)
+- #107 cross-cutting — `ShopSort.MOST_FOLLOWED` (store + GraphQL, ties newest first), `?sort=followers` "最多追蹤 /
+  Most followed" on /shops, "N 人追蹤 / Followed by N" on shop cards, "N followers" on the dashboard header
+  (`followerPart`); the demo seed adds three follows and smoke checks the order
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations 001–009
+  + seed). New: `TestShopFollows`, `TestFollowingCoffees` (store + GraphQL), `TestFollowShops`, MOST_FOLLOWED in
+  `TestListShopsSort` / `TestStoreShopSort`.
+- Frontend: tsc, lint, `npm test` (115), `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + Next locally: `scripts/smoke.sh` all ok (incl. the new most-followed check) except the two `/media/`
+  checks (no SeaweedFS / nginx here). Playwright: register → follow 山嵐咖啡 (count 1 → 2) → home feed shows its 2
+  coffees → /account lists it → unfollow → empty state, home section gone; a seller sees "1 位追蹤者" on the dashboard
+  and no follow button on their own shop; no page errors. Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Follower counts are public (like save counts); the list of who follows a shop is not exposed to anyone, the
+  seller included — only the count. Revisit if sellers ask for follower lists (that would be a privacy decision).
+- The following feed is "newest coffees" only; "new coffee from a shop you follow" emails belong to Stage 3
+  notifications and can read `shop_follows`.
+
 ## Session 18 — 2026-11-07 — Roaster replies, most-saved sort, seller engagement, header hardening
 PR: #101
 

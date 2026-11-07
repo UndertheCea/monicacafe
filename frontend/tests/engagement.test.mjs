@@ -1,7 +1,7 @@
 // Dashboard engagement line (lib/dashboard/engagement.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { engagementParts } from "../lib/dashboard/engagement.ts";
+import { engagementParts, followerPart } from "../lib/dashboard/engagement.ts";
 
 test("engagementParts picks singular / plural keys and clamps bad counts", () => {
   const cases = [
@@ -18,4 +18,17 @@ test("engagementParts picks singular / plural keys and clamps bad counts", () =>
       name,
     );
   }
+});
+
+test("followerPart: singular only for exactly one, bad counts read as zero", () => {
+  const cases = [
+    [0, "dash.followers.other", 0],
+    [1, "dash.followers.one", 1],
+    [2, "dash.followers.other", 2],
+    [-3, "dash.followers.other", 0],
+    [null, "dash.followers.other", 0],
+    [undefined, "dash.followers.other", 0],
+    [1.7, "dash.followers.one", 1],
+  ];
+  for (const [n, key, want] of cases) assert.deepEqual(followerPart(n), { key, n: want }, String(n));
 });

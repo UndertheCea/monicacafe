@@ -103,4 +103,12 @@ INSERT INTO comments (id, coffee_id, user_id, body) VALUES
    '00000000-0000-4000-8000-000000000002', '花香非常明顯，冷掉後柑橘感更突出！Lovely florals, even better as it cools.')
 ON CONFLICT DO NOTHING;
 
+-- Demo follows so "Most followed" (#107) has an order on a fresh install:
+-- 府城焙煎所 has two followers, 山嵐咖啡 one, 晨光 none.
+INSERT INTO shop_follows (user_id, shop_id) VALUES
+  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000103'),
+  ('00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000103'),
+  ('00000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000102')
+ON CONFLICT DO NOTHING;
+
 COMMIT;

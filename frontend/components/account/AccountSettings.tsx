@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice, inputCls } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
+import { FollowedShops } from "@/components/account/FollowedShops";
 import { SavedCoffees } from "@/components/account/SavedCoffees";
 import { COMMENT_LIST_PAGE } from "@/lib/comments";
 import { MY_COMMENTS } from "@/lib/dashboard/queries";
@@ -53,6 +54,7 @@ export function AccountSettings({ locale }: { locale: Locale }) {
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
       <SavedCoffees locale={locale} />
+      <FollowedShops locale={locale} />
       <MyComments locale={locale} />
       <Sessions locale={locale} onLeave={onLeave} />
       <DeleteAccount locale={locale} onLeave={onLeave} />

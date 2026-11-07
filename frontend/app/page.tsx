@@ -4,6 +4,7 @@ import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
+import { FollowingFeed } from "@/components/coffees/FollowingFeed";
 import { ShopCard } from "@/components/shops/ShopCard";
 
 const POPULAR_COUNT = 4;
@@ -51,6 +52,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Signed-in only: fetched client-side with the viewer's token */}
+      <FollowingFeed locale={locale} />
 
       {/* Popular coffees */}
       <Section

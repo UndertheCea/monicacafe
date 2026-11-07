@@ -17,7 +17,7 @@ import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
-import { engagementParts } from "@/lib/dashboard/engagement";
+import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
 type Load =
@@ -108,13 +108,15 @@ export function Dashboard({ locale }: { locale: Locale }) {
     }
   }
 
+  const followers = followerPart(shop.followerCount);
   return (
     <div className="space-y-8">
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-6 ring-1 ring-stone-200">
         <div className="min-w-0">
           <h2 className="truncate text-2xl font-bold text-stone-900">{shop.name}</h2>
           <p className="text-sm text-stone-500">
-            {shop.city} · <span className="font-mono">/shops/{shop.slug}</span>
+            {shop.city} · <span className="font-mono">/shops/{shop.slug}</span> ·{" "}
+            {t(locale, followers.key, { n: followers.n })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

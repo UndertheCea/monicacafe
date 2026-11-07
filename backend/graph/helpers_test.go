@@ -227,6 +227,7 @@ func TestStoreShopSort(t *testing.T) {
 		{s(model.ShopSortNewest), store.ShopSortNewest, false},
 		{s(model.ShopSortName), store.ShopSortName, false},
 		{s(model.ShopSortMostCoffees), store.ShopSortMostCoffees, false},
+		{s(model.ShopSortMostFollowed), store.ShopSortMostFollowed, false},
 		{s("BIGGEST"), store.ShopSortNewest, true},
 	}
 	for _, tc := range tests {

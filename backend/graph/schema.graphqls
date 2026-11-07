@@ -170,11 +170,13 @@ type Shop {
   updatedAt: Time!
 }
 
-# MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
+# MOST_COFFEES counts published coffees (Shop.coffeeCount), MOST_FOLLOWED
+# counts followers (Shop.followerCount). Ties go newest first.
 enum ShopSort {
   NEWEST
   NAME
   MOST_COFFEES
+  MOST_FOLLOWED
 }
 
 type ShopConnection {

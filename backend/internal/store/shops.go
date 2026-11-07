@@ -99,14 +99,19 @@ func (s *Store) ShopsByIDs(ctx context.Context, ids []string) (map[string]*Shop,
 type ShopSort string
 
 const (
-	ShopSortNewest      ShopSort = ""
-	ShopSortName        ShopSort = "NAME"
-	ShopSortMostCoffees ShopSort = "MOST_COFFEES"
+	ShopSortNewest       ShopSort = ""
+	ShopSortName         ShopSort = "NAME"
+	ShopSortMostCoffees  ShopSort = "MOST_COFFEES"
+	ShopSortMostFollowed ShopSort = "MOST_FOLLOWED"
 )
 
 // Published coffees per shop, the same number Shop.coffeeCount shows.
 const shopCoffeeCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM coffees c
 		WHERE c.shop_id = s.id AND c.is_published) cn ON true`
+
+// Followers per shop, the same number Shop.followerCount shows.
+const shopFollowerCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM shop_follows f
+		WHERE f.shop_id = s.id) fc ON true`
 
 // orderBy returns the extra join a sort needs and its ORDER BY list. Every
 // order ends on newest-then-id so offset paging is stable. Unknown values sort
@@ -118,6 +123,8 @@ func (o ShopSort) orderBy() (join, order string) {
 		return "", "s.name, " + tail
 	case ShopSortMostCoffees:
 		return shopCoffeeCountJoin, "cn.n DESC, " + tail
+	case ShopSortMostFollowed:
+		return shopFollowerCountJoin, "fc.n DESC, " + tail
 	default:
 		return "", tail
 	}

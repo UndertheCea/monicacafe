@@ -28,6 +28,7 @@ export interface DashboardShop {
   name: string;
   city: string;
   description: string;
+  followerCount: number;
   coffees: { total: number; nodes: DashboardCoffee[] };
 }
 
@@ -41,7 +42,7 @@ export const MY_SHOP = typed<{ me: { id: string; shop: DashboardShop | null } | 
     me {
       id
       shop {
-        id slug name city description
+        id slug name city description followerCount
         coffees(limit: ${DASH_COFFEES_PAGE}) { total nodes { ${DASHBOARD_COFFEE_FIELDS} } }
       }
     }

@@ -1032,6 +1032,63 @@ func (r *mutationResolver) UnsaveCoffee(ctx context.Context, id string) (*model.
 	return toCoffee(co), nil
 }
 
+// FollowShop is the resolver for the followShop field.
+func (r *mutationResolver) FollowShop(ctx context.Context, id string) (*model.Shop, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, errNotFound("shop")
+	}
+	sh, err := r.Store.ShopByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("shop")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if sh.OwnerID == c.UserID {
+		return nil, errBadInput("id", "you can't follow your own shop")
+	}
+	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
+		return nil, err
+	}
+	if err := r.Store.FollowShop(ctx, c.UserID, sh.ID); err != nil {
+		if errors.Is(err, store.ErrInvalidReference) {
+			// The account was deleted (or the shop) between the checks.
+			return nil, errUnauthenticated()
+		}
+		return nil, err
+	}
+	return toShop(sh), nil
+}
+
+// UnfollowShop is the resolver for the unfollowShop field.
+func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.Shop, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, nil
+	}
+	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
+		return nil, err
+	}
+	if err := r.Store.UnfollowShop(ctx, c.UserID, id); err != nil {
+		return nil, err
+	}
+	sh, err := r.Store.ShopByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toShop(sh), nil
+}
+
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	c := viewer(ctx)
@@ -1221,6 +1278,19 @@ func (r *shopResolver) RecentComments(ctx context.Context, obj *model.Shop, limi
 	return &model.CommentConnection{Nodes: toComments(cs), Total: total}, nil
 }
 
+// IsFollowed is the resolver for the isFollowed field.
+func (r *shopResolver) IsFollowed(ctx context.Context, obj *model.Shop) (bool, error) {
+	if viewer(ctx) == nil {
+		return false, nil
+	}
+	return r.loadersFor(ctx).FollowedByShop.Load(ctx, obj.ID)
+}
+
+// FollowerCount is the resolver for the followerCount field.
+func (r *shopResolver) FollowerCount(ctx context.Context, obj *model.Shop) (int, error) {
+	return r.loadersFor(ctx).FollowerCountByShop.Load(ctx, obj.ID)
+}
+
 // Email is the resolver for the email field.
 func (r *userResolver) Email(ctx context.Context, obj *model.User) (*string, error) {
 	c := viewer(ctx)
@@ -1269,6 +1339,24 @@ func (r *userResolver) SavedCoffees(ctx context.Context, obj *model.User, limit 
 		return nil, err
 	}
 	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
+}
+
+// FollowedShops is the resolver for the followedShops field.
+func (r *userResolver) FollowedShops(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.ShopConnection, error) {
+	c := viewer(ctx)
+	if c == nil || (c.UserID != obj.ID && !isAdmin(c)) {
+		return &model.ShopConnection{Nodes: []*model.Shop{}}, nil
+	}
+	l, o := page(limit, offset)
+	shops, total, err := r.Store.FollowedShopsByUser(ctx, obj.ID, l, o)
+	if err != nil {
+		return nil, err
+	}
+	nodes := make([]*model.Shop, len(shops))
+	for i, sh := range shops {
+		nodes[i] = toShop(sh)
+	}
+	return &model.ShopConnection{Nodes: nodes, Total: total}, nil
 }
 
 // Coffee returns generated.CoffeeResolver implementation.

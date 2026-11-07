@@ -22,7 +22,10 @@ type Loaders struct {
 	SaveCountByCoffee    *dataloadgen.Loader[string, int]
 	// SavedByCoffee answers Coffee.isSaved for the request's viewer (the
 	// loader is request-scoped, so there is only ever one viewer).
-	SavedByCoffee *dataloadgen.Loader[string, bool]
+	SavedByCoffee       *dataloadgen.Loader[string, bool]
+	FollowerCountByShop *dataloadgen.Loader[string, int]
+	// FollowedByShop answers Shop.isFollowed for the request's viewer.
+	FollowedByShop *dataloadgen.Loader[string, bool]
 }
 
 type loadersKey struct{}
@@ -49,21 +52,29 @@ func NewLoaders(st *store.Store) *Loaders {
 		CommentCountByCoffee: dataloadgen.NewLoader(countLoader(st.CommentCountsByCoffeeIDs), dataloadgen.WithWait(loaderWait)),
 		CoffeeCountByShop:    dataloadgen.NewLoader(countLoader(st.PublishedCoffeeCountsByShopIDs), dataloadgen.WithWait(loaderWait)),
 		SaveCountByCoffee:    dataloadgen.NewLoader(countLoader(st.SaveCountsByCoffeeIDs), dataloadgen.WithWait(loaderWait)),
-		SavedByCoffee: dataloadgen.NewLoader(func(ctx context.Context, ids []string) ([]bool, []error) {
-			out := make([]bool, len(ids))
-			c := viewer(ctx)
-			if c == nil {
-				return out, nil
-			}
-			m, err := st.SavedCoffeeIDs(ctx, c.UserID, ids)
-			if err != nil {
-				return out, fillErr(len(ids), err)
-			}
-			for i, id := range ids {
-				out[i] = m[id]
-			}
+		SavedByCoffee:        dataloadgen.NewLoader(viewerFlagLoader(st.SavedCoffeeIDs), dataloadgen.WithWait(loaderWait)),
+		FollowerCountByShop:  dataloadgen.NewLoader(countLoader(st.FollowerCountsByShopIDs), dataloadgen.WithWait(loaderWait)),
+		FollowedByShop:       dataloadgen.NewLoader(viewerFlagLoader(st.FollowedShopIDs), dataloadgen.WithWait(loaderWait)),
+	}
+}
+
+// viewerFlagLoader adapts a per-user batch membership query (saved, followed)
+// to a loader for the request's viewer; signed out, every flag is false.
+func viewerFlagLoader(batch func(context.Context, string, []string) (map[string]bool, error)) func(context.Context, []string) ([]bool, []error) {
+	return func(ctx context.Context, ids []string) ([]bool, []error) {
+		out := make([]bool, len(ids))
+		c := viewer(ctx)
+		if c == nil {
 			return out, nil
-		}, dataloadgen.WithWait(loaderWait)),
+		}
+		m, err := batch(ctx, c.UserID, ids)
+		if err != nil {
+			return out, fillErr(len(ids), err)
+		}
+		for i, id := range ids {
+			out[i] = m[id]
+		}
+		return out, nil
 	}
 }
 

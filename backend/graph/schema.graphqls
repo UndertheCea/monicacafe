@@ -97,6 +97,13 @@ type Mutation {
   saveCoffee(id: ID!): Coffee!
   unsaveCoffee(id: ID!): Coffee
 
+  # Followed shops (signed in). Following your own shop is BAD_USER_INPUT; an
+  # unknown shop is NOT_FOUND. Unfollowing returns null when the shop is gone.
+  # Both are idempotent and return the shop with its new isFollowed /
+  # followerCount.
+  followShop(id: ID!): Shop!
+  unfollowShop(id: ID!): Shop
+
   # Stage 2: cart, orders, ECPay checkout — parked
 }
 
@@ -117,6 +124,9 @@ type User {
   # back to draft are hidden). Same visibility as comments: the user themself or
   # an admin; empty for anyone else. limit defaults to 20 (max 100).
   savedCoffees(limit: Int, offset: Int): CoffeeConnection!
+  # Shops the user follows, most recently followed first. Same visibility as
+  # savedCoffees. limit defaults to 20 (max 100).
+  followedShops(limit: Int, offset: Int): ShopConnection!
   createdAt: Time!
 }
 
@@ -148,6 +158,10 @@ type Shop {
   # Only the shop's owner or an admin: UNAUTHENTICATED when signed out,
   # FORBIDDEN for anyone else.
   recentComments(limit: Int, offset: Int): CommentConnection!
+  # Whether the signed-in viewer follows this shop; false when signed out.
+  isFollowed: Boolean!
+  # How many people follow it.
+  followerCount: Int!
   createdAt: Time!
   # Last change to the shop's profile.
   updatedAt: Time!

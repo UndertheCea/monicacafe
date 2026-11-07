@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 17 — 2026-11-07 — Saved coffees, account deletion, shop structured data
-PR: see the session PR (opened from `claude/laughing-ride-i1drk4`)
+PR: #94
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from gaps found in the code: buyers had nothing to do with a coffee but comment, and an

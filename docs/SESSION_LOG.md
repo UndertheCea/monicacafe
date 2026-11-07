@@ -15,6 +15,47 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 17 — 2026-11-07 — Saved coffees, account deletion, shop structured data
+PR: see the session PR (opened from `claude/laughing-ride-i1drk4`)
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code: buyers had nothing to do with a coffee but comment, and an
+account could only be removed by running SQL (Taiwan's PDPA gives people that right).
+
+### Shipped (one line per slice: area — what — key files)
+- #87 backend — migration 008 `saved_coffees` (UUID id, unique per user + coffee, both sides cascade);
+  `saveCoffee` (published only) / `unsaveCoffee` (any state; null when the viewer can't see the coffee), both
+  idempotent; `Coffee.isSaved` + `saveCount` via request-scoped loaders; `User.savedCoffees` (self / admin only,
+  drafts hidden); new per-user bucket `RATE_LIMIT_SAVE_USER` (60/5m) (`store/saved.go`)
+- #88 frontend — `SaveButton` under the coffee name (`CoffeeDetailView` takes an `actions` slot; the draft preview
+  has none): login link when signed out, optimistic toggle with rollback (`toggleSave`, `settleSave`)
+- #89 frontend — /account "我的收藏 / Saved coffees": rows with from-price, Remove, load more, empty state
+  (`SavedCoffees`, `appendSaved` / `withoutSaved` / `hasMoreSaved` in `lib/saved.ts`)
+- #90 backend — `deleteAccount(password)`: password re-checked (PasswordUser bucket), comments deleted, saves +
+  refresh tokens cascade, user row locked so a concurrent `createShop` can't slip in; shop owners and admins get
+  FORBIDDEN (`store.DeleteUser`, `ErrOwnsShop`)
+- #91 cross-cutting — `POST /api/auth/delete-account` clears the httpOnly cookie; `AuthProvider.deleteAccount`;
+  /account "刪除帳號 / Delete account" with password + confirm, explanation instead of a form for shop owners /
+  admins (`accountDeletionBlock`, `deleteAccountErrorKey`); smoke covers the route
+- #92 frontend — shop pages emit a schema.org `Store` (address in TW, geo when valid, OfferCatalog of the listed
+  coffees, left out on filtered lists) (`shopJsonLd` in `lib/seo.ts`); the shop query now fetches lat / lng
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestSavedCoffees`, `TestSaveRateLimit`, `TestDeleteAccount`.
+- Frontend: tsc, lint, `npm test` (106), `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + Next standalone locally: `scripts/smoke.sh` all ok (incl. the new delete-account check) except the
+  two `/media/` checks (no SeaweedFS / nginx here). Playwright: register → shop page JSON-LD (Store, geo, 3 offers)
+  → save a coffee (count 0 → 1, survives reload) → /account lists it → Remove → empty state → delete account
+  (wrong password message, then success → home, refresh 401). Not run: `docker compose up`.
+- Local gotcha: Next renames its process to `next-server`, so `pkill -f server.js` doesn't stop it; and the CSP's
+  `connect-src` needs `NEXT_PUBLIC_GRAPHQL_URL` set at runtime when the API isn't behind nginx.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Saved coffees are public as a count only; the list itself is private (self / admin), like "My comments".
+- Account deletion removes the user's comments rather than anonymising them (personal data goes with the
+  account). Sellers can't delete themselves yet: closing a shop is an owner decision (question to file if asked).
+
 ## Session 16 — 2026-11-07 — Sitemap lastmod, comment editing, similar coffees, skip link
 PR: #86
 

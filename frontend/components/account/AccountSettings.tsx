@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice, inputCls } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
+import { SavedCoffees } from "@/components/account/SavedCoffees";
 import { COMMENT_LIST_PAGE } from "@/lib/comments";
 import { MY_COMMENTS } from "@/lib/dashboard/queries";
 import { cleanDisplayName, passwordChangeProblem, passwordErrorKey } from "@/lib/auth/account";
@@ -42,6 +43,7 @@ export function AccountSettings({ locale }: { locale: Locale }) {
     <div className="space-y-6">
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
+      <SavedCoffees locale={locale} />
       <MyComments locale={locale} />
       <Sessions
         locale={locale}

@@ -41,3 +41,11 @@ export function withoutSaved<T extends { id: string }>(list: { total: number; no
   const nodes = list.nodes.filter((c) => c.id !== id);
   return { total: Math.max(0, list.total - (list.nodes.length - nodes.length)), nodes };
 }
+
+/**
+ * Whether "load more" makes sense: fewer shown than the total, and the last
+ * page was full (a short page means the end, even if the total was stale).
+ */
+export function hasMoreSaved(shown: number, total: number, lastPageSize: number, pageSize = SAVED_PAGE): boolean {
+  return shown < total && lastPageSize >= pageSize;
+}

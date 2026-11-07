@@ -1,7 +1,7 @@
 // Saved-coffee helpers (lib/saved.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SAVED_PAGE, appendSaved, settleSave, toggleSave, withoutSaved } from "../lib/saved.ts";
+import { SAVED_PAGE, appendSaved, hasMoreSaved, settleSave, toggleSave, withoutSaved } from "../lib/saved.ts";
 
 test("toggleSave moves the count with the state, never below zero", () => {
   const cases = [
@@ -33,4 +33,14 @@ test("withoutSaved removes the row and lowers the total only when it was there",
   assert.deepEqual(withoutSaved(list, "zz"), list);
   assert.deepEqual(withoutSaved({ total: 0, nodes: [{ id: "a" }] }, "a"), { total: 0, nodes: [] });
   assert.ok(SAVED_PAGE > 0);
+});
+
+test("hasMoreSaved needs a full last page and fewer shown than the total", () => {
+  const cases = [
+    [SAVED_PAGE, 30, SAVED_PAGE, true],
+    [SAVED_PAGE, SAVED_PAGE, SAVED_PAGE, false],
+    [5, 30, 5, false], // short page: the end, whatever the stale total says
+    [0, 0, 0, false],
+  ];
+  for (const [shown, total, last, want] of cases) assert.equal(hasMoreSaved(shown, total, last), want);
 });

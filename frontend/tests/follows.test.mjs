@@ -46,3 +46,17 @@ test("followed-shop list paging reuses the saved-list helpers with FOLLOWED_PAGE
   assert.deepEqual(appendSaved(shops, [{ id: "b" }, { id: "c" }]).map((s) => s.id), ["a", "b", "c"]);
   assert.deepEqual(withoutSaved({ total: 2, nodes: shops }, "a"), { total: 1, nodes: [{ id: "b" }] });
 });
+
+test("showFollowingFeed: only signed in, loaded and non-empty", async () => {
+  const { showFollowingFeed } = await import("../lib/follows.ts");
+  const some = { nodes: [{ id: "c1" }] };
+  const cases = [
+    { status: "authenticated", feed: some, want: true },
+    { status: "authenticated", feed: { nodes: [] }, want: false },
+    { status: "authenticated", feed: null, want: false },
+    { status: "authenticated", feed: undefined, want: false },
+    { status: "anonymous", feed: some, want: false }, // stale feed after logout
+    { status: "loading", feed: some, want: false },
+  ];
+  for (const c of cases) assert.equal(showFollowingFeed(c.status, c.feed), c.want, JSON.stringify(c));
+});

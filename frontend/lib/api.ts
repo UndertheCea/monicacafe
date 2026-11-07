@@ -385,6 +385,16 @@ export const MY_FOLLOWED_SHOPS = typed<
   }
 `);
 
+/** Newest coffees from the shops the viewer follows (home page). */
+export const FOLLOWING_COFFEES = typed<
+  { followingCoffees: { total: number; nodes: CoffeeCardData[] } },
+  { limit: number; offset?: number }
+>(/* GraphQL */ `
+  query FollowingCoffees($limit: Int, $offset: Int) {
+    followingCoffees(limit: $limit, offset: $offset) { total nodes { ${CARD_FIELDS} } }
+  }
+`);
+
 // ---------------------------------------------------------------------------
 // Sitemap (public data only: the API never returns drafts to anonymous callers)
 // ---------------------------------------------------------------------------

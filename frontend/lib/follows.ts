@@ -41,3 +41,18 @@ export function followControl(
 
 /** Followed shops per page on /account. */
 export const FOLLOWED_PAGE = 12;
+
+/** Coffees in the home page's "From roasters you follow" section. */
+export const FEED_COUNT = 4;
+
+/**
+ * Whether the home page shows the following feed: only once signed in and
+ * loaded, and only with something in it (no empty section for people who
+ * follow nobody, and nothing on a failed fetch).
+ */
+export function showFollowingFeed(
+  status: "loading" | "anonymous" | "authenticated",
+  feed: { nodes: unknown[] } | null | undefined,
+): boolean {
+  return status === "authenticated" && Boolean(feed && feed.nodes.length > 0);
+}

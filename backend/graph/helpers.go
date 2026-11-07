@@ -131,7 +131,7 @@ func toShop(s *store.Shop) *model.Shop {
 	return &model.Shop{
 		ID: s.ID, OwnerID: s.OwnerID, Slug: s.Slug, Name: s.Name, Description: s.Description,
 		LogoURL: s.LogoURL, BannerURL: s.BannerURL, City: s.City, Lat: s.Lat, Lng: s.Lng,
-		CreatedAt: s.CreatedAt,
+		CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
 	}
 }
 
@@ -141,7 +141,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
 		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: model.RoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
-		CreatedAt: c.CreatedAt,
+		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 	}
 }
 
@@ -161,7 +161,7 @@ func toVariant(v *store.Variant) *model.Variant {
 }
 
 func toComment(c *store.Comment) *model.Comment {
-	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt}
+	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt, EditedAt: c.EditedAt}
 }
 
 func toComments(cs []*store.Comment) []*model.Comment {
@@ -188,6 +188,14 @@ func page(limit, offset *int) (int, int) {
 		o = *offset
 	}
 	return l, o
+}
+
+// similarLimit clamps Coffee.similar's limit: default 4, between 1 and 12.
+func similarLimit(limit *int) int {
+	if limit == nil {
+		return 4
+	}
+	return min(max(*limit, 1), 12)
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────

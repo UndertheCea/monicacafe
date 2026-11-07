@@ -72,7 +72,9 @@ type ComplexityRoot struct {
 		ProcessingMethod func(childComplexity int) int
 		RoastLevel       func(childComplexity int) int
 		Shop             func(childComplexity int) int
+		Similar          func(childComplexity int, limit *int) int
 		Slug             func(childComplexity int) int
+		UpdatedAt        func(childComplexity int) int
 		Variants         func(childComplexity int) int
 		Variety          func(childComplexity int) int
 	}
@@ -92,6 +94,7 @@ type ComplexityRoot struct {
 		Body      func(childComplexity int) int
 		Coffee    func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
+		EditedAt  func(childComplexity int) int
 		ID        func(childComplexity int) int
 		User      func(childComplexity int) int
 	}
@@ -127,6 +130,7 @@ type ComplexityRoot struct {
 		Register          func(childComplexity int, input model.RegisterInput) int
 		UnpublishCoffee   func(childComplexity int, id string) int
 		UpdateCoffee      func(childComplexity int, id string, input model.UpdateCoffeeInput) int
+		UpdateComment     func(childComplexity int, id string, body string) int
 		UpdateProfile     func(childComplexity int, input model.UpdateProfileInput) int
 		UpdateShop        func(childComplexity int, id string, input model.UpdateShopInput) int
 		UpdateVariant     func(childComplexity int, id string, input model.UpdateVariantInput) int
@@ -173,6 +177,7 @@ type ComplexityRoot struct {
 		Name           func(childComplexity int) int
 		RecentComments func(childComplexity int, limit *int, offset *int) int
 		Slug           func(childComplexity int) int
+		UpdatedAt      func(childComplexity int) int
 	}
 
 	ShopConnection struct {
@@ -224,6 +229,7 @@ type CoffeeResolver interface {
 	Variants(ctx context.Context, obj *model.Coffee) ([]*model.Variant, error)
 	Comments(ctx context.Context, obj *model.Coffee, limit *int, offset *int) ([]*model.Comment, error)
 	CommentCount(ctx context.Context, obj *model.Coffee) (int, error)
+	Similar(ctx context.Context, obj *model.Coffee, limit *int) ([]*model.Coffee, error)
 }
 type CommentResolver interface {
 	User(ctx context.Context, obj *model.Comment) (*model.User, error)
@@ -251,6 +257,7 @@ type MutationResolver interface {
 	UpdateVariant(ctx context.Context, id string, input model.UpdateVariantInput) (*model.Variant, error)
 	DeleteVariant(ctx context.Context, id string) (bool, error)
 	AddComment(ctx context.Context, input model.AddCommentInput) (*model.Comment, error)
+	UpdateComment(ctx context.Context, id string, body string) (*model.Comment, error)
 	DeleteComment(ctx context.Context, id string) (bool, error)
 }
 type QueryResolver interface {
@@ -413,12 +420,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Coffee.Shop(childComplexity), true
 
+	case "Coffee.similar":
+		if e.complexity.Coffee.Similar == nil {
+			break
+		}
+
+		args, err := ec.field_Coffee_similar_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Coffee.Similar(childComplexity, args["limit"].(*int)), true
+
 	case "Coffee.slug":
 		if e.complexity.Coffee.Slug == nil {
 			break
 		}
 
 		return e.complexity.Coffee.Slug(childComplexity), true
+
+	case "Coffee.updatedAt":
+		if e.complexity.Coffee.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Coffee.UpdatedAt(childComplexity), true
 
 	case "Coffee.variants":
 		if e.complexity.Coffee.Variants == nil {
@@ -489,6 +515,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Comment.CreatedAt(childComplexity), true
+
+	case "Comment.editedAt":
+		if e.complexity.Comment.EditedAt == nil {
+			break
+		}
+
+		return e.complexity.Comment.EditedAt(childComplexity), true
 
 	case "Comment.id":
 		if e.complexity.Comment.ID == nil {
@@ -756,6 +789,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdateCoffee(childComplexity, args["id"].(string), args["input"].(model.UpdateCoffeeInput)), true
+
+	case "Mutation.updateComment":
+		if e.complexity.Mutation.UpdateComment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateComment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateComment(childComplexity, args["id"].(string), args["body"].(string)), true
 
 	case "Mutation.updateProfile":
 		if e.complexity.Mutation.UpdateProfile == nil {
@@ -1044,6 +1089,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Shop.Slug(childComplexity), true
+
+	case "Shop.updatedAt":
+		if e.complexity.Shop.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Shop.UpdatedAt(childComplexity), true
 
 	case "ShopConnection.nodes":
 		if e.complexity.ShopConnection.Nodes == nil {
@@ -1410,6 +1462,10 @@ type Mutation {
 
   # Comments (buyer)
   addComment(input: AddCommentInput!): Comment!
+  # Author only (admins can delete but not rewrite). Same body rules and rate
+  # limit as addComment; the coffee must still be published. Unchanged text
+  # returns the comment as it is, without setting editedAt.
+  updateComment(id: ID!, body: String!): Comment!
   deleteComment(id: ID!): Boolean!
 
   # Stage 2: cart, orders, ECPay checkout — parked
@@ -1460,6 +1516,8 @@ type Shop {
   # FORBIDDEN for anyone else.
   recentComments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
+  # Last change to the shop's profile.
+  updatedAt: Time!
 }
 
 # MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
@@ -1503,8 +1561,15 @@ type Coffee {
   # commentCount for the full total.
   comments(limit: Int, offset: Int): [Comment!]!
   commentCount: Int!
+  # Published coffees from other shops that resemble this one: same origin,
+  # process, roast and shared flavour notes (origin weighs most; a shared roast
+  # alone doesn't count). In-stock first, then most similar, then newest.
+  # limit defaults to 4 (max 12).
+  similar(limit: Int): [Coffee!]!
   isPublished: Boolean!
   createdAt: Time!
+  # Last change to the coffee or any of its options (price, stock, …).
+  updatedAt: Time!
 }
 
 # Price sorts use each coffee's lowest available, in-stock variant price;
@@ -1598,6 +1663,8 @@ type Comment {
   # someone else's shop).
   coffee: Coffee
   createdAt: Time!
+  # Set when the author last changed the text; null if never edited.
+  editedAt: Time
 }
 
 type CommentConnection {
@@ -1774,6 +1841,34 @@ func (ec *executionContext) field_Coffee_comments_argsOffset(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
 	if tmp, ok := rawArgs["offset"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Coffee_similar_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Coffee_similar_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Coffee_similar_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
 		return ec.unmarshalOInt2ᚖint(ctx, tmp)
 	}
 
@@ -2323,6 +2418,57 @@ func (ec *executionContext) field_Mutation_updateCoffee_argsInput(
 	}
 
 	var zeroVal model.UpdateCoffeeInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateComment_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := ec.field_Mutation_updateComment_argsBody(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["body"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateComment_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateComment_argsBody(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["body"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("body"))
+	if tmp, ok := rawArgs["body"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -3361,6 +3507,8 @@ func (ec *executionContext) fieldContext_Coffee_shop(_ context.Context, field gr
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -3896,6 +4044,8 @@ func (ec *executionContext) fieldContext_Coffee_comments(ctx context.Context, fi
 				return ec.fieldContext_Comment_coffee(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Comment_createdAt(ctx, field)
+			case "editedAt":
+				return ec.fieldContext_Comment_editedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -3954,6 +4104,99 @@ func (ec *executionContext) fieldContext_Coffee_commentCount(_ context.Context, 
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_similar(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_similar(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Coffee().Similar(rctx, obj, fc.Args["limit"].(*int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Coffee)
+	fc.Result = res
+	return ec.marshalNCoffee2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_similar(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Coffee_id(ctx, field)
+			case "shop":
+				return ec.fieldContext_Coffee_shop(ctx, field)
+			case "name":
+				return ec.fieldContext_Coffee_name(ctx, field)
+			case "slug":
+				return ec.fieldContext_Coffee_slug(ctx, field)
+			case "description":
+				return ec.fieldContext_Coffee_description(ctx, field)
+			case "originCountry":
+				return ec.fieldContext_Coffee_originCountry(ctx, field)
+			case "variety":
+				return ec.fieldContext_Coffee_variety(ctx, field)
+			case "processingMethod":
+				return ec.fieldContext_Coffee_processingMethod(ctx, field)
+			case "roastLevel":
+				return ec.fieldContext_Coffee_roastLevel(ctx, field)
+			case "flavorNotes":
+				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "imageUrls":
+				return ec.fieldContext_Coffee_imageUrls(ctx, field)
+			case "variants":
+				return ec.fieldContext_Coffee_variants(ctx, field)
+			case "comments":
+				return ec.fieldContext_Coffee_comments(ctx, field)
+			case "commentCount":
+				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
+			case "isPublished":
+				return ec.fieldContext_Coffee_isPublished(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Coffee_similar_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -4046,6 +4289,50 @@ func (ec *executionContext) fieldContext_Coffee_createdAt(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Coffee_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CoffeeConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CoffeeConnection_nodes(ctx, field)
 	if err != nil {
@@ -4113,10 +4400,14 @@ func (ec *executionContext) fieldContext_CoffeeConnection_nodes(_ context.Contex
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -4509,10 +4800,14 @@ func (ec *executionContext) fieldContext_Comment_coffee(_ context.Context, field
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -4552,6 +4847,47 @@ func (ec *executionContext) _Comment_createdAt(ctx context.Context, field graphq
 }
 
 func (ec *executionContext) fieldContext_Comment_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Comment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Comment_editedAt(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_editedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EditedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*time.Time)
+	fc.Result = res
+	return ec.marshalOTime2ᚖtimeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Comment_editedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
@@ -4613,6 +4949,8 @@ func (ec *executionContext) fieldContext_CommentConnection_nodes(_ context.Conte
 				return ec.fieldContext_Comment_coffee(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Comment_createdAt(ctx, field)
+			case "editedAt":
+				return ec.fieldContext_Comment_editedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -5333,6 +5671,8 @@ func (ec *executionContext) fieldContext_Mutation_createShop(ctx context.Context
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -5416,6 +5756,8 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -5501,10 +5843,14 @@ func (ec *executionContext) fieldContext_Mutation_createCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5590,10 +5936,14 @@ func (ec *executionContext) fieldContext_Mutation_updateCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5679,10 +6029,14 @@ func (ec *executionContext) fieldContext_Mutation_publishCoffee(ctx context.Cont
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5768,10 +6122,14 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -5912,10 +6270,14 @@ func (ec *executionContext) fieldContext_Mutation_duplicateCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -6241,6 +6603,8 @@ func (ec *executionContext) fieldContext_Mutation_addComment(ctx context.Context
 				return ec.fieldContext_Comment_coffee(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Comment_createdAt(ctx, field)
+			case "editedAt":
+				return ec.fieldContext_Comment_editedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -6253,6 +6617,75 @@ func (ec *executionContext) fieldContext_Mutation_addComment(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_addComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateComment(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateComment(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateComment(rctx, fc.Args["id"].(string), fc.Args["body"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Comment)
+	fc.Result = res
+	return ec.marshalNComment2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateComment(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Comment_id(ctx, field)
+			case "user":
+				return ec.fieldContext_Comment_user(ctx, field)
+			case "body":
+				return ec.fieldContext_Comment_body(ctx, field)
+			case "coffee":
+				return ec.fieldContext_Comment_coffee(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Comment_createdAt(ctx, field)
+			case "editedAt":
+				return ec.fieldContext_Comment_editedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateComment_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -6782,6 +7215,8 @@ func (ec *executionContext) fieldContext_Query_shop(ctx context.Context, field g
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -6983,10 +7418,14 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -7133,10 +7572,14 @@ func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Contex
 				return ec.fieldContext_Coffee_comments(ctx, field)
 			case "commentCount":
 				return ec.fieldContext_Coffee_commentCount(ctx, field)
+			case "similar":
+				return ec.fieldContext_Coffee_similar(ctx, field)
 			case "isPublished":
 				return ec.fieldContext_Coffee_isPublished(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Coffee_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Coffee_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Coffee", field.Name)
 		},
@@ -8040,6 +8483,50 @@ func (ec *executionContext) fieldContext_Shop_createdAt(_ context.Context, field
 	return fc, nil
 }
 
+func (ec *executionContext) _Shop_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Shop) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Shop_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNTime2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Shop_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Shop",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Time does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ShopConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.ShopConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ShopConnection_nodes(ctx, field)
 	if err != nil {
@@ -8105,6 +8592,8 @@ func (ec *executionContext) fieldContext_ShopConnection_nodes(_ context.Context,
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -8737,6 +9226,8 @@ func (ec *executionContext) fieldContext_User_shop(_ context.Context, field grap
 				return ec.fieldContext_Shop_recentComments(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
 		},
@@ -12082,6 +12573,42 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "similar":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Coffee_similar(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "isPublished":
 			out.Values[i] = ec._Coffee_isPublished(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -12089,6 +12616,11 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "createdAt":
 			out.Values[i] = ec._Coffee_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Coffee_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -12300,6 +12832,8 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "editedAt":
+			out.Values[i] = ec._Comment_editedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -12576,6 +13110,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "addComment":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addComment(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateComment":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateComment(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -13130,6 +13671,11 @@ func (ec *executionContext) _Shop(ctx context.Context, sel ast.SelectionSet, obj
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "createdAt":
 			out.Values[i] = ec._Shop_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Shop_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -15155,6 +15701,24 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalString(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOTime2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalTime(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOTime2ᚖtimeᚐTime(ctx context.Context, sel ast.SelectionSet, v *time.Time) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalTime(*v)
 	return res
 }
 

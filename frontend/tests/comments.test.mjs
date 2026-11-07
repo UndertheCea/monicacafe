@@ -1,7 +1,20 @@
 // Comment paging helpers (lib/comments.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { COMMENTS_PAGE, COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withoutComment } from "../lib/comments.ts";
+import {
+  COMMENTS_PAGE,
+  COMMENT_LIST_PAGE,
+  COMMENT_MAX_CHARS,
+  appendComments,
+  canEditComment,
+  commentCoffeeHref,
+  commentEditErrorKey,
+  commentEditState,
+  commentLength,
+  hasMoreComments,
+  withEditedComment,
+  withoutComment,
+} from "../lib/comments.ts";
 
 test("appendComments keeps order and drops ids already shown", () => {
   const cases = [
@@ -47,4 +60,62 @@ test("withoutComment drops the row and its count once", () => {
   assert.deepEqual(withoutComment(page, "a"), { total: 11, nodes: [{ id: "b" }] });
   assert.deepEqual(withoutComment(page, "zzz"), page, "unknown id: unchanged");
   assert.deepEqual(withoutComment({ total: 0, nodes: [{ id: "a" }] }, "a"), { total: 0, nodes: [] }, "never negative");
+});
+
+test("canEditComment: author only, published coffee only", () => {
+  const cases = [
+    ["u1", "u1", true, true],
+    ["u1", "u1", false, false],
+    ["u2", "u1", true, false],
+    [null, "u1", true, false],
+    [undefined, "u1", true, false],
+    ["", "", true, false],
+  ];
+  for (const [viewer, author, published, want] of cases) {
+    assert.equal(canEditComment(viewer, author, published), want, `${viewer} / ${author} / ${published}`);
+  }
+});
+
+test("commentLength counts runes of the trimmed text", () => {
+  assert.equal(commentLength("  好喝  "), 2);
+  assert.equal(commentLength("☕️"), 2); // coffee + variation selector, as Go counts runes
+  assert.equal(commentLength("   "), 0);
+});
+
+test("commentEditState gates Save", () => {
+  const cases = [
+    { draft: "好喝", saved: "好喝", want: { unchanged: true, canSave: false, tooLong: false } },
+    { draft: " 好喝 ", saved: "好喝", want: { unchanged: true, canSave: false, tooLong: false } },
+    { draft: "很好喝", saved: "好喝", want: { unchanged: false, canSave: true, tooLong: false } },
+    { draft: "   ", saved: "好喝", want: { unchanged: false, canSave: false, tooLong: false } },
+    { draft: "咖".repeat(COMMENT_MAX_CHARS + 1), saved: "x", want: { unchanged: false, canSave: false, tooLong: true } },
+    { draft: "咖".repeat(COMMENT_MAX_CHARS), saved: "x", want: { unchanged: false, canSave: true, tooLong: false } },
+  ];
+  for (const { draft, saved, want } of cases) {
+    const got = commentEditState(draft, saved);
+    assert.deepEqual({ unchanged: got.unchanged, canSave: got.canSave, tooLong: got.tooLong }, want, draft.slice(0, 10));
+  }
+});
+
+test("commentEditErrorKey maps API codes", () => {
+  assert.equal(commentEditErrorKey("BAD_USER_INPUT"), "comments.tooLong");
+  assert.equal(commentEditErrorKey("NOT_FOUND"), "comments.editGone");
+  assert.equal(commentEditErrorKey("FORBIDDEN"), "comments.editError");
+  assert.equal(commentEditErrorKey("INTERNAL"), "comments.editError");
+});
+
+test("withEditedComment replaces one row's text and keeps the rest", () => {
+  const page = {
+    total: 5,
+    nodes: [
+      { id: "a", body: "one", editedAt: null, user: { id: "u" } },
+      { id: "b", body: "two", editedAt: null, user: { id: "u" } },
+    ],
+  };
+  const got = withEditedComment(page, { id: "b", body: "TWO", editedAt: "2026-11-07T00:00:00Z" });
+  assert.equal(got.total, 5);
+  assert.deepEqual(got.nodes[1], { id: "b", body: "TWO", editedAt: "2026-11-07T00:00:00Z", user: { id: "u" } });
+  assert.equal(got.nodes[0], page.nodes[0], "other rows untouched");
+  assert.equal(page.nodes[1].body, "two", "input not mutated");
+  assert.deepEqual(withEditedComment(page, { id: "zzz", body: "x", editedAt: null }).nodes, page.nodes);
 });

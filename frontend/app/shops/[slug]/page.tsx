@@ -97,7 +97,7 @@ export default async function ShopPage({
   const pages = Math.max(1, Math.ceil(shop.coffees.total / PAGE_SIZE));
 
   return (
-    <main>
+    <div>
       <div className="relative h-48 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-800 md:h-64">
         {shop.bannerUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -170,6 +170,6 @@ export default async function ShopPage({
           </Link>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

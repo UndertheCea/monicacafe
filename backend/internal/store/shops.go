@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at`
+const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at, updated_at`
 
 func scanShop(row interface{ Scan(...any) error }) (*Shop, error) {
 	var sh Shop
 	if err := row.Scan(&sh.ID, &sh.OwnerID, &sh.Slug, &sh.Name, &sh.Description,
-		&sh.LogoURL, &sh.BannerURL, &sh.City, &sh.Lat, &sh.Lng, &sh.CreatedAt); err != nil {
+		&sh.LogoURL, &sh.BannerURL, &sh.City, &sh.Lat, &sh.Lng, &sh.CreatedAt, &sh.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	return &sh, nil

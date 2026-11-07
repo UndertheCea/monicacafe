@@ -42,3 +42,46 @@ export function withoutComment<T extends { id: string }>(page: { total: number; 
   const removed = page.nodes.length - nodes.length;
   return { total: Math.max(0, page.total - removed), nodes };
 }
+
+/** Max comment length in characters (runes), as the API counts it. */
+export const COMMENT_MAX_CHARS = 500;
+
+/** Rune count of the trimmed text, matching the backend's validation. */
+export function commentLength(body: string): number {
+  return [...body.trim()].length;
+}
+
+/**
+ * Whether the viewer may edit a comment: only its author (admins may delete,
+ * not rewrite), and only while the coffee is published (the API refuses
+ * otherwise).
+ */
+export function canEditComment(viewerId: string | null | undefined, authorId: string, coffeePublished: boolean): boolean {
+  return !!viewerId && viewerId === authorId && coffeePublished;
+}
+
+/** State of an edit box: length, too long, unchanged from the saved text, and whether Save is allowed. */
+export function commentEditState(draft: string, saved: string, max = COMMENT_MAX_CHARS) {
+  const len = commentLength(draft);
+  const tooLong = len > max;
+  const unchanged = draft.trim() === saved.trim();
+  return { len, tooLong, unchanged, canSave: len > 0 && !tooLong && !unchanged };
+}
+
+/** Message key for a failed updateComment (RATE_LIMITED is handled by the caller with its wait time). */
+export function commentEditErrorKey(code: string): "comments.tooLong" | "comments.editGone" | "comments.editError" {
+  if (code === "BAD_USER_INPUT") return "comments.tooLong";
+  if (code === "NOT_FOUND") return "comments.editGone";
+  return "comments.editError";
+}
+
+/** A comment list with one row's text replaced by the saved edit (other rows and the total unchanged). */
+export function withEditedComment<T extends { id: string; body: string; editedAt: string | null }>(
+  page: { total: number; nodes: T[] },
+  edited: { id: string; body: string; editedAt: string | null },
+) {
+  return {
+    total: page.total,
+    nodes: page.nodes.map((c) => (c.id === edited.id ? { ...c, body: edited.body, editedAt: edited.editedAt } : c)),
+  };
+}

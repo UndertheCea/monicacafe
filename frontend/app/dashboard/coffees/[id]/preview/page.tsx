@@ -12,11 +12,11 @@ export default async function CoffeePreviewPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const locale = await getLocale();
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <Link href={`/dashboard/coffees/${id}`} className="text-sm font-medium text-amber-700 hover:underline">
         {t(locale, "preview.back")}
       </Link>
       <CoffeePreview coffeeId={id} locale={locale} />
-    </main>
+    </div>
   );
 }

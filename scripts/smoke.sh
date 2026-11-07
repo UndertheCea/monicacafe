@@ -36,9 +36,9 @@ else
   echo "FAIL CSP nonce: header nonce '${csp_nonce}', second request '${csp_again}'"; fail=1
 fi
 
-# sitemap.xml lists the seeded shops and coffees; robots.txt points at it.
+# sitemap.xml lists the seeded shops and coffees with <lastmod> (#80); robots.txt points at it.
 sitemap=$(curl -s --max-time 15 "$BASE_URL/sitemap.xml") || sitemap=""
-if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* ]]; then
+if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* && "$sitemap" == *"<lastmod>"* ]]; then
   echo "ok   sitemap.xml ($(grep -o '<loc>' <<<"$sitemap" | wc -l) URLs)"
 else
   echo "FAIL sitemap.xml: ${sitemap:0:200}"; fail=1
@@ -211,6 +211,14 @@ if [[ "$in_shop" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$dark"
   echo "ok   shop page search + roast filter"
 else
   echo "FAIL shop page filter: search+LIGHT should list the 耶加雪菲 coffee, DARK should list none of the shop's"; fail=1
+fi
+
+# "You may also like" (#83, #84): the seeded 耶加雪菲 page links the seeded Kenya
+# washed coffee from another shop (same process; only reachable via Coffee.similar).
+if curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201" | grep -q '/coffees/00000000-0000-4000-8000-000000000204'; then
+  echo "ok   coffee page: you may also like"
+else
+  echo "FAIL coffee page: expected a similar coffee from another shop (…0204)"; fail=1
 fi
 
 # ── Image storage (S3 store behind nginx at /media/) ────────────────────────

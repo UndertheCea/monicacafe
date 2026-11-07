@@ -54,6 +54,26 @@ func TestPage(t *testing.T) {
 	}
 }
 
+func TestSimilarLimit(t *testing.T) {
+	ip := func(v int) *int { return &v }
+	tests := []struct {
+		limit *int
+		want  int
+	}{
+		{nil, 4},
+		{ip(0), 1},
+		{ip(-3), 1},
+		{ip(7), 7},
+		{ip(12), 12},
+		{ip(50), 12},
+	}
+	for _, tc := range tests {
+		if got := similarLimit(tc.limit); got != tc.want {
+			t.Errorf("similarLimit(%v) = %d, want %d", tc.limit, got, tc.want)
+		}
+	}
+}
+
 func TestShopSlug(t *testing.T) {
 	if s, err := normaliseShopSlug(" Mountain-Roasters "); err != nil || s != "mountain-roasters" {
 		t.Fatalf("got %q %v", s, err)

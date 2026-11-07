@@ -37,7 +37,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const q = filter.search;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-10">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900">{t(locale, "coffees.title")}</h1>
         <p className="mt-2 text-stone-600">{t(locale, "coffees.subtitle")}</p>
@@ -82,6 +82,6 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           <Pagination locale={locale} sp={sp} page={page} pages={pages} base="/coffees" />
         </section>
       </div>
-    </main>
+    </div>
   );
 }

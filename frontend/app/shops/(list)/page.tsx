@@ -42,7 +42,7 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   const pages = Math.max(1, Math.ceil(shops.total / SHOPS_PAGE_SIZE));
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-10">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-stone-900">{t(locale, "shops.title")}</h1>
         <p className="mt-2 text-stone-600">{t(locale, "shops.subtitle")}</p>
@@ -77,6 +77,6 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
       )}
 
       <Pagination locale={locale} sp={sp} page={page} pages={pages} base="/shops" />
-    </main>
+    </div>
   );
 }

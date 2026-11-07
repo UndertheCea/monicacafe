@@ -17,7 +17,7 @@ export default function PageError({ error, reset }: { error: Error & { digest?: 
   }, [error]);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-24">
+    <div className="mx-auto max-w-3xl px-4 py-24">
       <div role="alert" className="rounded-2xl bg-red-50 p-6 ring-1 ring-red-200">
         <h1 className="text-lg font-bold text-red-900">{t(locale, "crash.title")}</h1>
         <p className="mt-2 text-red-800">{t(locale, "crash.body")}</p>
@@ -34,6 +34,6 @@ export default function PageError({ error, reset }: { error: Error & { digest?: 
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

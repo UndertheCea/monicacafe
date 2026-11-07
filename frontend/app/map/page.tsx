@@ -24,7 +24,7 @@ export default async function MapPage() {
   const located = pins.filter(hasCoords).length;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto max-w-7xl px-4 py-10">
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-stone-900">{t(locale, "map.title")}</h1>
         <p className="mt-2 text-stone-600">{t(locale, "map.subtitle")}</p>
@@ -69,6 +69,6 @@ export default async function MapPage() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

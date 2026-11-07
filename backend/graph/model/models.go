@@ -31,6 +31,7 @@ type Shop struct {
 	Lat         *float64  `json:"lat,omitempty"`
 	Lng         *float64  `json:"lng,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 type Coffee struct {
@@ -47,12 +48,14 @@ type Coffee struct {
 	ImageUrls          []string   `json:"imageUrls"`
 	IsPublished        bool       `json:"isPublished"`
 	CreatedAt          time.Time  `json:"createdAt"`
+	UpdatedAt          time.Time  `json:"updatedAt"`
 }
 
 type Comment struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"-"`
-	CoffeeID  string    `json:"-"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        string     `json:"id"`
+	UserID    string     `json:"-"`
+	CoffeeID  string     `json:"-"`
+	Body      string     `json:"body"`
+	CreatedAt time.Time  `json:"createdAt"`
+	EditedAt  *time.Time `json:"editedAt,omitempty"`
 }

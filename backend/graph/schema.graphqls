@@ -79,6 +79,10 @@ type Mutation {
 
   # Comments (buyer)
   addComment(input: AddCommentInput!): Comment!
+  # Author only (admins can delete but not rewrite). Same body rules and rate
+  # limit as addComment; the coffee must still be published. Unchanged text
+  # returns the comment as it is, without setting editedAt.
+  updateComment(id: ID!, body: String!): Comment!
   deleteComment(id: ID!): Boolean!
 
   # Stage 2: cart, orders, ECPay checkout — parked
@@ -129,6 +133,8 @@ type Shop {
   # FORBIDDEN for anyone else.
   recentComments(limit: Int, offset: Int): CommentConnection!
   createdAt: Time!
+  # Last change to the shop's profile.
+  updatedAt: Time!
 }
 
 # MOST_COFFEES counts published coffees (Shop.coffeeCount). Ties go newest first.
@@ -172,8 +178,15 @@ type Coffee {
   # commentCount for the full total.
   comments(limit: Int, offset: Int): [Comment!]!
   commentCount: Int!
+  # Published coffees from other shops that resemble this one: same origin,
+  # process, roast and shared flavour notes (origin weighs most; a shared roast
+  # alone doesn't count). In-stock first, then most similar, then newest.
+  # limit defaults to 4 (max 12).
+  similar(limit: Int): [Coffee!]!
   isPublished: Boolean!
   createdAt: Time!
+  # Last change to the coffee or any of its options (price, stock, …).
+  updatedAt: Time!
 }
 
 # Price sorts use each coffee's lowest available, in-stock variant price;
@@ -267,6 +280,8 @@ type Comment {
   # someone else's shop).
   coffee: Coffee
   createdAt: Time!
+  # Set when the author last changed the text; null if never edited.
+  editedAt: Time
 }
 
 type CommentConnection {

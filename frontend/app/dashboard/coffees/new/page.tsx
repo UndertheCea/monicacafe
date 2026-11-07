@@ -11,13 +11,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NewCoffeePage() {
   const locale = await getLocale();
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
+    <div className="mx-auto max-w-4xl px-4 py-10">
       <Link href="/dashboard" className="text-sm font-medium text-amber-700 hover:underline">
         {t(locale, "cf.back")}
       </Link>
       <h1 className="mt-4 text-3xl font-bold text-stone-900">{t(locale, "cf.newTitle")}</h1>
       <p className="mb-6 mt-1 text-stone-600">{t(locale, "cf.newSub")}</p>
       <NewCoffeeForm locale={locale} />
-    </main>
+    </div>
   );
 }

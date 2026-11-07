@@ -1,9 +1,10 @@
 // Typed queries against backend/graph/schema.graphqls. Keep these types in
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
-import { COMMENTS_PAGE } from "./comments";
+import { COMMENTS_PAGE, COMMENT_MAX_CHARS } from "./comments";
 import type { CoffeeSort, RoastLevel } from "./coffeeQuery";
 import type { ShopSort } from "./shopQuery";
+import type { SitemapCoffee, SitemapShop } from "./sitemap";
 
 export { ROAST_LEVELS, type RoastLevel } from "./coffeeQuery";
 
@@ -110,6 +111,8 @@ export interface CommentData {
   id: string;
   body: string;
   createdAt: string;
+  /** Set once the author has edited the text. */
+  editedAt: string | null;
   user: { id: string; displayName: string };
 }
 
@@ -138,7 +141,7 @@ const COFFEE_DETAIL_FIELDS = `
   processingMethod { nameEn nameZh }
   variety { name }
   variants { id grind weightG priceTwd stock isAvailable }
-  comments(limit: ${COMMENTS_PAGE}) { id body createdAt user { id displayName } }
+  comments(limit: ${COMMENTS_PAGE}) { id body createdAt editedAt user { id displayName } }
 `;
 
 export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* GraphQL */ `
@@ -149,17 +152,26 @@ export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* 
 
 /**
  * The public coffee page: the coffee plus a few more from its shop (one more
- * than shown, since the list can include this coffee). Anonymous server
+ * than shown, since the list can include this coffee) and similar coffees from
+ * other shops. Anonymous server
  * fetches only ever see published coffees there.
  */
 export const COFFEE_PAGE = typed<
-  { coffee: (CoffeeDetail & { more: { coffees: { total: number; nodes: CoffeeCardData[] } } }) | null },
-  { id: string; more: number }
+  {
+    coffee:
+      | (CoffeeDetail & {
+          more: { coffees: { total: number; nodes: CoffeeCardData[] } };
+          similar: CoffeeCardData[];
+        })
+      | null;
+  },
+  { id: string; more: number; similar: number }
 >(/* GraphQL */ `
-  query CoffeePage($id: ID!, $more: Int!) {
+  query CoffeePage($id: ID!, $more: Int!, $similar: Int!) {
     coffee(id: $id) {
       ${COFFEE_DETAIL_FIELDS}
       more: shop { coffees(limit: $more) { total nodes { ${CARD_FIELDS} } } }
+      similar(limit: $similar) { ${CARD_FIELDS} }
     }
   }
 `);
@@ -171,7 +183,7 @@ export const COFFEE_COMMENTS = typed<
 >(/* GraphQL */ `
   query CoffeeComments($id: ID!, $limit: Int!, $offset: Int!) {
     coffee(id: $id) {
-      comments(limit: $limit, offset: $offset) { id body createdAt user { id displayName } }
+      comments(limit: $limit, offset: $offset) { id body createdAt editedAt user { id displayName } }
     }
   }
 `);
@@ -279,7 +291,7 @@ export function isUUID(id: string): boolean {
 // ---------------------------------------------------------------------------
 
 /** Backend limit for comment bodies (rune count). */
-export const COMMENT_MAX = 500;
+export const COMMENT_MAX = COMMENT_MAX_CHARS;
 
 export const ADD_COMMENT = typed<{ addComment: { id: string } }, { input: { coffeeId: string; body: string } }>(
   /* GraphQL */ `
@@ -289,6 +301,13 @@ export const ADD_COMMENT = typed<{ addComment: { id: string } }, { input: { coff
   `,
 );
 
+export const UPDATE_COMMENT = typed<
+  { updateComment: { id: string; body: string; editedAt: string | null } },
+  { id: string; body: string }
+>(/* GraphQL */ `
+  mutation UpdateComment($id: ID!, $body: String!) { updateComment(id: $id, body: $body) { id body editedAt } }
+`);
+
 export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteComment($id: ID!) { deleteComment(id: $id) }
 `);
@@ -297,18 +316,18 @@ export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(
 // Sitemap (public data only: the API never returns drafts to anonymous callers)
 // ---------------------------------------------------------------------------
 
-export const SITEMAP_SHOPS = typed<{ shops: { total: number; nodes: { slug: string }[] } }, { limit: number; offset: number }>(
+export const SITEMAP_SHOPS = typed<{ shops: { total: number; nodes: SitemapShop[] } }, { limit: number; offset: number }>(
   /* GraphQL */ `
     query SitemapShops($limit: Int, $offset: Int) {
-      shops(limit: $limit, offset: $offset) { total nodes { slug } }
+      shops(limit: $limit, offset: $offset) { total nodes { slug updatedAt } }
     }
   `,
 );
 
-export const SITEMAP_COFFEES = typed<{ coffees: { total: number; nodes: { id: string }[] } }, { limit: number; offset: number }>(
+export const SITEMAP_COFFEES = typed<{ coffees: { total: number; nodes: SitemapCoffee[] } }, { limit: number; offset: number }>(
   /* GraphQL */ `
     query SitemapCoffees($limit: Int, $offset: Int) {
-      coffees(limit: $limit, offset: $offset) { total nodes { id } }
+      coffees(limit: $limit, offset: $offset) { total nodes { id updatedAt shop { slug } } }
     }
   `,
 );

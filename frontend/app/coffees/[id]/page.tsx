@@ -5,13 +5,14 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { COFFEE_PAGE, isUUID } from "@/lib/api";
 import { query } from "@/lib/graphql";
-import { MORE_FROM_SHOP, moreFromShop } from "@/lib/moreFromShop";
+import { MORE_FROM_SHOP, SIMILAR_COFFEES, alsoLike, moreFromShop } from "@/lib/moreFromShop";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { coffeeJsonLd, serializeJsonLd, shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { CommentList } from "@/components/coffees/CommentList";
+import { AlsoLike } from "@/components/coffees/AlsoLike";
 import { MoreFromShop } from "@/components/coffees/MoreFromShop";
 import { ErrorState } from "@/components/ErrorState";
 
@@ -19,7 +20,7 @@ type Params = Promise<{ id: string }>;
 
 // Deduplicate the fetch between generateMetadata and the page render.
 const loadCoffee = cache(async (id: string) =>
-  isUUID(id) ? (await query(COFFEE_PAGE, { id, more: MORE_FROM_SHOP + 1 })).coffee : null,
+  isUUID(id) ? (await query(COFFEE_PAGE, { id, more: MORE_FROM_SHOP + 1, similar: SIMILAR_COFFEES })).coffee : null,
 );
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
@@ -58,9 +59,10 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
   }
   if (!coffee) notFound();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const fromShop = moreFromShop(coffee.more.coffees.nodes, coffee.id);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       {/* Structured data for search engines. Public, published pages only (the
           draft preview never renders this page); serializeJsonLd escapes seller text. */}
       <script
@@ -79,12 +81,9 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         isPublished={coffee.isPublished}
         comments={coffee.comments} total={coffee.commentCount} locale={locale} />
 
-      <MoreFromShop
-        coffees={moreFromShop(coffee.more.coffees.nodes, coffee.id)}
-        total={coffee.more.coffees.total}
-        shop={coffee.shop}
-        locale={locale}
-      />
-    </main>
+      <MoreFromShop coffees={fromShop} total={coffee.more.coffees.total} shop={coffee.shop} locale={locale} />
+
+      <AlsoLike coffees={alsoLike(coffee.similar, fromShop, coffee.id)} locale={locale} />
+    </div>
   );
 }

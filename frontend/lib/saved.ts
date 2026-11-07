@@ -1,4 +1,6 @@
-// Saved-coffee helpers (pure, no imports, so `npm test` can load them).
+// Saved-coffee helpers (pure, no imports, so `npm test` can load them). The
+// list helpers are generic over rows with an id; /account's followed shops
+// use them too.
 
 /** What the save button shows: whether the viewer saved the coffee, and how many people did. */
 export interface SaveState {

@@ -32,3 +32,17 @@ test("followControl: login when signed out, count only for the owner", () => {
   ];
   for (const c of cases) assert.equal(followControl(c.status, c.viewerShop, "s1"), c.want, JSON.stringify(c));
 });
+
+test("followed-shop list paging reuses the saved-list helpers with FOLLOWED_PAGE", async () => {
+  const { FOLLOWED_PAGE } = await import("../lib/follows.ts");
+  const { appendSaved, hasMoreSaved, withoutSaved } = await import("../lib/saved.ts");
+  const cases = [
+    { shown: FOLLOWED_PAGE, total: FOLLOWED_PAGE + 1, last: FOLLOWED_PAGE, want: true },
+    { shown: FOLLOWED_PAGE, total: FOLLOWED_PAGE, last: FOLLOWED_PAGE, want: false },
+    { shown: 5, total: 9, last: 5, want: false }, // short page = end, even with a stale total
+  ];
+  for (const c of cases) assert.equal(hasMoreSaved(c.shown, c.total, c.last, FOLLOWED_PAGE), c.want, JSON.stringify(c));
+  const shops = [{ id: "a" }, { id: "b" }];
+  assert.deepEqual(appendSaved(shops, [{ id: "b" }, { id: "c" }]).map((s) => s.id), ["a", "b", "c"]);
+  assert.deepEqual(withoutSaved({ total: 2, nodes: shops }, "a"), { total: 1, nodes: [{ id: "b" }] });
+});

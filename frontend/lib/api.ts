@@ -375,6 +375,16 @@ export const UNFOLLOW_SHOP = typed<{ unfollowShop: FollowResult | null }, { id: 
   mutation UnfollowShop($id: ID!) { unfollowShop(id: $id) { id isFollowed followerCount } }
 `);
 
+/** A page of the shops the viewer follows (/account). */
+export const MY_FOLLOWED_SHOPS = typed<
+  { me: { followedShops: { total: number; nodes: ShopSummary[] } } | null },
+  { limit: number; offset: number }
+>(/* GraphQL */ `
+  query MyFollowedShops($limit: Int, $offset: Int) {
+    me { followedShops(limit: $limit, offset: $offset) { total nodes { ${SHOP_FIELDS} } } }
+  }
+`);
+
 // ---------------------------------------------------------------------------
 // Sitemap (public data only: the API never returns drafts to anonymous callers)
 // ---------------------------------------------------------------------------

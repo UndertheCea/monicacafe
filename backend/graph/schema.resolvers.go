@@ -827,6 +827,58 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	return toComment(cm), nil
 }
 
+// UpdateComment is the resolver for the updateComment field.
+func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body string) (*model.Comment, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, errNotFound("comment")
+	}
+	text, err := cleanText("body", body, 1, 500)
+	if err != nil {
+		return nil, err
+	}
+	cm, err := r.Store.CommentByID(ctx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("comment")
+	}
+	if err != nil {
+		return nil, err
+	}
+	// Only the author: an admin may remove a comment but never put words in
+	// someone else's mouth.
+	if cm.UserID != c.UserID {
+		return nil, errForbidden("you can only edit your own comments")
+	}
+	if cm.Body == text {
+		return toComment(cm), nil
+	}
+	co, err := r.Store.CoffeeByID(ctx, cm.CoffeeID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("comment")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !co.IsPublished {
+		return nil, errNotFound("coffee")
+	}
+	// Same bucket as addComment: an edit is new public text.
+	if err := allowKey(r.Limits.CommentUser, c.UserID); err != nil {
+		return nil, err
+	}
+	updated, err := r.Store.UpdateCommentBody(ctx, id, text)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("comment")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toComment(updated), nil
+}
+
 // DeleteComment is the resolver for the deleteComment field.
 func (r *mutationResolver) DeleteComment(ctx context.Context, id string) (bool, error) {
 	c, err := requireViewer(ctx)

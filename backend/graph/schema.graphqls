@@ -79,6 +79,10 @@ type Mutation {
 
   # Comments (buyer)
   addComment(input: AddCommentInput!): Comment!
+  # Author only (admins can delete but not rewrite). Same body rules and rate
+  # limit as addComment; the coffee must still be published. Unchanged text
+  # returns the comment as it is, without setting editedAt.
+  updateComment(id: ID!, body: String!): Comment!
   deleteComment(id: ID!): Boolean!
 
   # Stage 2: cart, orders, ECPay checkout — parked
@@ -271,6 +275,8 @@ type Comment {
   # someone else's shop).
   coffee: Coffee
   createdAt: Time!
+  # Set when the author last changed the text; null if never edited.
+  editedAt: Time
 }
 
 type CommentConnection {

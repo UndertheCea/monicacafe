@@ -161,7 +161,7 @@ func toVariant(v *store.Variant) *model.Variant {
 }
 
 func toComment(c *store.Comment) *model.Comment {
-	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt}
+	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt, EditedAt: c.EditedAt}
 }
 
 func toComments(cs []*store.Comment) []*model.Comment {

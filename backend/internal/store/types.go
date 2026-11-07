@@ -64,6 +64,7 @@ type Comment struct {
 	CoffeeID  string
 	Body      string
 	CreatedAt time.Time
+	EditedAt  *time.Time // nil until the author edits the text
 }
 
 // OriginCountry is curated reference data.

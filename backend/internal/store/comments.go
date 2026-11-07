@@ -2,11 +2,11 @@ package store
 
 import "context"
 
-const commentColumns = `id, user_id, coffee_id, body, created_at`
+const commentColumns = `id, user_id, coffee_id, body, created_at, edited_at`
 
 func scanComment(row interface{ Scan(...any) error }) (*Comment, error) {
 	var c Comment
-	if err := row.Scan(&c.ID, &c.UserID, &c.CoffeeID, &c.Body, &c.CreatedAt); err != nil {
+	if err := row.Scan(&c.ID, &c.UserID, &c.CoffeeID, &c.Body, &c.CreatedAt, &c.EditedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	return &c, nil
@@ -22,6 +22,21 @@ func (s *Store) CreateComment(ctx context.Context, userID, coffeeID, body string
 // CommentByID fetches a single comment.
 func (s *Store) CommentByID(ctx context.Context, id string) (*Comment, error) {
 	return scanComment(s.db.QueryRow(ctx, `SELECT `+commentColumns+` FROM comments WHERE id = $1`, id))
+}
+
+// UpdateCommentBody replaces a comment's text and sets edited_at. Text equal
+// to the current body changes nothing (edited_at stays as it was). Returns
+// ErrNotFound if the comment does not exist.
+func (s *Store) UpdateCommentBody(ctx context.Context, id, body string) (*Comment, error) {
+	return scanComment(s.db.QueryRow(ctx, `
+		WITH upd AS (
+			UPDATE comments SET body = $2, edited_at = now()
+			WHERE id = $1 AND body IS DISTINCT FROM $2
+			RETURNING `+commentColumns+`
+		)
+		SELECT `+commentColumns+` FROM upd
+		UNION ALL
+		SELECT `+commentColumns+` FROM comments WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM upd)`, id, body))
 }
 
 // DeleteComment removes a comment. Returns ErrNotFound if it does not exist.
@@ -94,7 +109,7 @@ func (s *Store) commentPage(ctx context.Context, from string, arg any, limit, of
 	if err := s.db.QueryRow(ctx, `SELECT count(*) `+from, arg).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)
 	}
-	rows, err := s.db.Query(ctx, `SELECT cm.id, cm.user_id, cm.coffee_id, cm.body, cm.created_at `+from+`
+	rows, err := s.db.Query(ctx, `SELECT cm.id, cm.user_id, cm.coffee_id, cm.body, cm.created_at, cm.edited_at `+from+`
 		ORDER BY cm.created_at DESC, cm.id LIMIT $2 OFFSET $3`, arg, limit, offset)
 	if err != nil {
 		return nil, 0, mapErr(err)

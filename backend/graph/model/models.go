@@ -52,9 +52,10 @@ type Coffee struct {
 }
 
 type Comment struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"-"`
-	CoffeeID  string    `json:"-"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        string     `json:"id"`
+	UserID    string     `json:"-"`
+	CoffeeID  string     `json:"-"`
+	Body      string     `json:"body"`
+	CreatedAt time.Time  `json:"createdAt"`
+	EditedAt  *time.Time `json:"editedAt,omitempty"`
 }

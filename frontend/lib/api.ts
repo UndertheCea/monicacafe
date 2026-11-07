@@ -205,6 +205,9 @@ export interface ShopSummary {
   coffeeCount: number;
 }
 
+/** A shop page also needs the location (structured data). */
+export type ShopDetail = ShopSummary & { lat: number | null; lng: number | null };
+
 const SHOP_FIELDS = "id slug name description logoUrl bannerUrl city coffeeCount";
 
 export const SHOPS = typed<
@@ -220,12 +223,12 @@ export const SHOPS = typed<
 `);
 
 export const SHOP = typed<
-  { shop: (ShopSummary & { coffees: { total: number; nodes: CoffeeCardData[] } }) | null },
+  { shop: (ShopDetail & { coffees: { total: number; nodes: CoffeeCardData[] } }) | null },
   { slug: string; filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
   query Shop($slug: String!, $filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int) {
     shop(slug: $slug) {
-      ${SHOP_FIELDS}
+      ${SHOP_FIELDS} lat lng
       coffees(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
         total
         nodes { ${CARD_FIELDS} }

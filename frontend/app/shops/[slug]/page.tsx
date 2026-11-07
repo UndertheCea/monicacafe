@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { SHOP } from "@/lib/api";
@@ -16,7 +17,7 @@ import {
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
-import { shareMetadata } from "@/lib/seo";
+import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
@@ -95,9 +96,14 @@ export default async function ShopPage({
   if (!shop) notFound();
 
   const pages = Math.max(1, Math.ceil(shop.coffees.total / PAGE_SIZE));
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // A filtered list isn't the shop's catalogue, so it's left out there.
+  const jsonLd = shopJsonLd(shop, filtering ? [] : shop.coffees.nodes, siteBase(process.env.SITE_URL));
 
   return (
     <div>
+      {/* Structured data (anonymous fetch: published coffees only); serializeJsonLd escapes seller text. */}
+      <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
       <div className="relative h-48 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-800 md:h-64">
         {shop.bannerUrl && (
           // eslint-disable-next-line @next/next/no-img-element

@@ -1,6 +1,7 @@
 package graph_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -11,7 +12,7 @@ import (
 // a shared roast alone doesn't count, in-stock first, then score, then
 // newest. Requires TEST_DATABASE_URL.
 func TestSimilarCoffees(t *testing.T) {
-	url, _ := newTestServer(t)
+	url, pool := newTestServer(t)
 	run := fmt.Sprintf("%d", time.Now().UnixNano())
 	sellerA, _ := register(t, url, "sima+"+run+"@example.com")
 	sellerB, _ := register(t, url, "simb+"+run+"@example.com")
@@ -20,19 +21,27 @@ func TestSimilarCoffees(t *testing.T) {
 		s.mustDo(`mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
 			map[string]any{"in": map[string]any{"slug": fmt.Sprintf("sim%d-%s", i, run), "name": "相似" + run, "description": "", "city": "台北市"}}, nil)
 	}
-	var refs struct {
-		OriginCountries   []struct{ ID string }
-		ProcessingMethods []struct{ ID string }
+	// Reference rows of its own, so coffees left by other tests (or earlier
+	// runs of this one) can't match and crowd this run's out of the limit.
+	ctx := context.Background()
+	insert := func(q, name string) string {
+		var id string
+		if err := pool.QueryRow(ctx, q, name+"-"+run).Scan(&id); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+		return id
 	}
-	anon.mustDo(`{ originCountries { id } processingMethods { id } }`, nil, &refs)
-	if len(refs.OriginCountries) < 2 || len(refs.ProcessingMethods) < 2 {
-		t.Skip("needs at least two origins and processes in the reference data")
-	}
-	// Other tests create their coffees with the first origin / process; the
-	// last ones keep this run's matches from being crowded out of the limit.
-	no, np := len(refs.OriginCountries), len(refs.ProcessingMethods)
-	o1, o2 := refs.OriginCountries[no-1].ID, refs.OriginCountries[no-2].ID
-	p1, p2 := refs.ProcessingMethods[np-1].ID, refs.ProcessingMethods[np-2].ID
+	const origin = `INSERT INTO origin_countries (name_en, name_zh, region) VALUES ($1, $1, 'Test') RETURNING id`
+	const process = `INSERT INTO processing_methods (name_en, name_zh) VALUES ($1, $1) RETURNING id`
+	o1, o2 := insert(origin, "sim-o1"), insert(origin, "sim-o2")
+	p1, p2 := insert(process, "sim-p1"), insert(process, "sim-p2")
+	t.Cleanup(func() {
+		ctx := context.Background()
+		_, _ = pool.Exec(ctx, `DELETE FROM coffees WHERE origin_country_id = ANY($1::uuid[]) OR processing_method_id = ANY($2::uuid[])`,
+			[]string{o1, o2}, []string{p1, p2})
+		_, _ = pool.Exec(ctx, `DELETE FROM origin_countries WHERE id = ANY($1::uuid[])`, []string{o1, o2})
+		_, _ = pool.Exec(ctx, `DELETE FROM processing_methods WHERE id = ANY($1::uuid[])`, []string{p1, p2})
+	})
 
 	// A unique note keeps seeded coffees out of the flavour-note part of the score.
 	note := "note-" + run
@@ -72,14 +81,14 @@ func TestSimilarCoffees(t *testing.T) {
 			map[string]any{"id": src, "l": limit}, &out)
 		var names []string
 		for _, c := range out.Coffee.Similar {
-			// Seeded coffees can match on origin / process too; keep only this run's.
-			if c.Shop.Name == "相似"+run {
-				names = append(names, c.Name)
-			}
+			names = append(names, c.Name)
 		}
 		return names
 	}
 	if got, want := strings.Join(similar(12), ","), "b1-best,b4-process-note,b2-origin,b5-sold-out"; got != want {
 		t.Fatalf("similar = %s, want %s", got, want)
+	}
+	if got, want := strings.Join(similar(2), ","), "b1-best,b4-process-note"; got != want {
+		t.Fatalf("similar(limit 2) = %s, want %s", got, want)
 	}
 }

@@ -92,6 +92,15 @@ func (r *coffeeResolver) CommentCount(ctx context.Context, obj *model.Coffee) (i
 	return r.loadersFor(ctx).CommentCountByCoffee.Load(ctx, obj.ID)
 }
 
+// Similar is the resolver for the similar field.
+func (r *coffeeResolver) Similar(ctx context.Context, obj *model.Coffee, limit *int) ([]*model.Coffee, error) {
+	cs, err := r.Store.SimilarCoffees(ctx, obj.ID, similarLimit(limit))
+	if err != nil {
+		return nil, err
+	}
+	return toCoffees(cs), nil
+}
+
 // User is the resolver for the user field.
 func (r *commentResolver) User(ctx context.Context, obj *model.Comment) (*model.User, error) {
 	u, err := r.loadersFor(ctx).UserByID.Load(ctx, obj.UserID)

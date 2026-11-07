@@ -229,6 +229,47 @@ func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error
 	return collectCoffees(rows)
 }
 
+// Similarity weights for SimilarCoffees. A shared roast alone (one of four
+// levels) is too common to count as similar, hence the minimum score.
+const (
+	similarOrigin   = 3
+	similarProcess  = 2
+	similarRoast    = 1
+	similarMaxNotes = 3 // each shared flavour note scores 1, up to this many
+	similarMinScore = 2
+)
+
+// SimilarCoffees returns published coffees from other shops that resemble
+// coffeeID: origin (3) + process (2) + roast (1) + shared flavour notes
+// (case-insensitive, 1 each, at most 3). Coffees scoring below 2 are left
+// out. In-stock coffees come first, then by score, then newest.
+func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) ([]*Coffee, error) {
+	rows, err := s.db.Query(ctx, `
+		WITH src AS (
+			SELECT shop_id, origin_country_id, processing_method_id, roast_level,
+				ARRAY(SELECT DISTINCT lower(n) FROM unnest(flavor_notes) n) AS notes
+			FROM coffees WHERE id = $1
+		)
+		SELECT `+coffeeColumns+`
+		FROM coffees c
+		CROSS JOIN src
+		CROSS JOIN LATERAL (SELECT
+			CASE WHEN c.origin_country_id = src.origin_country_id THEN $3::int ELSE 0 END
+			+ CASE WHEN c.processing_method_id = src.processing_method_id THEN $4::int ELSE 0 END
+			+ CASE WHEN c.roast_level = src.roast_level THEN $5::int ELSE 0 END
+			+ LEAST($6::int, (SELECT count(DISTINCT lower(n)) FROM unnest(c.flavor_notes) n
+				WHERE lower(n) = ANY(src.notes)))::int AS score) sc
+		CROSS JOIN LATERAL (SELECT EXISTS (SELECT 1 FROM variants v
+			WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) AS ok) st
+		WHERE c.is_published AND c.shop_id <> src.shop_id AND sc.score >= $7
+		ORDER BY st.ok DESC, sc.score DESC, c.created_at DESC, c.id
+		LIMIT $2`, coffeeID, limit, similarOrigin, similarProcess, similarRoast, similarMaxNotes, similarMinScore)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	return collectCoffees(rows)
+}
+
 // CreateCoffeeParams holds the fields for a new (unpublished) coffee listing.
 type CreateCoffeeParams struct {
 	ShopID             string

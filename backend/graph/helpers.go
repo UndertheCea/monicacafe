@@ -190,6 +190,14 @@ func page(limit, offset *int) (int, int) {
 	return l, o
 }
 
+// similarLimit clamps Coffee.similar's limit: default 4, between 1 and 12.
+func similarLimit(limit *int) int {
+	if limit == nil {
+		return 4
+	}
+	return min(max(*limit, 1), 12)
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 func isUUID(s string) bool {

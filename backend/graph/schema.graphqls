@@ -178,6 +178,11 @@ type Coffee {
   # commentCount for the full total.
   comments(limit: Int, offset: Int): [Comment!]!
   commentCount: Int!
+  # Published coffees from other shops that resemble this one: same origin,
+  # process, roast and shared flavour notes (origin weighs most; a shared roast
+  # alone doesn't count). In-stock first, then most similar, then newest.
+  # limit defaults to 4 (max 12).
+  similar(limit: Int): [Coffee!]!
   isPublished: Boolean!
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).

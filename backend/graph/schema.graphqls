@@ -32,7 +32,14 @@ type Mutation {
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
-  logout: Boolean!
+  # With refreshToken: ends only that session (this device). The token's
+  # signature is checked, no access token is needed, and an unknown or already
+  # ended session still returns true. Without it: requires sign-in and ends
+  # every session, like logoutEverywhere.
+  logout(refreshToken: String): Boolean!
+  # Ends every session of the signed-in user (all refresh tokens revoked).
+  # Access tokens already issued stay valid until they expire (≤ 15 min).
+  logoutEverywhere: Boolean!
 
   # Account (signed in)
   updateProfile(input: UpdateProfileInput!): User!

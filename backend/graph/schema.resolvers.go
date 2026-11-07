@@ -222,7 +222,26 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*mod
 }
 
 // Logout is the resolver for the logout field.
-func (r *mutationResolver) Logout(ctx context.Context) (bool, error) {
+func (r *mutationResolver) Logout(ctx context.Context, refreshToken *string) (bool, error) {
+	if refreshToken != nil {
+		// Possession of a correctly signed refresh token is what proves the
+		// session, so no access token is needed (it may well have expired).
+		// A bad or unknown token means there is no session to end: still true,
+		// so clients can always clear their own state.
+		claims, err := r.Auth.ParseRefreshToken(*refreshToken)
+		if err != nil {
+			return true, nil
+		}
+		if _, err := r.Store.RevokeRefreshToken(ctx, auth.HashJTI(claims.ID), claims.UserID); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return r.LogoutEverywhere(ctx)
+}
+
+// LogoutEverywhere is the resolver for the logoutEverywhere field.
+func (r *mutationResolver) LogoutEverywhere(ctx context.Context) (bool, error) {
 	c, err := requireViewer(ctx)
 	if err != nil {
 		return false, err

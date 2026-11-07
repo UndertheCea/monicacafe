@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { AuthorBadge } from "@/components/coffees/AuthorBadge";
 import { CommentBody } from "@/components/coffees/CommentBody";
 import { DeleteCommentButton } from "@/components/coffees/CommentForm";
 import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
@@ -102,7 +103,13 @@ export function CommentFeed({
               <li key={c.id} className="p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
                   <span className="min-w-0 text-stone-500">
-                    {showAuthor && <span className="font-semibold text-stone-800">{c.user.displayName} · </span>}
+                    {showAuthor && (
+                      <>
+                        <span className="font-semibold text-stone-800">{c.user.displayName}</span>
+                        <AuthorBadge comment={c} locale={locale} />
+                        {" · "}
+                      </>
+                    )}
                     {href && c.coffee ? (
                       <Link href={href} className="font-medium text-amber-700 hover:underline">
                         {c.coffee.name}

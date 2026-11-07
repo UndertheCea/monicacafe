@@ -248,6 +248,8 @@ export interface ListedComment {
   body: string;
   createdAt: string;
   editedAt: string | null;
+  /** The author owns the coffee's shop. */
+  fromShop: boolean;
   user: { id: string; displayName: string };
   /** null when the API hides the coffee from this viewer (someone else's draft). */
   coffee: { id: string; name: string; isPublished: boolean } | null;
@@ -255,7 +257,7 @@ export interface ListedComment {
 
 export type CommentPage = { total: number; nodes: ListedComment[] };
 
-export const LISTED_COMMENT_FIELDS = `id body createdAt editedAt user { id displayName } coffee { id name isPublished }`;
+export const LISTED_COMMENT_FIELDS = `id body createdAt editedAt fromShop user { id displayName } coffee { id name isPublished }`;
 
 /** A page of comments across the signed-in seller's coffees, newest first (owner-only). */
 export const MY_SHOP_COMMENTS = typed<

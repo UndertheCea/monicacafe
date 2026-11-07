@@ -7,6 +7,7 @@ import {
   COMMENT_MAX_CHARS,
   appendComments,
   canEditComment,
+  commentAuthorBadge,
   commentCoffeeHref,
   commentEditErrorKey,
   commentEditState,
@@ -118,4 +119,14 @@ test("withEditedComment replaces one row's text and keeps the rest", () => {
   assert.equal(got.nodes[0], page.nodes[0], "other rows untouched");
   assert.equal(page.nodes[1].body, "two", "input not mutated");
   assert.deepEqual(withEditedComment(page, { id: "zzz", body: "x", editedAt: null }).nodes, page.nodes);
+});
+
+test("commentAuthorBadge marks only the shop owner's comments", () => {
+  const cases = [
+    ["shop owner", { fromShop: true }, "comments.fromShop"],
+    ["buyer", { fromShop: false }, null],
+    ["field not fetched", {}, null],
+    ["null", { fromShop: null }, null],
+  ];
+  for (const [name, c, want] of cases) assert.equal(commentAuthorBadge(c), want, name);
 });

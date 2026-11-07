@@ -20,6 +20,9 @@ type Query {
   # sort defaults to NEWEST.
   coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   popularCoffees(limit: Int): [Coffee!]!
+  # Published coffees from the shops the signed-in user follows, newest first.
+  # UNAUTHENTICATED when signed out. limit defaults to 20 (max 100).
+  followingCoffees(limit: Int, offset: Int): CoffeeConnection!
 
   # Curated dropdown data
   originCountries: [OriginCountry!]!

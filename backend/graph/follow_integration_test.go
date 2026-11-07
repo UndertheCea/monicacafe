@@ -132,3 +132,82 @@ func TestFollowShops(t *testing.T) {
 		t.Fatalf("unfollow unknown shop returned %+v", u.UnfollowShop)
 	}
 }
+
+// TestFollowingCoffees: the feed holds published coffees from followed shops,
+// newest first, and needs sign-in. Requires TEST_DATABASE_URL.
+func TestFollowingCoffees(t *testing.T) {
+	url, _ := newTestServer(t)
+	run := fmt.Sprintf("%d", time.Now().UnixNano())
+	seller, _ := register(t, url, "fdseller+"+run+"@example.com")
+	buyer, _ := register(t, url, "fdbuyer+"+run+"@example.com")
+	anon := &gqlClient{t: t, url: url}
+
+	var sh struct{ CreateShop struct{ ID string } }
+	seller.mustDo(`mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
+		map[string]any{"in": map[string]any{"slug": "fd-" + run, "name": "動態", "description": "", "city": "台北市"}}, &sh)
+	var refs struct {
+		OriginCountries   []struct{ ID string }
+		ProcessingMethods []struct{ ID string }
+	}
+	anon.mustDo(`{ originCountries { id } processingMethods { id } }`, nil, &refs)
+	newCoffee := func(name string, publish bool) string {
+		var co struct{ CreateCoffee struct{ ID string } }
+		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
+			map[string]any{"in": map[string]any{
+				"name": name, "description": "", "roastLevel": "LIGHT",
+				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
+				"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 450, "stock": 5}},
+			}}, &co)
+		if publish {
+			seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": co.CreateCoffee.ID}, nil)
+		}
+		return co.CreateCoffee.ID
+	}
+	older := newCoffee("Older", true)
+	newCoffee("Draft", false)
+	newer := newCoffee("Newer", true)
+
+	const feed = `query($limit: Int, $offset: Int) { followingCoffees(limit: $limit, offset: $offset) { total nodes { id } } }`
+	anon.expectCode(graph.CodeUnauthenticated, feed, nil)
+
+	type resp struct {
+		FollowingCoffees struct {
+			Total int
+			Nodes []struct{ ID string }
+		}
+	}
+	var r resp
+	buyer.mustDo(feed, nil, &r)
+	if r.FollowingCoffees.Total != 0 || len(r.FollowingCoffees.Nodes) != 0 {
+		t.Fatalf("before following: %+v", r.FollowingCoffees)
+	}
+	buyer.mustDo(`mutation($id: ID!) { followShop(id: $id) { id } }`, map[string]any{"id": sh.CreateShop.ID}, nil)
+
+	cases := []struct {
+		name          string
+		limit, offset int
+		want          []string
+	}{
+		{"newest first, no drafts", 10, 0, []string{newer, older}},
+		{"second page", 1, 1, []string{older}},
+	}
+	for _, tc := range cases {
+		buyer.mustDo(feed, map[string]any{"limit": tc.limit, "offset": tc.offset}, &r)
+		got := r.FollowingCoffees
+		if got.Total != 2 || len(got.Nodes) != len(tc.want) {
+			t.Fatalf("%s: %+v", tc.name, got)
+		}
+		for i, id := range tc.want {
+			if got.Nodes[i].ID != id {
+				t.Errorf("%s: position %d = %s, want %s", tc.name, i, got.Nodes[i].ID, id)
+			}
+		}
+	}
+
+	// The seller's own drafts never show, even to them (they don't follow
+	// their own shop anyway).
+	seller.mustDo(feed, nil, &r)
+	if r.FollowingCoffees.Total != 0 {
+		t.Fatalf("seller feed: %+v", r.FollowingCoffees)
+	}
+}

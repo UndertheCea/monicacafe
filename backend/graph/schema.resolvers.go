@@ -1206,6 +1206,20 @@ func (r *queryResolver) PopularCoffees(ctx context.Context, limit *int) ([]*mode
 	return toCoffees(cs), nil
 }
 
+// FollowingCoffees is the resolver for the followingCoffees field.
+func (r *queryResolver) FollowingCoffees(ctx context.Context, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	l, o := page(limit, offset)
+	cs, total, err := r.Store.FollowingCoffees(ctx, c.UserID, l, o)
+	if err != nil {
+		return nil, err
+	}
+	return &model.CoffeeConnection{Nodes: toCoffees(cs), Total: total}, nil
+}
+
 // OriginCountries is the resolver for the originCountries field.
 func (r *queryResolver) OriginCountries(ctx context.Context) ([]*model.OriginCountry, error) {
 	refs, err := r.refs.get(ctx)

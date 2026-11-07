@@ -121,3 +121,62 @@ func TestShopFollows(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestFollowingCoffees(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	err := s.InTx(ctx, func(tx *store.Store) error {
+		shops := seedShops(t, ctx, tx, suffix, []struct {
+			name              string
+			published, drafts int
+		}{{"followed", 2, 1}, {"also followed", 1, 0}, {"not followed", 3, 0}})
+		u, err := tx.CreateUser(ctx, fmt.Sprintf("feed-%s@example.test", suffix), "x", "f")
+		if err != nil {
+			return err
+		}
+		nobody, err := tx.CreateUser(ctx, fmt.Sprintf("feed-none-%s@example.test", suffix), "x", "f")
+		if err != nil {
+			return err
+		}
+		for _, sh := range shops[:2] {
+			if err := tx.FollowShop(ctx, u.ID, sh); err != nil {
+				return err
+			}
+		}
+
+		cases := []struct {
+			name          string
+			user          string
+			limit, offset int
+			wantLen       int
+			total         int
+		}{
+			{"published from followed shops only", u.ID, 10, 0, 3, 3},
+			{"paged", u.ID, 2, 2, 1, 3},
+			{"follows nothing", nobody.ID, 10, 0, 0, 0},
+		}
+		for _, tc := range cases {
+			got, total, err := tx.FollowingCoffees(ctx, tc.user, tc.limit, tc.offset)
+			if err != nil {
+				t.Fatalf("%s: %v", tc.name, err)
+			}
+			if len(got) != tc.wantLen || total != tc.total {
+				t.Errorf("%s: got %d (total %d), want %d (total %d)", tc.name, len(got), total, tc.wantLen, tc.total)
+			}
+			for _, c := range got {
+				if !c.IsPublished || (c.ShopID != shops[0] && c.ShopID != shops[1]) {
+					t.Errorf("%s: unexpected coffee %+v", tc.name, c)
+				}
+			}
+			if got == nil {
+				t.Errorf("%s: nil slice, want empty", tc.name)
+			}
+		}
+		return errRollback
+	})
+	if !errors.Is(err, errRollback) {
+		t.Fatal(err)
+	}
+}

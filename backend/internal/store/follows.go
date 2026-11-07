@@ -85,3 +85,25 @@ func (s *Store) FollowedShopsByUser(ctx context.Context, userID string, limit, o
 	}
 	return out, total, mapErr(rows.Err())
 }
+
+// FollowingCoffees lists a page of published coffees from the shops a user
+// follows, newest first (the same order as SortNewest), plus the total. Drafts
+// are never included, not even the user's own.
+func (s *Store) FollowingCoffees(ctx context.Context, userID string, limit, offset int) ([]*Coffee, int, error) {
+	const from = ` FROM coffees c JOIN shop_follows f ON f.shop_id = c.shop_id
+		WHERE f.user_id = $1 AND c.is_published`
+	var total int
+	if err := s.db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
+		return nil, 0, mapErr(err)
+	}
+	rows, err := s.db.Query(ctx, `SELECT `+coffeeColumns+from+`
+		ORDER BY c.created_at DESC, c.id LIMIT $2 OFFSET $3`, userID, limit, offset)
+	if err != nil {
+		return nil, 0, mapErr(err)
+	}
+	out, err := collectCoffees(rows)
+	if out == nil {
+		out = []*Coffee{}
+	}
+	return out, total, err
+}

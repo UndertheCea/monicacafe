@@ -14,6 +14,7 @@ import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { CommentList } from "@/components/coffees/CommentList";
 import { AlsoLike } from "@/components/coffees/AlsoLike";
 import { MoreFromShop } from "@/components/coffees/MoreFromShop";
+import { SaveButton } from "@/components/coffees/SaveButton";
 import { ErrorState } from "@/components/ErrorState";
 
 type Params = Promise<{ id: string }>;
@@ -74,7 +75,11 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         {t(locale, "coffee.back")}
       </Link>
 
-      <CoffeeDetailView coffee={coffee} locale={locale} />
+      <CoffeeDetailView
+        coffee={coffee}
+        locale={locale}
+        actions={<SaveButton coffeeId={coffee.id} saveCount={coffee.saveCount} locale={locale} />}
+      />
 
       <CommentList
         coffeeId={coffee.id}

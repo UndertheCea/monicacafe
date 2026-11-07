@@ -10,7 +10,16 @@ import { PhotoGallery } from "./PhotoGallery";
  * options and seller. Pure render (no data fetching, no hooks), so the public
  * server page and the seller's client-side draft preview share it.
  */
-export function CoffeeDetailView({ coffee, locale }: { coffee: CoffeeDetail; locale: Locale }) {
+export function CoffeeDetailView({
+  coffee,
+  locale,
+  actions,
+}: {
+  coffee: CoffeeDetail;
+  locale: Locale;
+  /** Shown under the name (the public page's save button; the draft preview has none). */
+  actions?: React.ReactNode;
+}) {
   const facts: [string, string][] = [
     [t(locale, "coffee.origin"), pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)],
     [t(locale, "coffee.process"), pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)],
@@ -37,6 +46,7 @@ export function CoffeeDetailView({ coffee, locale }: { coffee: CoffeeDetail; loc
           {coffee.shop.city && ` · ${coffee.shop.city}`}
         </p>
         <h1 className="mt-1 text-3xl font-bold leading-tight text-stone-900">{coffee.name}</h1>
+        {actions}
 
         <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
           {facts.map(([label, value]) => (

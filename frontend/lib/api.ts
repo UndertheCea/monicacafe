@@ -126,6 +126,7 @@ export interface CoffeeDetail {
   imageUrls: string[];
   isPublished: boolean;
   commentCount: number;
+  saveCount: number;
   shop: { id: string; slug: string; name: string; city: string; description: string; logoUrl: string | null };
   originCountry: { nameEn: string; nameZh: string; region: string };
   processingMethod: { nameEn: string; nameZh: string };
@@ -135,7 +136,7 @@ export interface CoffeeDetail {
 }
 
 const COFFEE_DETAIL_FIELDS = `
-  id slug name description roastLevel flavorNotes imageUrls isPublished commentCount
+  id slug name description roastLevel flavorNotes imageUrls isPublished commentCount saveCount
   shop { id slug name city description logoUrl }
   originCountry { nameEn nameZh region }
   processingMethod { nameEn nameZh }
@@ -310,6 +311,39 @@ export const UPDATE_COMMENT = typed<
 
 export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(/* GraphQL */ `
   mutation DeleteComment($id: ID!) { deleteComment(id: $id) }
+`);
+
+// ---------------------------------------------------------------------------
+// Saved coffees (signed-in users)
+// ---------------------------------------------------------------------------
+
+export interface SaveResult {
+  id: string;
+  isSaved: boolean;
+  saveCount: number;
+}
+
+/** The viewer's saved state for one coffee (the public page is rendered anonymously). */
+export const COFFEE_SAVED = typed<{ coffee: SaveResult | null }, { id: string }>(/* GraphQL */ `
+  query CoffeeSaved($id: ID!) { coffee(id: $id) { id isSaved saveCount } }
+`);
+
+export const SAVE_COFFEE = typed<{ saveCoffee: SaveResult }, { id: string }>(/* GraphQL */ `
+  mutation SaveCoffee($id: ID!) { saveCoffee(id: $id) { id isSaved saveCount } }
+`);
+
+export const UNSAVE_COFFEE = typed<{ unsaveCoffee: SaveResult | null }, { id: string }>(/* GraphQL */ `
+  mutation UnsaveCoffee($id: ID!) { unsaveCoffee(id: $id) { id isSaved saveCount } }
+`);
+
+/** A page of the viewer's saved coffees (/account). */
+export const MY_SAVED_COFFEES = typed<
+  { me: { savedCoffees: { total: number; nodes: CoffeeCardData[] } } | null },
+  { limit: number; offset: number }
+>(/* GraphQL */ `
+  query MySavedCoffees($limit: Int, $offset: Int) {
+    me { savedCoffees(limit: $limit, offset: $offset) { total nodes { ${CARD_FIELDS} } } }
+  }
 `);
 
 // ---------------------------------------------------------------------------

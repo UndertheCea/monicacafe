@@ -1,7 +1,7 @@
 // Content-Security-Policy builder (lib/csp.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAP_TILE_ORIGIN, buildCsp, originOf } from "../lib/csp.ts";
+import { DENIED_FEATURES, MAP_TILE_ORIGIN, buildCsp, buildPermissionsPolicy, originOf } from "../lib/csp.ts";
 
 const directives = (csp) =>
   Object.fromEntries(
@@ -54,4 +54,15 @@ test("relative or bad URLs add no hosts", () => {
   const d = directives(buildCsp({ nonce: "x", dev: false, graphqlUrl: "/graphql", mediaUrl: "nope" }));
   assert.deepEqual(d["connect-src"], ["'self'"]);
   assert.deepEqual(d["img-src"], ["'self'", "data:", "blob:", MAP_TILE_ORIGIN]);
+});
+
+test("buildPermissionsPolicy denies each feature with an empty allowlist", () => {
+  const cases = [
+    ["default", undefined, "camera=(), microphone=(), geolocation=(), payment=(), usb=()"],
+    ["one", ["camera"], "camera=()"],
+    ["deduped", ["usb", "usb"], "usb=()"],
+    ["none", [], ""],
+  ];
+  for (const [name, input, want] of cases) assert.equal(buildPermissionsPolicy(input), want, name);
+  for (const f of ["camera", "microphone", "geolocation"]) assert.ok(DENIED_FEATURES.includes(f), f);
 });

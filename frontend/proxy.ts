@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildCsp } from "@/lib/csp";
+import { buildCsp, buildPermissionsPolicy } from "@/lib/csp";
 
 // Next 16 "proxy" (formerly middleware). Sets a per-request nonce'd Content-Security-Policy. Next reads the policy
 // from the *request* headers and puts the nonce on its own <script> tags, so
@@ -20,6 +20,7 @@ export function proxy(request: NextRequest) {
   response.headers.set("Content-Security-Policy", csp);
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", buildPermissionsPolicy());
   return response;
 }
 

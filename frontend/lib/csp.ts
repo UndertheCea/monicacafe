@@ -50,3 +50,16 @@ export function buildCsp({ nonce, dev, graphqlUrl, mediaUrl }: CspOptions): stri
     .map(([k, v]) => `${k} ${v.join(" ")}`)
     .join("; ");
 }
+
+/**
+ * Browser features no page uses (Stage 1 has no camera, mic, location lookup,
+ * payment sheet or USB): denying them means injected or third-party code can't
+ * prompt for them either. Shop locations are typed or picked on the map, never
+ * read from the device. Stage 2's ECPay checkout redirects, so `payment` stays off.
+ */
+export const DENIED_FEATURES = ["camera", "microphone", "geolocation", "payment", "usb"] as const;
+
+/** The Permissions-Policy header value: every feature in `denied` gets an empty allowlist. */
+export function buildPermissionsPolicy(denied: readonly string[] = DENIED_FEATURES): string {
+  return [...new Set(denied)].map((f) => `${f}=()`).join(", ");
+}

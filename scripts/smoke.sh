@@ -36,6 +36,20 @@ else
   echo "FAIL CSP nonce: header nonce '${csp_nonce}', second request '${csp_again}'"; fail=1
 fi
 
+# Response hardening (#100): no X-Powered-By, a Permissions-Policy on pages,
+# nosniff on API responses.
+page_hdrs=$(grep -i '^\(x-powered-by\|permissions-policy\):' <<<"$csp_page" | tr -d '\r' || true)
+if grep -qi '^x-powered-by:' <<<"$page_hdrs"; then
+  echo "FAIL page exposes $(grep -i '^x-powered-by:' <<<"$page_hdrs")"; fail=1
+elif grep -qi '^permissions-policy:.*camera=().*geolocation=()' <<<"$page_hdrs"; then
+  echo "ok   page headers: Permissions-Policy, no X-Powered-By"
+else
+  echo "FAIL Permissions-Policy missing on /"; fail=1
+fi
+api_hdrs=$(curl -s -o /dev/null -D - --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ __typename }"}' || true)
+if grep -qi '^x-content-type-options: *nosniff' <<<"$api_hdrs"; then echo "ok   API sends nosniff"; else echo "FAIL API lacks X-Content-Type-Options: nosniff"; fail=1; fi
+
 # sitemap.xml lists the seeded shops and coffees with <lastmod> (#80); robots.txt points at it.
 sitemap=$(curl -s --max-time 15 "$BASE_URL/sitemap.xml") || sitemap=""
 if [[ "$sitemap" == *"<urlset"* && "$sitemap" == *"/shops/"* && "$sitemap" == *"/coffees/"* && "$sitemap" == *"<lastmod>"* ]]; then

@@ -197,6 +197,22 @@ else
   echo "FAIL /coffees?q= did not list the seeded match"; fail=1
 fi
 
+# Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
+# lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
+# the seeded coffee, and roast=DARK alone shows the "no matches" state.
+if curl -s --max-time 15 "$BASE_URL/shops?q=%E6%99%A8%E5%85%89" | grep -q '/shops/demo-roastery'; then
+  echo "ok   /shops?q= lists the match"
+else
+  echo "FAIL /shops?q= should list /shops/demo-roastery"; fail=1
+fi
+in_shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2&roast=LIGHT") || in_shop=""
+dark=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?roast=DARK") || dark=""
+if [[ "$in_shop" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$dark" != *'/coffees/00000000-0000-4000-8000-0000000002'* ]]; then
+  echo "ok   shop page search + roast filter"
+else
+  echo "FAIL shop page filter: search+LIGHT should list the 耶加雪菲 coffee, DARK should list none of the shop's"; fail=1
+fi
+
 # ── Image storage (S3 store behind nginx at /media/) ────────────────────────
 # A missing object must come back from the store as 404 (not nginx's 502/404 page),
 # and listing the bucket must be refused.

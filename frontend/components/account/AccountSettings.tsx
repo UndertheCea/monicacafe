@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice, inputCls } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
@@ -31,8 +31,11 @@ function Saved({ children }: { children: React.ReactNode }) {
 export function AccountSettings({ locale }: { locale: Locale }) {
   const { status } = useAuth();
   const router = useRouter();
+  // Set while "sign out of all devices" runs: that sign-out sends the user
+  // home, so the "signed out → log in" redirect below must not race it.
+  const leaving = useRef(false);
   useEffect(() => {
-    if (status === "anonymous") router.replace("/login?next=%2Faccount");
+    if (status === "anonymous" && !leaving.current) router.replace("/login?next=%2Faccount");
   }, [status, router]);
   if (status !== "authenticated") return <Notice>{t(locale, "dash.loading")}</Notice>;
   return (
@@ -40,7 +43,12 @@ export function AccountSettings({ locale }: { locale: Locale }) {
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
       <MyComments locale={locale} />
-      <Sessions locale={locale} />
+      <Sessions
+        locale={locale}
+        onLeave={(v) => {
+          leaving.current = v;
+        }}
+      />
     </div>
   );
 }
@@ -195,7 +203,7 @@ function PasswordForm({ locale }: { locale: Locale }) {
   );
 }
 
-function Sessions({ locale }: { locale: Locale }) {
+function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: boolean) => void }) {
   const { logoutEverywhere } = useAuth();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -205,10 +213,12 @@ function Sessions({ locale }: { locale: Locale }) {
   async function onConfirm() {
     setBusy(true);
     setError(null);
+    onLeave(true);
     try {
       await logoutEverywhere();
       router.replace("/");
     } catch (err) {
+      onLeave(false);
       setError(toApiError(err).code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.sessions");
       setBusy(false);
     }

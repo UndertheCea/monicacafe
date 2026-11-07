@@ -6,7 +6,7 @@ import { getLocale } from "@/lib/i18n/server";
 export default async function NotFound() {
   const locale = await getLocale();
   return (
-    <main className="mx-auto max-w-3xl px-4 py-24 text-center">
+    <div className="mx-auto max-w-3xl px-4 py-24 text-center">
       <p aria-hidden className="text-5xl">
         ☕
       </p>
@@ -20,6 +20,6 @@ export default async function NotFound() {
           {t(locale, "notFound.coffees")}
         </Link>
       </div>
-    </main>
+    </div>
   );
 }

@@ -14,7 +14,7 @@ function Status({ locale }: { locale: Locale }) {
 /** Placeholder for a list page (title + a grid of cards). */
 export function ListSkeleton({ locale, cards = 6 }: { locale: Locale; cards?: number }) {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       <Status locale={locale} />
       <div aria-hidden>
         <div className={`${block} h-9 w-48`} />
@@ -25,6 +25,6 @@ export function ListSkeleton({ locale, cards = 6 }: { locale: Locale; cards?: nu
           ))}
         </div>
       </div>
-    </main>
+    </div>
   );
 }

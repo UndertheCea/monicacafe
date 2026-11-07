@@ -62,7 +62,7 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
   const fromShop = moreFromShop(coffee.more.coffees.nodes, coffee.id);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-10">
       {/* Structured data for search engines. Public, published pages only (the
           draft preview never renders this page); serializeJsonLd escapes seller text. */}
       <script
@@ -84,6 +84,6 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
       <MoreFromShop coffees={fromShop} total={coffee.more.coffees.total} shop={coffee.shop} locale={locale} />
 
       <AlsoLike coffees={alsoLike(coffee.similar, fromShop, coffee.id)} locale={locale} />
-    </main>
+    </div>
   );
 }

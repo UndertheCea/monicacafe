@@ -7,12 +7,12 @@ import { t, type Locale } from "@/lib/i18n/dict";
 export function ErrorState({ locale, error }: { locale: Locale; error: unknown }) {
   const e = toApiError(error);
   return (
-    <main className="mx-auto max-w-3xl px-4 py-24">
+    <div className="mx-auto max-w-3xl px-4 py-24">
       <div role="alert" className="rounded-2xl bg-red-50 p-6 ring-1 ring-red-200">
         <h1 className="text-lg font-bold text-red-900">{t(locale, "error.title")}</h1>
         <p className="mt-2 text-red-800">{t(locale, loadErrorKey(e.code))}</p>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -29,7 +29,7 @@ export function NotFoundState({
   backLabel: string;
 }) {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-24 text-center">
+    <div className="mx-auto max-w-3xl px-4 py-24 text-center">
       <p aria-hidden className="text-5xl">
         ☕
       </p>
@@ -38,6 +38,6 @@ export function NotFoundState({
       <Link href={backHref} className="mt-6 inline-block text-sm font-medium text-amber-700 hover:underline">
         {backLabel}
       </Link>
-    </main>
+    </div>
   );
 }

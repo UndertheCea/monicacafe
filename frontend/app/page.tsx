@@ -23,7 +23,7 @@ export default async function HomePage() {
   ];
 
   return (
-    <main>
+    <div>
       {/* Hero */}
       <section className="bg-stone-900 px-4 py-24 text-center md:py-32">
         <div className="mx-auto max-w-4xl">
@@ -112,7 +112,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
 

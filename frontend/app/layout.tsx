@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 
 const geistSans = Geist({
@@ -34,9 +35,19 @@ export default async function RootLayout({
   return (
     <html lang={locale}>
       <body className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans`}>
+        {/* First focusable element: lets keyboard / screen-reader users jump past the header. */}
+        <a
+          href="#main"
+          className="sr-only rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[1000]"
+        >
+          {t(locale, "a11y.skipToMain")}
+        </a>
         <AuthProvider>
           <SiteHeader locale={locale} />
-          <div className="flex-1">{children}</div>
+          {/* The page's only main landmark (pages render a div); tabIndex lets the skip link move focus here. */}
+          <main id="main" tabIndex={-1} className="flex-1 outline-none">
+            {children}
+          </main>
           <SiteFooter locale={locale} />
         </AuthProvider>
       </body>

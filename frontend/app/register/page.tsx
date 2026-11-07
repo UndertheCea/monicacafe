@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RegisterPage() {
   const locale = await getLocale();
   return (
-    <main className="mx-auto max-w-md px-4 py-12">
+    <div className="mx-auto max-w-md px-4 py-12">
       <h1 className="text-2xl font-bold text-stone-900">{t(locale, "auth.registerTitle")}</h1>
       <p className="mt-1 text-stone-600">{t(locale, "auth.registerSub")}</p>
       <div className="mt-6">
@@ -20,6 +20,6 @@ export default async function RegisterPage() {
           <AuthForm mode="register" locale={locale} />
         </Suspense>
       </div>
-    </main>
+    </div>
   );
 }

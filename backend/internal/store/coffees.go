@@ -169,6 +169,7 @@ const (
 	SortPriceAsc      CoffeeSort = "PRICE_ASC"
 	SortPriceDesc     CoffeeSort = "PRICE_DESC"
 	SortMostDiscussed CoffeeSort = "MOST_DISCUSSED"
+	SortMostSaved     CoffeeSort = "MOST_SAVED"
 )
 
 // Lowest price among a coffee's available, in-stock variants (what the card
@@ -177,6 +178,8 @@ const fromPriceJoin = ` LEFT JOIN LATERAL (SELECT min(v.price_twd) AS p FROM var
 		WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) fp ON true`
 
 const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id) cc ON true`
+
+const saveCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM saved_coffees sv WHERE sv.coffee_id = c.id) sc ON true`
 
 // orderBy returns the extra join a sort needs and its ORDER BY list. Every
 // order ends on newest-then-id so offset paging is stable; sold-out coffees
@@ -190,6 +193,8 @@ func (s CoffeeSort) orderBy() (join, order string) {
 		return fromPriceJoin, "fp.p DESC NULLS LAST, " + tail
 	case SortMostDiscussed:
 		return commentCountJoin, "cc.n DESC, " + tail
+	case SortMostSaved:
+		return saveCountJoin, "sc.n DESC, " + tail
 	default:
 		return "", tail
 	}

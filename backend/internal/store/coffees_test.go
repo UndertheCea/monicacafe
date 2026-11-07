@@ -41,16 +41,26 @@ func TestListCoffeesSort(t *testing.T) {
 			stock int
 			off   bool
 		}
+		// Savers: saves come from distinct users (one save per user + coffee).
+		var savers []string
+		for i := range 2 {
+			su, err := tx.CreateUser(ctx, fmt.Sprintf("sort-saver%d-%s@example.test", i, suffix), "x", "s")
+			if err != nil {
+				return err
+			}
+			savers = append(savers, su.ID)
+		}
 		ids := map[string]string{}
 		for _, c := range []struct {
 			name     string
 			variants []v
 			comments int
+			saves    int
 		}{
-			{"a", []v{{500, 3, false}}, 1},
-			{"b", []v{{300, 1, false}, {100, 0, false}}, 0}, // the NT$100 one is sold out
-			{"c", []v{{50, 0, false}}, 2},                   // sold out
-			{"d", []v{{200, 5, true}, {700, 2, false}}, 0},  // the NT$200 one is unavailable
+			{"a", []v{{500, 3, false}}, 1, 0},
+			{"b", []v{{300, 1, false}, {100, 0, false}}, 0, 2}, // the NT$100 one is sold out
+			{"c", []v{{50, 0, false}}, 2, 0},                   // sold out
+			{"d", []v{{200, 5, true}, {700, 2, false}}, 0, 1},  // the NT$200 one is unavailable
 		} {
 			co, err := tx.CreateCoffee(ctx, store.CreateCoffeeParams{
 				ShopID: sh.ID, Name: c.name, Slug: c.name + "-" + suffix, OriginCountryID: origins[0].ID,
@@ -77,6 +87,11 @@ func TestListCoffeesSort(t *testing.T) {
 					return err
 				}
 			}
+			for _, uid := range savers[:c.saves] {
+				if err := tx.SaveCoffee(ctx, uid, co.ID); err != nil {
+					return err
+				}
+			}
 		}
 
 		f := store.CoffeeFilter{ShopID: &sh.ID, IncludeUnpublished: true}
@@ -88,6 +103,7 @@ func TestListCoffeesSort(t *testing.T) {
 			{store.SortPriceAsc, func(g []string) bool { return slices.Equal(g, []string{"b", "a", "d", "c"}) }, "b a d c"},
 			{store.SortPriceDesc, func(g []string) bool { return slices.Equal(g, []string{"d", "a", "b", "c"}) }, "d a b c"},
 			{store.SortMostDiscussed, func(g []string) bool { return len(g) == 4 && g[0] == "c" && g[1] == "a" }, "c a …"},
+			{store.SortMostSaved, func(g []string) bool { return len(g) == 4 && g[0] == "b" && g[1] == "d" }, "b d …"},
 			{store.SortNewest, func(g []string) bool { return len(g) == 4 }, "all four"},
 		} {
 			cs, total, err := tx.ListCoffees(ctx, f, tc.sort, 10, 0)

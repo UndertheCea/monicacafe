@@ -17,6 +17,7 @@ import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
+import { engagementParts } from "@/lib/dashboard/engagement";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
 type Load =
@@ -177,7 +178,9 @@ export function Dashboard({ locale }: { locale: Locale }) {
                         ? t(locale, "dash.noVariants")
                         : t(locale, "dash.variantsCount", { n: c.variants.length })}
                       {price !== null && ` · ${t(locale, "dash.from", { price: formatTWD(price) })}`}
-                      {` · ${t(locale, "coffees.comments", { n: c.commentCount })}`}
+                      {engagementParts(c)
+                        .map((p) => ` · ${t(locale, p.key, { n: p.n })}`)
+                        .join("")}
                     </p>
                     {rowError?.id === c.id && (
                       <div className="mt-2">

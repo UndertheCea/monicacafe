@@ -15,6 +15,43 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 18 — 2026-11-07 — Roaster replies, most-saved sort, seller engagement, header hardening
+PR: #101
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code: a roaster answering in a coffee's comments looked like any
+buyer, the new save counts were invisible to sellers and couldn't be browsed by, and a header review found three gaps.
+
+### Shipped (one line per slice: area — what — key files)
+- #95 backend — `Comment.fromShop: Boolean!`: the author owns the coffee's shop, computed by an `EXISTS` over
+  `shops.owner_id` in every comment read (`commentCols(alias)` in `store/comments.go`), so it follows ownership
+- #96 frontend — "店家 / Roaster" badge next to the author on coffee pages (+ load more) and the dashboard's recent
+  comments (`AuthorBadge`, `commentAuthorBadge` in `lib/comments.ts`)
+- #97 backend — `CoffeeSort.MOST_SAVED` (Query.coffees + Shop.coffees): save count desc, then newest, then id
+  (`saveCountJoin` in `store/coffees.go`)
+- #98 frontend — `?sort=saved` "最多收藏 / Most saved" on /coffees and shop pages (shared `SORT_PARAMS`)
+- #99 frontend — dashboard coffee rows read "… · N comments · N saves" with singular forms (`engagementParts` in
+  `lib/dashboard/engagement.ts`; the query fetches `saveCount`)
+- #100 cross-cutting — `poweredByHeader: false`; pages send `Permissions-Policy` denying camera / microphone /
+  geolocation / payment / usb (`buildPermissionsPolicy` in `lib/csp.ts`); the API sets `X-Content-Type-Options:
+  nosniff` on every response, panics included (`middleware.SecurityHeaders`); smoke checks all three
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestCommentFromShop`, MOST_SAVED in `TestListCoffeesSort` / `TestCoffeeSortOrderBy` /
+  sort mapping, `TestSecurityHeaders(+OnPanic)`.
+- Frontend: tsc, lint, `npm test` (109), `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + Next standalone locally: `scripts/smoke.sh` all ok (incl. the new header checks) except the two
+  `/media/` checks (no SeaweedFS / nginx here). curl: exactly one 店家 badge on a coffee with owner + buyer comments,
+  "Roaster" in English, `?sort=saved` selected. Playwright: seller login → dashboard row "3 則留言 · 0 人收藏", badge
+  in recent comments, no page errors. Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `fromShop` is derived, not stored: if a shop ever changes owner (not possible today), old replies follow the new
+  owner's identity rule rather than who wrote them as the roaster.
+- Permissions-Policy denies `payment`: ECPay checkout (Stage 2) redirects to ECPay, so it isn't needed; revisit if
+  an embedded payment sheet is ever used.
+
 ## Session 17 — 2026-11-07 — Saved coffees, account deletion, shop structured data
 PR: #94
 

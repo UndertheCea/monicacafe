@@ -20,6 +20,7 @@ test("parseSortParam accepts known values and falls back to newest", () => {
     ["price_asc", "price_asc"],
     [" PRICE_DESC ", "price_desc"],
     ["discussed", "discussed"],
+    [" Saved", "saved"],
     [["price_asc", "discussed"], "price_asc"],
     ["cheapest", ""],
     ["PRICE_ASC; DROP", ""],
@@ -29,7 +30,7 @@ test("parseSortParam accepts known values and falls back to newest", () => {
 
 test("every sort param maps to a distinct API enum", () => {
   const apis = SORT_PARAMS.map(sortForApi);
-  assert.deepEqual(apis, ["NEWEST", "PRICE_ASC", "PRICE_DESC", "MOST_DISCUSSED"]);
+  assert.deepEqual(apis, ["NEWEST", "PRICE_ASC", "PRICE_DESC", "MOST_DISCUSSED", "MOST_SAVED"]);
 });
 
 test("parseInStockParam only turns on for an explicit yes", () => {

@@ -113,6 +113,8 @@ export interface CommentData {
   createdAt: string;
   /** Set once the author has edited the text. */
   editedAt: string | null;
+  /** The author owns the coffee's shop (the roaster answering). */
+  fromShop: boolean;
   user: { id: string; displayName: string };
 }
 
@@ -142,7 +144,7 @@ const COFFEE_DETAIL_FIELDS = `
   processingMethod { nameEn nameZh }
   variety { name }
   variants { id grind weightG priceTwd stock isAvailable }
-  comments(limit: ${COMMENTS_PAGE}) { id body createdAt editedAt user { id displayName } }
+  comments(limit: ${COMMENTS_PAGE}) { id body createdAt editedAt fromShop user { id displayName } }
 `;
 
 export const COFFEE = typed<{ coffee: CoffeeDetail | null }, { id: string }>(/* GraphQL */ `
@@ -184,7 +186,7 @@ export const COFFEE_COMMENTS = typed<
 >(/* GraphQL */ `
   query CoffeeComments($id: ID!, $limit: Int!, $offset: Int!) {
     coffee(id: $id) {
-      comments(limit: $limit, offset: $offset) { id body createdAt editedAt user { id displayName } }
+      comments(limit: $limit, offset: $offset) { id body createdAt editedAt fromShop user { id displayName } }
     }
   }
 `);

@@ -210,12 +210,14 @@ type Coffee {
 }
 
 # Price sorts use each coffee's lowest available, in-stock variant price;
-# sold-out coffees come last either way. Ties go newest first.
+# sold-out coffees come last either way. MOST_DISCUSSED counts comments,
+# MOST_SAVED counts saves (Coffee.saveCount). Ties go newest first.
 enum CoffeeSort {
   NEWEST
   PRICE_ASC
   PRICE_DESC
   MOST_DISCUSSED
+  MOST_SAVED
 }
 
 type CoffeeConnection {
@@ -302,6 +304,9 @@ type Comment {
   createdAt: Time!
   # Set when the author last changed the text; null if never edited.
   editedAt: Time
+  # True when the author owns the shop selling this coffee (the roaster
+  # answering). Follows current ownership; not stored with the comment.
+  fromShop: Boolean!
 }
 
 type CommentConnection {

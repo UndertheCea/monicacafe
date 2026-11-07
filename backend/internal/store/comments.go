@@ -2,11 +2,22 @@ package store
 
 import "context"
 
-const commentColumns = `id, user_id, coffee_id, body, created_at, edited_at`
+// commentCols lists a comment's columns for the table or alias t, plus
+// from_shop: whether the author owns the shop the coffee belongs to. It is
+// computed from shops.owner_id on every read, so it follows ownership rather
+// than being stored with the comment.
+func commentCols(t string) string {
+	return t + `.id, ` + t + `.user_id, ` + t + `.coffee_id, ` + t + `.body, ` + t + `.created_at, ` + t + `.edited_at,
+		EXISTS (SELECT 1 FROM coffees fc JOIN shops fs ON fs.id = fc.shop_id
+			WHERE fc.id = ` + t + `.coffee_id AND fs.owner_id = ` + t + `.user_id) AS from_shop`
+}
+
+// commentColumns is commentCols for the unaliased comments table.
+var commentColumns = commentCols("comments")
 
 func scanComment(row interface{ Scan(...any) error }) (*Comment, error) {
 	var c Comment
-	if err := row.Scan(&c.ID, &c.UserID, &c.CoffeeID, &c.Body, &c.CreatedAt, &c.EditedAt); err != nil {
+	if err := row.Scan(&c.ID, &c.UserID, &c.CoffeeID, &c.Body, &c.CreatedAt, &c.EditedAt, &c.FromShop); err != nil {
 		return nil, mapErr(err)
 	}
 	return &c, nil
@@ -32,9 +43,9 @@ func (s *Store) UpdateCommentBody(ctx context.Context, id, body string) (*Commen
 		WITH upd AS (
 			UPDATE comments SET body = $2, edited_at = now()
 			WHERE id = $1 AND body IS DISTINCT FROM $2
-			RETURNING `+commentColumns+`
+			RETURNING id, user_id, coffee_id, body, created_at, edited_at
 		)
-		SELECT `+commentColumns+` FROM upd
+		SELECT `+commentCols("upd")+` FROM upd
 		UNION ALL
 		SELECT `+commentColumns+` FROM comments WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM upd)`, id, body))
 }
@@ -109,7 +120,7 @@ func (s *Store) commentPage(ctx context.Context, from string, arg any, limit, of
 	if err := s.db.QueryRow(ctx, `SELECT count(*) `+from, arg).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)
 	}
-	rows, err := s.db.Query(ctx, `SELECT cm.id, cm.user_id, cm.coffee_id, cm.body, cm.created_at, cm.edited_at `+from+`
+	rows, err := s.db.Query(ctx, `SELECT `+commentCols("cm")+` `+from+`
 		ORDER BY cm.created_at DESC, cm.id LIMIT $2 OFFSET $3`, arg, limit, offset)
 	if err != nil {
 		return nil, 0, mapErr(err)

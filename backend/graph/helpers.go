@@ -161,7 +161,7 @@ func toVariant(v *store.Variant) *model.Variant {
 }
 
 func toComment(c *store.Comment) *model.Comment {
-	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt, EditedAt: c.EditedAt}
+	return &model.Comment{ID: c.ID, UserID: c.UserID, CoffeeID: c.CoffeeID, Body: c.Body, CreatedAt: c.CreatedAt, EditedAt: c.EditedAt, FromShop: c.FromShop}
 }
 
 func toComments(cs []*store.Comment) []*model.Comment {
@@ -564,6 +564,8 @@ func storeSort(s *model.CoffeeSort) (store.CoffeeSort, error) {
 		return store.SortPriceDesc, nil
 	case model.CoffeeSortMostDiscussed:
 		return store.SortMostDiscussed, nil
+	case model.CoffeeSortMostSaved:
+		return store.SortMostSaved, nil
 	}
 	return store.SortNewest, errBadInput("sort", "invalid sort")
 }

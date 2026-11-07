@@ -85,3 +85,11 @@ export function withEditedComment<T extends { id: string; body: string; editedAt
     nodes: page.nodes.map((c) => (c.id === edited.id ? { ...c, body: edited.body, editedAt: edited.editedAt } : c)),
   };
 }
+
+/**
+ * The badge next to a comment's author: the roaster's own replies are marked
+ * so buyers can tell them from other buyers. null for everyone else.
+ */
+export function commentAuthorBadge(c: { fromShop?: boolean | null }): "comments.fromShop" | null {
+  return c.fromShop === true ? "comments.fromShop" : null;
+}

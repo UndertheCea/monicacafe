@@ -115,6 +115,7 @@ func run() error {
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
+	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.ClientIPMiddleware(proxies))
 	r.Use(middleware.AccessLog(slog.Default()))
 	r.Use(middleware.Recover(slog.Default()))

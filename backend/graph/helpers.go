@@ -564,6 +564,8 @@ func storeSort(s *model.CoffeeSort) (store.CoffeeSort, error) {
 		return store.SortPriceDesc, nil
 	case model.CoffeeSortMostDiscussed:
 		return store.SortMostDiscussed, nil
+	case model.CoffeeSortMostSaved:
+		return store.SortMostSaved, nil
 	}
 	return store.SortNewest, errBadInput("sort", "invalid sort")
 }

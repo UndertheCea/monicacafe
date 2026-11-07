@@ -1675,12 +1675,14 @@ type Coffee {
 }
 
 # Price sorts use each coffee's lowest available, in-stock variant price;
-# sold-out coffees come last either way. Ties go newest first.
+# sold-out coffees come last either way. MOST_DISCUSSED counts comments,
+# MOST_SAVED counts saves (Coffee.saveCount). Ties go newest first.
 enum CoffeeSort {
   NEWEST
   PRICE_ASC
   PRICE_DESC
   MOST_DISCUSSED
+  MOST_SAVED
 }
 
 type CoffeeConnection {

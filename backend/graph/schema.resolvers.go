@@ -222,7 +222,26 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*mod
 }
 
 // Logout is the resolver for the logout field.
-func (r *mutationResolver) Logout(ctx context.Context) (bool, error) {
+func (r *mutationResolver) Logout(ctx context.Context, refreshToken *string) (bool, error) {
+	if refreshToken != nil {
+		// Possession of a correctly signed refresh token is what proves the
+		// session, so no access token is needed (it may well have expired).
+		// A bad or unknown token means there is no session to end: still true,
+		// so clients can always clear their own state.
+		claims, err := r.Auth.ParseRefreshToken(*refreshToken)
+		if err != nil {
+			return true, nil
+		}
+		if _, err := r.Store.RevokeRefreshToken(ctx, auth.HashJTI(claims.ID), claims.UserID); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	return r.LogoutEverywhere(ctx)
+}
+
+// LogoutEverywhere is the resolver for the logoutEverywhere field.
+func (r *mutationResolver) LogoutEverywhere(ctx context.Context) (bool, error) {
 	c, err := requireViewer(ctx)
 	if err != nil {
 		return false, err
@@ -862,13 +881,19 @@ func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, err
 }
 
 // Shops is the resolver for the shops field.
-func (r *queryResolver) Shops(ctx context.Context, city *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error) {
+func (r *queryResolver) Shops(ctx context.Context, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error) {
 	so, err := storeShopSort(sort)
 	if err != nil {
 		return nil, err
 	}
+	f := store.ShopFilter{City: city}
+	if search != nil {
+		if f.SearchTerms, err = searchTerms(*search); err != nil {
+			return nil, err
+		}
+	}
 	l, o := page(limit, offset)
-	shops, total, err := r.Store.ListShops(ctx, city, so, l, o)
+	shops, total, err := r.Store.ListShops(ctx, f, so, l, o)
 	if err != nil {
 		return nil, err
 	}
@@ -972,12 +997,16 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 }
 
 // Coffees is the resolver for the coffees field.
-func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
-	c := viewer(ctx)
-	f := store.CoffeeFilter{
-		ShopID:             &obj.ID,
-		IncludeUnpublished: c != nil && (c.UserID == obj.OwnerID || isAdmin(c)),
+func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	f, err := storeFilter(filter)
+	if err != nil {
+		return nil, err
 	}
+	// Set after storeFilter: the shop scope and draft visibility come from
+	// the parent shop and the viewer, never from the client.
+	c := viewer(ctx)
+	f.ShopID = &obj.ID
+	f.IncludeUnpublished = c != nil && (c.UserID == obj.OwnerID || isAdmin(c))
 	so, err := storeSort(sort)
 	if err != nil {
 		return nil, err

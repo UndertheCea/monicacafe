@@ -5,9 +5,11 @@ import {
   SEARCH_MAX_CHARS,
   SORT_PARAMS,
   parseInStockParam,
+  parseRoastParam,
   parseSearchParam,
   parseSortParam,
   searchHref,
+  shopCoffeesHref,
   sortForApi,
 } from "../lib/coffeeQuery.ts";
 
@@ -68,4 +70,28 @@ test("searchHref builds the header search target", () => {
   assert.equal(searchHref(" geisha "), "/coffees?q=geisha");
   assert.equal(searchHref("耶加雪菲 淺焙"), "/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2+%E6%B7%BA%E7%84%99");
   assert.equal(searchHref("100% & a=b"), "/coffees?q=100%25+%26+a%3Db");
+});
+
+test("parseRoastParam accepts the four roasts, any case", () => {
+  const cases = [
+    [undefined, undefined],
+    ["", undefined],
+    ["LIGHT", "LIGHT"],
+    [" medium_dark ", "MEDIUM_DARK"],
+    [["DARK", "LIGHT"], "DARK"],
+    ["EXTRA_DARK", undefined],
+    ["light;", undefined],
+  ];
+  for (const [input, want] of cases) assert.equal(parseRoastParam(input), want, JSON.stringify(input));
+});
+
+test("shopCoffeesHref keeps search, roast and sort; drops defaults", () => {
+  const cases = [
+    [{}, "/shops/beans"],
+    [{ q: "  ", sort: "" }, "/shops/beans"],
+    [{ roast: "LIGHT" }, "/shops/beans?roast=LIGHT"],
+    [{ q: "花香 berry", roast: "DARK", sort: "price_asc" }, "/shops/beans?q=%E8%8A%B1%E9%A6%99+berry&roast=DARK&sort=price_asc"],
+    [{ sort: "discussed" }, "/shops/beans?sort=discussed"],
+  ];
+  for (const [input, want] of cases) assert.equal(shopCoffeesHref("beans", input), want, JSON.stringify(input));
 });

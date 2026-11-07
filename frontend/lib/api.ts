@@ -2,11 +2,10 @@
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
 import { COMMENTS_PAGE } from "./comments";
-import type { CoffeeSort } from "./coffeeQuery";
+import type { CoffeeSort, RoastLevel } from "./coffeeQuery";
 import type { ShopSort } from "./shopQuery";
 
-export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
-export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
+export { ROAST_LEVELS, type RoastLevel } from "./coffeeQuery";
 
 export interface OriginCountry {
   id: string;
@@ -197,10 +196,10 @@ const SHOP_FIELDS = "id slug name description logoUrl bannerUrl city coffeeCount
 
 export const SHOPS = typed<
   { shops: { total: number; nodes: ShopSummary[] } },
-  { city?: string; sort?: ShopSort; limit?: number; offset?: number }
+  { city?: string; search?: string; sort?: ShopSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Shops($city: String, $sort: ShopSort, $limit: Int, $offset: Int) {
-    shops(city: $city, sort: $sort, limit: $limit, offset: $offset) {
+  query Shops($city: String, $search: String, $sort: ShopSort, $limit: Int, $offset: Int) {
+    shops(city: $city, search: $search, sort: $sort, limit: $limit, offset: $offset) {
       total
       nodes { ${SHOP_FIELDS} }
     }
@@ -209,12 +208,12 @@ export const SHOPS = typed<
 
 export const SHOP = typed<
   { shop: (ShopSummary & { coffees: { total: number; nodes: CoffeeCardData[] } }) | null },
-  { slug: string; sort?: CoffeeSort; limit?: number; offset?: number }
+  { slug: string; filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number }
 >(/* GraphQL */ `
-  query Shop($slug: String!, $sort: CoffeeSort, $limit: Int, $offset: Int) {
+  query Shop($slug: String!, $filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int) {
     shop(slug: $slug) {
       ${SHOP_FIELDS}
-      coffees(sort: $sort, limit: $limit, offset: $offset) {
+      coffees(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
         total
         nodes { ${CARD_FIELDS} }
       }

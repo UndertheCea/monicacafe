@@ -168,6 +168,44 @@ func (s *Store) RotateRefreshToken(ctx context.Context, oldHash, userID, newHash
 	})
 }
 
+// RevokeRefreshToken ends one session: the refresh token with hash tokenHash
+// owned by userID and every token it was rotated into (a cookie can lag one
+// rotation behind when the browser aborted a refresh) are revoked, and the
+// revoked tokens are detached from the rotation chain. Without the detach, a
+// late replay of an earlier token in the chain (inside the grace window, e.g.
+// a request aborted just before logout) would find a rotated token whose
+// successor is no longer active and be treated as theft, ending every other
+// session; detached, it is just a revoked token and is refused. Returns how
+// many tokens were revoked (0 for unknown, foreign or already-ended sessions).
+func (s *Store) RevokeRefreshToken(ctx context.Context, tokenHash, userID string) (int, error) {
+	var n int
+	err := s.InTx(ctx, func(tx *Store) error {
+		rows, err := tx.db.Query(ctx, `
+			WITH RECURSIVE chain AS (
+				SELECT id, replaced_by FROM refresh_tokens WHERE token_hash = $1 AND user_id = $2
+				UNION
+				SELECT r.id, r.replaced_by FROM refresh_tokens r JOIN chain c ON r.id = c.replaced_by
+			)
+			UPDATE refresh_tokens SET revoked_at = now()
+			WHERE id IN (SELECT id FROM chain) AND revoked_at IS NULL
+			RETURNING id`, tokenHash, userID)
+		if err != nil {
+			return mapErr(err)
+		}
+		ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return mapErr(err)
+		}
+		n = len(ids)
+		if n == 0 {
+			return nil
+		}
+		_, err = tx.db.Exec(ctx, `UPDATE refresh_tokens SET replaced_by = NULL WHERE replaced_by = ANY($1::uuid[])`, ids)
+		return mapErr(err)
+	})
+	return n, err
+}
+
 // RevokeUserRefreshTokens revokes every active refresh token for a user (logout everywhere).
 func (s *Store) RevokeUserRefreshTokens(ctx context.Context, userID string) error {
 	_, err := s.db.Exec(ctx, `

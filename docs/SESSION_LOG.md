@@ -15,6 +15,45 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 15 — 2026-11-07 — Per-device logout, sign out everywhere, shop search, in-shop filters
+PR: #79
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code. The main one: `logout` revoked **every** session, and the BFF
+skipped revocation entirely when the access token had expired.
+
+### Shipped (one line per slice: area — what — key files)
+- #73 backend — `logout(refreshToken: String)` ends only that session (signature checked, no access token needed,
+  unknown tokens still `true`); revokes the token plus anything it was rotated into and detaches them from the
+  rotation chain (`store.RevokeRefreshToken`, recursive CTE), so a late grace replay is refused, not treated as
+  theft. `logoutEverywhere` (and token-less `logout`) end all sessions
+- #74 cross-cutting — `/api/auth/logout` sends the httpOnly cookie's token; new `/api/auth/logout-all`;
+  /account "登入中的裝置 / Signed-in devices" with a confirm step → home (`bearerToken` helper in `lib/auth/token.ts`)
+- #75 backend — `shops(search:)`: every word in name or description (ILIKE, escaped; same limits as coffee search);
+  city is not searched (#50). `ListShops` takes a `ShopFilter` (`where()` table-tested)
+- #76 frontend — /shops search box (`?q=`) in the sort form, results heading, empty state + "clear search" keeping
+  the sort (`shopListHref`); `SortForm` takes extra fields and a submit label
+- #77 backend — `Shop.coffees(filter: CoffeeFilter)`: same validation as `Query.coffees`; shop scope and draft
+  visibility are set from the parent shop / viewer after validation
+- #78 frontend — shop page keyword + roast filter (`?q=&roast=`), "no matches" state with a clear link
+  (`shopCoffeesHref`); `ROAST_LEVELS` + `parseRoastParam` moved to import-free `coffeeQuery.ts`
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestRevokeRefreshToken`, `TestLogoutSessions` (checked it fails without the chain detach),
+  `TestShopFilterWhere`, `TestShopSearch`, `TestShopCoffeesFilter`.
+- Frontend: tsc, lint, `npm test` (86), `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + Next standalone locally; Playwright: /shops search → empty state → clear keeps `sort`; shop page
+  roast + search → "no matches" → clear; register → /account → sign out of all devices → `/` and refresh 401. That
+  run caught /account redirecting to /login instead of home after the sign-out (fixed in f3115e9).
+- `scripts/smoke.sh` (new: logout keeps a second session and refuses the old cookie; /shops?q=; shop page filter)
+  against that stack: all ok except the two `/media/` checks (no SeaweedFS / nginx here). Back-to-back smoke runs
+  exhaust the in-memory per-IP login limit (20/min); one run per API start is fine. Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Logout is per device now. Access tokens already issued stay valid until expiry (≤ 15 min) after any logout.
+- Shop search deliberately skips city until #50 is answered.
+
 ## Session 14 — 2026-11-06 — Coffee keyword search, seller recent comments, My comments
 PR: (this session's PR into master)
 

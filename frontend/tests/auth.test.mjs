@@ -1,7 +1,7 @@
 // Pure auth helpers (lib/auth/token.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { forwardedFor, jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
+import { bearerToken, forwardedFor, jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwt = (payload) => `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(payload)}.sig`;
@@ -76,4 +76,18 @@ test("forwardedFor", () => {
     ["1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5,6.6.6.6", "2.2.2.2, 3.3.3.3, 4.4.4.4, 5.5.5.5, 6.6.6.6"],
   ];
   for (const [h, want] of cases) assert.equal(forwardedFor(h), want, String(h));
+});
+
+test("bearerToken", () => {
+  const cases = [
+    { header: "Bearer abc.def.ghi", want: "abc.def.ghi" },
+    { header: "bearer   tok ", want: "tok" },
+    { header: "Basic dXNlcjpwYXNz", want: null },
+    { header: "Bearer", want: null },
+    { header: "Bearer ", want: null },
+    { header: "Bearer a b", want: null },
+    { header: "", want: null },
+    { header: null, want: null },
+  ];
+  for (const c of cases) assert.equal(bearerToken(c.header), c.want, JSON.stringify(c.header));
 });

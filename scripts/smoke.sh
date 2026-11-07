@@ -121,9 +121,21 @@ if [[ "$reg" == "200" && "${first%% *}" == "/api/auth" && "$ref" == "200" && -n 
 else
   echo "FAIL auth cookie: register $reg, cookie '${first%% *}', refresh $ref, replay $replay"; fail=1
 fi
+# Logout (#74) ends only this browser's session, server-side, with no access
+# token: the saved pre-logout cookie is refused, a second session still refreshes.
+other_jar=$(mktemp); trap 'rm -f "$jar" "$old_jar" "$other_jar"' EXIT
+curl -s -o /dev/null --max-time 15 -c "$other_jar" -X POST -H 'Content-Type: application/json' \
+  -d "$(printf '{"email":"%s@example.com","password":"smoke-test-pw"}' "$bff_run")" "$BASE_URL/api/auth/login" || true
+cp "$jar" "$old_jar"
 bff logout >/dev/null
 out=$(bff refresh)
-if [[ "$out" == "401" ]]; then echo "ok   401 refresh after logout"; else echo "FAIL refresh after logout → $out (want 401)"; fail=1; fi
+cp "$old_jar" "$jar"; revoked=$(bff refresh)
+cp "$other_jar" "$jar"; kept=$(bff refresh)
+if [[ "$out" == "401" && "$revoked" == "401" && "$kept" == "200" ]]; then
+  echo "ok   logout: cookie cleared, old token refused, other session kept"
+else
+  echo "FAIL logout: refresh $out (want 401), old cookie $revoked (want 401), other session $kept (want 200)"; fail=1
+fi
 
 # Change password through the BFF (#33): log in again, change it with the
 # access token; the response sets a new cookie that refreshes, and the
@@ -183,6 +195,22 @@ if curl -s --max-time 15 "$BASE_URL/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%
   echo "ok   /coffees?q= lists the match"
 else
   echo "FAIL /coffees?q= did not list the seeded match"; fail=1
+fi
+
+# Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
+# lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
+# the seeded coffee, and roast=DARK alone shows the "no matches" state.
+if curl -s --max-time 15 "$BASE_URL/shops?q=%E6%99%A8%E5%85%89" | grep -q '/shops/demo-roastery'; then
+  echo "ok   /shops?q= lists the match"
+else
+  echo "FAIL /shops?q= should list /shops/demo-roastery"; fail=1
+fi
+in_shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2&roast=LIGHT") || in_shop=""
+dark=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?roast=DARK") || dark=""
+if [[ "$in_shop" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$dark" != *'/coffees/00000000-0000-4000-8000-0000000002'* ]]; then
+  echo "ok   shop page search + roast filter"
+else
+  echo "FAIL shop page filter: search+LIGHT should list the 耶加雪菲 coffee, DARK should list none of the shop's"; fail=1
 fi
 
 # ── Image storage (S3 store behind nginx at /media/) ────────────────────────

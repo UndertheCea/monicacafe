@@ -9,8 +9,10 @@ type Query {
 
   # Shop discovery
   shop(slug: String!): Shop
-  # sort defaults to NEWEST.
-  shops(city: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
+  # sort defaults to NEWEST. search: keywords (≤ 100 characters, ≤ 8 words);
+  # every word must appear in the shop's name or description. Case-insensitive;
+  # blank is ignored.
+  shops(city: String, search: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing
@@ -32,7 +34,14 @@ type Mutation {
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
-  logout: Boolean!
+  # With refreshToken: ends only that session (this device). The token's
+  # signature is checked, no access token is needed, and an unknown or already
+  # ended session still returns true. Without it: requires sign-in and ends
+  # every session, like logoutEverywhere.
+  logout(refreshToken: String): Boolean!
+  # Ends every session of the signed-in user (all refresh tokens revoked).
+  # Access tokens already issued stay valid until they expire (≤ 15 min).
+  logoutEverywhere: Boolean!
 
   # Account (signed in)
   updateProfile(input: UpdateProfileInput!): User!
@@ -109,8 +118,10 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  # sort defaults to NEWEST (same orders as Query.coffees).
-  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees). filter is validated
+  # like Query.coffees' and narrows this shop's coffees; the owner (and admins)
+  # also get drafts.
+  coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
   # Newest-first comments on all of this shop's coffees (drafts included).

@@ -120,7 +120,8 @@ type ComplexityRoot struct {
 		DeleteVariant     func(childComplexity int, id string) int
 		DuplicateCoffee   func(childComplexity int, id string, name *string) int
 		Login             func(childComplexity int, input model.LoginInput) int
-		Logout            func(childComplexity int) int
+		Logout            func(childComplexity int, refreshToken *string) int
+		LogoutEverywhere  func(childComplexity int) int
 		PublishCoffee     func(childComplexity int, id string) int
 		RefreshToken      func(childComplexity int, token string) int
 		Register          func(childComplexity int, input model.RegisterInput) int
@@ -154,7 +155,7 @@ type ComplexityRoot struct {
 		PopularCoffees    func(childComplexity int, limit *int) int
 		ProcessingMethods func(childComplexity int) int
 		Shop              func(childComplexity int, slug string) int
-		Shops             func(childComplexity int, city *string, sort *model.ShopSort, limit *int, offset *int) int
+		Shops             func(childComplexity int, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) int
 		ShopsForMap       func(childComplexity int) int
 	}
 
@@ -162,7 +163,7 @@ type ComplexityRoot struct {
 		BannerURL      func(childComplexity int) int
 		City           func(childComplexity int) int
 		CoffeeCount    func(childComplexity int) int
-		Coffees        func(childComplexity int, sort *model.CoffeeSort, limit *int, offset *int) int
+		Coffees        func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
 		CreatedAt      func(childComplexity int) int
 		Description    func(childComplexity int) int
 		ID             func(childComplexity int) int
@@ -233,7 +234,8 @@ type MutationResolver interface {
 	Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error)
-	Logout(ctx context.Context) (bool, error)
+	Logout(ctx context.Context, refreshToken *string) (bool, error)
+	LogoutEverywhere(ctx context.Context) (bool, error)
 	UpdateProfile(ctx context.Context, input model.UpdateProfileInput) (*model.User, error)
 	ChangePassword(ctx context.Context, input model.ChangePasswordInput) (*model.AuthPayload, error)
 	CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error)
@@ -254,7 +256,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	Shop(ctx context.Context, slug string) (*model.Shop, error)
-	Shops(ctx context.Context, city *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
+	Shops(ctx context.Context, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
 	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
 	Coffee(ctx context.Context, id string) (*model.Coffee, error)
 	Coffees(ctx context.Context, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
@@ -264,7 +266,7 @@ type QueryResolver interface {
 	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
 }
 type ShopResolver interface {
-	Coffees(ctx context.Context, obj *model.Shop, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
+	Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error)
 	CoffeeCount(ctx context.Context, obj *model.Shop) (int, error)
 	RecentComments(ctx context.Context, obj *model.Shop, limit *int, offset *int) (*model.CommentConnection, error)
 }
@@ -681,7 +683,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.complexity.Mutation.Logout(childComplexity), true
+		args, err := ec.field_Mutation_logout_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.Logout(childComplexity, args["refreshToken"].(*string)), true
+
+	case "Mutation.logoutEverywhere":
+		if e.complexity.Mutation.LogoutEverywhere == nil {
+			break
+		}
+
+		return e.complexity.Mutation.LogoutEverywhere(childComplexity), true
 
 	case "Mutation.publishCoffee":
 		if e.complexity.Mutation.PublishCoffee == nil {
@@ -921,7 +935,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["sort"].(*model.ShopSort), args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Query.Shops(childComplexity, args["city"].(*string), args["search"].(*string), args["sort"].(*model.ShopSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Query.shopsForMap":
 		if e.complexity.Query.ShopsForMap == nil {
@@ -961,7 +975,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Shop.Coffees(childComplexity, args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
+		return e.complexity.Shop.Coffees(childComplexity, args["filter"].(*model.CoffeeFilter), args["sort"].(*model.CoffeeSort), args["limit"].(*int), args["offset"].(*int)), true
 
 	case "Shop.createdAt":
 		if e.complexity.Shop.CreatedAt == nil {
@@ -1326,8 +1340,10 @@ type Query {
 
   # Shop discovery
   shop(slug: String!): Shop
-  # sort defaults to NEWEST.
-  shops(city: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
+  # sort defaults to NEWEST. search: keywords (≤ 100 characters, ≤ 8 words);
+  # every word must appear in the shop's name or description. Case-insensitive;
+  # blank is ignored.
+  shops(city: String, search: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing
@@ -1349,7 +1365,14 @@ type Mutation {
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
   refreshToken(token: String!): AuthPayload!
-  logout: Boolean!
+  # With refreshToken: ends only that session (this device). The token's
+  # signature is checked, no access token is needed, and an unknown or already
+  # ended session still returns true. Without it: requires sign-in and ends
+  # every session, like logoutEverywhere.
+  logout(refreshToken: String): Boolean!
+  # Ends every session of the signed-in user (all refresh tokens revoked).
+  # Access tokens already issued stay valid until they expire (≤ 15 min).
+  logoutEverywhere: Boolean!
 
   # Account (signed in)
   updateProfile(input: UpdateProfileInput!): User!
@@ -1426,8 +1449,10 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  # sort defaults to NEWEST (same orders as Query.coffees).
-  coffees(sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
+  # sort defaults to NEWEST (same orders as Query.coffees). filter is validated
+  # like Query.coffees' and narrows this shop's coffees; the owner (and admins)
+  # also get drafts.
+  coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
   # Newest-first comments on all of this shop's coffees (drafts included).
@@ -2110,6 +2135,34 @@ func (ec *executionContext) field_Mutation_login_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_logout_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_logout_argsRefreshToken(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["refreshToken"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_logout_argsRefreshToken(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["refreshToken"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("refreshToken"))
+	if tmp, ok := rawArgs["refreshToken"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_publishCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2620,21 +2673,26 @@ func (ec *executionContext) field_Query_shops_args(ctx context.Context, rawArgs 
 		return nil, err
 	}
 	args["city"] = arg0
-	arg1, err := ec.field_Query_shops_argsSort(ctx, rawArgs)
+	arg1, err := ec.field_Query_shops_argsSearch(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["sort"] = arg1
-	arg2, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
+	args["search"] = arg1
+	arg2, err := ec.field_Query_shops_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg2
-	arg3, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	args["sort"] = arg2
+	arg3, err := ec.field_Query_shops_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg3
+	args["limit"] = arg3
+	arg4, err := ec.field_Query_shops_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg4
 	return args, nil
 }
 func (ec *executionContext) field_Query_shops_argsCity(
@@ -2648,6 +2706,24 @@ func (ec *executionContext) field_Query_shops_argsCity(
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("city"))
 	if tmp, ok := rawArgs["city"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_shops_argsSearch(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["search"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("search"))
+	if tmp, ok := rawArgs["search"]; ok {
 		return ec.unmarshalOString2ᚖstring(ctx, tmp)
 	}
 
@@ -2712,23 +2788,46 @@ func (ec *executionContext) field_Query_shops_argsOffset(
 func (ec *executionContext) field_Shop_coffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Shop_coffees_argsSort(ctx, rawArgs)
+	arg0, err := ec.field_Shop_coffees_argsFilter(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["sort"] = arg0
-	arg1, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
+	args["filter"] = arg0
+	arg1, err := ec.field_Shop_coffees_argsSort(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg1
-	arg2, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	args["sort"] = arg1
+	arg2, err := ec.field_Shop_coffees_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg2
+	args["limit"] = arg2
+	arg3, err := ec.field_Shop_coffees_argsOffset(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg3
 	return args, nil
 }
+func (ec *executionContext) field_Shop_coffees_argsFilter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.CoffeeFilter, error) {
+	if _, ok := rawArgs["filter"]; !ok {
+		var zeroVal *model.CoffeeFilter
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("filter"))
+	if tmp, ok := rawArgs["filter"]; ok {
+		return ec.unmarshalOCoffeeFilter2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeFilter(ctx, tmp)
+	}
+
+	var zeroVal *model.CoffeeFilter
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Shop_coffees_argsSort(
 	ctx context.Context,
 	rawArgs map[string]any,
@@ -4950,7 +5049,7 @@ func (ec *executionContext) _Mutation_logout(ctx context.Context, field graphql.
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().Logout(rctx)
+		return ec.resolvers.Mutation().Logout(rctx, fc.Args["refreshToken"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4967,7 +5066,62 @@ func (ec *executionContext) _Mutation_logout(ctx context.Context, field graphql.
 	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Mutation_logout(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_logout(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_logout_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_logoutEverywhere(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_logoutEverywhere(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().LogoutEverywhere(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_logoutEverywhere(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
 		Field:      field,
@@ -6660,7 +6814,7 @@ func (ec *executionContext) _Query_shops(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["sort"].(*model.ShopSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Query().Shops(rctx, fc.Args["city"].(*string), fc.Args["search"].(*string), fc.Args["sort"].(*model.ShopSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -7690,7 +7844,7 @@ func (ec *executionContext) _Shop_coffees(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["sort"].(*model.CoffeeSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		return ec.resolvers.Shop().Coffees(rctx, obj, fc.Args["filter"].(*model.CoffeeFilter), fc.Args["sort"].(*model.CoffeeSort), fc.Args["limit"].(*int), fc.Args["offset"].(*int))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -12310,6 +12464,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "logout":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_logout(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "logoutEverywhere":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_logoutEverywhere(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

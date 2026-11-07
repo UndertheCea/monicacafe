@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice, inputCls } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
@@ -31,8 +31,11 @@ function Saved({ children }: { children: React.ReactNode }) {
 export function AccountSettings({ locale }: { locale: Locale }) {
   const { status } = useAuth();
   const router = useRouter();
+  // Set while "sign out of all devices" runs: that sign-out sends the user
+  // home, so the "signed out → log in" redirect below must not race it.
+  const leaving = useRef(false);
   useEffect(() => {
-    if (status === "anonymous") router.replace("/login?next=%2Faccount");
+    if (status === "anonymous" && !leaving.current) router.replace("/login?next=%2Faccount");
   }, [status, router]);
   if (status !== "authenticated") return <Notice>{t(locale, "dash.loading")}</Notice>;
   return (
@@ -40,6 +43,12 @@ export function AccountSettings({ locale }: { locale: Locale }) {
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
       <MyComments locale={locale} />
+      <Sessions
+        locale={locale}
+        onLeave={(v) => {
+          leaving.current = v;
+        }}
+      />
     </div>
   );
 }
@@ -191,5 +200,62 @@ function PasswordForm({ locale }: { locale: Locale }) {
         {done && <Saved>{t(locale, "account.passwordChanged")}</Saved>}
       </div>
     </form>
+  );
+}
+
+function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: boolean) => void }) {
+  const { logoutEverywhere } = useAuth();
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<MessageKey | null>(null);
+
+  async function onConfirm() {
+    setBusy(true);
+    setError(null);
+    onLeave(true);
+    try {
+      await logoutEverywhere();
+      router.replace("/");
+    } catch (err) {
+      onLeave(false);
+      setError(toApiError(err).code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.sessions");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={sectionCls} aria-labelledby="sessions-title">
+      <h2 id="sessions-title" className="text-lg font-semibold text-stone-900">
+        {t(locale, "account.sessions")}
+      </h2>
+      <p className="text-sm text-stone-600">{t(locale, "account.sessionsHint")}</p>
+      {error && <FormError>{t(locale, error)}</FormError>}
+      {confirming ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-stone-900">{t(locale, "account.logoutAllConfirm")}</span>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className="rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+          >
+            {busy ? t(locale, "account.loggingOut") : t(locale, "account.logoutAllYes")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={busy}
+            className="text-sm font-medium text-stone-600 underline-offset-2 hover:underline"
+          >
+            {t(locale, "account.cancel")}
+          </button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirming(true)} className={buttonCls}>
+          {t(locale, "account.logoutAll")}
+        </button>
+      )}
+    </section>
   );
 }

@@ -20,7 +20,10 @@ export interface AuthContextValue {
   user: SessionUser | null;
   login(email: string, password: string): Promise<SessionUser>;
   register(email: string, password: string, displayName: string): Promise<SessionUser>;
+  /** Sign out of this browser only (other devices stay signed in). */
   logout(): Promise<void>;
+  /** End every session of the account, this one included. */
+  logoutEverywhere(): Promise<void>;
   /** Change the password; every other session ends, this one continues. */
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   /** Re-fetch the session (new token + user), e.g. after opening a shop. */
@@ -156,18 +159,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    const cur = stateRef.current;
-    const token = cur.status === "authenticated" ? cur.session.accessToken : null;
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      // The route handler revokes the session named by the httpOnly cookie.
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     } finally {
       apply(null);
       channelRef.current?.postMessage("logout");
     }
+  }, [apply]);
+
+  const logoutEverywhere = useCallback(async () => {
+    const send = async (token: string) => {
+      try {
+        return await fetch("/api/auth/logout-all", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        throw unavailable();
+      }
+    };
+    const cur = stateRef.current;
+    let token = cur.status === "authenticated" ? cur.session.accessToken : null;
+    if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
+    let res = await send(token);
+    if (res.status === 401) {
+      token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+      if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
+      res = await send(token);
+    }
+    if (!res.ok) throw await asError(res);
+    apply(null);
+    channelRef.current?.postMessage("logout");
   }, [apply]);
 
   const changePassword = useCallback(
@@ -236,11 +260,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
+      logoutEverywhere,
       changePassword,
       reload,
       request,
     }),
-    [state, login, register, logout, changePassword, reload, request],
+    [state, login, register, logout, logoutEverywhere, changePassword, reload, request],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

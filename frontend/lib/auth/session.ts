@@ -51,8 +51,14 @@ export const REFRESH = typed<{ refreshToken: AuthPayload }, { token: string }>(/
   }
 `);
 
-export const LOGOUT = typed<{ logout: boolean }>(/* GraphQL */ `
-  mutation Logout { logout }
+/** Ends only the session the refresh token belongs to (no access token needed). */
+export const LOGOUT = typed<{ logout: boolean }, { refreshToken: string }>(/* GraphQL */ `
+  mutation Logout($refreshToken: String) { logout(refreshToken: $refreshToken) }
+`);
+
+/** Ends every session of the signed-in user (needs an access token). */
+export const LOGOUT_EVERYWHERE = typed<{ logoutEverywhere: boolean }>(/* GraphQL */ `
+  mutation LogoutEverywhere { logoutEverywhere }
 `);
 
 export const ME = typed<{ me: SessionUser | null }>(/* GraphQL */ `

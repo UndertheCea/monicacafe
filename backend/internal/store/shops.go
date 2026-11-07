@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"strings"
 )
 
@@ -122,20 +123,47 @@ func (o ShopSort) orderBy() (join, order string) {
 	}
 }
 
-// ListShops returns a page of shops in the given order, optionally filtered by
-// city, together with the total number of matching shops.
-func (s *Store) ListShops(ctx context.Context, city *string, sort ShopSort, limit, offset int) ([]*Shop, int, error) {
+// ShopFilter narrows a shop listing. Zero values are ignored.
+type ShopFilter struct {
+	City *string
+	// SearchTerms: every term must appear (case-insensitive substring) in the
+	// shop's name or description. Terms are matched literally. City is not
+	// searched: filtering shops by city is an open owner decision (#50).
+	SearchTerms []string
+}
+
+func (f ShopFilter) where() (string, []any) {
+	var (
+		conds []string
+		args  []any
+	)
+	if f.City != nil {
+		args = append(args, *f.City)
+		conds = append(conds, fmt.Sprintf("s.city = $%d", len(args)))
+	}
+	for _, term := range f.SearchTerms {
+		args = append(args, LikePattern(term))
+		conds = append(conds, fmt.Sprintf("(s.name ILIKE $%[1]d OR s.description ILIKE $%[1]d)", len(args)))
+	}
+	if len(conds) == 0 {
+		return "", nil
+	}
+	return " WHERE " + strings.Join(conds, " AND "), args
+}
+
+// ListShops returns a page of shops matching the filter in the given order,
+// together with the total number of matching shops.
+func (s *Store) ListShops(ctx context.Context, f ShopFilter, sort ShopSort, limit, offset int) ([]*Shop, int, error) {
+	where, args := f.where()
 	var total int
-	if err := s.db.QueryRow(ctx,
-		`SELECT count(*) FROM shops WHERE ($1::text IS NULL OR city = $1)`, city).Scan(&total); err != nil {
+	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM shops s`+where, args...).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)
 	}
 	join, order := sort.orderBy()
-	rows, err := s.db.Query(ctx, `
-		SELECT `+shopColumnsAs("s")+` FROM shops s`+join+`
-		WHERE ($1::text IS NULL OR s.city = $1)
-		ORDER BY `+order+`
-		LIMIT $2 OFFSET $3`, city, limit, offset)
+	n := len(args)
+	args = append(args, limit, offset)
+	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM shops s%s%s
+		ORDER BY %s LIMIT $%d OFFSET $%d`, shopColumnsAs("s"), join, where, order, n+1, n+2), args...)
 	if err != nil {
 		return nil, 0, mapErr(err)
 	}

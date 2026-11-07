@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-07 (after Session 15)
+Last updated: 2026-11-07 (after Session 16)
 
 ---
 
@@ -30,19 +30,21 @@ takes a commission on each sale).
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–005 | Done |
+| DB schema + migrations 001–007 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
-| Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
+| Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product JSON-LD | Done |
 | /login, /register, account menu, /account (display name, change password, my comments) | Done |
+| Comments: add, delete, edit own (with "edited" marker) | Done (#81, #82) |
+| Skip-to-content link, one `main` landmark per page | Done (#85) |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges), shop profile + location, recent comments | Done |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
 | Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
 | Content-Security-Policy (nonce'd, from the Next 16 proxy) | Done |
 | Frontend on Next.js 16; `npm audit` has no high advisories | Done (#35) |
-| sitemap.xml + robots.txt (`SITE_URL`) | Done |
+| sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done |
 | Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user | Done |
 | Error contract (`graph/errors.go` ↔ `lib/errors.ts`, pinned by a Go test) | Done |
 | Structured JSON access + panic logs (slog, request id + trusted client IP) | Done (#48, #53) |
@@ -53,16 +55,15 @@ takes a commission on each sale).
 
 ## Last session
 
-**Session 15** — no pickable slices again, so six gaps were filed and shipped: `logout(refreshToken)` ends only this
-device's session (#73; it used to end all of them) with a BFF cookie flow and an /account "sign out of all devices"
-(#74); `shops(search:)` (#75) + a /shops search box (#76); `Shop.coffees(filter:)` (#77) + search and roast filter on
-shop pages (#78). Verified with race tests on PostgreSQL, Playwright and smoke on a local API + Next (all green
-except `/media/`, no SeaweedFS here).
+**Session 16** — no pickable slices again, so six gaps were filed and shipped: `Shop/Coffee.updatedAt` (variant
+changes touch the coffee) + sitemap `<lastmod>` (#80); `updateComment` + `editedAt` (#81) with inline editing on the
+coffee page and /account (#82); `Coffee.similar` (#83) + "You may also like" on coffee pages (#84); a skip link and a
+single `main` landmark (#85). Verified with race tests on PostgreSQL, Playwright and smoke on a local API + Next.
 
 ## Current focus
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 15; next sessions should file real gaps or wait for #9 / #12
+#12 (commission + payouts). No pickable slices remain after Session 16; next sessions should file real gaps or wait for #9 / #12
 (and #50 for a /shops city filter). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
 size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
@@ -126,5 +127,9 @@ Open questions for the owner (answer by commenting on the issue):
 - **Logout ends one device; `logoutEverywhere` ends all** — the cookie's refresh token proves the session, so it
   works with an expired access token; revoked tokens leave the rotation chain so a late replay isn't "theft" (#73).
 - **Shop search covers name + description, not city** — a city filter is still the owner's call (#50) (#75).
+- **Comment edits are author-only and leave no history** — admins can remove a comment but never rewrite someone's
+  words; an "edited" marker is shown instead of keeping old versions (#81).
+- **Similar coffees = a SQL score over origin / process / roast / notes, other shops only** — cross-shop discovery
+  without new infra; a shared roast alone isn't "similar" (#83).
 - **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).

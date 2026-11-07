@@ -15,6 +15,43 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 16 — 2026-11-07 — Sitemap lastmod, comment editing, similar coffees, skip link
+PR: #86
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps found in the code.
+
+### Shipped (one line per slice: area — what — key files)
+- #80 cross-cutting — `Shop.updatedAt` / `Coffee.updatedAt`; migration 006 makes variant insert / update / delete
+  touch the parent coffee (trigger), so price and stock changes count. sitemap.xml has `<lastmod>`: a coffee's own,
+  a shop's the later of its own and its listed coffees' (`laterDate`, `sitemapEntries` in `lib/sitemap.ts`)
+- #81 backend — `updateComment(id, body)` + `Comment.editedAt` (migration 007): author only (admins delete, never
+  rewrite), same validation and per-user token bucket as `addComment`, refused (`NOT_FOUND`) once the coffee is
+  back in draft; unchanged text is a no-op that leaves `editedAt` null (`store.UpdateCommentBody`)
+- #82 frontend — `CommentBody` (client): inline edit with counter / save / cancel for the author while the coffee
+  is published, "(已編輯 / edited)" marker everywhere comments list; coffee page, load more, /account My comments,
+  dashboard Recent comments (`canEditComment`, `commentEditState`, `commentEditErrorKey`, `withEditedComment`)
+- #83 backend — `Coffee.similar(limit)`: other shops' published coffees scored origin 3 + process 2 + roast 1 +
+  shared notes (1 each, ≤ 3); below 2 left out; in-stock first, then score, then newest; limit 4 (max 12)
+- #84 frontend — coffee page "你可能也喜歡 / You may also like" (`AlsoLike`, `alsoLike` drops the current coffee and
+  anything already on the page); smoke checks the seeded 耶加雪菲 page links the seeded Kenya coffee
+- #85 frontend — skip link (first focusable, visible on focus) to the layout's single `<main id="main">`; pages,
+  error / 404 states and skeletons render a `div`; `tests/landmarks.test.mjs` guards it
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations +
+  seed). New: `TestUpdatedAt`, `TestUpdateComment`, `TestSimilarCoffees` (uses its own reference rows — the first
+  version flaked when coffees from earlier runs crowded the limit), `TestSimilarLimit`.
+- Frontend: tsc, lint, `npm test` (96), `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + Next standalone locally: `scripts/smoke.sh` all ok except the two `/media/` checks (no SeaweedFS /
+  nginx here). Playwright: Tab → skip link → Enter focuses `#main` (one `main`); register → comment → edit →
+  "(已編輯)" survives reload → edit again from /account; "你可能也喜歡" renders. Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Edits keep the comment's place and date; only an "edited" marker shows. No edit history is kept.
+- Similar coffees are a SQL score, no new infra; Meilisearch (Stage 3) could replace it behind the same field.
+- `Coffee.similar` runs one query per coffee, like `Coffee.comments`; only the detail page asks for it.
+
 ## Session 15 — 2026-11-07 — Per-device logout, sign out everywhere, shop search, in-shop filters
 PR: #79
 

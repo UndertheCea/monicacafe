@@ -881,13 +881,19 @@ func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, err
 }
 
 // Shops is the resolver for the shops field.
-func (r *queryResolver) Shops(ctx context.Context, city *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error) {
+func (r *queryResolver) Shops(ctx context.Context, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error) {
 	so, err := storeShopSort(sort)
 	if err != nil {
 		return nil, err
 	}
+	f := store.ShopFilter{City: city}
+	if search != nil {
+		if f.SearchTerms, err = searchTerms(*search); err != nil {
+			return nil, err
+		}
+	}
 	l, o := page(limit, offset)
-	shops, total, err := r.Store.ListShops(ctx, city, so, l, o)
+	shops, total, err := r.Store.ListShops(ctx, f, so, l, o)
 	if err != nil {
 		return nil, err
 	}

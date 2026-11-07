@@ -129,7 +129,7 @@ func TestListShopsSort(t *testing.T) {
 			{store.ShopSortMostCoffees, 10, 0, "Delta,Charlie,Bravo,Alpha"},
 			{store.ShopSortMostCoffees, 2, 1, "Charlie,Bravo"},
 		} {
-			got, total, err := tx.ListShops(ctx, &city, tc.sort, tc.limit, tc.offset)
+			got, total, err := tx.ListShops(ctx, store.ShopFilter{City: &city}, tc.sort, tc.limit, tc.offset)
 			if err != nil {
 				return err
 			}

@@ -9,8 +9,10 @@ type Query {
 
   # Shop discovery
   shop(slug: String!): Shop
-  # sort defaults to NEWEST.
-  shops(city: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
+  # sort defaults to NEWEST. search: keywords (≤ 100 characters, ≤ 8 words);
+  # every word must appear in the shop's name or description. Case-insensitive;
+  # blank is ignored.
+  shops(city: String, search: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing

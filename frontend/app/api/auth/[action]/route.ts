@@ -1,11 +1,12 @@
 // Backend-for-frontend auth endpoints. The refresh token never reaches page
 // JavaScript: it lives in an httpOnly cookie scoped to /api/auth, and these
 // handlers trade it for short-lived access tokens (kept in memory by
-// AuthProvider). POST /api/auth/{login,register,refresh,logout,logout-all,password}.
+// AuthProvider). POST /api/auth/{login,register,refresh,logout,logout-all,password,delete-account}.
 import { NextResponse, type NextRequest } from "next/server";
 import { authedClient, forwardingClient, query, toApiError } from "@/lib/graphql";
 import {
   CHANGE_PASSWORD,
+  DELETE_ACCOUNT,
   LOGIN,
   LOGOUT,
   LOGOUT_EVERYWHERE,
@@ -164,6 +165,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
       try {
         await query(LOGOUT_EVERYWHERE, undefined, authedClient(bearer));
+      } catch (err) {
+        return fromError(err);
+      }
+      return clearCookie(NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } }));
+    }
+    case "delete-account": {
+      // Deletes the account (the backend re-checks the password) and clears
+      // the now-dead refresh cookie, which page JavaScript can't reach.
+      const bearer = bearerToken(req.headers.get("authorization"));
+      if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
+      const b = await readJSON(req);
+      try {
+        await query(DELETE_ACCOUNT, { password: str(b.password) }, authedClient(bearer));
       } catch (err) {
         return fromError(err);
       }

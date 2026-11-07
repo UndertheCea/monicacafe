@@ -156,6 +156,25 @@ else
   echo "FAIL change password: login token '${access:0:8}', /api/auth/password $pw, stale refresh $stale, new refresh $fresh"; fail=1
 fi
 
+# Delete account through the BFF (#91): refused without an access token; with
+# one (from a refresh on the current cookie) the account goes, the cookie is
+# cleared, and neither refresh nor login works afterwards.
+nosess=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST -H 'Content-Type: application/json' \
+  -d '{"password":"x"}' "$BASE_URL/api/auth/delete-account" || echo 000)
+ref_body=$(curl -s --max-time 15 -b "$jar" -c "$jar" -X POST "$BASE_URL/api/auth/refresh" || true)
+access=$(grep -o '"accessToken":"[^"]*"' <<<"$ref_body" | cut -d'"' -f4 || true)
+del=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -b "$jar" -c "$jar" -X POST \
+  -H 'Content-Type: application/json' -H "Authorization: Bearer $access" \
+  -d '{"password":"smoke-test-pw-2"}' "$BASE_URL/api/auth/delete-account" || echo 000)
+gone_cookie=$(cookie "$jar")
+gone_refresh=$(bff refresh)
+gone_login=$(bff login "$(printf '{"email":"%s@example.com","password":"smoke-test-pw-2"}' "$bff_run")")
+if [[ "$nosess" == "401" && -n "$access" && "$del" == "200" && -z "$gone_cookie" && "$gone_refresh" == "401" && "$gone_login" == "401" ]]; then
+  echo "ok   delete account via BFF: cookie cleared, refresh + login refused"
+else
+  echo "FAIL delete account: no session $nosess (want 401), token '${access:0:8}', delete $del, cookie '$gone_cookie', refresh $gone_refresh, login $gone_login"; fail=1
+fi
+
 # Auth rate limit (#27): wrong-password logins for one email are refused with
 # 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL's burst (default 10) is spent.
 rl_email="smokerl$(date +%s)$RANDOM@example.com"; rl_code=""; rl_n=0

@@ -1,7 +1,13 @@
 // /account form helpers (lib/auth/account.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cleanDisplayName, passwordChangeProblem, passwordErrorKey } from "../lib/auth/account.ts";
+import {
+  accountDeletionBlock,
+  cleanDisplayName,
+  deleteAccountErrorKey,
+  passwordChangeProblem,
+  passwordErrorKey,
+} from "../lib/auth/account.ts";
 
 test("passwordChangeProblem", () => {
   const cases = [
@@ -36,4 +42,27 @@ test("passwordErrorKey", () => {
     [["INTERNAL_SERVER_ERROR"], "account.error.generic"],
   ];
   for (const [args, want] of cases) assert.equal(passwordErrorKey(...args), want, args.join(" "));
+});
+
+test("accountDeletionBlock: shop owners and admins can't delete here", () => {
+  const cases = [
+    [{ role: "BUYER", shop: null }, null],
+    [{ role: "SELLER", shop: { id: "s" } }, "shop"],
+    // a buyer token issued before opening a shop still has the shop on the session user
+    [{ role: "BUYER", shop: { id: "s" } }, "shop"],
+    [{ role: "ADMIN", shop: null }, "admin"],
+    [{ role: "SELLER", shop: null }, null],
+  ];
+  for (const [user, want] of cases) assert.equal(accountDeletionBlock(user), want, JSON.stringify(user));
+});
+
+test("deleteAccountErrorKey maps backend errors to messages", () => {
+  const cases = [
+    [["BAD_USER_INPUT", "password"], "account.error.deletePassword"],
+    [["BAD_USER_INPUT", "other"], "account.error.generic"],
+    [["FORBIDDEN"], "account.delete.blockedShop"],
+    [["UNAVAILABLE"], "auth.error.unavailable"],
+    [["INTERNAL"], "account.error.generic"],
+  ];
+  for (const [[code, field], want] of cases) assert.equal(deleteAccountErrorKey(code, field), want);
 });

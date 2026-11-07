@@ -79,3 +79,8 @@ export const CHANGE_PASSWORD = typed<
     changePassword(input: $input) { accessToken refreshToken user { ${USER_FIELDS} } }
   }
 `);
+
+/** Deletes the signed-in account (password re-checked); the BFF clears the cookie. */
+export const DELETE_ACCOUNT = typed<{ deleteAccount: boolean }, { password: string }>(/* GraphQL */ `
+  mutation DeleteAccount($password: String!) { deleteAccount(password: $password) }
+`);

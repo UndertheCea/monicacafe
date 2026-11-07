@@ -30,3 +30,25 @@ export function passwordErrorKey(
   if (code === "UNAVAILABLE") return "auth.error.unavailable";
   return "account.error.generic";
 }
+
+/**
+ * Why this account can't be deleted from /account, or null when it can. The
+ * API refuses shop owners (their coffees and links depend on the account) and
+ * admins; checking here lets the page explain instead of offering a form.
+ */
+export function accountDeletionBlock(user: { role: string; shop: unknown }): "shop" | "admin" | null {
+  if (user.shop) return "shop";
+  if (user.role === "ADMIN") return "admin";
+  return null;
+}
+
+/** Message key for a backend error from deleteAccount. */
+export function deleteAccountErrorKey(
+  code: string,
+  field?: string,
+): "account.error.deletePassword" | "account.delete.blockedShop" | "auth.error.unavailable" | "account.error.generic" {
+  if (code === "BAD_USER_INPUT" && field === "password") return "account.error.deletePassword";
+  if (code === "FORBIDDEN") return "account.delete.blockedShop";
+  if (code === "UNAVAILABLE") return "auth.error.unavailable";
+  return "account.error.generic";
+}

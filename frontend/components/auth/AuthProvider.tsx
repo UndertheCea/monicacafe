@@ -24,6 +24,8 @@ export interface AuthContextValue {
   logout(): Promise<void>;
   /** End every session of the account, this one included. */
   logoutEverywhere(): Promise<void>;
+  /** Delete the account (password re-checked); signs this and every other tab out. */
+  deleteAccount(password: string): Promise<void>;
   /** Change the password; every other session ends, this one continues. */
   changePassword(currentPassword: string, newPassword: string): Promise<void>;
   /** Re-fetch the session (new token + user), e.g. after opening a shop. */
@@ -194,6 +196,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     channelRef.current?.postMessage("logout");
   }, [apply]);
 
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      const send = async (token: string) => {
+        try {
+          return await fetch("/api/auth/delete-account", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ password }),
+          });
+        } catch {
+          throw unavailable();
+        }
+      };
+      const cur = stateRef.current;
+      let token = cur.status === "authenticated" ? cur.session.accessToken : null;
+      if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
+      let res = await send(token);
+      if (res.status === 401) {
+        token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+        if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
+        res = await send(token);
+      }
+      if (!res.ok) throw await asError(res);
+      apply(null);
+      channelRef.current?.postMessage("logout");
+    },
+    [apply],
+  );
+
   const changePassword = useCallback(
     async (currentPassword: string, newPassword: string) => {
       const send = async (token: string) => {
@@ -261,11 +293,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       logout,
       logoutEverywhere,
+      deleteAccount,
       changePassword,
       reload,
       request,
     }),
-    [state, login, register, logout, logoutEverywhere, changePassword, reload, request],
+    [state, login, register, logout, logoutEverywhere, deleteAccount, changePassword, reload, request],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

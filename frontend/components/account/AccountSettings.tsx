@@ -8,7 +8,13 @@ import { CommentFeed } from "@/components/CommentFeed";
 import { SavedCoffees } from "@/components/account/SavedCoffees";
 import { COMMENT_LIST_PAGE } from "@/lib/comments";
 import { MY_COMMENTS } from "@/lib/dashboard/queries";
-import { cleanDisplayName, passwordChangeProblem, passwordErrorKey } from "@/lib/auth/account";
+import {
+  accountDeletionBlock,
+  cleanDisplayName,
+  deleteAccountErrorKey,
+  passwordChangeProblem,
+  passwordErrorKey,
+} from "@/lib/auth/account";
 import { UPDATE_PROFILE } from "@/lib/auth/session";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
@@ -39,18 +45,17 @@ export function AccountSettings({ locale }: { locale: Locale }) {
     if (status === "anonymous" && !leaving.current) router.replace("/login?next=%2Faccount");
   }, [status, router]);
   if (status !== "authenticated") return <Notice>{t(locale, "dash.loading")}</Notice>;
+  const onLeave = (v: boolean) => {
+    leaving.current = v;
+  };
   return (
     <div className="space-y-6">
       <ProfileForm locale={locale} />
       <PasswordForm locale={locale} />
       <SavedCoffees locale={locale} />
       <MyComments locale={locale} />
-      <Sessions
-        locale={locale}
-        onLeave={(v) => {
-          leaving.current = v;
-        }}
-      />
+      <Sessions locale={locale} onLeave={onLeave} />
+      <DeleteAccount locale={locale} onLeave={onLeave} />
     </div>
   );
 }
@@ -257,6 +262,103 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
         <button type="button" onClick={() => setConfirming(true)} className={buttonCls}>
           {t(locale, "account.logoutAll")}
         </button>
+      )}
+    </section>
+  );
+}
+
+function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving: boolean) => void }) {
+  const { user, deleteAccount } = useAuth();
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<Msg | null>(null);
+  if (!user) return null;
+  const block = accountDeletionBlock(user);
+
+  async function onConfirm() {
+    if (!password || busy) return;
+    setBusy(true);
+    setError(null);
+    onLeave(true);
+    try {
+      await deleteAccount(password);
+      router.replace("/");
+    } catch (err) {
+      onLeave(false);
+      const e = toApiError(err);
+      setError(e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : { key: deleteAccountErrorKey(e.code, e.field) });
+      setConfirming(false);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={`${sectionCls} ring-red-200`} aria-labelledby="delete-title">
+      <h2 id="delete-title" className="text-lg font-semibold text-red-800">
+        {t(locale, "account.delete.title")}
+      </h2>
+      <p className="text-sm text-stone-600">{t(locale, "account.delete.hint")}</p>
+      {block ? (
+        <p className="rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-700">
+          {t(locale, block === "shop" ? "account.delete.blockedShop" : "account.delete.blockedAdmin")}
+        </p>
+      ) : (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (password) setConfirming(true);
+          }}
+        >
+          <div>
+            <label htmlFor="delete-password" className={labelCls}>
+              {t(locale, "account.delete.password")}
+            </label>
+            <input
+              id="delete-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setConfirming(false);
+              }}
+              className={inputCls}
+            />
+          </div>
+          {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+          {confirming ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-medium text-stone-900">{t(locale, "account.delete.confirm")}</span>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={busy}
+                className="rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+              >
+                {busy ? t(locale, "account.delete.deleting") : t(locale, "account.delete.yes")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+                className="text-sm font-medium text-stone-600 underline-offset-2 hover:underline"
+              >
+                {t(locale, "account.cancel")}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={!password}
+              className="rounded-full px-5 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-60"
+            >
+              {t(locale, "account.delete.button")}
+            </button>
+          )}
+        </form>
       )}
     </section>
   );

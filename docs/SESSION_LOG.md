@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 15 — 2026-11-07 — Per-device logout, sign out everywhere, shop search, in-shop filters
-PR: (this session's PR into master)
+PR: #79
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from gaps found in the code. The main one: `logout` revoked **every** session, and the BFF

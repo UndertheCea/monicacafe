@@ -65,6 +65,7 @@ type Comment struct {
 	Body      string
 	CreatedAt time.Time
 	EditedAt  *time.Time // nil until the author edits the text
+	FromShop  bool       // the author owns the coffee's shop (computed on read)
 }
 
 // OriginCountry is curated reference data.

@@ -97,6 +97,7 @@ type ComplexityRoot struct {
 		Coffee    func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
 		EditedAt  func(childComplexity int) int
+		FromShop  func(childComplexity int) int
 		ID        func(childComplexity int) int
 		User      func(childComplexity int) int
 	}
@@ -548,6 +549,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Comment.EditedAt(childComplexity), true
+
+	case "Comment.fromShop":
+		if e.complexity.Comment.FromShop == nil {
+			break
+		}
+
+		return e.complexity.Comment.FromShop(childComplexity), true
 
 	case "Comment.id":
 		if e.complexity.Comment.ID == nil {
@@ -1508,7 +1516,7 @@ type Mutation {
   # Permanently deletes the signed-in account after re-checking its password:
   # the user, their comments, saved coffees and every session. Accounts that
   # own a shop (and admins) are refused with FORBIDDEN. Access tokens already
-  # issued stop working on the next request that loads the user.
+  # issued expire within 15 minutes and are refused wherever the account is needed.
   deleteAccount(password: String!): Boolean!
 
   # Shop management (seller)
@@ -1759,6 +1767,9 @@ type Comment {
   createdAt: Time!
   # Set when the author last changed the text; null if never edited.
   editedAt: Time
+  # True when the author owns the shop selling this coffee (the roaster
+  # answering). Follows current ownership; not stored with the comment.
+  fromShop: Boolean!
 }
 
 type CommentConnection {
@@ -4277,6 +4288,8 @@ func (ec *executionContext) fieldContext_Coffee_comments(ctx context.Context, fi
 				return ec.fieldContext_Comment_createdAt(ctx, field)
 			case "editedAt":
 				return ec.fieldContext_Comment_editedAt(ctx, field)
+			case "fromShop":
+				return ec.fieldContext_Comment_fromShop(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -5233,6 +5246,50 @@ func (ec *executionContext) fieldContext_Comment_editedAt(_ context.Context, fie
 	return fc, nil
 }
 
+func (ec *executionContext) _Comment_fromShop(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_fromShop(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FromShop, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Comment_fromShop(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Comment",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CommentConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.CommentConnection) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_CommentConnection_nodes(ctx, field)
 	if err != nil {
@@ -5284,6 +5341,8 @@ func (ec *executionContext) fieldContext_CommentConnection_nodes(_ context.Conte
 				return ec.fieldContext_Comment_createdAt(ctx, field)
 			case "editedAt":
 				return ec.fieldContext_Comment_editedAt(ctx, field)
+			case "fromShop":
+				return ec.fieldContext_Comment_fromShop(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -7015,6 +7074,8 @@ func (ec *executionContext) fieldContext_Mutation_addComment(ctx context.Context
 				return ec.fieldContext_Comment_createdAt(ctx, field)
 			case "editedAt":
 				return ec.fieldContext_Comment_editedAt(ctx, field)
+			case "fromShop":
+				return ec.fieldContext_Comment_fromShop(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -7084,6 +7145,8 @@ func (ec *executionContext) fieldContext_Mutation_updateComment(ctx context.Cont
 				return ec.fieldContext_Comment_createdAt(ctx, field)
 			case "editedAt":
 				return ec.fieldContext_Comment_editedAt(ctx, field)
+			case "fromShop":
+				return ec.fieldContext_Comment_fromShop(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
@@ -13578,6 +13641,11 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "editedAt":
 			out.Values[i] = ec._Comment_editedAt(ctx, field, obj)
+		case "fromShop":
+			out.Values[i] = ec._Comment_fromShop(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

@@ -302,6 +302,9 @@ type Comment {
   createdAt: Time!
   # Set when the author last changed the text; null if never edited.
   editedAt: Time
+  # True when the author owns the shop selling this coffee (the roaster
+  # answering). Follows current ownership; not stored with the comment.
+  fromShop: Boolean!
 }
 
 type CommentConnection {

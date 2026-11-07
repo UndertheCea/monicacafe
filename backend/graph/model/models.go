@@ -58,4 +58,5 @@ type Comment struct {
 	Body      string     `json:"body"`
 	CreatedAt time.Time  `json:"createdAt"`
 	EditedAt  *time.Time `json:"editedAt,omitempty"`
+	FromShop  bool       `json:"fromShop"`
 }

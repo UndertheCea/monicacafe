@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 19 — 2026-11-07 — Follow roasters: follows, following feed, most-followed shops
-PR: #TBD
+PR: #108
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from a gap in the product: the brief calls Moni Cafe a "Shop app for roasters", yet a buyer

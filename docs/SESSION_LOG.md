@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 18 — 2026-11-07 — Roaster replies, most-saved sort, seller engagement, header hardening
-PR: #TBD
+PR: #101
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from gaps found in the code: a roaster answering in a coffee's comments looked like any

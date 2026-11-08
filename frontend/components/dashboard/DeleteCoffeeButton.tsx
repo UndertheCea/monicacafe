@@ -42,7 +42,7 @@ export function DeleteCoffeeButton({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-full px-3 py-1.5 text-sm text-stone-500 hover:text-red-700"
+          className="rounded-full px-3 py-1.5 text-sm text-neutral-500 hover:text-red-700"
         >
           {t(locale, "dash.delete")}
         </button>
@@ -65,7 +65,7 @@ export function DeleteCoffeeButton({
         type="button"
         disabled={busy}
         onClick={() => setConfirming(false)}
-        className="rounded-full border border-stone-300 px-3 py-1.5 text-sm hover:border-stone-500 disabled:opacity-50"
+        className="rounded-full border border-neutral-300 px-3 py-1.5 text-sm hover:border-neutral-500 disabled:opacity-50"
       >
         {t(locale, "dash.cancel")}
       </button>

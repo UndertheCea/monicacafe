@@ -39,8 +39,8 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-900">{t(locale, "coffees.title")}</h1>
-        <p className="mt-2 text-stone-600">{t(locale, "coffees.subtitle")}</p>
+        <h1 className="text-3xl font-bold text-ink">{t(locale, "coffees.title")}</h1>
+        <p className="mt-2 text-neutral-600">{t(locale, "coffees.subtitle")}</p>
       </header>
 
       <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
@@ -56,16 +56,16 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
         </aside>
 
         <section aria-live="polite">
-          {q && <h2 className="mb-1 text-lg font-semibold text-stone-900">{t(locale, "coffees.results", { q })}</h2>}
-          <p className="mb-4 text-sm text-stone-500">{t(locale, "coffees.count", { n: list.total })}</p>
+          {q && <h2 className="mb-1 text-lg font-semibold text-ink">{t(locale, "coffees.results", { q })}</h2>}
+          <p className="mb-4 text-sm text-neutral-500">{t(locale, "coffees.count", { n: list.total })}</p>
 
           {list.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+            <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
               <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
               {q && (
                 <Link
                   href={pageHref({ ...sp, q: undefined }, 1)}
-                  className="mt-4 inline-block text-sm font-semibold text-amber-700 hover:underline"
+                  className="mt-4 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
                 >
                   {t(locale, "coffees.clearSearch")}
                 </Link>

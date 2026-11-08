@@ -55,7 +55,7 @@ export function FollowButton({
   }, [status, request, slug]);
 
   const count = (
-    <span className="text-xs font-normal text-stone-500">{t(locale, "follow.count", { n: state.count })}</span>
+    <span className="text-xs font-normal text-neutral-500">{t(locale, "follow.count", { n: state.count })}</span>
   );
 
   if (control !== "toggle") {
@@ -64,7 +64,7 @@ export function FollowButton({
         {control === "login" && (
           <Link
             href={`/login?next=${encodeURIComponent(pathname)}`}
-            className={`${pillCls} bg-white text-stone-700 ring-stone-300 hover:bg-stone-50`}
+            className={`${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`}
           >
             <span aria-hidden>＋</span> {t(locale, "follow.loginToFollow")}
           </Link>
@@ -105,8 +105,8 @@ export function FollowButton({
           aria-pressed={state.following}
           className={
             state.following
-              ? `${pillCls} bg-amber-50 text-amber-800 ring-amber-200 hover:bg-amber-100`
-              : `${pillCls} bg-stone-900 text-white ring-stone-900 hover:bg-stone-700`
+              ? `${pillCls} bg-white text-ink ring-neutral-300 hover:bg-neutral-100`
+              : `${pillCls} bg-ink text-white ring-ink hover:bg-neutral-700`
           }
         >
           <span aria-hidden>{state.following ? "✓" : "＋"}</span>

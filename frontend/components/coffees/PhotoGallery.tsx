@@ -27,7 +27,7 @@ export function PhotoGallery({ images, name, locale }: { images: string[]; name:
 
   return (
     <div>
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-gradient-to-br from-amber-100 via-stone-100 to-stone-200 ring-1 ring-stone-200">
+      <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-100 ring-1 ring-neutral-200">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -54,8 +54,8 @@ export function PhotoGallery({ images, name, locale }: { images: string[]; name:
                 onKeyDown={(e) => onKeyDown(e, i)}
                 aria-pressed={i === current}
                 aria-label={t(locale, "img.showPhoto", { n: i + 1, total: photos.length })}
-                className={`block aspect-square w-full overflow-hidden rounded-xl ring-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
-                  i === current ? "ring-2 ring-amber-600" : "ring-stone-200 opacity-80 hover:opacity-100"
+                className={`block aspect-square w-full overflow-hidden rounded-xl ring-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink ${
+                  i === current ? "ring-2 ring-ink" : "ring-neutral-200 opacity-80 hover:opacity-100"
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}

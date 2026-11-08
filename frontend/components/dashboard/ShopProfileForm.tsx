@@ -71,7 +71,7 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
   if (!load.shop) {
     return (
       <Notice>
-        <Link href="/dashboard" className="font-semibold text-amber-700 hover:underline">
+        <Link href="/dashboard" className="font-semibold text-ink underline-offset-4 hover:underline">
           {t(locale, "dash.openTitle")}
         </Link>
       </Notice>
@@ -143,8 +143,8 @@ function ProfileEditor({
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-stone-200 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-stone-700">
+      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-neutral-700">
           {t(locale, "dash.shopName")} *
           <input
             value={name}
@@ -154,7 +154,7 @@ function ProfileEditor({
             className={inputCls}
           />
         </label>
-        <label className="block text-sm font-medium text-stone-700">
+        <label className="block text-sm font-medium text-neutral-700">
           {t(locale, "dash.city")} *
           <input
             value={city}
@@ -165,7 +165,7 @@ function ProfileEditor({
             className={inputCls}
           />
         </label>
-        <label className="block text-sm font-medium text-stone-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "dash.description")}
           <textarea
             value={description}
@@ -175,15 +175,15 @@ function ProfileEditor({
             className={inputCls}
           />
         </label>
-        <p className="text-xs text-stone-500 sm:col-span-2">
+        <p className="text-xs text-neutral-500 sm:col-span-2">
           {t(locale, "shop.slugFixed")} <span className="font-mono">/shops/{shop.slug}</span>
         </p>
       </section>
 
-      <section className="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-stone-200">
+      <section className="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
         <div>
-          <h2 className="text-lg font-bold text-stone-900">{t(locale, "shop.location")}</h2>
-          <p className="mt-1 text-sm text-stone-500">{t(locale, "shop.locationHint")}</p>
+          <h2 className="text-lg font-bold text-ink">{t(locale, "shop.location")}</h2>
+          <p className="mt-1 text-sm text-neutral-500">{t(locale, "shop.locationHint")}</p>
         </div>
         <LocationPicker
           value={picked}
@@ -197,11 +197,11 @@ function ProfileEditor({
           failedLabel={t(locale, "map.loadFailed")}
         />
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm font-medium text-stone-700">
+          <label className="block text-sm font-medium text-neutral-700">
             {t(locale, "shop.lat")}
             <input inputMode="decimal" value={lat} onChange={(e) => (setLat(e.target.value), clear())} className={inputCls} />
           </label>
-          <label className="block text-sm font-medium text-stone-700">
+          <label className="block text-sm font-medium text-neutral-700">
             {t(locale, "shop.lng")}
             <input inputMode="decimal" value={lng} onChange={(e) => (setLng(e.target.value), clear())} className={inputCls} />
           </label>
@@ -210,12 +210,12 @@ function ProfileEditor({
           <p className="text-sm text-red-600">{t(locale, "shop.error.coords")}</p>
         )}
         {outsideTaiwan && (
-          <p role="status" className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800 ring-1 ring-amber-200">
+          <p role="status" className="rounded-xl bg-white px-3 py-2 text-sm text-ink ring-1 ring-neutral-300">
             {t(locale, "shop.outsideTaiwan")}
           </p>
         )}
         {shop.lat !== null && coords === "empty" && (
-          <p className="text-xs text-stone-500">{t(locale, "shop.cantClear")}</p>
+          <p className="text-xs text-neutral-500">{t(locale, "shop.cantClear")}</p>
         )}
       </section>
 
@@ -223,7 +223,7 @@ function ProfileEditor({
         <button
           type="submit"
           disabled={busy || !dirty}
-          className="rounded-full bg-stone-900 px-6 py-2.5 font-semibold text-white hover:bg-stone-700 disabled:opacity-40"
+          className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-40"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
         </button>

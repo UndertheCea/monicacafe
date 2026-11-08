@@ -12,8 +12,8 @@ export default async function RegisterPage() {
   const locale = await getLocale();
   return (
     <div className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-bold text-stone-900">{t(locale, "auth.registerTitle")}</h1>
-      <p className="mt-1 text-stone-600">{t(locale, "auth.registerSub")}</p>
+      <h1 className="text-2xl font-bold text-ink">{t(locale, "auth.registerTitle")}</h1>
+      <p className="mt-1 text-neutral-600">{t(locale, "auth.registerSub")}</p>
       <div className="mt-6">
         {/* useSearchParams() needs a Suspense boundary for static rendering. */}
         <Suspense>

@@ -43,7 +43,7 @@ export function CommentBody({
 
   const editedMark = current.editedAt && (
     <span
-      className="ml-2 text-xs text-stone-400"
+      className="ml-2 text-xs text-neutral-400"
       title={t(locale, "comments.editedAt", { date: formatTaipeiDate(current.editedAt, locale) })}
     >
       ({t(locale, "comments.edited")})
@@ -53,7 +53,7 @@ export function CommentBody({
   if (draft === null) {
     return (
       <div className="mt-1">
-        <p className="whitespace-pre-line break-words text-stone-700">
+        <p className="whitespace-pre-line break-words text-neutral-700">
           {current.body}
           {editedMark}
         </p>
@@ -64,7 +64,7 @@ export function CommentBody({
               setDraft(current.body);
               setError(null);
             }}
-            className="mt-1 text-xs font-medium text-stone-500 hover:text-amber-700"
+            className="mt-1 text-xs font-medium text-neutral-500 hover:text-ink hover:underline underline-offset-4"
           >
             {t(locale, "comments.edit")}
           </button>
@@ -107,10 +107,10 @@ export function CommentBody({
         autoFocus
         aria-invalid={st.tooLong}
         aria-describedby={`${fieldId}-count`}
-        className="w-full resize-y rounded-xl border border-stone-300 px-3 py-2 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+        className="w-full resize-y rounded-xl border border-neutral-300 px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-neutral-300"
       />
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-        <span id={`${fieldId}-count`} className={st.tooLong ? "text-xs text-red-600" : "text-xs text-stone-500"}>
+        <span id={`${fieldId}-count`} className={st.tooLong ? "text-xs text-red-600" : "text-xs text-neutral-500"}>
           {st.tooLong
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX_CHARS })
             : t(locale, "comments.remaining", { n: COMMENT_MAX_CHARS - st.len })}
@@ -122,14 +122,14 @@ export function CommentBody({
               setDraft(null);
               setError(null);
             }}
-            className="rounded-full px-3 py-1 text-sm text-stone-600 ring-1 ring-stone-300 hover:bg-stone-50"
+            className="rounded-full px-3 py-1 text-sm text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-50"
           >
             {t(locale, "comments.cancel")}
           </button>
           <button
             type="submit"
             disabled={busy || !st.canSave}
-            className="rounded-full bg-stone-900 px-3 py-1 text-sm font-semibold text-white hover:bg-stone-700 disabled:opacity-50"
+            className="rounded-full bg-ink px-3 py-1 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
           >
             {busy ? t(locale, "comments.saving") : t(locale, "comments.save")}
           </button>

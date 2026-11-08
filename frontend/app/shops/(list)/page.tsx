@@ -44,25 +44,25 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-stone-900">{t(locale, "shops.title")}</h1>
-        <p className="mt-2 text-stone-600">{t(locale, "shops.subtitle")}</p>
+        <h1 className="text-3xl font-bold text-ink">{t(locale, "shops.title")}</h1>
+        <p className="mt-2 text-neutral-600">{t(locale, "shops.subtitle")}</p>
       </header>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div aria-live="polite">
-          {q && <h2 className="text-lg font-semibold text-stone-900">{t(locale, "shops.results", { q })}</h2>}
-          <p className="text-sm text-stone-500">{t(locale, "shops.count", { n: shops.total })}</p>
+          {q && <h2 className="text-lg font-semibold text-ink">{t(locale, "shops.results", { q })}</h2>}
+          <p className="text-sm text-neutral-500">{t(locale, "shops.count", { n: shops.total })}</p>
         </div>
         {/* Hidden only while the platform has a single shop and nobody searched. */}
         {(shops.total > 1 || q) && <ShopListSortForm locale={locale} sort={sort} q={q} />}
       </div>
 
       {shops.nodes.length === 0 ? (
-        <div className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+        <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
           <p>{q ? t(locale, "shops.emptySearch", { q }) : t(locale, "shops.empty")}</p>
           {q && (
             <Link
               href={shopListHref({ sort })}
-              className="mt-4 inline-block text-sm font-semibold text-amber-700 hover:underline"
+              className="mt-4 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
             >
               {t(locale, "shops.clearSearch")}
             </Link>

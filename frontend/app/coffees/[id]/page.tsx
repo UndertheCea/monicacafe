@@ -71,7 +71,7 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         nonce={nonce}
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(coffeeJsonLd(coffee, siteBase(process.env.SITE_URL))) }}
       />
-      <Link href="/coffees" className="text-sm font-medium text-amber-700 hover:underline">
+      <Link href="/coffees" className="text-sm font-medium text-ink underline-offset-4 hover:underline">
         {t(locale, "coffee.back")}
       </Link>
 

@@ -38,7 +38,7 @@ export default async function RootLayout({
         {/* First focusable element: lets keyboard / screen-reader users jump past the header. */}
         <a
           href="#main"
-          className="sr-only rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[1000]"
+          className="sr-only rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[1000]"
         >
           {t(locale, "a11y.skipToMain")}
         </a>

@@ -35,37 +35,37 @@ export function CoffeeDetailView({
       {/* Details */}
       <div>
         {!coffee.isPublished && (
-          <p className="mb-3 inline-block rounded-full bg-stone-200 px-3 py-1 text-xs font-semibold text-stone-700">
+          <p className="mb-3 inline-block rounded-full bg-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-700">
             {t(locale, "coffee.draft")}
           </p>
         )}
-        <p className="text-sm text-stone-500">
-          <Link href={`/shops/${coffee.shop.slug}`} className="hover:text-amber-700">
+        <p className="text-sm text-neutral-500">
+          <Link href={`/shops/${coffee.shop.slug}`} className="hover:text-ink hover:underline underline-offset-4">
             {coffee.shop.name}
           </Link>
           {coffee.shop.city && ` · ${coffee.shop.city}`}
         </p>
-        <h1 className="mt-1 text-3xl font-bold leading-tight text-stone-900">{coffee.name}</h1>
+        <h1 className="mt-1 text-3xl font-bold leading-tight text-ink">{coffee.name}</h1>
         {actions}
 
-        <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-stone-200">
+        <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-neutral-200">
           {facts.map(([label, value]) => (
             <div key={label}>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">{label}</dt>
-              <dd className="mt-0.5 font-medium text-stone-900">{value}</dd>
+              <dt className="text-xs uppercase tracking-wide text-neutral-500">{label}</dt>
+              <dd className="mt-0.5 font-medium text-ink">{value}</dd>
             </div>
           ))}
         </dl>
 
         {coffee.flavorNotes.length > 0 && (
           <div className="mt-6">
-            <h2 className="text-sm font-semibold text-stone-700">{t(locale, "coffee.flavorNotes")}</h2>
+            <h2 className="text-sm font-semibold text-neutral-700">{t(locale, "coffee.flavorNotes")}</h2>
             <ul className="mt-2 flex flex-wrap gap-2">
               {coffee.flavorNotes.map((note) => (
                 <li key={note}>
                   <Link
                     href={`/coffees?flavor=${encodeURIComponent(note)}`}
-                    className="inline-block rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100"
+                    className="inline-block rounded-full bg-white px-3 py-1 text-sm text-ink ring-1 ring-neutral-300 hover:bg-neutral-100"
                   >
                     {note}
                   </Link>
@@ -76,18 +76,18 @@ export function CoffeeDetailView({
         )}
 
         {coffee.description && (
-          <p className="mt-6 whitespace-pre-line leading-relaxed text-stone-700">{coffee.description}</p>
+          <p className="mt-6 whitespace-pre-line leading-relaxed text-neutral-700">{coffee.description}</p>
         )}
 
         <section className="mt-8" aria-labelledby="variants-heading">
-          <h2 id="variants-heading" className="text-lg font-bold text-stone-900">
+          <h2 id="variants-heading" className="text-lg font-bold text-ink">
             {t(locale, "coffee.variants")}
           </h2>
           {coffee.variants.length === 0 ? (
-            <p className="mt-2 text-stone-500">{t(locale, "coffee.noVariants")}</p>
+            <p className="mt-2 text-neutral-500">{t(locale, "coffee.noVariants")}</p>
           ) : (
-            <table className="mt-3 w-full overflow-hidden rounded-2xl bg-white text-left text-sm ring-1 ring-stone-200">
-              <thead className="bg-stone-50 text-stone-500">
+            <table className="mt-3 w-full overflow-hidden rounded-2xl bg-white text-left text-sm ring-1 ring-neutral-200">
+              <thead className="bg-neutral-50 text-neutral-500">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t(locale, "coffee.grind")}</th>
                   <th className="px-4 py-2 font-medium">{t(locale, "coffee.weight")}</th>
@@ -95,9 +95,9 @@ export function CoffeeDetailView({
                   <th className="px-4 py-2 font-medium">{t(locale, "coffee.stock")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-neutral-100">
                 {coffee.variants.map((v) => (
-                  <tr key={v.id} className={v.isAvailable ? "" : "text-stone-400"}>
+                  <tr key={v.id} className={v.isAvailable ? "" : "text-neutral-400"}>
                     <td className="px-4 py-2">{t(locale, `grind.${v.grind}`)}</td>
                     <td className="px-4 py-2">{v.weightG} g</td>
                     <td className="px-4 py-2">
@@ -113,13 +113,13 @@ export function CoffeeDetailView({
             </table>
           )}
           {/* Stage 1 is discovery only — cart & ECPay checkout land in Stage 2. */}
-          <p className="mt-3 rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">
+          <p className="mt-3 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-600">
             {t(locale, "coffee.checkoutSoon")}
           </p>
         </section>
 
-        <aside className="mt-8 flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-stone-200">
-          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 text-xl">
+        <aside className="mt-8 flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-neutral-200">
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-xl">
             {coffee.shop.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={coffee.shop.logoUrl} alt="" className="h-full w-full object-cover" />
@@ -128,12 +128,12 @@ export function CoffeeDetailView({
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-stone-500">{t(locale, "coffee.soldBy")}</p>
-            <p className="truncate font-semibold text-stone-900">{coffee.shop.name}</p>
+            <p className="text-xs text-neutral-500">{t(locale, "coffee.soldBy")}</p>
+            <p className="truncate font-semibold text-ink">{coffee.shop.name}</p>
           </div>
           <Link
             href={`/shops/${coffee.shop.slug}`}
-            className="shrink-0 rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500"
+            className="shrink-0 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500"
           >
             {t(locale, "coffee.visitShop")}
           </Link>
@@ -148,7 +148,7 @@ function Per100g({ locale, priceTwd, weightG }: { locale: Locale; priceTwd: numb
   const per100 = pricePer100g(priceTwd, weightG);
   if (per100 === null || weightG === 100) return null;
   return (
-    <span className="block text-xs font-normal text-stone-500">
+    <span className="block text-xs font-normal text-neutral-500">
       {t(locale, "coffee.per100g", { price: formatTWD(per100) })}
     </span>
   );

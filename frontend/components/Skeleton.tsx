@@ -1,6 +1,6 @@
 import { t, type Locale } from "@/lib/i18n/dict";
 
-const block = "animate-pulse rounded-2xl bg-stone-200/70";
+const block = "animate-pulse rounded-2xl bg-neutral-200/70";
 
 /** Screen-reader status for a loading page; the grey blocks are decorative. */
 function Status({ locale }: { locale: Locale }) {

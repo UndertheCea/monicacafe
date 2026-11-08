@@ -33,9 +33,9 @@ export function NotFoundState({
       <p aria-hidden className="text-5xl">
         ☕
       </p>
-      <h1 className="mt-4 text-2xl font-bold text-stone-900">{title}</h1>
-      <p className="mt-2 text-stone-600">{body}</p>
-      <Link href={backHref} className="mt-6 inline-block text-sm font-medium text-amber-700 hover:underline">
+      <h1 className="mt-4 text-2xl font-bold text-ink">{title}</h1>
+      <p className="mt-2 text-neutral-600">{body}</p>
+      <Link href={backHref} className="mt-6 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
         {backLabel}
       </Link>
     </div>

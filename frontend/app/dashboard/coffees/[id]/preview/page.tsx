@@ -13,7 +13,7 @@ export default async function CoffeePreviewPage({ params }: { params: Promise<{ 
   const locale = await getLocale();
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <Link href={`/dashboard/coffees/${id}`} className="text-sm font-medium text-amber-700 hover:underline">
+      <Link href={`/dashboard/coffees/${id}`} className="text-sm font-medium text-ink underline-offset-4 hover:underline">
         {t(locale, "preview.back")}
       </Link>
       <CoffeePreview coffeeId={id} locale={locale} />

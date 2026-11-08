@@ -40,16 +40,16 @@ export function CoffeeGallery({
   }
 
   const btn =
-    "rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-stone-700 shadow ring-1 ring-stone-200 hover:bg-white disabled:opacity-40";
+    "rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-neutral-700 shadow ring-1 ring-neutral-200 hover:bg-white disabled:opacity-40";
 
   return (
-    <section className="rounded-2xl bg-white p-4 ring-1 ring-stone-200 sm:p-6">
-      <h3 className="font-bold text-stone-900">{t(locale, "img.galleryTitle")}</h3>
-      <p className="mt-1 text-sm text-stone-500">{t(locale, "img.galleryHint", { max: MAX_COFFEE_IMAGES })}</p>
+    <section className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+      <h3 className="font-bold text-ink">{t(locale, "img.galleryTitle")}</h3>
+      <p className="mt-1 text-sm text-neutral-500">{t(locale, "img.galleryHint", { max: MAX_COFFEE_IMAGES })}</p>
       {urls.length > 0 && (
         <ol className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {urls.map((src, i) => (
-            <li key={src} className="relative aspect-square overflow-hidden rounded-xl bg-stone-100 ring-1 ring-stone-200">
+            <li key={src} className="relative aspect-square overflow-hidden rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
@@ -57,7 +57,7 @@ export function CoffeeGallery({
                 className="h-full w-full object-cover"
               />
               {i === 0 && (
-                <span className="absolute left-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-stone-900">
+                <span className="absolute left-2 top-2 rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">
                   {t(locale, "img.cover")}
                 </span>
               )}
@@ -105,7 +105,7 @@ export function CoffeeGallery({
             onUploaded={(u) => save([...urls, u])}
           />
         ) : (
-          <p className="text-sm text-stone-500">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>
+          <p className="text-sm text-neutral-500">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>
         )}
       </div>
       {error && (

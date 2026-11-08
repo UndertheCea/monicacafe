@@ -19,8 +19,8 @@ interface Props {
 }
 
 const fieldCls =
-  "mt-1 block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500";
-const labelCls = "block text-xs font-semibold uppercase tracking-wide text-stone-500";
+  "mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+const labelCls = "block text-xs font-semibold uppercase tracking-wide text-neutral-500";
 
 // Plain GET form: works without JavaScript and keeps filters in the URL.
 export function FilterSidebar({ locale, filter, sort, origins, varieties, methods }: Props) {
@@ -29,8 +29,8 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
   for (const o of origins) regions.set(o.region, [...(regions.get(o.region) ?? []), o]);
 
   return (
-    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-stone-200">
-      <h2 className="text-base font-bold text-stone-900">{t(locale, "filter.title")}</h2>
+    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
+      <h2 className="text-base font-bold text-ink">{t(locale, "filter.title")}</h2>
 
       <label className="block">
         <span className={labelCls}>{t(locale, "filter.search")}</span>
@@ -101,14 +101,14 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
           {(["", ...ROAST_LEVELS] as const).map((r) => (
             <label
               key={r || "any"}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-stone-200 px-2 py-1.5 text-sm has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50"
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm has-[:checked]:border-ink has-[:checked]:bg-neutral-100"
             >
               <input
                 type="radio"
                 name="roast"
                 value={r}
                 defaultChecked={(filter.roastLevel ?? "") === r}
-                className="accent-amber-600"
+                className="accent-ink"
               />
               {r ? t(locale, `roast.${r}`) : t(locale, "filter.any")}
             </label>
@@ -142,7 +142,7 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
             aria-label={t(locale, "filter.min")}
             className={fieldCls}
           />
-          <span className="text-stone-400">–</span>
+          <span className="text-neutral-400">–</span>
           <input
             type="number"
             name="max"
@@ -157,13 +157,13 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         </div>
       </fieldset>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-700">
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
         <input
           type="checkbox"
           name="instock"
           value="1"
           defaultChecked={filter.inStock === true}
-          className="h-4 w-4 accent-amber-600"
+          className="h-4 w-4 accent-ink"
         />
         {t(locale, "filter.inStock")}
       </label>
@@ -171,13 +171,13 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
       <div className="flex gap-2">
         <button
           type="submit"
-          className="flex-1 rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700"
+          className="flex-1 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
         >
           {t(locale, "filter.apply")}
         </button>
         <Link
           href="/coffees"
-          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-500"
+          className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:border-neutral-500"
         >
           {t(locale, "filter.reset")}
         </Link>

@@ -89,7 +89,7 @@ export function ImageUploader({
         type="button"
         disabled={disabled || busy}
         onClick={() => input.current?.click()}
-        className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500 disabled:opacity-40"
+        className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-40"
       >
         {busy ? t(locale, "img.uploading", { pct: progress ?? 0 }) : label}
       </button>
@@ -99,12 +99,12 @@ export function ImageUploader({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={progress ?? 0}
-          className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-stone-200"
+          className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-neutral-200"
         >
-          <div className="h-full bg-amber-500 transition-[width]" style={{ width: `${progress}%` }} />
+          <div className="h-full bg-ink transition-[width]" style={{ width: `${progress}%` }} />
         </div>
       )}
-      <p className="mt-1 text-xs text-stone-500">{t(locale, "img.hint", { mb: MAX_IMAGE_BYTES / 1024 / 1024 })}</p>
+      <p className="mt-1 text-xs text-neutral-500">{t(locale, "img.hint", { mb: MAX_IMAGE_BYTES / 1024 / 1024 })}</p>
       {error && (
         <p role="alert" className="mt-1 text-xs text-red-600">
           {t(locale, error.key, { mb: MAX_IMAGE_BYTES / 1024 / 1024, ...error.vars })}

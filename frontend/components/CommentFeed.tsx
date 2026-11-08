@@ -75,57 +75,57 @@ export function CommentFeed({
 
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="text-xl font-bold text-stone-900">
+      <h2 id={id} className="text-xl font-bold text-ink">
         {t(locale, title)}
         {s.state === "ready" && s.page.total > 0 && (
-          <span className="ml-2 text-sm font-normal text-stone-500">
+          <span className="ml-2 text-sm font-normal text-neutral-500">
             {t(locale, "comments.count", { n: s.page.total })}
           </span>
         )}
       </h2>
 
-      {s.state === "loading" && <p className="mt-4 text-sm text-stone-500">{t(locale, "dash.loading")}</p>}
+      {s.state === "loading" && <p className="mt-4 text-sm text-neutral-500">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
         <p role="alert" className="mt-4 text-sm text-red-700">
           {t(locale, "dash.error.generic")}
         </p>
       )}
       {s.state === "ready" && s.page.nodes.length === 0 && (
-        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-stone-500 ring-1 ring-stone-200">
+        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-neutral-500 ring-1 ring-neutral-200">
           {t(locale, empty)}
         </p>
       )}
       {s.state === "ready" && s.page.nodes.length > 0 && (
-        <ul className="mt-4 divide-y divide-stone-100 rounded-2xl bg-white ring-1 ring-stone-200">
+        <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
           {s.page.nodes.map((c) => {
             const href = commentCoffeeHref(c.coffee);
             return (
               <li key={c.id} className="p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
-                  <span className="min-w-0 text-stone-500">
+                  <span className="min-w-0 text-neutral-500">
                     {showAuthor && (
                       <>
-                        <span className="font-semibold text-stone-800">{c.user.displayName}</span>
+                        <span className="font-semibold text-neutral-800">{c.user.displayName}</span>
                         <AuthorBadge comment={c} locale={locale} />
                         {" · "}
                       </>
                     )}
                     {href && c.coffee ? (
-                      <Link href={href} className="font-medium text-amber-700 hover:underline">
+                      <Link href={href} className="font-medium text-ink underline-offset-4 hover:underline">
                         {c.coffee.name}
                       </Link>
                     ) : (
                       <span>{t(locale, "comments.coffeeHidden")}</span>
                     )}
                     {c.coffee && !c.coffee.isPublished && (
-                      <span className="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600">
+                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                         {t(locale, "dash.draft")}
                       </span>
                     )}
                   </span>
                   <span className="flex items-baseline gap-3">
                     <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={removed} />
-                    <time dateTime={c.createdAt} className="text-xs text-stone-400">
+                    <time dateTime={c.createdAt} className="text-xs text-neutral-400">
                       {formatTaipeiDate(c.createdAt, locale)}
                     </time>
                   </span>
@@ -153,7 +153,7 @@ export function CommentFeed({
               type="button"
               disabled={s.more === "loading"}
               onClick={() => void loadMore()}
-              className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500 disabled:opacity-50"
+              className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-50"
             >
               {t(locale, s.more === "loading" ? "comments.loadingMore" : "comments.more")}
             </button>

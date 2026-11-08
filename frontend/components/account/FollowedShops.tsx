@@ -73,23 +73,23 @@ export function FollowedShops({ locale }: { locale: Locale }) {
 
   return (
     <section aria-labelledby="followed-shops">
-      <h2 id="followed-shops" className="text-xl font-bold text-stone-900">
+      <h2 id="followed-shops" className="text-xl font-bold text-ink">
         {t(locale, "account.followedShops")}
         {s.state === "ready" && s.list.total > 0 && (
-          <span className="ml-2 text-sm font-normal text-stone-500">{t(locale, "shops.count", { n: s.list.total })}</span>
+          <span className="ml-2 text-sm font-normal text-neutral-500">{t(locale, "shops.count", { n: s.list.total })}</span>
         )}
       </h2>
 
-      {s.state === "loading" && <p className="mt-4 text-sm text-stone-500">{t(locale, "dash.loading")}</p>}
+      {s.state === "loading" && <p className="mt-4 text-sm text-neutral-500">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
         <p role="alert" className="mt-4 text-sm text-red-700">
           {t(locale, "dash.error.generic")}
         </p>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && (
-        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-stone-500 ring-1 ring-stone-200">
+        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-neutral-500 ring-1 ring-neutral-200">
           {t(locale, "account.noFollowed")}{" "}
-          <Link href="/shops" className="font-semibold text-amber-700 hover:underline">
+          <Link href="/shops" className="font-semibold text-ink underline-offset-4 hover:underline">
             {t(locale, "account.browseShops")}
           </Link>
         </p>
@@ -100,10 +100,10 @@ export function FollowedShops({ locale }: { locale: Locale }) {
         </p>
       )}
       {s.state === "ready" && s.list.nodes.length > 0 && (
-        <ul className="mt-4 divide-y divide-stone-100 rounded-2xl bg-white ring-1 ring-stone-200">
+        <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
           {s.list.nodes.map((sh) => (
             <li key={sh.id} className="flex items-center gap-4 p-4">
-              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-50">
+              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white">
                 {sh.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={sh.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
@@ -114,10 +114,10 @@ export function FollowedShops({ locale }: { locale: Locale }) {
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <Link href={`/shops/${encodeURIComponent(sh.slug)}`} className="font-semibold text-stone-900 hover:text-amber-700">
+                <Link href={`/shops/${encodeURIComponent(sh.slug)}`} className="font-semibold text-ink hover:text-ink hover:underline underline-offset-4">
                   {sh.name}
                 </Link>
-                <p className="truncate text-sm text-stone-500">
+                <p className="truncate text-sm text-neutral-500">
                   {[sh.city, t(locale, "shops.coffeesCount", { n: sh.coffeeCount })].filter(Boolean).join(" · ")}
                 </p>
               </div>
@@ -126,7 +126,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
                 onClick={() => unfollow(sh.id)}
                 disabled={removing !== null}
                 aria-label={t(locale, "account.unfollowNamed", { name: sh.name })}
-                className="shrink-0 rounded-full px-3 py-1 text-sm text-stone-600 ring-1 ring-stone-300 hover:bg-stone-50 disabled:opacity-60"
+                className="shrink-0 rounded-full px-3 py-1 text-sm text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-50 disabled:opacity-60"
               >
                 {removing === sh.id ? t(locale, "account.removing") : t(locale, "account.unfollow")}
               </button>
@@ -140,7 +140,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
             type="button"
             onClick={loadMore}
             disabled={s.more === "loading"}
-            className="rounded-full px-5 py-2 text-sm font-semibold text-stone-700 ring-1 ring-stone-300 hover:bg-stone-50 disabled:opacity-60"
+            className="rounded-full px-5 py-2 text-sm font-semibold text-neutral-700 ring-1 ring-neutral-300 hover:bg-neutral-50 disabled:opacity-60"
           >
             {s.more === "loading" ? t(locale, "dash.loading") : t(locale, "account.moreFollowed")}
           </button>

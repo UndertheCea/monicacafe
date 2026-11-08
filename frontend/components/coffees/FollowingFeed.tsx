@@ -34,12 +34,12 @@ export function FollowingFeed({ locale }: { locale: Locale }) {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h2 id="following" className="text-2xl font-bold text-stone-900">
+            <h2 id="following" className="text-2xl font-bold text-ink">
               {t(locale, "home.following")}
             </h2>
-            <p className="mt-1 text-stone-600">{t(locale, "home.followingSub")}</p>
+            <p className="mt-1 text-neutral-600">{t(locale, "home.followingSub")}</p>
           </div>
-          <Link href="/account#followed-shops" className="shrink-0 text-sm font-medium text-amber-700 hover:underline">
+          <Link href="/account#followed-shops" className="shrink-0 text-sm font-medium text-ink underline-offset-4 hover:underline">
             {t(locale, "home.followingManage")}
           </Link>
         </div>

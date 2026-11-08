@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
-:root {
-  --color-brand-espresso: #2c1810;
-  --color-brand-mocha: #6b3a2a;
-  --color-brand-caramel: #c8956c;
-  --color-brand-cream: #f5ede4;
-  --color-brand-sage: #7a8c6e;
+/*
+ * Moni Cafe palette (#109): a white page with black type and nothing else.
+ * Every accent in the UI is one of these tokens (`text-ink`, `bg-paper`, `ring-ink`, …) or a neutral grey;
+ * the only other colour is the soft Radix tile behind a coffee without a photo (lib/coffeeTile.ts) and
+ * red for error alerts. Change the look here, in one place.
+ */
+@theme {
+  --color-ink: #111111;
+  --color-paper: #ffffff;
+  --color-muted: #6b6b6b;
+  --color-line: #e5e5e5;
 }
 
 @layer base {
@@ -18,7 +23,20 @@
   }
 
   body {
-    @apply bg-stone-50 text-stone-900 antialiased;
+    @apply bg-paper text-ink antialiased;
     font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  /* Keyboard focus stays clearly visible on white: a black outline, offset from the element. */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* SEY-style small caps label: "GEISHA · NATURAL · 巴拿馬". */
+  .label-caps {
+    @apply text-[0.6875rem] font-medium uppercase tracking-[0.18em];
   }
 }

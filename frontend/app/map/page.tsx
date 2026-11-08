@@ -26,10 +26,10 @@ export default async function MapPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-stone-900">{t(locale, "map.title")}</h1>
-        <p className="mt-2 text-stone-600">{t(locale, "map.subtitle")}</p>
+        <h1 className="text-3xl font-bold text-ink">{t(locale, "map.title")}</h1>
+        <p className="mt-2 text-neutral-600">{t(locale, "map.subtitle")}</p>
       </header>
-      <p className="mb-4 text-sm text-stone-500">{t(locale, "map.count", { n: located })}</p>
+      <p className="mb-4 text-sm text-neutral-500">{t(locale, "map.count", { n: located })}</p>
 
       <ShopMap
         pins={pins}
@@ -40,26 +40,26 @@ export default async function MapPage() {
 
       {/* Text list: the accessible, no-JS equivalent of the map. */}
       <section className="mt-10" aria-labelledby="map-list">
-        <h2 id="map-list" className="mb-4 text-xl font-bold text-stone-900">
+        <h2 id="map-list" className="mb-4 text-xl font-bold text-ink">
           {t(locale, "map.listTitle")}
         </h2>
         {pins.length === 0 ? (
-          <p className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+          <p className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
             {t(locale, "map.empty")}
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {groupByCity(pins).map(([city, list]) => (
-              <div key={city} className="rounded-2xl bg-white p-5 ring-1 ring-stone-200">
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-amber-700">{city}</h3>
+              <div key={city} className="rounded-2xl bg-white p-5 ring-1 ring-neutral-200">
+                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink">{city}</h3>
                 <ul className="space-y-2">
                   {list.map((p) => (
                     <li key={p.id} className="flex items-baseline justify-between gap-3">
-                      <Link href={`/shops/${p.slug}`} className="font-medium text-stone-900 hover:text-amber-700">
+                      <Link href={`/shops/${p.slug}`} className="font-medium text-ink hover:text-ink hover:underline underline-offset-4">
                         {p.name}
                       </Link>
                       {!hasCoords(p) && (
-                        <span className="shrink-0 text-xs text-stone-400">{t(locale, "map.noLocation")}</span>
+                        <span className="shrink-0 text-xs text-neutral-400">{t(locale, "map.noLocation")}</span>
                       )}
                     </li>
                   ))}

@@ -8,8 +8,8 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
   const img = coffee.imageUrls[0];
 
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-stone-200 transition hover:shadow-md focus-within:ring-2 focus-within:ring-amber-500">
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-amber-100 via-stone-100 to-stone-200">
+    <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 transition hover:shadow-md focus-within:ring-2 focus-within:ring-ink">
+      <div className="relative aspect-[4/3] bg-neutral-100">
         {img ? (
           // Seller-uploaded images come from arbitrary hosts in Stage 1.
           // eslint-disable-next-line @next/next/no-img-element
@@ -19,23 +19,23 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
             ☕
           </span>
         )}
-        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-stone-700">
+        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
           {t(locale, `roast.${coffee.roastLevel}`)}
         </span>
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <p className="text-xs text-stone-500">
+        <p className="text-xs text-neutral-500">
           {coffee.shop.name}
           {coffee.shop.city && ` · ${coffee.shop.city}`}
         </p>
-        <h3 className="mt-1 text-base font-bold leading-snug text-stone-900">
+        <h3 className="mt-1 text-base font-bold leading-snug text-ink">
           {/* Stretched link: the whole card is clickable, one tab stop. */}
           <Link href={`/coffees/${coffee.id}`} className="after:absolute after:inset-0 focus:outline-none">
             {coffee.name}
           </Link>
         </h3>
-        <p className="mt-1 text-sm text-stone-600">
+        <p className="label-caps mt-2 text-muted">
           {pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
           {" · "}
           {pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
@@ -45,7 +45,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
         {coffee.flavorNotes.length > 0 && (
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {coffee.flavorNotes.slice(0, 4).map((note) => (
-              <li key={note} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-800 ring-1 ring-amber-200">
+              <li key={note} className="rounded-full bg-white px-2 py-0.5 text-xs text-ink ring-1 ring-neutral-300">
                 {note}
               </li>
             ))}
@@ -53,10 +53,10 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
         )}
 
         <div className="mt-auto flex items-end justify-between pt-4">
-          <span className={price === null ? "text-sm text-stone-400" : "text-base font-bold text-stone-900"}>
+          <span className={price === null ? "text-sm text-neutral-400" : "text-base font-bold text-ink"}>
             {price === null ? t(locale, "coffees.soldOut") : t(locale, "coffees.from", { price: formatTWD(price) })}
           </span>
-          <span className="text-xs text-stone-400">{t(locale, "coffees.comments", { n: coffee.commentCount })}</span>
+          <span className="text-xs text-neutral-400">{t(locale, "coffees.comments", { n: coffee.commentCount })}</span>
         </div>
       </div>
     </article>

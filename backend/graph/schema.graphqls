@@ -483,6 +483,9 @@ input CoffeeFilter {
   maxPriceTwd: Int
   # true: only coffees with at least one available, in-stock variant.
   inStock: Boolean
+  # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
+  # only OMNI. Coffees without a brew method never match.
+  brewMethod: BrewMethod
 }
 
 input AddCommentInput {

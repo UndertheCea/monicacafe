@@ -160,6 +160,18 @@ func toBrewMethod(s *string) *model.BrewMethod {
 	return &m
 }
 
+// brewMethodsMatching lists the stored brew methods a buyer asking for m
+// should see: an omni roast suits filter and espresso alike, but asking for
+// omni means "works both ways", so it matches only OMNI.
+func brewMethodsMatching(m model.BrewMethod) []string {
+	switch m {
+	case model.BrewMethodFilter, model.BrewMethodEspresso:
+		return []string{string(m), string(model.BrewMethodOmni)}
+	default:
+		return []string{string(m)}
+	}
+}
+
 // brewMethodParam validates an optional brew method for the store; nil stays
 // nil (not given).
 func brewMethodParam(m *model.BrewMethod) (*string, error) {
@@ -745,6 +757,12 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		out.MaxPriceTWD = &v
 	}
 	out.InStock = f.InStock != nil && *f.InStock
+	if f.BrewMethod != nil {
+		if !f.BrewMethod.IsValid() {
+			return out, errBadInput("brewMethod", "invalid brew method")
+		}
+		out.BrewMethods = brewMethodsMatching(*f.BrewMethod)
+	}
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")
 	}

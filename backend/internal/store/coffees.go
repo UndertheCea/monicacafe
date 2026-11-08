@@ -85,6 +85,8 @@ type CoffeeFilter struct {
 	MaxPriceTWD *int64
 	// InStock keeps only coffees with an available variant that has stock.
 	InStock bool
+	// BrewMethods keeps coffees whose brew_method is any of these (nil = all).
+	BrewMethods []string
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -136,6 +138,9 @@ func (f CoffeeFilter) where() (string, []any) {
 		}
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND "+
 			strings.Join(priceConds, " AND ")+")")
+	}
+	if len(f.BrewMethods) > 0 {
+		add("c.brew_method = ANY($%d)", f.BrewMethods)
 	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")

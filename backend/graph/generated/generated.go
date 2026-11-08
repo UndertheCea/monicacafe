@@ -2062,6 +2062,9 @@ input CoffeeFilter {
   maxPriceTwd: Int
   # true: only coffees with at least one available, in-stock variant.
   inStock: Boolean
+  # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
+  # only OMNI. Coffees without a brew method never match.
+  brewMethod: BrewMethod
 }
 
 input AddCommentInput {
@@ -13445,7 +13448,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13515,6 +13518,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.InStock = data
+		case "brewMethod":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("brewMethod"))
+			data, err := ec.unmarshalOBrewMethod2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐBrewMethod(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.BrewMethod = data
 		}
 	}
 

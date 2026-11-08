@@ -502,3 +502,29 @@ func TestBrewMethodParam(t *testing.T) {
 		t.Fatal("an unknown stored value should read as not given")
 	}
 }
+
+func TestBrewMethodsMatching(t *testing.T) {
+	for _, tt := range []struct {
+		in   model.BrewMethod
+		want []string
+	}{
+		{model.BrewMethodFilter, []string{"FILTER", "OMNI"}},
+		{model.BrewMethodEspresso, []string{"ESPRESSO", "OMNI"}},
+		{model.BrewMethodOmni, []string{"OMNI"}},
+	} {
+		if got := brewMethodsMatching(tt.in); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("brewMethodsMatching(%s) = %v, want %v", tt.in, got, tt.want)
+		}
+		f, err := storeFilter(&model.CoffeeFilter{BrewMethod: &tt.in})
+		if err != nil || !reflect.DeepEqual(f.BrewMethods, tt.want) {
+			t.Errorf("storeFilter brewMethod %s: %v %v", tt.in, f.BrewMethods, err)
+		}
+	}
+	bad := model.BrewMethod("COLD_BREW")
+	if _, err := storeFilter(&model.CoffeeFilter{BrewMethod: &bad}); err == nil {
+		t.Error("unknown brew method accepted")
+	}
+	if f, _ := storeFilter(&model.CoffeeFilter{}); f.BrewMethods != nil {
+		t.Errorf("no brew method should mean no filter, got %v", f.BrewMethods)
+	}
+}

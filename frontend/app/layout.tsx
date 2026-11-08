@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { pageTitle } from "@/lib/brand";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 
@@ -17,10 +18,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// The wordmark's heavy italic grotesque (#110); self-hosted by next/font, so the CSP needs no font host.
+const wordmarkFont = Inter_Tight({
+  variable: "--font-inter-tight",
+  subsets: ["latin"],
+  weight: ["800"],
+  style: ["italic"],
+});
+
 export const metadata: Metadata = {
   title: {
-    default: "MONI CAFE — 台灣精品咖啡市集",
-    template: "%s | MONI CAFE",
+    default: pageTitle(undefined, "台灣精品咖啡市集"),
+    template: pageTitle("%s", ""),
   },
   description: "探索台灣烘豆師的精品咖啡 · Discover specialty coffee from Taiwan's roasters.",
   keywords: ["精品咖啡", "咖啡豆", "台灣烘豆", "specialty coffee", "Taiwan roasters"],
@@ -34,7 +43,7 @@ export default async function RootLayout({
   const locale = await getLocale();
   return (
     <html lang={locale}>
-      <body className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col font-sans`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${wordmarkFont.variable} flex min-h-screen flex-col font-sans`}>
         {/* First focusable element: lets keyboard / screen-reader users jump past the header. */}
         <a
           href="#main"

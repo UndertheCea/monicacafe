@@ -33,7 +33,7 @@ export default async function HomePage() {
           </p>
           <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-ink md:text-6xl">
             {t(locale, "home.title")}
-            <span className="italic">{t(locale, "home.titleAccent")}</span>
+            <span className="font-normal">{t(locale, "home.titleAccent")}</span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-muted">{t(locale, "home.lead")}</p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

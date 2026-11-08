@@ -13,6 +13,11 @@
   --color-line: #e5e5e5;
 }
 
+/* The wordmark face, loaded by next/font in app/layout.tsx (inline: the variable is set on <body>). */
+@theme inline {
+  --font-wordmark: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+}
+
 @layer base {
   * {
     @apply box-border;

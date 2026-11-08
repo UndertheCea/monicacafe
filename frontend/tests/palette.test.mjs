@@ -21,10 +21,10 @@ function sources(dir) {
 
 const files = [...sources(join(root, "app")), ...sources(join(root, "components"))];
 
-// Accent hues that read as "yellow and black" or decoration. Red stays: it means an error.
-const BANNED = /\b(?:[a-z-]+:)*(?:bg|text|ring|border|from|via|to|accent|fill|stroke|outline|decoration|shadow)-(?:amber|yellow|orange|lime|stone)-\d{2,3}\b|gradient/;
+// Every Tailwind hue except neutral (greys) and red (errors mean something). Black / white / ink / paper are fine.
+const BANNED = /\b(?:[a-z-]+:)*(?:bg|text|ring|border|from|via|to|accent|fill|stroke|outline|decoration|shadow)-(?:amber|yellow|orange|lime|stone|emerald|green|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc)-\d{2,3}\b|gradient/;
 
-test("no amber / yellow / stone utilities and no gradients in app/ or components/", () => {
+test("no colour utilities (only neutral, black, white and error red) and no gradients in app/ or components/", () => {
   const offenders = [];
   for (const p of files) {
     readFileSync(p, "utf8")

@@ -95,7 +95,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
           aria-pressed={state.saved}
           className={
             state.saved
-              ? `${pillCls} bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100`
+              ? `${pillCls} bg-ink text-white ring-ink hover:bg-neutral-700`
               : `${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`
           }
         >

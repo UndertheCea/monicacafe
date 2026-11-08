@@ -30,7 +30,7 @@ const labelCls = "block text-sm font-medium text-neutral-700";
 
 function Saved({ children }: { children: React.ReactNode }) {
   return (
-    <p role="status" className="text-sm text-emerald-700">
+    <p role="status" className="text-sm text-ink">
       {children}
     </p>
   );

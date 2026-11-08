@@ -239,7 +239,7 @@ function VariantRow({
         </div>
       </div>
       {msg && (
-        <p role={msg.ok ? "status" : "alert"} className={`mt-2 text-xs ${msg.ok ? "text-emerald-700" : "text-red-600"}`}>
+        <p role={msg.ok ? "status" : "alert"} className={`mt-2 text-xs ${msg.ok ? "text-ink" : "text-red-600"}`}>
           {t(locale, msg.key)}
         </p>
       )}

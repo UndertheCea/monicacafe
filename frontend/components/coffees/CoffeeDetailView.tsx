@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
-import { provenanceFacts } from "@/lib/provenance";
+import { originLine, provenanceFacts } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { PhotoGallery } from "./PhotoGallery";
@@ -46,7 +46,10 @@ export function CoffeeDetailView({
             name={coffee.name}
             variety={coffee.variety?.name}
             process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
-            origin={pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
+            origin={originLine({
+              region: coffee.region,
+              country: pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn),
+            })}
           />
         }
       />

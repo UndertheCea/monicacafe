@@ -1,7 +1,7 @@
 // Coffee provenance helpers (lib/provenance.ts) and their JSON-LD. Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { formatAltitude, provenanceFacts } from "../lib/provenance.ts";
+import { formatAltitude, originLine, provenanceFacts } from "../lib/provenance.ts";
 import { coffeeJsonLd } from "../lib/seo.ts";
 
 test("formatAltitude: one height, a range, or nothing", () => {
@@ -56,4 +56,16 @@ test("coffeeJsonLd adds provenance as additionalProperty only when given", () =>
     { "@type": "PropertyValue", name: "Producer", value: "Konga" },
     { "@type": "PropertyValue", name: "Altitude", value: "1,900 m" },
   ]);
+});
+
+test("originLine joins the parts that are set, most specific first", () => {
+  const cases = [
+    [{}, ""],
+    [{ country: "衣索比亞" }, "衣索比亞"],
+    [{ producer: "孔加合作社", region: "Gedeo", country: "衣索比亞" }, "孔加合作社 · Gedeo · 衣索比亞"],
+    [{ producer: " ", region: "Huila", country: "Colombia" }, "Huila · Colombia"],
+    [{ producer: "Finca El Injerto", region: null }, "Finca El Injerto"],
+    [{ producer: "Konga", region: "Gedeo" }, "Konga · Gedeo"],
+  ];
+  for (const [parts, want] of cases) assert.equal(originLine(parts), want, JSON.stringify(parts));
 });

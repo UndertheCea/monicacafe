@@ -43,6 +43,8 @@ export interface CoffeeCardData {
   name: string;
   roastLevel: RoastLevel;
   flavorNotes: string[];
+  producer: string;
+  region: string;
   imageUrls: string[];
   commentCount: number;
   shop: { slug: string; name: string; city: string };
@@ -66,7 +68,7 @@ export const FILTER_OPTIONS = typed<{
 
 /** Fields every CoffeeCard needs (keep in sync with CoffeeCardData). */
 const CARD_FIELDS = `
-  id slug name roastLevel flavorNotes imageUrls commentCount
+  id slug name roastLevel flavorNotes producer region imageUrls commentCount
   shop { slug name city }
   originCountry { nameEn nameZh }
   processingMethod { nameEn nameZh }

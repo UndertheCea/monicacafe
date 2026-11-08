@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { originLine } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 
 export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale: Locale }) {
   const price = fromPrice(coffee);
   const img = coffee.imageUrls[0];
+  const country = pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn);
+  // Producer · region tells two coffees from the same country apart.
+  const source = originLine({ producer: coffee.producer, region: coffee.region });
 
   return (
     <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 transition hover:shadow-md focus-within:ring-2 focus-within:ring-ink">
@@ -21,7 +25,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
             name={coffee.name}
             variety={coffee.variety?.name}
             process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
-            origin={pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
+            origin={originLine({ region: coffee.region, country })}
           />
         )}
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
@@ -40,8 +44,9 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
             {coffee.name}
           </Link>
         </h3>
+        {source && <p className="mt-1 line-clamp-1 text-sm text-neutral-600">{source}</p>}
         <p className="label-caps mt-2 text-muted">
-          {pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
+          {country}
           {" · "}
           {pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
           {coffee.variety && ` · ${coffee.variety.name}`}

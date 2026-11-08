@@ -36,3 +36,16 @@ export function provenanceFacts(p: Provenance): [ProvenanceKey, string][] {
   if (altitude) out.push(["coffee.altitude", altitude]);
   return out;
 }
+
+/**
+ * Where a coffee comes from as one short line, most specific first:
+ * "Producer · Region · Country", skipping blank parts. Cards pass producer +
+ * region (the country is already on the card); the colour tile passes region
+ * + country.
+ */
+export function originLine(parts: { producer?: string | null; region?: string | null; country?: string | null }): string {
+  return [parts.producer, parts.region, parts.country]
+    .map((s) => (s ?? "").trim())
+    .filter(Boolean)
+    .join(" · ");
+}

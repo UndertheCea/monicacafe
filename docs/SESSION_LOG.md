@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 22 — 2026-11-08 — Brew method: filter, espresso or omni
-PR: (this PR)
+PR: #128
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from a gap: specialty roasters label every bag 手沖 / 義式 / 全方位 (filter / espresso /

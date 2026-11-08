@@ -64,6 +64,10 @@ type CreateCoffeeInput struct {
 	ProcessingMethodID string          `json:"processingMethodId"`
 	RoastLevel         RoastLevel      `json:"roastLevel"`
 	FlavorNotes        []string        `json:"flavorNotes,omitempty"`
+	Producer           *string         `json:"producer,omitempty"`
+	Region             *string         `json:"region,omitempty"`
+	AltitudeMinM       *int            `json:"altitudeMinM,omitempty"`
+	AltitudeMaxM       *int            `json:"altitudeMaxM,omitempty"`
 	Variants           []*VariantInput `json:"variants"`
 }
 
@@ -142,6 +146,11 @@ type UpdateCoffeeInput struct {
 	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
 	ClearVariety       *bool       `json:"clearVariety,omitempty"`
+	Producer           *string     `json:"producer,omitempty"`
+	Region             *string     `json:"region,omitempty"`
+	AltitudeMinM       *int        `json:"altitudeMinM,omitempty"`
+	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
+	ClearAltitude      *bool       `json:"clearAltitude,omitempty"`
 	ImageUrls          []string    `json:"imageUrls,omitempty"`
 }
 

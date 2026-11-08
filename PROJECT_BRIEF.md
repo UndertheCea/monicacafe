@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-08 (after Session 20)
+Last updated: 2026-11-08 (after Session 21)
 
 ---
 
@@ -36,9 +36,10 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–009 | Done |
+| DB schema + migrations 001–010 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
+| Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
@@ -65,16 +66,17 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 20** — the owner's new look: white page + black type with palette tokens and no amber / gradients / dark
-hero (#109), the italic "moni cafe" wordmark (#110), SEY-style Radix colour tiles for coffees without photos (#111),
-initials placeholders for shops without logo / banner (#112), and a site icon + favicon (#114, was a 404 on every
-page). Verified with race tests on PostgreSQL, smoke + Playwright screenshots on a local API + Next.
+**Session 21** — coffee provenance: producer, region and growing altitude on every coffee (migration 010, API with
+validation + DB CHECKs, #116), on the dashboard forms (#117), the coffee page, preview and Product JSON-LD (#118), cards
+and colour tiles (#119), and in keyword search, the demo seed and smoke (#120). Verified with race tests on PostgreSQL,
+smoke + a Playwright seller flow on a local API + Next.
 
 ## Current focus
 
 **No pickable slices remain.** Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers
 to #9 (cart storage) and #12 (commission + payouts); #50 (a /shops city filter) and #93 (seller account closure) also
-wait on the owner. Next sessions: take any new owner feedback on the look first, otherwise file real gaps. Production
+wait on the owner. Next sessions: take any new owner feedback first, otherwise file real gaps (e.g. a region /
+altitude filter on /coffees now that coffees carry provenance). Production
 readiness: set `TRUSTED_PROXIES` to the real proxies only, and size `DB_MAX_CONNS` × API instances below Postgres'
 `max_connections`.
 
@@ -155,5 +157,7 @@ Open questions for the owner (answer by commenting on the issue):
   La Cabra / Coffee Collective / Poma; the only colour is the soft Radix tile behind a coffee with no photo (#109–#112).
 - **Follows: public count, private list** — like saves; nobody (the seller included) sees who follows a shop, and
   owners can't follow themselves, so the count means other people (#102).
+- **Provenance as plain columns, altitude in metres, set as a pair** — producer / region are free text (≤ 100) rather than
+  curated lists (farms are too many); altitude min alone = one height; updates replace both ends so max ≥ min holds (#116).
 - **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
   colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).

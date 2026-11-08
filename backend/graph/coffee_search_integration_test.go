@@ -25,11 +25,16 @@ func TestCoffeeSearch(t *testing.T) {
 	}
 	anon.mustDo(`{ originCountries { id nameEn nameZh } processingMethods { id } }`, nil, &refs)
 
-	create := func(name, desc string, notes []string, publish bool) {
+	create := func(name, desc string, notes []string, publish bool, provenance ...string) {
 		var out struct{ CreateCoffee struct{ ID string } }
+		producer, region := "", ""
+		if len(provenance) == 2 {
+			producer, region = provenance[0], provenance[1]
+		}
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
 			map[string]any{"in": map[string]any{
 				"name": name, "description": desc, "roastLevel": "LIGHT", "flavorNotes": notes,
+				"producer": producer, "region": region,
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
 			}}, &out)
@@ -37,9 +42,9 @@ func TestCoffeeSearch(t *testing.T) {
 			seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 		}
 	}
-	create("耶加雪菲 Alpha "+tok, "", []string{"Jasmine", "柑橘"}, true)
-	create("Beta "+tok, "100% washed", nil, true)
-	create("耶加雪菲 Draft "+tok, "", []string{"Jasmine"}, false)
+	create("耶加雪菲 Alpha "+tok, "", []string{"Jasmine", "柑橘"}, true, "孔加合作社", "Gedeo")
+	create("Beta "+tok, "100% washed", nil, true, "Finca El Injerto", "Huehuetenango")
+	create("耶加雪菲 Draft "+tok, "", []string{"Jasmine"}, false, "孔加合作社", "Gedeo")
 
 	const q = `query($f: CoffeeFilter) { coffees(filter: $f, limit: 50) { total nodes { name } } }`
 	search := func(s string) []string {
@@ -76,6 +81,9 @@ func TestCoffeeSearch(t *testing.T) {
 		{tok + " " + origin.NameZh, "Alpha,Beta"},   // origin (zh)
 		{tok + " " + origin.NameEn, "Alpha,Beta"},   // origin (en)
 		{tok + " " + tok + " " + tok, "Alpha,Beta"}, // duplicate words count once
+		{tok + " gedeo", "Alpha"},                   // region (drafts still excluded)
+		{tok + " 孔加", "Alpha"},                      // producer (zh)
+		{tok + " injerto huehue", "Beta"},           // producer + region
 		{tok + " nomatch", ""},
 	} {
 		if got := strings.Join(search(tc.search), ","); got != tc.want {

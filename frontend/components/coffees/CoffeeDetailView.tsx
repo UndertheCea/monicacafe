@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
+import { originLine, provenanceFacts } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { PhotoGallery } from "./PhotoGallery";
@@ -28,6 +29,8 @@ export function CoffeeDetailView({
     [t(locale, "coffee.roast"), t(locale, `roast.${coffee.roastLevel}`)],
   ];
   if (coffee.variety) facts.splice(1, 0, [t(locale, "coffee.variety"), coffee.variety.name]);
+  // Producer / region / altitude follow the origin facts, only when set.
+  for (const [key, value] of provenanceFacts(coffee)) facts.push([t(locale, key), value]);
 
   return (
     <div className="mt-6 grid gap-10 lg:grid-cols-2">
@@ -43,7 +46,10 @@ export function CoffeeDetailView({
             name={coffee.name}
             variety={coffee.variety?.name}
             process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
-            origin={pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
+            origin={originLine({
+              region: coffee.region,
+              country: pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn),
+            })}
           />
         }
       />
@@ -68,7 +74,7 @@ export function CoffeeDetailView({
           {facts.map(([label, value]) => (
             <div key={label}>
               <dt className="text-xs uppercase tracking-wide text-neutral-500">{label}</dt>
-              <dd className="mt-0.5 font-medium text-ink">{value}</dd>
+              <dd className="mt-0.5 break-words font-medium text-ink">{value}</dd>
             </div>
           ))}
         </dl>

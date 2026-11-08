@@ -44,6 +44,12 @@ type Coffee struct {
 	IsPublished        bool
 	CreatedAt          time.Time
 	UpdatedAt          time.Time // also moves when a variant changes (migration 006)
+	// Provenance (migration 010): blank text / nil altitude = not given. A
+	// single growing altitude has only AltitudeMinM.
+	Producer     string
+	Region       string
+	AltitudeMinM *int
+	AltitudeMaxM *int
 }
 
 // Variant is a purchasable size/grind of a coffee.

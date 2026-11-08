@@ -2,10 +2,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  apiDetailsProblem,
   coffeeDetailsPatch,
   coffeeDetailsProblem,
   inTaiwan,
   normaliseShopSlug,
+  parseAltitude,
   parseCoords,
   parseFlavorNotes,
   parseWhole,
@@ -88,6 +90,10 @@ const baseCoffee = {
   varietyId: "v1",
   roastLevel: "LIGHT",
   flavorNotes: ["Jasmine", "Peach"],
+  producer: "Kochere Washing Station",
+  region: "",
+  altitudeMin: "1800",
+  altitudeMax: "2100",
 };
 
 test("coffeeDetailsProblem", () => {
@@ -102,6 +108,12 @@ test("coffeeDetailsProblem", () => {
     [{ flavorNotes: Array.from({ length: 11 }, (_, i) => `n${i}`) }, "notes"],
     [{ flavorNotes: ["香".repeat(31)] }, "notes"],
     [{ flavorNotes: ["香".repeat(30)] }, null],
+    [{ producer: "莊".repeat(100) }, null],
+    [{ region: "區".repeat(101) }, "required"],
+    [{ altitudeMin: "", altitudeMax: "" }, null],
+    [{ altitudeMin: "", altitudeMax: "2000" }, "altitude"],
+    [{ altitudeMin: "2200" }, "altitude"],
+    [{ altitudeMin: "1,900", altitudeMax: "" }, null],
   ];
   for (const [patch, want] of cases) {
     assert.equal(coffeeDetailsProblem({ ...baseCoffee, ...patch }, ROASTS), want, JSON.stringify(patch));
@@ -119,6 +131,14 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     [{ varietyId: null }, { clearVariety: true }],
     [{ flavorNotes: ["Peach", "Jasmine"] }, { flavorNotes: ["Peach", "Jasmine"] }],
     [{ flavorNotes: [] }, { flavorNotes: [] }],
+    [{ producer: " Kochere Washing Station " }, {}],
+    [{ producer: "" }, { producer: "" }],
+    [{ region: " Gedeo " }, { region: "Gedeo" }],
+    [{ altitudeMin: "1,800", altitudeMax: " 2100" }, {}],
+    [{ altitudeMax: "2200" }, { altitudeMinM: 1800, altitudeMaxM: 2200 }],
+    [{ altitudeMin: "1900", altitudeMax: "" }, { altitudeMinM: 1900 }],
+    [{ altitudeMin: "", altitudeMax: "" }, { clearAltitude: true }],
+    [{ altitudeMin: "", altitudeMax: "9" }, {}], // invalid: left to coffeeDetailsProblem
   ];
   for (const [patch, want] of cases) {
     assert.deepEqual(coffeeDetailsPatch(baseCoffee, { ...baseCoffee, ...patch }), want, JSON.stringify(patch));
@@ -189,4 +209,33 @@ test("shopProfilePatch", () => {
     shopProfilePatch({ ...baseShop, lat: null, lng: null }, { ...baseShop, lat: 22.6, lng: 120.3 }),
     { lat: 22.6, lng: 120.3 },
   );
+});
+
+test("parseAltitude mirrors validateAltitude", () => {
+  const cases = [
+    ["", "", { minM: null, maxM: null }],
+    ["  ", " ", { minM: null, maxM: null }],
+    ["1900", "", { minM: 1900, maxM: null }],
+    ["1,800", "2,100", { minM: 1800, maxM: 2100 }],
+    [" 0 ", "", { minM: 0, maxM: null }],
+    ["2000", "2000", { minM: 2000, maxM: 2000 }],
+    ["6000", "6000", { minM: 6000, maxM: 6000 }],
+    ["", "2000", "invalid"],
+    ["2000", "1800", "invalid"],
+    ["6001", "", "invalid"],
+    ["1000", "6001", "invalid"],
+    ["-5", "", "invalid"],
+    ["1800.5", "", "invalid"],
+    ["abc", "", "invalid"],
+  ];
+  for (const [min, max, want] of cases) assert.deepEqual(parseAltitude(min, max), want, `${min}–${max}`);
+});
+
+test("apiDetailsProblem maps the API's field to a form message", () => {
+  assert.equal(apiDetailsProblem("flavorNotes"), "notes");
+  assert.equal(apiDetailsProblem("altitudeMinM"), "altitude");
+  assert.equal(apiDetailsProblem("altitudeMaxM"), "altitude");
+  assert.equal(apiDetailsProblem("clearAltitude"), "altitude");
+  assert.equal(apiDetailsProblem("producer"), "required");
+  assert.equal(apiDetailsProblem(undefined), "required");
 });

@@ -59,6 +59,8 @@ type ComplexityRoot struct {
 	}
 
 	Coffee struct {
+		AltitudeMaxM     func(childComplexity int) int
+		AltitudeMinM     func(childComplexity int) int
 		CommentCount     func(childComplexity int) int
 		Comments         func(childComplexity int, limit *int, offset *int) int
 		CreatedAt        func(childComplexity int) int
@@ -71,6 +73,8 @@ type ComplexityRoot struct {
 		Name             func(childComplexity int) int
 		OriginCountry    func(childComplexity int) int
 		ProcessingMethod func(childComplexity int) int
+		Producer         func(childComplexity int) int
+		Region           func(childComplexity int) int
 		RoastLevel       func(childComplexity int) int
 		SaveCount        func(childComplexity int) int
 		Shop             func(childComplexity int) int
@@ -349,6 +353,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AuthPayload.User(childComplexity), true
 
+	case "Coffee.altitudeMaxM":
+		if e.complexity.Coffee.AltitudeMaxM == nil {
+			break
+		}
+
+		return e.complexity.Coffee.AltitudeMaxM(childComplexity), true
+
+	case "Coffee.altitudeMinM":
+		if e.complexity.Coffee.AltitudeMinM == nil {
+			break
+		}
+
+		return e.complexity.Coffee.AltitudeMinM(childComplexity), true
+
 	case "Coffee.commentCount":
 		if e.complexity.Coffee.CommentCount == nil {
 			break
@@ -437,6 +455,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Coffee.ProcessingMethod(childComplexity), true
+
+	case "Coffee.producer":
+		if e.complexity.Coffee.Producer == nil {
+			break
+		}
+
+		return e.complexity.Coffee.Producer(childComplexity), true
+
+	case "Coffee.region":
+		if e.complexity.Coffee.Region == nil {
+			break
+		}
+
+		return e.complexity.Coffee.Region(childComplexity), true
 
 	case "Coffee.roastLevel":
 		if e.complexity.Coffee.RoastLevel == nil {
@@ -1746,6 +1778,14 @@ type Coffee {
   processingMethod: ProcessingMethod!
   roastLevel: RoastLevel!
   flavorNotes: [String!]!
+  # Provenance: the farm, estate, cooperative or washing station, and the
+  # region inside the origin country. "" when not given.
+  producer: String!
+  region: String!
+  # Growing altitude in metres: one height (altitudeMinM only) or a range.
+  # Both null when not given.
+  altitudeMinM: Int
+  altitudeMaxM: Int
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -1928,6 +1968,12 @@ input CreateCoffeeInput {
   processingMethodId: ID!
   roastLevel: RoastLevel!
   flavorNotes: [String!]
+  # ≤ 100 characters each; blank = not given.
+  producer: String
+  region: String
+  # Metres, 0–6000. altitudeMaxM needs altitudeMinM and must be ≥ it.
+  altitudeMinM: Int
+  altitudeMaxM: Int
   variants: [VariantInput!]!
 }
 
@@ -1941,6 +1987,16 @@ input UpdateCoffeeInput {
   flavorNotes: [String!]
   # true removes the variety (it's optional). Can't be combined with varietyId.
   clearVariety: Boolean
+  # ≤ 100 characters each; "" clears.
+  producer: String
+  region: String
+  # Set together: giving altitudeMinM replaces both (an omitted altitudeMaxM
+  # means a single height). Same rules as CreateCoffeeInput. altitudeMaxM
+  # alone is BAD_USER_INPUT.
+  altitudeMinM: Int
+  altitudeMaxM: Int
+  # true removes the altitude. Can't be combined with altitudeMinM / altitudeMaxM.
+  clearAltitude: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]
@@ -1976,8 +2032,9 @@ input CoffeeFilter {
   roastLevel: RoastLevel
   flavorNote: String
   # Keywords (≤ 100 characters, ≤ 8 words). Every word must appear in the
-  # coffee's name, description, a flavor note, the shop name, or the origin /
-  # variety / process name (zh or en). Case-insensitive; blank is ignored.
+  # coffee's name, description, a flavor note, its producer or region, the shop
+  # name, or the origin / variety / process name (zh or en). Case-insensitive;
+  # blank is ignored.
   search: String
   minPriceTwd: Int
   maxPriceTwd: Int
@@ -4394,6 +4451,176 @@ func (ec *executionContext) fieldContext_Coffee_flavorNotes(_ context.Context, f
 	return fc, nil
 }
 
+func (ec *executionContext) _Coffee_producer(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_producer(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Producer, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_producer(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_region(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_region(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Region, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_region(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_altitudeMinM(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AltitudeMinM, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_altitudeMinM(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Coffee_altitudeMaxM(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AltitudeMaxM, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_altitudeMaxM(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Coffee_imageUrls(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Coffee_imageUrls(ctx, field)
 	if err != nil {
@@ -4670,6 +4897,14 @@ func (ec *executionContext) fieldContext_Coffee_similar(ctx context.Context, fie
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -4987,6 +5222,14 @@ func (ec *executionContext) fieldContext_CoffeeConnection_nodes(_ context.Contex
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -5395,6 +5638,14 @@ func (ec *executionContext) fieldContext_Comment_coffee(_ context.Context, field
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6555,6 +6806,14 @@ func (ec *executionContext) fieldContext_Mutation_createCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6652,6 +6911,14 @@ func (ec *executionContext) fieldContext_Mutation_updateCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6749,6 +7016,14 @@ func (ec *executionContext) fieldContext_Mutation_publishCoffee(ctx context.Cont
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6846,6 +7121,14 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6998,6 +7281,14 @@ func (ec *executionContext) fieldContext_Mutation_duplicateCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -7550,6 +7841,14 @@ func (ec *executionContext) fieldContext_Mutation_saveCoffee(ctx context.Context
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -7644,6 +7943,14 @@ func (ec *executionContext) fieldContext_Mutation_unsaveCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -8528,6 +8835,14 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -8686,6 +9001,14 @@ func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Contex
 				return ec.fieldContext_Coffee_roastLevel(ctx, field)
 			case "flavorNotes":
 				return ec.fieldContext_Coffee_flavorNotes(ctx, field)
+			case "producer":
+				return ec.fieldContext_Coffee_producer(ctx, field)
+			case "region":
+				return ec.fieldContext_Coffee_region(ctx, field)
+			case "altitudeMinM":
+				return ec.fieldContext_Coffee_altitudeMinM(ctx, field)
+			case "altitudeMaxM":
+				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -13118,7 +13441,7 @@ func (ec *executionContext) unmarshalInputCreateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "variants"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "producer", "region", "altitudeMinM", "altitudeMaxM", "variants"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13174,6 +13497,34 @@ func (ec *executionContext) unmarshalInputCreateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.FlavorNotes = data
+		case "producer":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("producer"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Producer = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		case "altitudeMinM":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("altitudeMinM"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AltitudeMinM = data
+		case "altitudeMaxM":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("altitudeMaxM"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AltitudeMaxM = data
 		case "variants":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variants"))
 			data, err := ec.unmarshalNVariantInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInputᚄ(ctx, v)
@@ -13365,7 +13716,7 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety", "imageUrls"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety", "producer", "region", "altitudeMinM", "altitudeMaxM", "clearAltitude", "imageUrls"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13428,6 +13779,41 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.ClearVariety = data
+		case "producer":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("producer"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Producer = data
+		case "region":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("region"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Region = data
+		case "altitudeMinM":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("altitudeMinM"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AltitudeMinM = data
+		case "altitudeMaxM":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("altitudeMaxM"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AltitudeMaxM = data
+		case "clearAltitude":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearAltitude"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearAltitude = data
 		case "imageUrls":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageUrls"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
@@ -13865,6 +14251,20 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "producer":
+			out.Values[i] = ec._Coffee_producer(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "region":
+			out.Values[i] = ec._Coffee_region(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "altitudeMinM":
+			out.Values[i] = ec._Coffee_altitudeMinM(ctx, field, obj)
+		case "altitudeMaxM":
+			out.Values[i] = ec._Coffee_altitudeMaxM(ctx, field, obj)
 		case "imageUrls":
 			out.Values[i] = ec._Coffee_imageUrls(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

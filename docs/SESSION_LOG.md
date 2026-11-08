@@ -15,6 +15,44 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 21 — 2026-11-08 — Coffee provenance: producer, region, growing altitude
+PR: #121
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the five below were filed from a gap in the product: a specialty buyer's first questions — which farm or washing
+station, which region, how high — had nowhere to go but the free-text description; a coffee knew only its country.
+
+### Shipped (one line per slice: area — what — key files)
+- #116 backend — migration 010: `producer` / `region` (TEXT, '' = not given, ≤ 100) and `altitude_min_m` /
+  `altitude_max_m` (0–6000, max needs a min and is ≥ it) with CHECKs; `Coffee.producer / region / altitudeMinM /
+  altitudeMaxM`; create / update inputs (update sets both altitude ends together, `clearAltitude` removes them);
+  `duplicateCoffee` copies them (`validateAltitude`, `cleanProvenance` in `graph/helpers.go`)
+- #117 frontend — dashboard new + edit forms: `ProvenanceFields` (producer, region, lowest / highest altitude);
+  `parseAltitude` mirrors the API ("1,800" accepted), `coffeeDetailsPatch` sends changes / `clearAltitude`,
+  `apiDetailsProblem` maps API fields to messages (`lib/dashboard/validate.ts`)
+- #118 frontend — coffee page (and the draft preview) lists 生產者 / 產區 / 海拔 when set; Product JSON-LD gets
+  `additionalProperty` PropertyValues (`lib/provenance.ts`: `formatAltitude`, `provenanceFacts`)
+- #119 frontend — cards show "Producer · Region" under the name; the colour tile writes "Region · Country"
+  (`originLine`); every card query fetches producer / region via `CARD_FIELDS`
+- #120 cross-cutting — keyword search also matches producer and region; the demo seed gives five coffees provenance;
+  smoke finds the seeded Yirgacheffe by "gedeo" with its altitude; search hint mentions farms
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations
+  001–010 + seed). New: `TestValidateAltitude`, `TestCleanProvenance`, `TestCoffeeProvenance` (create / update / clear /
+  validation / duplicate), provenance cases in `TestCoffeeSearch`. The DB CHECK was confirmed to refuse a max without a min.
+- Frontend: tsc, lint, `npm test` (138), `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + `next start` locally on a fresh DB: `scripts/smoke.sh` all ok (incl. the new provenance search) except
+  the two `/media/` checks (no SeaweedFS / nginx here). Playwright (en): coffee page facts + JSON-LD, cards on /coffees;
+  register → open shop → new coffee with producer / region / "1,900"–1500 (altitude error shown) → –2100 saves → edit
+  form shows the values → clearing region + altitude saves and survives a reload → draft preview lists the producer;
+  no page errors. Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Altitude is metres only (what Taiwan roasters print); a single height is stored as the lowest with no highest.
+- The API sets both altitude ends together on update, so a half-edited range can't leave max < min.
+- No filter by region / altitude yet: search covers region words; a range filter can come if buyers ask.
+
 ## Session 20 — 2026-11-08 — White + black visual direction, wordmark, colour tiles, site icon
 PR: #115
 

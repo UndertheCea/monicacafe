@@ -14,6 +14,8 @@ export const LIMITS = {
   weightG: 10_000,
   priceTwd: 1_000_000,
   stock: 100_000,
+  provenance: 100,
+  altitudeM: 6000,
 } as const;
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -95,17 +97,51 @@ export interface CoffeeDetails {
   varietyId: string | null;
   roastLevel: string;
   flavorNotes: string[];
+  /** Provenance as typed: blank = not given. Altitudes are metres. */
+  producer: string;
+  region: string;
+  altitudeMin: string;
+  altitudeMax: string;
 }
 
-export type CoffeeDetailsProblem = "required" | "notes";
+export type CoffeeDetailsProblem = "required" | "notes" | "altitude";
+
+export type Altitude = { minM: number | null; maxM: number | null };
+
+/**
+ * Parse the altitude boxes (metres; "1,800" and spaces are accepted). Both
+ * blank → not given; the lowest alone → one height; a highest without a
+ * lowest, a non-whole number, a value outside 0–6000 or a highest below the
+ * lowest → "invalid". Mirrors validateAltitude in backend/graph/helpers.go.
+ */
+export function parseAltitude(min: string, max: string): Altitude | "invalid" {
+  const clean = (s: string) => s.replace(/[,，\s]/g, "");
+  const a = clean(min);
+  const b = clean(max);
+  if (!a) return b ? "invalid" : { minM: null, maxM: null };
+  const minM = parseWhole(a, 0, LIMITS.altitudeM);
+  if (minM === null) return "invalid";
+  if (!b) return { minM, maxM: null };
+  const maxM = parseWhole(b, minM, LIMITS.altitudeM);
+  return maxM === null ? "invalid" : { minM, maxM };
+}
 
 /** First problem with a coffee's details, or null. Mirrors the backend checks. */
 export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly string[]): CoffeeDetailsProblem | null {
   const name = d.name.trim();
   if (!name || !d.originCountryId || !d.processingMethodId || !roastLevels.includes(d.roastLevel)) return "required";
   if (runes(name) > LIMITS.coffeeName || runes(d.description.trim()) > LIMITS.coffeeDescription) return "required";
+  if (runes(d.producer.trim()) > LIMITS.provenance || runes(d.region.trim()) > LIMITS.provenance) return "required";
   if (d.flavorNotes.length > LIMITS.flavorNotes || d.flavorNotes.some((n) => runes(n) > LIMITS.flavorNote)) return "notes";
+  if (parseAltitude(d.altitudeMin, d.altitudeMax) === "invalid") return "altitude";
   return null;
+}
+
+/** Which details problem a BAD_USER_INPUT error's `field` points at. */
+export function apiDetailsProblem(field: string | undefined): CoffeeDetailsProblem {
+  if (field === "flavorNotes") return "notes";
+  if (field === "altitudeMinM" || field === "altitudeMaxM" || field === "clearAltitude") return "altitude";
+  return "required";
 }
 
 /** The `updateCoffee` input for the fields that changed (empty object = nothing to save). */
@@ -118,6 +154,11 @@ export interface CoffeeDetailsPatch {
   clearVariety?: boolean;
   roastLevel?: string;
   flavorNotes?: string[];
+  producer?: string;
+  region?: string;
+  altitudeMinM?: number;
+  altitudeMaxM?: number;
+  clearAltitude?: boolean;
 }
 
 export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails): CoffeeDetailsPatch {
@@ -136,6 +177,21 @@ export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails):
   const sameNotes =
     after.flavorNotes.length === before.flavorNotes.length && after.flavorNotes.every((n, i) => n === before.flavorNotes[i]);
   if (!sameNotes) p.flavorNotes = after.flavorNotes;
+  const producer = after.producer.trim();
+  const region = after.region.trim();
+  if (producer !== before.producer) p.producer = producer;
+  if (region !== before.region) p.region = region;
+  // The API sets both altitude ends together: send the new pair, or clear.
+  const was = parseAltitude(before.altitudeMin, before.altitudeMax);
+  const now = parseAltitude(after.altitudeMin, after.altitudeMax);
+  const prev = was === "invalid" ? { minM: null, maxM: null } : was;
+  if (now !== "invalid" && (now.minM !== prev.minM || now.maxM !== prev.maxM)) {
+    if (now.minM === null) p.clearAltitude = true;
+    else {
+      p.altitudeMinM = now.minM;
+      if (now.maxM !== null) p.altitudeMaxM = now.maxM;
+    }
+  }
   return p;
 }
 

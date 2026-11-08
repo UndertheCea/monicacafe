@@ -7,18 +7,24 @@ import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
 import {
   LIMITS,
   coffeeDetailsPatch,
+  apiDetailsProblem,
   coffeeDetailsProblem,
   parseFlavorNotes,
   type CoffeeDetails,
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, Notice, inputCls } from "./ui";
 
 type Options = Awaited<ReturnType<typeof loadOptions>>;
 const loadOptions = () => query(FILTER_OPTIONS);
 
-export function detailsOf(c: Pick<EditableCoffee, "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes">): CoffeeDetails {
+type DetailFields =
+  | "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes"
+  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM";
+
+export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails {
   return {
     name: c.name,
     description: c.description,
@@ -27,7 +33,16 @@ export function detailsOf(c: Pick<EditableCoffee, "name" | "description" | "orig
     varietyId: c.variety?.id ?? null,
     roastLevel: c.roastLevel,
     flavorNotes: c.flavorNotes,
+    producer: c.producer,
+    region: c.region,
+    altitudeMin: c.altitudeMinM === null ? "" : String(c.altitudeMinM),
+    altitudeMax: c.altitudeMaxM === null ? "" : String(c.altitudeMaxM),
   };
+}
+
+/** The message for a coffee-details problem (local check or the API's field). */
+export function detailsErrorKey(problem: "required" | "notes" | "altitude"): MessageKey {
+  return problem === "notes" ? "cf.error.notes" : problem === "altitude" ? "cf.error.altitude" : "cf.error.required";
 }
 
 /** Edit form for a coffee's text fields; saves only what changed via updateCoffee. */
@@ -66,7 +81,7 @@ export function CoffeeDetailsForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const problem = coffeeDetailsProblem(next, ROAST_LEVELS);
-    if (problem) return setMsg({ ok: false, key: problem === "notes" ? "cf.error.notes" : "cf.error.required" });
+    if (problem) return setMsg({ ok: false, key: detailsErrorKey(problem) });
     if (!dirty) return;
     setBusy(true);
     setMsg(null);
@@ -77,8 +92,16 @@ export function CoffeeDetailsForm({
       setDraft({ ...s, notes: s.flavorNotes.join(", ") });
       setMsg({ ok: true, key: "cf.saved" });
     } catch (err) {
-      const code = toApiError(err).code;
-      setMsg({ ok: false, key: code === "FORBIDDEN" ? "cf.notYours" : code === "BAD_USER_INPUT" ? "cf.error.required" : "cf.error.generic" });
+      const { code, field } = toApiError(err);
+      setMsg({
+        ok: false,
+        key:
+          code === "FORBIDDEN"
+            ? "cf.notYours"
+            : code === "BAD_USER_INPUT"
+              ? detailsErrorKey(apiDetailsProblem(field))
+              : "cf.error.generic",
+      });
     } finally {
       setBusy(false);
     }
@@ -156,6 +179,7 @@ export function CoffeeDetailsForm({
             {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
           </span>
         </label>
+        <ProvenanceFields locale={locale} values={draft} onChange={set} />
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea

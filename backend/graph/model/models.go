@@ -45,6 +45,10 @@ type Coffee struct {
 	ProcessingMethodID string     `json:"-"`
 	RoastLevel         RoastLevel `json:"roastLevel"`
 	FlavorNotes        []string   `json:"flavorNotes"`
+	Producer           string     `json:"producer"`
+	Region             string     `json:"region"`
+	AltitudeMinM       *int       `json:"altitudeMinM,omitempty"`
+	AltitudeMaxM       *int       `json:"altitudeMaxM,omitempty"`
 	ImageUrls          []string   `json:"imageUrls"`
 	IsPublished        bool       `json:"isPublished"`
 	CreatedAt          time.Time  `json:"createdAt"`

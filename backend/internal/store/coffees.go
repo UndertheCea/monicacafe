@@ -7,13 +7,15 @@ import (
 )
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
-	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at`
+	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
+	c.producer, c.region, c.altitude_min_m, c.altitude_max_m`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
-		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
+		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {
@@ -75,8 +77,9 @@ type CoffeeFilter struct {
 	RoastLevel         *string
 	FlavorNote         *string
 	// SearchTerms: every term must appear (case-insensitive substring) in the
-	// coffee's name, description, a flavor note, its shop's name, or its
-	// origin / variety / process names. Terms are matched literally.
+	// coffee's name, description, a flavor note, its producer or region, its
+	// shop's name, or its origin / variety / process names. Terms are matched
+	// literally.
 	SearchTerms []string
 	MinPriceTWD *int64
 	MaxPriceTWD *int64
@@ -144,8 +147,9 @@ func (f CoffeeFilter) where() (string, []any) {
 }
 
 // searchCond matches one search term (a LIKE pattern, $N) against every text
-// a buyer might type: names in both languages, notes, the shop.
+// a buyer might type: names in both languages, notes, provenance, the shop.
 const searchCond = `(c.name ILIKE $%[1]d OR c.description ILIKE $%[1]d
+		OR c.producer ILIKE $%[1]d OR c.region ILIKE $%[1]d
 		OR EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE n ILIKE $%[1]d)
 		OR EXISTS (SELECT 1 FROM shops s WHERE s.id = c.shop_id AND s.name ILIKE $%[1]d)
 		OR EXISTS (SELECT 1 FROM origin_countries o WHERE o.id = c.origin_country_id AND (o.name_en ILIKE $%[1]d OR o.name_zh ILIKE $%[1]d))
@@ -286,6 +290,10 @@ type CreateCoffeeParams struct {
 	ProcessingMethodID string
 	RoastLevel         string
 	FlavorNotes        []string
+	Producer           string
+	Region             string
+	AltitudeMinM       *int
+	AltitudeMaxM       *int
 }
 
 // CreateCoffee inserts a draft coffee.
@@ -296,17 +304,17 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 	return scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
-				processing_method_id, roast_level, flavor_notes)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9)
+				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13)
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		p.ShopID, p.Name, p.Slug, p.Description, p.OriginCountryID, p.VarietyID,
-		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes))
+		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes, p.Producer, p.Region, p.AltitudeMinM, p.AltitudeMaxM))
 }
 
 // DuplicateCoffee copies coffee srcID into a new draft in the same shop with
-// the given name and slug: details, flavour notes and every variant (grind,
+// the given name and slug: details (provenance included), flavour notes and every variant (grind,
 // weight, price, stock, availability). Photos are not copied (their URLs are
 // scoped to the source coffee) and neither are comments. Run it in a
 // transaction so a half-copied coffee can't be left behind.
@@ -314,9 +322,9 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 	co, err := scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
-				processing_method_id, roast_level, flavor_notes)
+				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m)
 			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
-				processing_method_id, roast_level, flavor_notes
+				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m
 			FROM coffees WHERE id = $1
 			RETURNING *
 		)
@@ -344,6 +352,13 @@ type UpdateCoffeeParams struct {
 	FlavorNotes        []string // nil = unchanged; empty slice clears
 	ClearVariety       bool     // true sets variety_id to NULL (VarietyID must be nil)
 	ImageURLs          []string // nil = unchanged; empty slice clears
+	Producer           *string  // "" clears
+	Region             *string  // "" clears
+	// SetAltitude replaces both altitude columns with AltitudeMinM /
+	// AltitudeMaxM (nil = NULL); false leaves them unchanged.
+	SetAltitude  bool
+	AltitudeMinM *int
+	AltitudeMaxM *int
 }
 
 // UpdateCoffee applies a partial update.
@@ -358,13 +373,18 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				processing_method_id = COALESCE($6, processing_method_id),
 				roast_level          = COALESCE($7::roast_level, roast_level),
 				flavor_notes         = COALESCE($8, flavor_notes),
-				image_urls           = COALESCE($10, image_urls)
+				image_urls           = COALESCE($10, image_urls),
+				producer             = COALESCE($11, producer),
+				region               = COALESCE($12, region),
+				altitude_min_m       = CASE WHEN $13 THEN $14 ELSE altitude_min_m END,
+				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END
 			WHERE id = $1
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
-		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs))
+		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs,
+		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

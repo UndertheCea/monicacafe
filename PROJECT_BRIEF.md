@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-08 (after Session 22)
+Last updated: 2026-11-08 (after Session 23)
 
 ---
 
@@ -36,11 +36,12 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–011 | Done |
+| DB schema + migrations 001–012 | Done |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
 | Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
 | Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, cards, `?brew=` on /coffees + shop pages, similar coffees | Done (#122–#127) |
+| Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, `?harvest=recent` on /coffees + shop pages, keyword search | Done (#129–#134) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
@@ -67,18 +68,17 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 22** — brew method: every coffee can say whether it's roasted for filter (手沖), espresso (義式) or both
-(全方位 omni) — migration 011 + API (#122), a `CoffeeFilter.brewMethod` where filter / espresso also match omni (#123),
-the dashboard forms (#124), the coffee page, preview, JSON-LD and card pills (#125), `?brew=` on /coffees and shop pages
-(#126), and the demo seed, smoke and similar-coffee ranking (#127). Verified with race tests on PostgreSQL, smoke + a
-Playwright buyer and seller flow on a local API + Next.
+**Session 23** — harvest year (產季): a coffee can say which crop it's from — migration 012 + API with no future years
+(#129), a `CoffeeFilter.minHarvestYear` (#130), the dashboard forms (#131), the coffee page, preview and JSON-LD (#132),
+a "Recent harvest" filter (`?harvest=recent` = this and last year) on /coffees and shop pages (#133), and the demo seed,
+keyword search and smoke (#134). Verified with race tests on PostgreSQL, smoke + a Playwright buyer and seller flow.
 
 ## Current focus
 
 **No pickable slices remain.** Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers
 to #9 (cart storage) and #12 (commission + payouts); #50 (a /shops city filter) and #93 (seller account closure) also
 wait on the owner. Next sessions: take any new owner feedback first, otherwise file real gaps (e.g. a region /
-altitude filter on /coffees, or a harvest / crop year on coffees). Production
+altitude filter on /coffees, or showing the harvest year on cards). Production
 readiness: set `TRUSTED_PROXIES` to the real proxies only, and size `DB_MAX_CONNS` × API instances below Postgres'
 `max_connections`.
 
@@ -163,5 +163,7 @@ Open questions for the owner (answer by commenting on the issue):
   curated lists (farms are too many); altitude min alone = one height; updates replace both ends so max ≥ min holds (#116).
 - **Brew method: one value per coffee, omni = both** — how roasters label bags; a filter or espresso search also lists
   omni roasts, and in "similar" a shared brew method only reorders coffees that already qualify (#122, #123, #127).
+- **Harvest year: one year per coffee, no future crops; "recent" = this and last year** — matches the bag label; green
+  coffee ships for a year or more after harvest, so last year's crop is often the current one (#129, #133).
 - **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
   colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).

@@ -15,6 +15,52 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 23 — 2026-11-08 — Harvest year (產季)
+PR: #TBD
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from a gap: Taiwan specialty roasters print the crop on every bag ("2025 產季") and buyers
+check it for freshness — green coffee fades, so an old crop is a different coffee — but a coffee couldn't say it
+anywhere except its description.
+
+### Shipped (one line per slice: area — what — key files)
+- #129 backend — migration 012: `coffees.harvest_year` (INTEGER, NULL = not given, CHECK 2000–2100); `Coffee.harvestYear`;
+  create / update inputs accept 2000 through the current year in Asia/Taipei (`clearHarvestYear` removes it, can't be
+  combined with a value); `duplicateCoffee` copies it (`validateHarvestYear` in `graph/helpers.go`)
+- #130 backend — `CoffeeFilter.minHarvestYear` on `Query.coffees` and `Shop.coffees`: that year or later, unset never
+  matches, outside 2000–2100 is BAD_USER_INPUT (`storeFilter`, `CoffeeFilter.MinHarvestYear` → `harvest_year >= $n`)
+- #131 frontend — dashboard new + edit forms: optional "Harvest year" in the provenance fieldset; `parseHarvestYear` /
+  `taipeiYear` mirror the API; `coffeeDetailsPatch` sends `harvestYear` or `clearHarvestYear`; its own error message
+  (`lib/dashboard/validate.ts`, `ProvenanceFields.tsx`)
+- #132 frontend — coffee page + draft preview list 產季 / Harvest ("2025 產季" / "2025 harvest"); Product JSON-LD
+  "Harvest year" PropertyValue (`lib/harvest.ts`, `CoffeeDetailView.tsx`, `lib/seo.ts`)
+- #133 frontend — `?harvest=recent` → `minHarvestYear` = last year in Taipei (`parseHarvestParam`, `recentHarvestFrom`):
+  checkbox "Recent harvest (YYYY or later)" in the /coffees sidebar and the shop page's in-shop filters, kept by
+  `shopCoffeesHref`
+- #134 cross-cutting — demo seed dates five crops relative to the current Taipei year (Huila two years back, the blend
+  unset); keyword search matches the harvest year; smoke checks the GraphQL filter and /coffees?harvest=recent
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations
+  001–012 + seed). New: `TestValidateHarvestYear` (incl. Taipei new year), `TestStoreFilter` harvest cases, a `where()`
+  case, `TestCoffeeHarvestYear`, `TestCoffeesHarvestYearFilter` (Query + Shop, anon + owner with drafts), a harvest
+  case in `TestCoffeeSearch`.
+- Frontend: tsc, lint, `npm test` (149; new `tests/harvest.test.mjs`, harvest cases in dashboard / coffeeQuery tests),
+  `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + `next start` on a fresh DB: `scripts/smoke.sh` all ok (incl. the two new harvest checks) except the two
+  `/media/` checks (no SeaweedFS / nginx here). Playwright (en): sidebar "Recent harvest" → 201, 202, 204, 205 (not the
+  older Huila or the unset blend); coffee page fact + JSON-LD; seller registers, opens a shop, a future year is refused,
+  creates a 2025 coffee → edit form shows it → clearing saves null → 2024 survives a reload; no page errors.
+  Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- One harvest year per coffee (the year the harvest ended), not a "2024/25" range: that's what the bag label says and
+  what a filter can compare. Future years are refused by the API (Taipei calendar); the DB CHECK is a wide 2000–2100.
+- "Recent harvest" = this year's and last year's crops: green coffee ships for a year or more after harvest, so last
+  year's crop is still the current one for many origins. A filter with an unknown year (`minHarvestYear` 2027 today) is
+  an empty list, not an error.
+- Cards don't show the harvest year (their pill already carries roast + brew method); the coffee page does.
+
 ## Session 22 — 2026-11-08 — Brew method: filter, espresso or omni
 PR: #128
 

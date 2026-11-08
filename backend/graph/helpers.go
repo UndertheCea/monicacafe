@@ -785,6 +785,14 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		}
 		out.BrewMethods = brewMethodsMatching(*f.BrewMethod)
 	}
+	if f.MinHarvestYear != nil {
+		// Not capped at the current year: asking for next year's crop is just
+		// an empty list, not a mistake.
+		if y := *f.MinHarvestYear; y < minHarvestYear || y > maxHarvestYear {
+			return out, errBadInput("minHarvestYear", fmt.Sprintf("minHarvestYear must be %d–%d", minHarvestYear, maxHarvestYear))
+		}
+		out.MinHarvestYear = f.MinHarvestYear
+	}
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")
 	}

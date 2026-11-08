@@ -159,6 +159,22 @@ func TestStoreFilter(t *testing.T) {
 			t.Errorf("inStock %v: got %v, %v", tc.in, f.InStock, err)
 		}
 	}
+	for _, tc := range []struct {
+		year int
+		ok   bool
+	}{{1999, false}, {2000, true}, {2025, true}, {2100, true}, {2101, false}, {25, false}} {
+		y := tc.year
+		f, err := storeFilter(&model.CoffeeFilter{MinHarvestYear: &y})
+		if !tc.ok {
+			if ae, ok := err.(*apiError); !ok || ae.field != "minHarvestYear" {
+				t.Errorf("minHarvestYear %d: got %v, want a bad-input error", y, err)
+			}
+			continue
+		}
+		if err != nil || f.MinHarvestYear == nil || *f.MinHarvestYear != y {
+			t.Errorf("minHarvestYear %d: got %+v, %v", y, f.MinHarvestYear, err)
+		}
+	}
 }
 
 func TestSearchTerms(t *testing.T) {

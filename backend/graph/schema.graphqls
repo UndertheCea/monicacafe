@@ -494,6 +494,9 @@ input CoffeeFilter {
   # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
   # only OMNI. Coffees without a brew method never match.
   brewMethod: BrewMethod
+  # Only coffees harvested in this year or later (2000–2100). Coffees without
+  # a harvest year never match.
+  minHarvestYear: Int
 }
 
 input AddCommentInput {

@@ -87,6 +87,9 @@ type CoffeeFilter struct {
 	InStock bool
 	// BrewMethods keeps coffees whose brew_method is any of these (nil = all).
 	BrewMethods []string
+	// MinHarvestYear keeps coffees harvested in this year or later; a coffee
+	// without a harvest year never matches.
+	MinHarvestYear *int
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -141,6 +144,9 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	if len(f.BrewMethods) > 0 {
 		add("c.brew_method = ANY($%d)", f.BrewMethods)
+	}
+	if f.MinHarvestYear != nil {
+		add("c.harvest_year >= $%d", *f.MinHarvestYear)
 	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")

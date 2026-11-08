@@ -44,6 +44,7 @@ type CoffeeFilter struct {
 	MaxPriceTwd        *int        `json:"maxPriceTwd,omitempty"`
 	InStock            *bool       `json:"inStock,omitempty"`
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
+	MinHarvestYear     *int        `json:"minHarvestYear,omitempty"`
 }
 
 type CoffeeVariety struct {

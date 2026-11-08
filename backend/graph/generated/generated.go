@@ -2081,6 +2081,9 @@ input CoffeeFilter {
   # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
   # only OMNI. Coffees without a brew method never match.
   brewMethod: BrewMethod
+  # Only coffees harvested in this year or later (2000–2100). Coffees without
+  # a harvest year never match.
+  minHarvestYear: Int
 }
 
 input AddCommentInput {
@@ -13529,7 +13532,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13606,6 +13609,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.BrewMethod = data
+		case "minHarvestYear":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minHarvestYear"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinHarvestYear = data
 		}
 	}
 

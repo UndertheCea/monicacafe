@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 24 — 2026-11-08 — Cup profile (酸度 / 甜度 / 醇厚度)
-PR: #TBD
+PR: #142
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from a gap: Taiwan roasters print acidity / sweetness / body scales on bags and menus,

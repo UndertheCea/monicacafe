@@ -284,6 +284,30 @@ else
   echo "FAIL /coffees?harvest=recent should list the Yirgacheffe and not the older Huila"; fail=1
 fi
 
+# Cup profile (#136–#141): maxAcidity 2 lists the seeded low-acid Huila (203)
+# and blend (206), not the bright Yirgacheffe (201) or the unset Antigua (205).
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ coffees(filter: { maxAcidity: 2 }, limit: 100) { nodes { id acidity } } }"}') || body=""
+if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-000000000206","acidity":1'* \
+      || "$body" != *'"id":"00000000-0000-4000-8000-000000000203","acidity":2'* \
+      || "$body" == *'00000000-0000-4000-8000-000000000201'* || "$body" == *'00000000-0000-4000-8000-000000000205'* ]]; then
+  echo "FAIL acidity filter: expected low-acid coffees only, got: ${body:0:300}"; fail=1
+else
+  echo "ok   graphql acidity filter"
+fi
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?acidity=low") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000206'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
+  echo "ok   /coffees?acidity=low lists only low-acid coffees"
+else
+  echo "FAIL /coffees?acidity=low should list the blend and not the Yirgacheffe"; fail=1
+fi
+page=$(curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201") || page=""
+if [[ "$page" == *'Acidity 4 of 5'* || "$page" == *'酸度 4 / 5'* ]]; then
+  echo "ok   coffee page shows the cup profile"
+else
+  echo "FAIL coffee page should show the Yirgacheffe's acidity (4 of 5)"; fail=1
+fi
+
 # Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
 # lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
 # the seeded coffee, and roast=DARK alone shows the "no matches" state.

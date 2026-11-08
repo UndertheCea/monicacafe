@@ -25,7 +25,7 @@ func TestCoffeeSearch(t *testing.T) {
 	}
 	anon.mustDo(`{ originCountries { id nameEn nameZh } processingMethods { id } }`, nil, &refs)
 
-	create := func(name, desc string, notes []string, publish bool, provenance ...string) {
+	create := func(name, desc string, notes []string, publish bool, provenance ...string) string {
 		var out struct{ CreateCoffee struct{ ID string } }
 		producer, region := "", ""
 		if len(provenance) == 2 {
@@ -41,8 +41,11 @@ func TestCoffeeSearch(t *testing.T) {
 		if publish {
 			seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 		}
+		return out.CreateCoffee.ID
 	}
-	create("耶加雪菲 Alpha "+tok, "", []string{"Jasmine", "柑橘"}, true, "孔加合作社", "Gedeo")
+	alpha := create("耶加雪菲 Alpha "+tok, "", []string{"Jasmine", "柑橘"}, true, "孔加合作社", "Gedeo")
+	seller.mustDo(`mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
+		map[string]any{"id": alpha, "in": map[string]any{"harvestYear": 2024}}, nil)
 	create("Beta "+tok, "100% washed", nil, true, "Finca El Injerto", "Huehuetenango")
 	create("耶加雪菲 Draft "+tok, "", []string{"Jasmine"}, false, "孔加合作社", "Gedeo")
 
@@ -84,6 +87,8 @@ func TestCoffeeSearch(t *testing.T) {
 		{tok + " gedeo", "Alpha"},                   // region (drafts still excluded)
 		{tok + " 孔加", "Alpha"},                      // producer (zh)
 		{tok + " injerto huehue", "Beta"},           // producer + region
+		{tok + " 2024", "Alpha"},                    // harvest year
+		{tok + " 2023", ""},
 		{tok + " nomatch", ""},
 	} {
 		if got := strings.Join(search(tc.search), ","); got != tc.want {

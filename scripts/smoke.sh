@@ -265,6 +265,25 @@ else
   echo "FAIL /coffees?brew=espresso should list the blend and not the Yirgacheffe"; fail=1
 fi
 
+# Harvest year (#129–#134): the seed dates crops relative to this year, so
+# minHarvestYear = last year lists the Yirgacheffe (201, last year's crop) and
+# not the older Huila (203) or the unset blend (206).
+recent=$(( $(TZ=Asia/Taipei date +%Y) - 1 ))
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d "{\"query\":\"{ coffees(filter: { minHarvestYear: $recent }, limit: 100) { nodes { id harvestYear } } }\"}") || body=""
+if [[ "$body" == *'"errors"'* || "$body" != *"\"id\":\"00000000-0000-4000-8000-000000000201\",\"harvestYear\":$recent"* \
+      || "$body" == *'00000000-0000-4000-8000-000000000203'* || "$body" == *'00000000-0000-4000-8000-000000000206'* ]]; then
+  echo "FAIL harvest filter: expected recent crops only, got: ${body:0:300}"; fail=1
+else
+  echo "ok   graphql harvest year filter"
+fi
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?harvest=recent") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000203'* ]]; then
+  echo "ok   /coffees?harvest=recent lists only recent crops"
+else
+  echo "FAIL /coffees?harvest=recent should list the Yirgacheffe and not the older Huila"; fail=1
+fi
+
 # Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
 # lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
 # the seeded coffee, and roast=DARK alone shows the "no matches" state.

@@ -77,8 +77,8 @@ type CoffeeFilter struct {
 	RoastLevel         *string
 	FlavorNote         *string
 	// SearchTerms: every term must appear (case-insensitive substring) in the
-	// coffee's name, description, a flavor note, its producer or region, its
-	// shop's name, or its origin / variety / process names. Terms are matched
+	// coffee's name, description, a flavor note, its producer, region or
+	// harvest year, its shop's name, or its origin / variety / process names. Terms are matched
 	// literally.
 	SearchTerms []string
 	MinPriceTWD *int64
@@ -160,7 +160,7 @@ func (f CoffeeFilter) where() (string, []any) {
 // searchCond matches one search term (a LIKE pattern, $N) against every text
 // a buyer might type: names in both languages, notes, provenance, the shop.
 const searchCond = `(c.name ILIKE $%[1]d OR c.description ILIKE $%[1]d
-		OR c.producer ILIKE $%[1]d OR c.region ILIKE $%[1]d
+		OR c.producer ILIKE $%[1]d OR c.region ILIKE $%[1]d OR c.harvest_year::text ILIKE $%[1]d
 		OR EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE n ILIKE $%[1]d)
 		OR EXISTS (SELECT 1 FROM shops s WHERE s.id = c.shop_id AND s.name ILIKE $%[1]d)
 		OR EXISTS (SELECT 1 FROM origin_countries o WHERE o.id = c.origin_country_id AND (o.name_en ILIKE $%[1]d OR o.name_zh ILIKE $%[1]d))

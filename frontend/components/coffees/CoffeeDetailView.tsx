@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { brewLongKey } from "@/lib/brew";
 import { knownHarvestYear } from "@/lib/harvest";
+import { CupProfile } from "./CupProfile";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
 import { originLine, provenanceFacts } from "@/lib/provenance";
@@ -84,6 +85,8 @@ export function CoffeeDetailView({
             </div>
           ))}
         </dl>
+
+        <CupProfile coffee={coffee} locale={locale} />
 
         {coffee.flavorNotes.length > 0 && (
           <div className="mt-6">

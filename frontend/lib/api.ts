@@ -29,6 +29,8 @@ export interface CoffeeFilter {
   varietyId?: string;
   processingMethodId?: string;
   roastLevel?: RoastLevel;
+  /** FILTER / ESPRESSO also match OMNI coffees. */
+  brewMethod?: BrewMethod;
   flavorNote?: string;
   /** Keywords; every word must match (see CoffeeFilter.search in the schema). */
   search?: string;

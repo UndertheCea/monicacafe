@@ -16,6 +16,21 @@ export function parseRoastParam(v: string | string[] | undefined): RoastLevel | 
   return (ROAST_LEVELS as string[]).includes(s) ? (s as RoastLevel) : undefined;
 }
 
+/**
+ * Parse `?brew=` (filter / espresso / omni, any case); anything unknown →
+ * undefined (every coffee). The API also returns omni roasts for filter and
+ * espresso.
+ */
+export function parseBrewParam(v: string | string[] | undefined): BrewMethod | undefined {
+  const s = (Array.isArray(v) ? v[0] : v)?.trim().toUpperCase() ?? "";
+  return (BREW_METHODS as string[]).includes(s) ? (s as BrewMethod) : undefined;
+}
+
+/** The `?brew=` value for a brew method (lowercase reads better in a URL). */
+export function brewParam(m: BrewMethod): string {
+  return m.toLowerCase();
+}
+
 /** `?sort=` values in the order the dropdown lists them ("" = newest, the default). */
 export const SORT_PARAMS = ["", "price_asc", "price_desc", "discussed", "saved"] as const;
 export type SortParam = (typeof SORT_PARAMS)[number];
@@ -71,11 +86,15 @@ export function searchHref(q: string | undefined): string {
  * A shop page URL (page 1) for a keyword search, roast and sort. Blank and
  * default values are left out, so clearing everything gives /shops/<slug>.
  */
-export function shopCoffeesHref(slug: string, p: { q?: string; roast?: RoastLevel; sort?: SortParam }): string {
+export function shopCoffeesHref(
+  slug: string,
+  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; sort?: SortParam },
+): string {
   const params = new URLSearchParams();
   const q = p.q?.trim();
   if (q) params.set("q", q);
   if (p.roast) params.set("roast", p.roast);
+  if (p.brew) params.set("brew", brewParam(p.brew));
   if (p.sort) params.set("sort", p.sort);
   const qs = params.toString();
   return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;

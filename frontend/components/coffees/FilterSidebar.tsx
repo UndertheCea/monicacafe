@@ -1,12 +1,13 @@
 import Link from "next/link";
 import {
+  BREW_METHODS,
   ROAST_LEVELS,
   type CoffeeFilter,
   type CoffeeVariety,
   type OriginCountry,
   type ProcessingMethod,
 } from "@/lib/api";
-import { SEARCH_MAX_CHARS, SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
+import { SEARCH_MAX_CHARS, SORT_PARAMS, brewParam, type SortParam } from "@/lib/coffeeQuery";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 
 interface Props {
@@ -114,6 +115,28 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
             </label>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className={labelCls}>{t(locale, "filter.brew")}</legend>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          {(["", ...BREW_METHODS] as const).map((m) => (
+            <label
+              key={m || "any"}
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 px-2 py-1.5 text-sm has-[:checked]:border-ink has-[:checked]:bg-neutral-100"
+            >
+              <input
+                type="radio"
+                name="brew"
+                value={m && brewParam(m)}
+                defaultChecked={(filter.brewMethod ?? "") === m}
+                className="accent-ink"
+              />
+              {m ? t(locale, `brew.${m}`) : t(locale, "filter.any")}
+            </label>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-neutral-500">{t(locale, "filter.brewHint")}</p>
       </fieldset>
 
       <label className="block">

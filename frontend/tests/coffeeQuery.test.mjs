@@ -4,6 +4,8 @@ import { test } from "node:test";
 import {
   SEARCH_MAX_CHARS,
   SORT_PARAMS,
+  brewParam,
+  parseBrewParam,
   parseInStockParam,
   parseRoastParam,
   parseSearchParam,
@@ -93,6 +95,23 @@ test("shopCoffeesHref keeps search, roast and sort; drops defaults", () => {
     [{ roast: "LIGHT" }, "/shops/beans?roast=LIGHT"],
     [{ q: "花香 berry", roast: "DARK", sort: "price_asc" }, "/shops/beans?q=%E8%8A%B1%E9%A6%99+berry&roast=DARK&sort=price_asc"],
     [{ sort: "discussed" }, "/shops/beans?sort=discussed"],
+    [{ roast: "LIGHT", brew: "ESPRESSO" }, "/shops/beans?roast=LIGHT&brew=espresso"],
   ];
   for (const [input, want] of cases) assert.equal(shopCoffeesHref("beans", input), want, JSON.stringify(input));
+});
+
+test("parseBrewParam accepts filter / espresso / omni, any case; brewParam is lowercase", () => {
+  const cases = [
+    [undefined, undefined],
+    ["", undefined],
+    ["filter", "FILTER"],
+    [" Espresso ", "ESPRESSO"],
+    ["OMNI", "OMNI"],
+    [["omni", "filter"], "OMNI"],
+    ["cold_brew", undefined],
+    ["filter;", undefined],
+  ];
+  for (const [input, want] of cases) assert.equal(parseBrewParam(input), want, JSON.stringify(input));
+  for (const m of ["FILTER", "ESPRESSO", "OMNI"]) assert.equal(parseBrewParam(brewParam(m)), m);
+  assert.equal(brewParam("ESPRESSO"), "espresso");
 });

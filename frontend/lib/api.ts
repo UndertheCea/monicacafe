@@ -39,6 +39,8 @@ export interface CoffeeFilter {
   inStock?: boolean;
   /** Only coffees harvested in this year or later. */
   minHarvestYear?: number;
+  /** Only coffees whose acidity (1–5) is this or lower. */
+  maxAcidity?: number;
 }
 
 export interface CoffeeCardData {

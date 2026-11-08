@@ -36,6 +36,17 @@ export function parseHarvestParam(v: string | string[] | undefined): boolean {
   return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "recent";
 }
 
+/** `?acidity=low` (any case) → true: only low-acid coffees; anything else → every coffee. */
+export function parseAcidityParam(v: string | string[] | undefined): boolean {
+  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "low";
+}
+
+/**
+ * The highest acidity (1–5) "low acidity" covers: 1 and 2, the bottom two
+ * steps of the scale sellers pick from (CoffeeFilter.maxAcidity).
+ */
+export const LOW_ACIDITY_MAX = 2;
+
 /**
  * The earliest crop year "recent harvest" covers: last year in Taiwan (UTC+8,
  * no DST), so this year's and last year's crops. Green coffee ships for a year
@@ -103,7 +114,7 @@ export function searchHref(q: string | undefined): string {
  */
 export function shopCoffeesHref(
   slug: string,
-  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; sort?: SortParam },
+  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; lowAcid?: boolean; sort?: SortParam },
 ): string {
   const params = new URLSearchParams();
   const q = p.q?.trim();
@@ -111,6 +122,7 @@ export function shopCoffeesHref(
   if (p.roast) params.set("roast", p.roast);
   if (p.brew) params.set("brew", brewParam(p.brew));
   if (p.harvest) params.set("harvest", "recent");
+  if (p.lowAcid) params.set("acidity", "low");
   if (p.sort) params.set("sort", p.sort);
   const qs = params.toString();
   return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;

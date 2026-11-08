@@ -202,6 +202,17 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         {t(locale, "filter.recentHarvest", { year: recentHarvestFrom() })}
       </label>
 
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+        <input
+          type="checkbox"
+          name="acidity"
+          value="low"
+          defaultChecked={filter.maxAcidity !== undefined}
+          className="h-4 w-4 accent-ink"
+        />
+        {t(locale, "filter.lowAcidity")}
+      </label>
+
       <div className="flex gap-2">
         <button
           type="submit"

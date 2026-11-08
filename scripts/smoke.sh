@@ -248,6 +248,23 @@ else
   echo "FAIL /coffees?q= did not list the seeded match"; fail=1
 fi
 
+# Brew method (#122–#127): the seeded espresso blend (206) and the omni
+# Huila (203) match ESPRESSO; the filter-only Yirgacheffe (201) doesn't.
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ coffees(filter: { brewMethod: ESPRESSO }, limit: 100) { nodes { id brewMethod } } }"}') || body=""
+if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-000000000206","brewMethod":"ESPRESSO"'* \
+      || "$body" != *'"id":"00000000-0000-4000-8000-000000000203","brewMethod":"OMNI"'* || "$body" == *'"brewMethod":"FILTER"'* ]]; then
+  echo "FAIL brew filter: expected espresso + omni coffees only, got: ${body:0:300}"; fail=1
+else
+  echo "ok   graphql brew method filter"
+fi
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?brew=espresso") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000206'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
+  echo "ok   /coffees?brew=espresso lists only espresso / omni roasts"
+else
+  echo "FAIL /coffees?brew=espresso should list the blend and not the Yirgacheffe"; fail=1
+fi
+
 # Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
 # lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
 # the seeded coffee, and roast=DARK alone shows the "no matches" state.

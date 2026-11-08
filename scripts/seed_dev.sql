@@ -110,6 +110,18 @@ FROM (VALUES
 ) AS v(id, producer, region, amin, amax)
 WHERE c.id = v.id;
 
+-- Brew method (#122, #127): what each coffee is roasted for, so the cards, the
+-- coffee page and the ?brew= filter show something. The Antigua stays unset.
+UPDATE coffees AS c SET brew_method = v.brew
+FROM (VALUES
+  ('00000000-0000-4000-8000-000000000201'::uuid, 'FILTER'),
+  ('00000000-0000-4000-8000-000000000202'::uuid, 'FILTER'),
+  ('00000000-0000-4000-8000-000000000203'::uuid, 'OMNI'),
+  ('00000000-0000-4000-8000-000000000204'::uuid, 'FILTER'),
+  ('00000000-0000-4000-8000-000000000206'::uuid, 'ESPRESSO')
+) AS v(id, brew)
+WHERE c.id = v.id;
+
 -- One demo comment so the comment list renders on a fresh install.
 INSERT INTO comments (id, coffee_id, user_id, body) VALUES
   ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000201',

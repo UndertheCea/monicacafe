@@ -244,23 +244,27 @@ func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error
 }
 
 // Similarity weights for SimilarCoffees. A shared roast alone (one of four
-// levels) is too common to count as similar, hence the minimum score.
+// levels) is too common to count as similar, hence the minimum score. The
+// same brew method only reorders coffees that already qualify: most coffees
+// are filter roasts, so it can't make a coffee similar on its own.
 const (
 	similarOrigin   = 3
 	similarProcess  = 2
 	similarRoast    = 1
 	similarMaxNotes = 3 // each shared flavour note scores 1, up to this many
 	similarMinScore = 2
+	similarBrew     = 1
 )
 
 // SimilarCoffees returns published coffees from other shops that resemble
 // coffeeID: origin (3) + process (2) + roast (1) + shared flavour notes
 // (case-insensitive, 1 each, at most 3). Coffees scoring below 2 are left
-// out. In-stock coffees come first, then by score, then newest.
+// out. In-stock coffees come first, then by score plus 1 for the same brew
+// method, then newest.
 func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) ([]*Coffee, error) {
 	rows, err := s.db.Query(ctx, `
 		WITH src AS (
-			SELECT shop_id, origin_country_id, processing_method_id, roast_level,
+			SELECT shop_id, origin_country_id, processing_method_id, roast_level, brew_method,
 				ARRAY(SELECT DISTINCT lower(n) FROM unnest(flavor_notes) n) AS notes
 			FROM coffees WHERE id = $1
 		)
@@ -276,8 +280,11 @@ func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) 
 		CROSS JOIN LATERAL (SELECT EXISTS (SELECT 1 FROM variants v
 			WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) AS ok) st
 		WHERE c.is_published AND c.shop_id <> src.shop_id AND sc.score >= $7
-		ORDER BY st.ok DESC, sc.score DESC, c.created_at DESC, c.id
-		LIMIT $2`, coffeeID, limit, similarOrigin, similarProcess, similarRoast, similarMaxNotes, similarMinScore)
+		ORDER BY st.ok DESC,
+			sc.score + CASE WHEN c.brew_method = src.brew_method THEN $8::int ELSE 0 END DESC,
+			c.created_at DESC, c.id
+		LIMIT $2`, coffeeID, limit, similarOrigin, similarProcess, similarRoast, similarMaxNotes, similarMinScore,
+		similarBrew)
 	if err != nil {
 		return nil, mapErr(err)
 	}

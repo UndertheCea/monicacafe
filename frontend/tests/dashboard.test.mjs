@@ -10,6 +10,8 @@ import {
   parseAltitude,
   parseCoords,
   parseHarvestYear,
+  parseCupValue,
+  cupProfileFromForm,
   taipeiYear,
   parseFlavorNotes,
   parseWhole,
@@ -98,6 +100,9 @@ const baseCoffee = {
   altitudeMax: "2100",
   brewMethod: "FILTER",
   harvestYear: "2024",
+  acidity: "4",
+  sweetness: "3",
+  body: "",
 };
 
 test("taipeiYear turns over at midnight in Taiwan, not UTC", () => {
@@ -122,6 +127,22 @@ test("parseHarvestYear: blank, 2000 to this year, else invalid", () => {
   // Default "latest" is this year in Taipei.
   assert.equal(parseHarvestYear(String(taipeiYear())), taipeiYear());
   assert.equal(parseHarvestYear(String(taipeiYear() + 1)), "invalid");
+});
+
+test("parseCupValue: 1–5, anything else is not given", () => {
+  for (const [input, want] of [["1", 1], ["5", 5], [" 3 ", 3], ["", null], ["0", null], ["6", null], ["2.5", null], ["x", null]]) {
+    assert.equal(parseCupValue(input), want, input);
+  }
+});
+
+test("cupProfileFromForm: null when nothing is set", () => {
+  assert.equal(cupProfileFromForm({ acidity: "", sweetness: "", body: "" }), null);
+  assert.equal(cupProfileFromForm({ acidity: "9", sweetness: "", body: "" }), null);
+  assert.deepEqual(cupProfileFromForm({ acidity: "1", sweetness: "", body: "4" }), { acidity: 1, sweetness: null, body: 4 });
+});
+
+test("cup-profile API fields map to the cup message", () => {
+  for (const f of ["acidity", "sweetness", "body", "cupProfile", "clearCupProfile"]) assert.equal(apiDetailsProblem(f), "cup", f);
 });
 
 test("coffeeDetailsProblem", () => {
@@ -178,6 +199,11 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     [{ harvestYear: "2025" }, { harvestYear: 2025 }],
     [{ harvestYear: "" }, { clearHarvestYear: true }],
     [{ harvestYear: "1999" }, {}], // invalid: left to coffeeDetailsProblem
+    [{ acidity: "4" }, {}],
+    [{ acidity: "2" }, { cupProfile: { acidity: 2, sweetness: 3, body: null } }],
+    [{ body: "5" }, { cupProfile: { acidity: 4, sweetness: 3, body: 5 } }],
+    [{ acidity: "", sweetness: "3" }, { cupProfile: { acidity: null, sweetness: 3, body: null } }],
+    [{ acidity: "", sweetness: "", body: "" }, { clearCupProfile: true }],
   ];
   for (const [patch, want] of cases) {
     assert.deepEqual(coffeeDetailsPatch(baseCoffee, { ...baseCoffee, ...patch }), want, JSON.stringify(patch));
@@ -194,6 +220,10 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     harvestYear: 2023,
   });
   assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, harvestYear: "" }, { ...baseCoffee, harvestYear: " " }), {});
+  // A first cup profile; none → none sends nothing.
+  const noCup = { ...baseCoffee, acidity: "", sweetness: "", body: "" };
+  assert.deepEqual(coffeeDetailsPatch(noCup, { ...noCup, body: "2" }), { cupProfile: { acidity: null, sweetness: null, body: 2 } });
+  assert.deepEqual(coffeeDetailsPatch(noCup, noCup), {});
 });
 
 test("parseCoords", () => {

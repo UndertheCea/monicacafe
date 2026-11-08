@@ -12,6 +12,7 @@ import {
   coffeeDetailsProblem,
   parseAltitude,
   parseHarvestYear,
+  cupProfileFromForm,
   parseFlavorNotes,
   parseWhole,
   variantProblems,
@@ -20,6 +21,7 @@ import {
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
+import { CupProfileFields } from "./CupProfileFields";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -77,13 +79,16 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     const altitudeMin = String(fd.get("altitudeMin") ?? "");
     const altitudeMax = String(fd.get("altitudeMax") ?? "");
     const harvestYear = String(fd.get("harvestYear") ?? "");
+    const acidity = String(fd.get("acidity") ?? "");
+    const sweetness = String(fd.get("sweetness") ?? "");
+    const body = String(fd.get("body") ?? "");
     const brew = String(fd.get("brew") ?? "");
     const brewMethod = (BREW_METHODS as string[]).includes(brew) ? (brew as BrewMethod) : null;
 
     const detailsProblem = coffeeDetailsProblem(
       {
         name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes,
-        producer, region, altitudeMin, altitudeMax, brewMethod, harvestYear,
+        producer, region, altitudeMin, altitudeMax, brewMethod, harvestYear, acidity, sweetness, body,
       },
       ROAST_LEVELS,
     );
@@ -115,6 +120,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           brewMethod,
           // coffeeDetailsProblem already refused an invalid year.
           harvestYear: parseHarvestYear(harvestYear) as number | null,
+          cupProfile: cupProfileFromForm({ acidity, sweetness, body }),
           variants: rows.map((r) => ({
             grind: r.grind as GrindOption,
             weightG: parseWhole(r.weightG, 1, LIMITS.weightG)!,
@@ -127,7 +133,10 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     } catch (err) {
       const e2 = toApiError(err);
       const key =
-        e2.code === "BAD_USER_INPUT" && ["flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear"].includes(e2.field ?? "")
+        e2.code === "BAD_USER_INPUT" && [
+          "flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear",
+          "cupProfile", "acidity", "sweetness", "body",
+        ].includes(e2.field ?? "")
           ? detailsErrorKey(apiDetailsProblem(e2.field))
           : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
@@ -180,6 +189,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           </span>
         </label>
         <ProvenanceFields locale={locale} />
+        <CupProfileFields locale={locale} />
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />

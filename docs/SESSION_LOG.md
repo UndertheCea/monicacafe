@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 21 — 2026-11-08 — Coffee provenance: producer, region, growing altitude
-PR: #PRNUM
+PR: #121
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the five below were filed from a gap in the product: a specialty buyer's first questions — which farm or washing

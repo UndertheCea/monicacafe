@@ -11,6 +11,7 @@ import {
   apiDetailsProblem,
   coffeeDetailsProblem,
   parseAltitude,
+  parseHarvestYear,
   parseFlavorNotes,
   parseWhole,
   variantProblems,
@@ -75,13 +76,14 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     const region = String(fd.get("region") ?? "").trim();
     const altitudeMin = String(fd.get("altitudeMin") ?? "");
     const altitudeMax = String(fd.get("altitudeMax") ?? "");
+    const harvestYear = String(fd.get("harvestYear") ?? "");
     const brew = String(fd.get("brew") ?? "");
     const brewMethod = (BREW_METHODS as string[]).includes(brew) ? (brew as BrewMethod) : null;
 
     const detailsProblem = coffeeDetailsProblem(
       {
         name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes,
-        producer, region, altitudeMin, altitudeMax, brewMethod,
+        producer, region, altitudeMin, altitudeMax, brewMethod, harvestYear,
       },
       ROAST_LEVELS,
     );
@@ -111,6 +113,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           altitudeMinM: altitude.minM,
           altitudeMaxM: altitude.maxM,
           brewMethod,
+          // coffeeDetailsProblem already refused an invalid year.
+          harvestYear: parseHarvestYear(harvestYear) as number | null,
           variants: rows.map((r) => ({
             grind: r.grind as GrindOption,
             weightG: parseWhole(r.weightG, 1, LIMITS.weightG)!,
@@ -123,7 +127,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     } catch (err) {
       const e2 = toApiError(err);
       const key =
-        e2.code === "BAD_USER_INPUT" && ["flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region"].includes(e2.field ?? "")
+        e2.code === "BAD_USER_INPUT" && ["flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear"].includes(e2.field ?? "")
           ? detailsErrorKey(apiDetailsProblem(e2.field))
           : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });

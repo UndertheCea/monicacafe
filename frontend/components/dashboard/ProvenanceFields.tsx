@@ -1,6 +1,6 @@
 "use client";
 
-import { LIMITS } from "@/lib/dashboard/validate";
+import { LIMITS, taipeiYear } from "@/lib/dashboard/validate";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { inputCls } from "./ui";
 
@@ -9,6 +9,7 @@ export interface ProvenanceValues {
   region: string;
   altitudeMin: string;
   altitudeMax: string;
+  harvestYear: string;
 }
 
 /**
@@ -60,6 +61,17 @@ export function ProvenanceFields({
         <input {...bind("altitudeMax")} inputMode="numeric" placeholder="2100" className={inputCls} />
       </label>
       <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.altitudeHint")}</p>
+      <label className="block text-sm font-medium text-neutral-700">
+        {t(locale, "cf.harvestYear")}
+        <input
+          {...bind("harvestYear")}
+          inputMode="numeric"
+          maxLength={4}
+          placeholder={String(taipeiYear() - 1)}
+          className={inputCls}
+        />
+      </label>
+      <p className="self-end text-xs text-neutral-500">{t(locale, "cf.harvestHint")}</p>
     </fieldset>
   );
 }

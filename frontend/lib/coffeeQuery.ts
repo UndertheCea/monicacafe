@@ -6,6 +6,10 @@ export type CoffeeSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC" | "MOST_DISCUSSED
 export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
 export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
 
+/** What a coffee is roasted for (API enum BrewMethod). OMNI suits both. */
+export type BrewMethod = "FILTER" | "ESPRESSO" | "OMNI";
+export const BREW_METHODS: BrewMethod[] = ["FILTER", "ESPRESSO", "OMNI"];
+
 /** Parse `?roast=` (case-insensitive); anything unknown → undefined (all roasts). */
 export function parseRoastParam(v: string | string[] | undefined): RoastLevel | undefined {
   const s = (Array.isArray(v) ? v[0] : v)?.trim().toUpperCase() ?? "";

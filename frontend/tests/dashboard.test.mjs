@@ -94,6 +94,7 @@ const baseCoffee = {
   region: "",
   altitudeMin: "1800",
   altitudeMax: "2100",
+  brewMethod: "FILTER",
 };
 
 test("coffeeDetailsProblem", () => {
@@ -139,12 +140,21 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     [{ altitudeMin: "1900", altitudeMax: "" }, { altitudeMinM: 1900 }],
     [{ altitudeMin: "", altitudeMax: "" }, { clearAltitude: true }],
     [{ altitudeMin: "", altitudeMax: "9" }, {}], // invalid: left to coffeeDetailsProblem
+    [{ brewMethod: "FILTER" }, {}],
+    [{ brewMethod: "OMNI" }, { brewMethod: "OMNI" }],
+    [{ brewMethod: null }, { clearBrewMethod: true }],
+    [{ brewMethod: "" }, { clearBrewMethod: true }],
   ];
   for (const [patch, want] of cases) {
     assert.deepEqual(coffeeDetailsPatch(baseCoffee, { ...baseCoffee, ...patch }), want, JSON.stringify(patch));
   }
   // Setting a variety on a coffee that had none.
   assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, varietyId: null }, { ...baseCoffee, varietyId: "v1" }), { varietyId: "v1" });
+  // Setting a brew method on a coffee that had none; none → none sends nothing.
+  assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, brewMethod: null }, { ...baseCoffee, brewMethod: "ESPRESSO" }), {
+    brewMethod: "ESPRESSO",
+  });
+  assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, brewMethod: null }, { ...baseCoffee, brewMethod: "" }), {});
 });
 
 test("parseCoords", () => {

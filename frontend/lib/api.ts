@@ -6,7 +6,7 @@ import type { CoffeeSort, RoastLevel } from "./coffeeQuery";
 import type { ShopSort } from "./shopQuery";
 import type { SitemapCoffee, SitemapShop } from "./sitemap";
 
-export { ROAST_LEVELS, type RoastLevel } from "./coffeeQuery";
+export { BREW_METHODS, ROAST_LEVELS, type BrewMethod, type RoastLevel } from "./coffeeQuery";
 
 export interface OriginCountry {
   id: string;

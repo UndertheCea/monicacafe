@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { FILTER_OPTIONS, ROAST_LEVELS, type GrindOption, type RoastLevel } from "@/lib/api";
+import { BREW_METHODS, FILTER_OPTIONS, ROAST_LEVELS, type BrewMethod, type GrindOption, type RoastLevel } from "@/lib/api";
 import { CREATE_COFFEE } from "@/lib/dashboard/queries";
 import {
   LIMITS,
@@ -18,7 +18,7 @@ import {
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { detailsErrorKey } from "./CoffeeDetailsForm";
+import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -75,11 +75,13 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     const region = String(fd.get("region") ?? "").trim();
     const altitudeMin = String(fd.get("altitudeMin") ?? "");
     const altitudeMax = String(fd.get("altitudeMax") ?? "");
+    const brew = String(fd.get("brew") ?? "");
+    const brewMethod = (BREW_METHODS as string[]).includes(brew) ? (brew as BrewMethod) : null;
 
     const detailsProblem = coffeeDetailsProblem(
       {
         name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes,
-        producer, region, altitudeMin, altitudeMax,
+        producer, region, altitudeMin, altitudeMax, brewMethod,
       },
       ROAST_LEVELS,
     );
@@ -108,6 +110,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           region,
           altitudeMinM: altitude.minM,
           altitudeMaxM: altitude.maxM,
+          brewMethod,
           variants: rows.map((r) => ({
             grind: r.grind as GrindOption,
             weightG: parseWhole(r.weightG, 1, LIMITS.weightG)!,
@@ -164,6 +167,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         )}
         {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })), false)}
         {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })))}
+        {select("brew", "cf.brew", brewOptions(locale), false)}
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.flavorNotes")}
           <input name="notes" placeholder={t(locale, "filter.flavorPlaceholder")} className={inputCls} />

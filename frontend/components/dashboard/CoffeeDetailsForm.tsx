@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { FILTER_OPTIONS, ROAST_LEVELS } from "@/lib/api";
+import { BREW_METHODS, FILTER_OPTIONS, ROAST_LEVELS } from "@/lib/api";
 import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
 import {
   LIMITS,
@@ -22,7 +22,7 @@ const loadOptions = () => query(FILTER_OPTIONS);
 
 type DetailFields =
   | "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes"
-  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM";
+  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod";
 
 export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails {
   return {
@@ -37,7 +37,13 @@ export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails 
     region: c.region,
     altitudeMin: c.altitudeMinM === null ? "" : String(c.altitudeMinM),
     altitudeMax: c.altitudeMaxM === null ? "" : String(c.altitudeMaxM),
+    brewMethod: c.brewMethod ?? null,
   };
+}
+
+/** Brew-method choices for the coffee forms; omni spells out that it suits both. */
+export function brewOptions(locale: Locale) {
+  return BREW_METHODS.map((m) => ({ id: m, label: t(locale, m === "OMNI" ? "cf.brewHint" : `brew.${m}`) }));
 }
 
 /** The message for a coffee-details problem (local check or the API's field). */
@@ -167,6 +173,7 @@ export function CoffeeDetailsForm({
           (v) => set({ roastLevel: v as typeof draft.roastLevel }),
           ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })),
         )}
+        {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.flavorNotes")}
           <input

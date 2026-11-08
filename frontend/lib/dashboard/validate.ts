@@ -102,6 +102,8 @@ export interface CoffeeDetails {
   region: string;
   altitudeMin: string;
   altitudeMax: string;
+  /** FILTER | ESPRESSO | OMNI, or null when not given. */
+  brewMethod: string | null;
 }
 
 export type CoffeeDetailsProblem = "required" | "notes" | "altitude";
@@ -140,6 +142,7 @@ export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly str
 /** Which details problem a BAD_USER_INPUT error's `field` points at. */
 export function apiDetailsProblem(field: string | undefined): CoffeeDetailsProblem {
   if (field === "flavorNotes") return "notes";
+  // brewMethod / clearBrewMethod can only fail on a stale or tampered form.
   if (field === "altitudeMinM" || field === "altitudeMaxM" || field === "clearAltitude") return "altitude";
   return "required";
 }
@@ -159,6 +162,8 @@ export interface CoffeeDetailsPatch {
   altitudeMinM?: number;
   altitudeMaxM?: number;
   clearAltitude?: boolean;
+  brewMethod?: string;
+  clearBrewMethod?: boolean;
 }
 
 export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails): CoffeeDetailsPatch {
@@ -191,6 +196,10 @@ export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails):
       p.altitudeMinM = now.minM;
       if (now.maxM !== null) p.altitudeMaxM = now.maxM;
     }
+  }
+  if ((after.brewMethod || null) !== (before.brewMethod || null)) {
+    if (after.brewMethod) p.brewMethod = after.brewMethod;
+    else p.clearBrewMethod = true;
   }
   return p;
 }

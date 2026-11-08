@@ -2,6 +2,7 @@ package graph
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -173,6 +174,22 @@ func TestStoreFilter(t *testing.T) {
 		}
 		if err != nil || f.MinHarvestYear == nil || *f.MinHarvestYear != y {
 			t.Errorf("minHarvestYear %d: got %+v, %v", y, f.MinHarvestYear, err)
+		}
+	}
+	for _, tc := range []struct {
+		acidity int
+		ok      bool
+	}{{0, false}, {1, true}, {2, true}, {5, true}, {6, false}, {-1, false}} {
+		a := tc.acidity
+		f, err := storeFilter(&model.CoffeeFilter{MaxAcidity: &a})
+		if !tc.ok {
+			if ae, ok := err.(*apiError); !ok || ae.field != "maxAcidity" {
+				t.Errorf("maxAcidity %d: got %v, want a bad-input error", a, err)
+			}
+			continue
+		}
+		if err != nil || f.MaxAcidity == nil || *f.MaxAcidity != a {
+			t.Errorf("maxAcidity %d: got %+v, %v", a, f.MaxAcidity, err)
 		}
 	}
 }
@@ -576,6 +593,46 @@ func TestValidateHarvestYear(t *testing.T) {
 			}
 			if ae, ok := err.(*apiError); !ok || ae.field != "harvestYear" {
 				t.Fatalf("got %v, want a bad-input error on harvestYear", err)
+			}
+		})
+	}
+}
+
+func TestCupProfileParam(t *testing.T) {
+	n := func(v int) *int { return &v }
+	for _, tt := range []struct {
+		name  string
+		in    *model.CupProfileInput
+		field string // "" = ok
+		want  [3]string
+	}{
+		{"not given", nil, "", [3]string{"nil", "nil", "nil"}},
+		{"all three", &model.CupProfileInput{Acidity: n(2), Sweetness: n(4), Body: n(5)}, "", [3]string{"2", "4", "5"}},
+		{"acidity only", &model.CupProfileInput{Acidity: n(1)}, "", [3]string{"1", "nil", "nil"}},
+		{"empty", &model.CupProfileInput{}, "cupProfile", [3]string{}},
+		{"acidity zero", &model.CupProfileInput{Acidity: n(0)}, "acidity", [3]string{}},
+		{"sweetness six", &model.CupProfileInput{Acidity: n(3), Sweetness: n(6)}, "sweetness", [3]string{}},
+		{"body negative", &model.CupProfileInput{Body: n(-1)}, "body", [3]string{}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := cupProfileParam(tt.in)
+			if tt.field != "" {
+				if ae, ok := err.(*apiError); !ok || ae.field != tt.field {
+					t.Fatalf("got %v, want a bad-input error on %s", err, tt.field)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("got %v, want ok", err)
+			}
+			str := func(p *int) string {
+				if p == nil {
+					return "nil"
+				}
+				return strconv.Itoa(*p)
+			}
+			if g := [3]string{str(got.Acidity), str(got.Sweetness), str(got.Body)}; g != tt.want {
+				t.Fatalf("got %v, want %v", g, tt.want)
 			}
 		})
 	}

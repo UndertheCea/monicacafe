@@ -135,6 +135,19 @@ FROM (VALUES
 ) AS v(id, years_ago)
 WHERE c.id = v.id;
 
+-- Cup profile (#136, #141): acidity / sweetness / body 1–5, so the coffee page
+-- and ?acidity=low show something. Low acid (≤ 2): the Huila and the espresso
+-- blend. The Antigua stays unset.
+UPDATE coffees AS c SET acidity = v.acidity, sweetness = v.sweetness, body = v.body
+FROM (VALUES
+  ('00000000-0000-4000-8000-000000000201'::uuid, 4, 3, 2),
+  ('00000000-0000-4000-8000-000000000202'::uuid, 3, 5, 3),
+  ('00000000-0000-4000-8000-000000000203'::uuid, 2, 4, 3),
+  ('00000000-0000-4000-8000-000000000204'::uuid, 5, 3, 3),
+  ('00000000-0000-4000-8000-000000000206'::uuid, 1, 3, 5)
+) AS v(id, acidity, sweetness, body)
+WHERE c.id = v.id;
+
 -- One demo comment so the comment list renders on a fresh install.
 INSERT INTO comments (id, coffee_id, user_id, body) VALUES
   ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000201',

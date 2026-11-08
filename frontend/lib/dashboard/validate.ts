@@ -2,6 +2,8 @@
 // mistakes before a round-trip. No imports: `node --test` loads this directly.
 // The backend stays the source of truth and re-validates everything.
 
+import type { CupProfile } from "../cupProfile";
+
 export const LIMITS = {
   shopName: 80,
   shopDescription: 2000,
@@ -107,9 +109,13 @@ export interface CoffeeDetails {
   brewMethod: string | null;
   /** The crop year as typed: blank = not given. */
   harvestYear: string;
+  /** Cup profile as chosen: "" = not given, else "1"–"5". */
+  acidity: string;
+  sweetness: string;
+  body: string;
 }
 
-export type CoffeeDetailsProblem = "required" | "notes" | "altitude" | "harvest";
+export type CoffeeDetailsProblem = "required" | "notes" | "altitude" | "harvest" | "cup";
 
 /** The calendar year in Taiwan (UTC+8, no DST): what the API compares crop years with. */
 export function taipeiYear(now: Date = new Date()): number {
@@ -125,6 +131,18 @@ export function parseHarvestYear(s: string, latest: number = taipeiYear()): numb
   const v = s.trim();
   if (!v) return null;
   return parseWhole(v, LIMITS.harvestYearMin, latest) ?? "invalid";
+}
+
+/** Parse a cup-scale select ("" or "1"–"5"); anything else is "not given". */
+export function parseCupValue(s: string): number | null {
+  const v = s.trim();
+  return /^[1-5]$/.test(v) ? Number(v) : null;
+}
+
+/** The three cup scales from the form; null when none is set (no profile). */
+export function cupProfileFromForm(d: Pick<CoffeeDetails, "acidity" | "sweetness" | "body">): CupProfile | null {
+  const p = { acidity: parseCupValue(d.acidity), sweetness: parseCupValue(d.sweetness), body: parseCupValue(d.body) };
+  return p.acidity === null && p.sweetness === null && p.body === null ? null : p;
 }
 
 export type Altitude = { minM: number | null; maxM: number | null };
@@ -165,6 +183,7 @@ export function apiDetailsProblem(field: string | undefined): CoffeeDetailsProbl
   // brewMethod / clearBrewMethod can only fail on a stale or tampered form.
   if (field === "altitudeMinM" || field === "altitudeMaxM" || field === "clearAltitude") return "altitude";
   if (field === "harvestYear" || field === "clearHarvestYear") return "harvest";
+  if (["acidity", "sweetness", "body", "cupProfile", "clearCupProfile"].includes(field ?? "")) return "cup";
   return "required";
 }
 
@@ -187,6 +206,8 @@ export interface CoffeeDetailsPatch {
   clearBrewMethod?: boolean;
   harvestYear?: number;
   clearHarvestYear?: boolean;
+  cupProfile?: CupProfile;
+  clearCupProfile?: boolean;
 }
 
 export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails): CoffeeDetailsPatch {
@@ -229,6 +250,13 @@ export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails):
   if (yearNow !== "invalid" && yearNow !== (yearWas === "invalid" ? null : yearWas)) {
     if (yearNow === null) p.clearHarvestYear = true;
     else p.harvestYear = yearNow;
+  }
+  // The API replaces the three cup scales together: send all three, or clear.
+  const cupWas = cupProfileFromForm(before);
+  const cupNow = cupProfileFromForm(after);
+  if (JSON.stringify(cupNow) !== JSON.stringify(cupWas)) {
+    if (cupNow === null) p.clearCupProfile = true;
+    else p.cupProfile = cupNow;
   }
   return p;
 }

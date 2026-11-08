@@ -54,6 +54,8 @@ type Coffee struct {
 	BrewMethod *string
 	// HarvestYear (migration 012): the crop year; nil = not given.
 	HarvestYear *int
+	// Cup profile (migration 013): 1–5 each; nil = not given.
+	Acidity, Sweetness, Body *int
 }
 
 // Variant is a purchasable size/grind of a coffee.

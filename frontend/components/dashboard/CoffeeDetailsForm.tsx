@@ -16,6 +16,7 @@ import {
 import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { CupProfileFields } from "./CupProfileFields";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, Notice, inputCls } from "./ui";
 
@@ -24,7 +25,8 @@ const loadOptions = () => query(FILTER_OPTIONS);
 
 type DetailFields =
   | "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes"
-  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod" | "harvestYear";
+  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod" | "harvestYear"
+  | "acidity" | "sweetness" | "body";
 
 export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails {
   return {
@@ -41,6 +43,9 @@ export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails 
     altitudeMax: c.altitudeMaxM === null ? "" : String(c.altitudeMaxM),
     brewMethod: c.brewMethod ?? null,
     harvestYear: c.harvestYear == null ? "" : String(c.harvestYear),
+    acidity: c.acidity == null ? "" : String(c.acidity),
+    sweetness: c.sweetness == null ? "" : String(c.sweetness),
+    body: c.body == null ? "" : String(c.body),
   };
 }
 
@@ -54,6 +59,7 @@ export function detailsErrorKey(problem: CoffeeDetailsProblem): MessageKey {
   if (problem === "notes") return "cf.error.notes";
   if (problem === "altitude") return "cf.error.altitude";
   if (problem === "harvest") return "cf.error.harvest";
+  if (problem === "cup") return "cf.error.cup";
   return "cf.error.required";
 }
 
@@ -193,6 +199,7 @@ export function CoffeeDetailsForm({
           </span>
         </label>
         <ProvenanceFields locale={locale} values={draft} onChange={set} />
+        <CupProfileFields locale={locale} values={draft} onChange={set} />
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea

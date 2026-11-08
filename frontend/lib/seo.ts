@@ -80,7 +80,11 @@ export interface JsonLdCoffee {
   brewMethod?: string | null;
   /** The crop year; null or out of range (2000–2100) is left out. */
   harvestYear?: number | null;
+  /** cupScalesOf(coffee) from lib/cupProfile (passed in to keep this file import-free). */
+  cup?: { scale: "acidity" | "sweetness" | "body"; value: number }[];
 }
+
+const CUP_NAMES = { acidity: "Acidity", sweetness: "Sweetness", body: "Body" } as const;
 
 /** English values for the "Roasted for" property (JSON-LD isn't localised). */
 const BREW_VALUES: Record<string, string> = {
@@ -100,8 +104,9 @@ const PROVENANCE_NAMES: Record<ProvenanceKey, string> = {
 /**
  * A schema.org Product for a published coffee. The offer covers the options a
  * buyer can pick (available ones); it's InStock when any of them has stock.
- * No variants → no offer. Producer / region / altitude, the brew method and
- * the harvest year, when set, become additionalProperty PropertyValues.
+ * No variants → no offer. Producer / region / altitude, the brew method, the
+ * harvest year and the cup profile (1–5 scales), when set, become
+ * additionalProperty PropertyValues.
  */
 export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/coffees/${c.id}`, base) ?? base;
@@ -123,7 +128,7 @@ export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unkn
   const description = shareDescription(c.description, 500);
   if (description) ld.description = description;
   if (images.length > 0) ld.image = images;
-  const props = (c.provenance ?? [])
+  const props: Record<string, string | number>[] = (c.provenance ?? [])
     .filter(([key, value]) => key in PROVENANCE_NAMES && value.trim() !== "")
     .map(([key, value]) => ({ "@type": "PropertyValue", name: PROVENANCE_NAMES[key], value }));
   const brew = c.brewMethod ? BREW_VALUES[c.brewMethod] : undefined;
@@ -131,6 +136,9 @@ export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unkn
   const harvest = c.harvestYear;
   if (typeof harvest === "number" && Number.isInteger(harvest) && harvest >= 2000 && harvest <= 2100) {
     props.push({ "@type": "PropertyValue", name: "Harvest year", value: String(harvest) });
+  }
+  for (const { scale, value } of c.cup ?? []) {
+    props.push({ "@type": "PropertyValue", name: CUP_NAMES[scale], value, minValue: 1, maxValue: 5 });
   }
   if (props.length > 0) ld.additionalProperty = props;
   if (prices.length > 0) {

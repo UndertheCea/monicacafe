@@ -15,6 +15,52 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 24 — 2026-11-08 — Cup profile (酸度 / 甜度 / 醇厚度)
+PR: #142
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from a gap: Taiwan roasters print acidity / sweetness / body scales on bags and menus,
+and "低酸" (low acidity) is one of the most common ways buyers here shop for coffee, but a coffee could only say
+so in its description. Roast level is a proxy, not the same thing.
+
+### Shipped (one line per slice: area — what — key files)
+- #136 backend — migration 013: `coffees.acidity / sweetness / body` (SMALLINT, NULL = not given, CHECK 1–5);
+  `Coffee.acidity / sweetness / body`; create / update take `CupProfileInput` which sets the three as a group (an
+  omitted scale becomes null, an empty input is BAD_USER_INPUT on `cupProfile`); `clearCupProfile` removes them;
+  `duplicateCoffee` copies them (`cupProfileParam` in `graph/helpers.go`, `store.CupProfile`)
+- #137 backend — `CoffeeFilter.maxAcidity` (1–5) on `Query.coffees` and `Shop.coffees`; unset never matches
+  (`storeFilter`, `CoffeeFilter.MaxAcidity` → `acidity <= $n`, partial index `idx_coffees_acidity`)
+- #138 frontend — dashboard new + edit forms: "Cup profile" fieldset with three 1–5 selects (blank = not given);
+  `coffeeDetailsPatch` sends all three as `cupProfile` or `clearCupProfile`; API cup errors get their own message
+  (`CupProfileFields.tsx`, `parseCupValue` / `cupProfileFromForm` in `lib/dashboard/validate.ts`, `lib/cupProfile.ts`)
+- #139 frontend — coffee page + draft preview: five black/white steps per set scale, `role="img"` labels
+  ("Acidity 2 of 5" / "酸度 2 / 5"); Product JSON-LD PropertyValues with minValue 1 / maxValue 5
+  (`components/coffees/CupProfile.tsx`, `lib/seo.ts`)
+- #140 frontend — `?acidity=low` → `maxAcidity: 2` (`parseAcidityParam`, `LOW_ACIDITY_MAX`): "Low acidity (1–2 of 5)"
+  checkbox in the /coffees sidebar and the shop page's in-shop filters, kept by `shopCoffeesHref`
+- #141 cross-cutting — demo seed gives five coffees a profile (Huila + blend low acid, Antigua unset); smoke checks the
+  GraphQL filter, /coffees?acidity=low and the coffee page's scale; "similar coffees" adds +1 to the ordering for an
+  acidity within one step (like the brew method: it never qualifies a coffee alone)
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations
+  001–013 + seed). New: `TestCupProfileParam`, `TestStoreFilter` maxAcidity cases, a `where()` case,
+  `TestCoffeeCupProfile`, `TestCoffeesAcidityFilter` (Query + Shop, anon + owner with drafts), two new rows in
+  `TestSimilarCoffees`.
+- Frontend: tsc, lint, `npm test` (157; new `tests/cupProfile.test.mjs`, cup cases in dashboard / coffeeQuery tests),
+  `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + `next start` on a fresh DB: `scripts/smoke.sh` all ok (incl. the three new cup checks) except the two
+  `/media/` checks (no SeaweedFS / nginx here). Playwright (en): sidebar "Low acidity" → 203, 206; shop page
+  `?acidity=low` keeps the box checked; coffee page scales + JSON-LD; seller registers, opens a shop, creates a coffee
+  with acidity 2 / body 5 → edit form shows it → blanking both saves null → sweetness 4 survives a reload and shows in
+  the draft preview; no page errors. Not run: `docker compose up` (CI's stack job covers it).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Three 1–5 scales, set as a group (like altitude): that's how bags and menus print them, and a group avoids a
+  per-field null/absent ambiguity in GraphQL. An empty `CupProfileInput` is an error rather than a silent clear.
+- "Low acidity" = 1–2. Cards don't show the profile (they already carry roast + brew method); the coffee page does.
+- Not done: a sweetness / body filter, or sorting by acidity — file them if buyers ask.
+
 ## Session 23 — 2026-11-08 — Harvest year (產季)
 PR: #135
 

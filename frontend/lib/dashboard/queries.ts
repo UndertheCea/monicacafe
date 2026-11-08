@@ -2,6 +2,7 @@
 import type { BrewMethod, GrindOption, RoastLevel } from "../api";
 import { typed } from "../graphql";
 import { DASH_COFFEES_PAGE } from "./coffeePages";
+import type { CupProfile } from "@/lib/cupProfile";
 
 export interface DashboardVariant {
   id: string;
@@ -111,6 +112,7 @@ export const CREATE_COFFEE = typed<
       altitudeMaxM: number | null;
       brewMethod: BrewMethod | null;
       harvestYear: number | null;
+      cupProfile: CupProfile | null;
       variants: VariantInput[];
     };
   }
@@ -135,6 +137,9 @@ export interface EditableCoffee {
   altitudeMaxM: number | null;
   brewMethod: BrewMethod | null;
   harvestYear: number | null;
+  acidity: number | null;
+  sweetness: number | null;
+  body: number | null;
   imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
@@ -142,7 +147,8 @@ export interface EditableCoffee {
 }
 
 const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
-  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM brewMethod harvestYear imageUrls isPublished shop { id }`;
+  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM brewMethod harvestYear
+  acidity sweetness body imageUrls isPublished shop { id }`;
 
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
@@ -172,6 +178,9 @@ export interface UpdateCoffeeInput {
   /** clearHarvestYear removes it; the two can't be combined. */
   harvestYear?: number;
   clearHarvestYear?: boolean;
+  /** Replaces all three scales; clearCupProfile removes them. The two can't be combined. */
+  cupProfile?: CupProfile;
+  clearCupProfile?: boolean;
   /** Replaces the gallery (order kept; first is the cover). */
   imageUrls?: string[];
 }

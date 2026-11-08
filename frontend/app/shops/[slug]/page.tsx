@@ -8,6 +8,8 @@ import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import {
   parseBrewParam,
   parseHarvestParam,
+  parseAcidityParam,
+  LOW_ACIDITY_MAX,
   parseRoastParam,
   parseSearchParam,
   parseSortParam,
@@ -44,6 +46,7 @@ const loadShop = cache(
     roast?: RoastLevel,
     brew?: BrewMethod,
     harvestFrom?: number,
+    maxAcidity?: number,
   ) =>
     SLUG_RE.test(slug)
       ? (
@@ -54,6 +57,7 @@ const loadShop = cache(
               ...(roast ? { roastLevel: roast } : {}),
               ...(brew ? { brewMethod: brew } : {}),
               ...(harvestFrom ? { minHarvestYear: harvestFrom } : {}),
+              ...(maxAcidity ? { maxAcidity } : {}),
             },
             sort: sortForApi(sort),
             limit: PAGE_SIZE,
@@ -72,6 +76,7 @@ function listOptions(sp: SearchParams) {
     roast: parseRoastParam(sp.roast),
     brew: parseBrewParam(sp.brew),
     harvest: parseHarvestParam(sp.harvest),
+    lowAcid: parseAcidityParam(sp.acidity),
   };
 }
 
@@ -84,8 +89,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const { page, sort, q, roast, brew, harvest } = listOptions(sp);
-    const shop = await loadShop(slug, page, sort, q, roast, brew, harvest ? recentHarvestFrom() : undefined);
+    const { page, sort, q, roast, brew, harvest, lowAcid } = listOptions(sp);
+    const shop = await loadShop(
+      slug, page, sort, q, roast, brew,
+      harvest ? recentHarvestFrom() : undefined,
+      lowAcid ? LOW_ACIDITY_MAX : undefined,
+    );
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
@@ -111,12 +120,16 @@ export default async function ShopPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
-  const { page, sort, q, roast, brew, harvest } = listOptions(sp);
-  const filtering = Boolean(q || roast || brew || harvest);
+  const { page, sort, q, roast, brew, harvest, lowAcid } = listOptions(sp);
+  const filtering = Boolean(q || roast || brew || harvest || lowAcid);
 
   let shop;
   try {
-    shop = await loadShop(slug, page, sort, q, roast, brew, harvest ? recentHarvestFrom() : undefined);
+    shop = await loadShop(
+      slug, page, sort, q, roast, brew,
+      harvest ? recentHarvestFrom() : undefined,
+      lowAcid ? LOW_ACIDITY_MAX : undefined,
+    );
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -169,6 +182,7 @@ export default async function ShopPage({
                 roast={roast}
                 brew={brew}
                 harvest={harvest}
+                lowAcid={lowAcid}
                 action={`/shops/${shop.slug}`}
               />
             )}

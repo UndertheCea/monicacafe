@@ -7,6 +7,8 @@ import {
   brewParam,
   parseBrewParam,
   parseHarvestParam,
+  parseAcidityParam,
+  LOW_ACIDITY_MAX,
   parseInStockParam,
   parseRoastParam,
   parseSearchParam,
@@ -100,6 +102,8 @@ test("shopCoffeesHref keeps search, roast and sort; drops defaults", () => {
     [{ roast: "LIGHT", brew: "ESPRESSO" }, "/shops/beans?roast=LIGHT&brew=espresso"],
     [{ harvest: true, sort: "saved" }, "/shops/beans?harvest=recent&sort=saved"],
     [{ harvest: false }, "/shops/beans"],
+    [{ lowAcid: true, harvest: true }, "/shops/beans?harvest=recent&acidity=low"],
+    [{ lowAcid: false }, "/shops/beans"],
   ];
   for (const [input, want] of cases) assert.equal(shopCoffeesHref("beans", input), want, JSON.stringify(input));
 });
@@ -138,4 +142,18 @@ test("recentHarvestFrom is last year in Taipei", () => {
   // 2026-12-31 16:00 UTC is already 2027 in Taipei.
   assert.equal(recentHarvestFrom(new Date("2026-12-31T15:59:59Z")), 2025);
   assert.equal(recentHarvestFrom(new Date("2026-12-31T16:00:00Z")), 2026);
+});
+
+test("parseAcidityParam accepts only low, any case; low means 1–2", () => {
+  const cases = [
+    [undefined, false],
+    ["", false],
+    ["low", true],
+    [" LOW ", true],
+    [["low", "high"], true],
+    ["high", false],
+    ["2", false],
+  ];
+  for (const [input, want] of cases) assert.equal(parseAcidityParam(input), want, JSON.stringify(input));
+  assert.equal(LOW_ACIDITY_MAX, 2);
 });

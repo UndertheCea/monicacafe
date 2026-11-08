@@ -460,3 +460,45 @@ func TestCleanProvenance(t *testing.T) {
 		})
 	}
 }
+
+func TestBrewMethodParam(t *testing.T) {
+	m := func(v string) *model.BrewMethod { b := model.BrewMethod(v); return &b }
+	for _, tt := range []struct {
+		name string
+		in   *model.BrewMethod
+		want string // "nil" = not given
+		fail bool
+	}{
+		{"not given", nil, "nil", false},
+		{"filter", m("FILTER"), "FILTER", false},
+		{"espresso", m("ESPRESSO"), "ESPRESSO", false},
+		{"omni", m("OMNI"), "OMNI", false},
+		{"lower case", m("filter"), "", true},
+		{"unknown", m("COLD_BREW"), "", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := brewMethodParam(tt.in)
+			if tt.fail {
+				if ae, ok := err.(*apiError); !ok || ae.field != "brewMethod" {
+					t.Fatalf("got %v, want a bad-input error on brewMethod", err)
+				}
+				return
+			}
+			s := "nil"
+			if got != nil {
+				s = *got
+			}
+			if err != nil || s != tt.want {
+				t.Fatalf("got (%s, %v), want %s", s, err, tt.want)
+			}
+			// And back: the stored value maps to the same enum.
+			if back := toBrewMethod(got); (back == nil) != (tt.in == nil) || (back != nil && *back != *tt.in) {
+				t.Fatalf("round trip: got %v, want %v", back, tt.in)
+			}
+		})
+	}
+	bad := "COLD_BREW"
+	if toBrewMethod(&bad) != nil {
+		t.Fatal("an unknown stored value should read as not given")
+	}
+}

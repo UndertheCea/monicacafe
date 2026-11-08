@@ -50,6 +50,8 @@ type Coffee struct {
 	Region       string
 	AltitudeMinM *int
 	AltitudeMaxM *int
+	// BrewMethod (migration 011): FILTER | ESPRESSO | OMNI; nil = not given.
+	BrewMethod *string
 }
 
 // Variant is a purchasable size/grind of a coffee.

@@ -143,7 +143,34 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
+		BrewMethod: toBrewMethod(c.BrewMethod),
 	}
+}
+
+// toBrewMethod maps the stored brew method; nil or an unknown value (the
+// DB CHECK makes that impossible today) is "not given".
+func toBrewMethod(s *string) *model.BrewMethod {
+	if s == nil {
+		return nil
+	}
+	m := model.BrewMethod(*s)
+	if !m.IsValid() {
+		return nil
+	}
+	return &m
+}
+
+// brewMethodParam validates an optional brew method for the store; nil stays
+// nil (not given).
+func brewMethodParam(m *model.BrewMethod) (*string, error) {
+	if m == nil {
+		return nil, nil
+	}
+	if !m.IsValid() {
+		return nil, errBadInput("brewMethod", "invalid brew method")
+	}
+	s := string(*m)
+	return &s, nil
 }
 
 func toCoffees(cs []*store.Coffee) []*model.Coffee {

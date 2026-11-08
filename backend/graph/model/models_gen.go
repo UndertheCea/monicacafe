@@ -68,6 +68,7 @@ type CreateCoffeeInput struct {
 	Region             *string         `json:"region,omitempty"`
 	AltitudeMinM       *int            `json:"altitudeMinM,omitempty"`
 	AltitudeMaxM       *int            `json:"altitudeMaxM,omitempty"`
+	BrewMethod         *BrewMethod     `json:"brewMethod,omitempty"`
 	Variants           []*VariantInput `json:"variants"`
 }
 
@@ -151,6 +152,8 @@ type UpdateCoffeeInput struct {
 	AltitudeMinM       *int        `json:"altitudeMinM,omitempty"`
 	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
 	ClearAltitude      *bool       `json:"clearAltitude,omitempty"`
+	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
+	ClearBrewMethod    *bool       `json:"clearBrewMethod,omitempty"`
 	ImageUrls          []string    `json:"imageUrls,omitempty"`
 }
 
@@ -193,6 +196,63 @@ type VariantInput struct {
 	WeightG  int         `json:"weightG"`
 	PriceTwd int         `json:"priceTwd"`
 	Stock    int         `json:"stock"`
+}
+
+type BrewMethod string
+
+const (
+	BrewMethodFilter   BrewMethod = "FILTER"
+	BrewMethodEspresso BrewMethod = "ESPRESSO"
+	BrewMethodOmni     BrewMethod = "OMNI"
+)
+
+var AllBrewMethod = []BrewMethod{
+	BrewMethodFilter,
+	BrewMethodEspresso,
+	BrewMethodOmni,
+}
+
+func (e BrewMethod) IsValid() bool {
+	switch e {
+	case BrewMethodFilter, BrewMethodEspresso, BrewMethodOmni:
+		return true
+	}
+	return false
+}
+
+func (e BrewMethod) String() string {
+	return string(e)
+}
+
+func (e *BrewMethod) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BrewMethod(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BrewMethod", str)
+	}
+	return nil
+}
+
+func (e BrewMethod) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BrewMethod) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BrewMethod) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type CoffeeSort string

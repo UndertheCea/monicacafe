@@ -8,6 +8,7 @@ import { query } from "@/lib/graphql";
 import { MORE_FROM_SHOP, SIMILAR_COFFEES, alsoLike, moreFromShop } from "@/lib/moreFromShop";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { provenanceFacts } from "@/lib/provenance";
 import { coffeeJsonLd, serializeJsonLd, shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
@@ -69,7 +70,9 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
       <script
         type="application/ld+json"
         nonce={nonce}
-        dangerouslySetInnerHTML={{ __html: serializeJsonLd(coffeeJsonLd(coffee, siteBase(process.env.SITE_URL))) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(
+            coffeeJsonLd({ ...coffee, provenance: provenanceFacts(coffee) }, siteBase(process.env.SITE_URL)),
+          ) }}
       />
       <Link href="/coffees" className="text-sm font-medium text-ink underline-offset-4 hover:underline">
         {t(locale, "coffee.back")}

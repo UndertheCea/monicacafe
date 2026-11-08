@@ -506,6 +506,10 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err := validateHarvestYear("harvestYear", input.HarvestYear, time.Now()); err != nil {
 		return nil, err
 	}
+	cup, err := cupProfileParam(input.CupProfile)
+	if err != nil {
+		return nil, err
+	}
 	variants, err := validateVariants(input.Variants)
 	if err != nil {
 		return nil, err
@@ -526,7 +530,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
 				FlavorNotes: notes, Producer: producer, Region: region,
 				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM, BrewMethod: brew,
-				HarvestYear: input.HarvestYear,
+				HarvestYear: input.HarvestYear, CupProfile: cup,
 			})
 			if err != nil {
 				return err
@@ -624,6 +628,17 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 			return nil, err
 		}
 		p.SetHarvestYear, p.HarvestYear = true, input.HarvestYear
+	}
+	if input.ClearCupProfile != nil && *input.ClearCupProfile {
+		if input.CupProfile != nil {
+			return nil, errBadInput("clearCupProfile", "clearCupProfile can't be combined with cupProfile")
+		}
+		p.SetCupProfile = true
+	} else if input.CupProfile != nil {
+		if p.CupProfile, err = cupProfileParam(input.CupProfile); err != nil {
+			return nil, err
+		}
+		p.SetCupProfile = true
 	}
 
 	co, err := r.Store.UpdateCoffee(ctx, id, p)

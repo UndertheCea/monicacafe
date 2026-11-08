@@ -146,6 +146,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
 		BrewMethod: toBrewMethod(c.BrewMethod), HarvestYear: c.HarvestYear,
+		Acidity: c.Acidity, Sweetness: c.Sweetness, Body: c.Body,
 	}
 }
 
@@ -390,6 +391,33 @@ func validateHarvestYear(field string, year *int, now time.Time) error {
 		return errBadInput(field, fmt.Sprintf("harvest year must be %d–%d", minHarvestYear, latest))
 	}
 	return nil
+}
+
+// Cup profile scales (migration 013's CHECK): 1 (low) to 5 (high).
+const (
+	minCupScale = 1
+	maxCupScale = 5
+)
+
+// cupProfileParam validates a CupProfileInput: each scale nil or 1–5, and at
+// least one set (removing the profile is clearCupProfile's job, so an empty
+// input is a mistake rather than a silent clear). nil input is "not given".
+func cupProfileParam(in *model.CupProfileInput) (store.CupProfile, error) {
+	if in == nil {
+		return store.CupProfile{}, nil
+	}
+	if in.Acidity == nil && in.Sweetness == nil && in.Body == nil {
+		return store.CupProfile{}, errBadInput("cupProfile", "set at least one of acidity, sweetness, body (or use clearCupProfile)")
+	}
+	for _, s := range []struct {
+		field string
+		v     *int
+	}{{"acidity", in.Acidity}, {"sweetness", in.Sweetness}, {"body", in.Body}} {
+		if s.v != nil && (*s.v < minCupScale || *s.v > maxCupScale) {
+			return store.CupProfile{}, errBadInput(s.field, fmt.Sprintf("%s must be %d–%d", s.field, minCupScale, maxCupScale))
+		}
+	}
+	return store.CupProfile{Acidity: in.Acidity, Sweetness: in.Sweetness, Body: in.Body}, nil
 }
 
 // cleanProvenance trims the optional producer / region texts; nil stays "".

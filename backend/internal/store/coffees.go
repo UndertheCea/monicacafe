@@ -8,14 +8,16 @@ import (
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
 	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
-	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year`
+	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year,
+	c.acidity, c.sweetness, c.body`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
 		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
-		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear); err != nil {
+		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear,
+		&c.Acidity, &c.Sweetness, &c.Body); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {
@@ -314,6 +316,12 @@ type CreateCoffeeParams struct {
 	AltitudeMaxM       *int
 	BrewMethod         *string
 	HarvestYear        *int
+	CupProfile         CupProfile
+}
+
+// CupProfile is a coffee's acidity / sweetness / body (1–5 each, nil = not given).
+type CupProfile struct {
+	Acidity, Sweetness, Body *int
 }
 
 // CreateCoffee inserts a draft coffee.
@@ -325,14 +333,14 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method, harvest_year)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14, $15)
+				brew_method, harvest_year, acidity, sweetness, body)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		p.ShopID, p.Name, p.Slug, p.Description, p.OriginCountryID, p.VarietyID,
 		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes, p.Producer, p.Region, p.AltitudeMinM, p.AltitudeMaxM,
-		p.BrewMethod, p.HarvestYear))
+		p.BrewMethod, p.HarvestYear, p.CupProfile.Acidity, p.CupProfile.Sweetness, p.CupProfile.Body))
 }
 
 // DuplicateCoffee copies coffee srcID into a new draft in the same shop with
@@ -345,10 +353,10 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method, harvest_year)
+				brew_method, harvest_year, acidity, sweetness, body)
 			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method, harvest_year
+				brew_method, harvest_year, acidity, sweetness, body
 			FROM coffees WHERE id = $1
 			RETURNING *
 		)
@@ -391,6 +399,10 @@ type UpdateCoffeeParams struct {
 	// false leaves it unchanged.
 	SetHarvestYear bool
 	HarvestYear    *int
+	// SetCupProfile replaces all three scales with CupProfile (nil = NULL);
+	// false leaves them unchanged.
+	SetCupProfile bool
+	CupProfile    CupProfile
 }
 
 // UpdateCoffee applies a partial update.
@@ -411,14 +423,18 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				altitude_min_m       = CASE WHEN $13 THEN $14 ELSE altitude_min_m END,
 				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END,
 				brew_method          = CASE WHEN $16 THEN $17 ELSE brew_method END,
-				harvest_year         = CASE WHEN $18 THEN $19::int ELSE harvest_year END
+				harvest_year         = CASE WHEN $18 THEN $19::int ELSE harvest_year END,
+				acidity              = CASE WHEN $20 THEN $21::smallint ELSE acidity END,
+				sweetness            = CASE WHEN $20 THEN $22::smallint ELSE sweetness END,
+				body                 = CASE WHEN $20 THEN $23::smallint ELSE body END
 			WHERE id = $1
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
 		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs,
-		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear))
+		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear,
+		p.SetCupProfile, p.CupProfile.Acidity, p.CupProfile.Sweetness, p.CupProfile.Body))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

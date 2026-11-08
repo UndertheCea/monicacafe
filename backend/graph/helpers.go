@@ -142,6 +142,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: model.RoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
+		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
 	}
 }
 
@@ -299,6 +300,53 @@ func slugify(name string) string {
 
 // maxCoffeeName is the longest coffee name (runes) the API accepts.
 const maxCoffeeName = 120
+
+// Provenance limits (migration 010 repeats them as CHECKs).
+const (
+	maxProvenanceText = 100
+	maxAltitudeM      = 6000
+)
+
+// validateAltitude checks a growing altitude in metres: both nil (not given),
+// a single height (min only) or a range with max ≥ min, all within
+// 0–maxAltitudeM. A max without a min is an error.
+func validateAltitude(minM, maxM *int) error {
+	if minM == nil {
+		if maxM != nil {
+			return errBadInput("altitudeMinM", "give the lowest altitude before the highest")
+		}
+		return nil
+	}
+	if *minM < 0 || *minM > maxAltitudeM {
+		return errBadInput("altitudeMinM", fmt.Sprintf("altitude must be 0–%d m", maxAltitudeM))
+	}
+	if maxM != nil {
+		if *maxM < 0 || *maxM > maxAltitudeM {
+			return errBadInput("altitudeMaxM", fmt.Sprintf("altitude must be 0–%d m", maxAltitudeM))
+		}
+		if *maxM < *minM {
+			return errBadInput("altitudeMaxM", "the highest altitude can't be below the lowest")
+		}
+	}
+	return nil
+}
+
+// cleanProvenance trims the optional producer / region texts; nil stays "".
+func cleanProvenance(producer, region *string) (string, string, error) {
+	var p, rg string
+	var err error
+	if producer != nil {
+		if p, err = cleanText("producer", *producer, 0, maxProvenanceText); err != nil {
+			return "", "", err
+		}
+	}
+	if region != nil {
+		if rg, err = cleanText("region", *region, 0, maxProvenanceText); err != nil {
+			return "", "", err
+		}
+	}
+	return p, rg, nil
+}
 
 // copyName appends suffix to name, trimming the end of name (by runes, then
 // trailing spaces) so the result fits maxCoffeeName.

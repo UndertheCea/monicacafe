@@ -491,6 +491,13 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	producer, region, err := cleanProvenance(input.Producer, input.Region)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
+		return nil, err
+	}
 	variants, err := validateVariants(input.Variants)
 	if err != nil {
 		return nil, err
@@ -509,7 +516,8 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 				ShopID: sh.ID, Name: name, Slug: base + "-" + suffix, Description: desc,
 				OriginCountryID: input.OriginCountryID, VarietyID: input.VarietyID,
 				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
-				FlavorNotes: notes,
+				FlavorNotes: notes, Producer: producer, Region: region,
+				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM,
 			})
 			if err != nil {
 				return err
@@ -568,6 +576,23 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	}
 	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
 		return nil, err
+	}
+	if p.Producer, err = cleanOptText("producer", input.Producer, 0, maxProvenanceText); err != nil {
+		return nil, err
+	}
+	if p.Region, err = cleanOptText("region", input.Region, 0, maxProvenanceText); err != nil {
+		return nil, err
+	}
+	if input.ClearAltitude != nil && *input.ClearAltitude {
+		if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
+			return nil, errBadInput("clearAltitude", "clearAltitude can't be combined with an altitude")
+		}
+		p.SetAltitude = true
+	} else if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
+		if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
+			return nil, err
+		}
+		p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM = true, input.AltitudeMinM, input.AltitudeMaxM
 	}
 
 	co, err := r.Store.UpdateCoffee(ctx, id, p)

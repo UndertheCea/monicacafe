@@ -396,3 +396,67 @@ func TestCopyName(t *testing.T) {
 	}
 }
 func strPtr(v string) *string { return &v }
+
+func TestValidateAltitude(t *testing.T) {
+	n := func(v int) *int { return &v }
+	for _, tt := range []struct {
+		name     string
+		min, max *int
+		field    string // "" = valid
+	}{
+		{"not given", nil, nil, ""},
+		{"single height", n(1900), nil, ""},
+		{"range", n(1800), n(2100), ""},
+		{"equal ends", n(2000), n(2000), ""},
+		{"sea level", n(0), nil, ""},
+		{"top of the range", n(6000), n(6000), ""},
+		{"max without min", nil, n(2000), "altitudeMinM"},
+		{"negative min", n(-1), nil, "altitudeMinM"},
+		{"min too high", n(6001), nil, "altitudeMinM"},
+		{"max too high", n(1000), n(6001), "altitudeMaxM"},
+		{"max below min", n(2000), n(1800), "altitudeMaxM"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAltitude(tt.min, tt.max)
+			if tt.field == "" {
+				if err != nil {
+					t.Fatalf("rejected: %v", err)
+				}
+				return
+			}
+			ae, ok := err.(*apiError)
+			if !ok || ae.field != tt.field {
+				t.Fatalf("got %v, want a bad-input error on %s", err, tt.field)
+			}
+		})
+	}
+}
+
+func TestCleanProvenance(t *testing.T) {
+	s := func(v string) *string { return &v }
+	for _, tt := range []struct {
+		name               string
+		producer, region   *string
+		wantP, wantR, fail string
+	}{
+		{"nil", nil, nil, "", "", ""},
+		{"trimmed", s("  Finca El Injerto "), s(" Huehuetenango\n"), "Finca El Injerto", "Huehuetenango", ""},
+		{"blank", s("   "), s(""), "", "", ""},
+		{"100 runes", s(strings.Repeat("咖", 100)), nil, strings.Repeat("咖", 100), "", ""},
+		{"producer too long", s(strings.Repeat("a", 101)), nil, "", "", "producer"},
+		{"region too long", nil, s(strings.Repeat("區", 101)), "", "", "region"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			p, r, err := cleanProvenance(tt.producer, tt.region)
+			if tt.fail != "" {
+				if ae, ok := err.(*apiError); !ok || ae.field != tt.fail {
+					t.Fatalf("got %v, want a bad-input error on %s", err, tt.fail)
+				}
+				return
+			}
+			if err != nil || p != tt.wantP || r != tt.wantR {
+				t.Fatalf("got (%q, %q, %v), want (%q, %q)", p, r, err, tt.wantP, tt.wantR)
+			}
+		})
+	}
+}

@@ -207,6 +207,14 @@ type Coffee {
   processingMethod: ProcessingMethod!
   roastLevel: RoastLevel!
   flavorNotes: [String!]!
+  # Provenance: the farm, estate, cooperative or washing station, and the
+  # region inside the origin country. "" when not given.
+  producer: String!
+  region: String!
+  # Growing altitude in metres: one height (altitudeMinM only) or a range.
+  # Both null when not given.
+  altitudeMinM: Int
+  altitudeMaxM: Int
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -389,6 +397,12 @@ input CreateCoffeeInput {
   processingMethodId: ID!
   roastLevel: RoastLevel!
   flavorNotes: [String!]
+  # ≤ 100 characters each; blank = not given.
+  producer: String
+  region: String
+  # Metres, 0–6000. altitudeMaxM needs altitudeMinM and must be ≥ it.
+  altitudeMinM: Int
+  altitudeMaxM: Int
   variants: [VariantInput!]!
 }
 
@@ -402,6 +416,16 @@ input UpdateCoffeeInput {
   flavorNotes: [String!]
   # true removes the variety (it's optional). Can't be combined with varietyId.
   clearVariety: Boolean
+  # ≤ 100 characters each; "" clears.
+  producer: String
+  region: String
+  # Set together: giving altitudeMinM replaces both (an omitted altitudeMaxM
+  # means a single height). Same rules as CreateCoffeeInput. altitudeMaxM
+  # alone is BAD_USER_INPUT.
+  altitudeMinM: Int
+  altitudeMaxM: Int
+  # true removes the altitude. Can't be combined with altitudeMinM / altitudeMaxM.
+  clearAltitude: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]

@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-07 (after Session 19)
+Last updated: 2026-11-08 (after Session 20)
 
 ---
 
@@ -30,7 +30,7 @@ takes a commission on each sale).
 with black type and nothing else. No yellow / amber, no dark "black and yellow" blocks, no gradients. The
 wordmark is a heavy, italic, lowercase "moni cafe" in the style of the *motors coffee* sign (#110). Coffees
 without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8) with the coffee's words written
-on it (#111). Slices: #109–#112.
+on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keeps colour utilities out.
 
 ## Status
 
@@ -60,25 +60,23 @@ on it (#111). Slices: #109–#112.
 | Postgres pool cap + statement timeout from env | Done (#52) |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
 | nginx: gzip for text responses, no server version | Done (#64) |
+| Visual direction: white + black tokens, italic "moni cafe" wordmark, Radix colour tiles, shop initials, site icon | Done (#109–#112, #114) |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 19** — no pickable slices again, so a "follow roasters" feature was filed and shipped as six slices: the
-follow API with migration 009 (#102), a follow button on shop pages (#103), "Shops you follow" on /account (#104),
-`followingCoffees` (#105) feeding a home-page "From roasters you follow" section (#106), and "Most followed" shop sort
-with follower counts on cards and the dashboard (#107). Verified with race tests on PostgreSQL, smoke + Playwright
-on a local API + Next.
+**Session 20** — the owner's new look: white page + black type with palette tokens and no amber / gradients / dark
+hero (#109), the italic "moni cafe" wordmark (#110), SEY-style Radix colour tiles for coffees without photos (#111),
+initials placeholders for shops without logo / banner (#112), and a site icon + favicon (#114, was a 404 on every
+page). Verified with race tests on PostgreSQL, smoke + Playwright screenshots on a local API + Next.
 
 ## Current focus
 
-**Next: the owner's new visual direction (#109–#112, p1) — white + black only, italic wordmark, SEY-style colour
-tiles for coffees without photos, plain shop placeholders.** Take these before anything else.
-
-Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
-#12 (commission + payouts). No pickable slices remain after Session 19; next sessions should file real gaps or wait for #9 / #12
-(and #50 for a /shops city filter, #93 for seller account closure). Production readiness: set `TRUSTED_PROXIES` to the real proxies only, and
-size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
+**No pickable slices remain.** Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers
+to #9 (cart storage) and #12 (commission + payouts); #50 (a /shops city filter) and #93 (seller account closure) also
+wait on the owner. Next sessions: take any new owner feedback on the look first, otherwise file real gaps. Production
+readiness: set `TRUSTED_PROXIES` to the real proxies only, and size `DB_MAX_CONNS` × API instances below Postgres'
+`max_connections`.
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -157,3 +155,5 @@ Open questions for the owner (answer by commenting on the issue):
   La Cabra / Coffee Collective / Poma; the only colour is the soft Radix tile behind a coffee with no photo (#109–#112).
 - **Follows: public count, private list** — like saves; nobody (the seller included) sees who follows a shop, and
   owners can't follow themselves, so the count means other people (#102).
+- **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
+  colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).

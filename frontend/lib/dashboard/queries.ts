@@ -105,6 +105,10 @@ export const CREATE_COFFEE = typed<
       processingMethodId: string;
       roastLevel: RoastLevel;
       flavorNotes: string[];
+      producer: string;
+      region: string;
+      altitudeMinM: number | null;
+      altitudeMaxM: number | null;
       variants: VariantInput[];
     };
   }
@@ -123,6 +127,10 @@ export interface EditableCoffee {
   variety: { id: string } | null;
   roastLevel: RoastLevel;
   flavorNotes: string[];
+  producer: string;
+  region: string;
+  altitudeMinM: number | null;
+  altitudeMaxM: number | null;
   imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
@@ -130,7 +138,7 @@ export interface EditableCoffee {
 }
 
 const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
-  roastLevel flavorNotes imageUrls isPublished shop { id }`;
+  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM imageUrls isPublished shop { id }`;
 
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
@@ -147,6 +155,13 @@ export interface UpdateCoffeeInput {
   clearVariety?: boolean;
   roastLevel?: string;
   flavorNotes?: string[];
+  /** "" clears. */
+  producer?: string;
+  region?: string;
+  /** Set together (an omitted max = one height); clearAltitude removes both. */
+  altitudeMinM?: number;
+  altitudeMaxM?: number;
+  clearAltitude?: boolean;
   /** Replaces the gallery (order kept; first is the cover). */
   imageUrls?: string[];
 }

@@ -8,7 +8,9 @@ import { FILTER_OPTIONS, ROAST_LEVELS, type GrindOption, type RoastLevel } from 
 import { CREATE_COFFEE } from "@/lib/dashboard/queries";
 import {
   LIMITS,
+  apiDetailsProblem,
   coffeeDetailsProblem,
+  parseAltitude,
   parseFlavorNotes,
   parseWhole,
   variantProblems,
@@ -16,6 +18,8 @@ import {
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { detailsErrorKey } from "./CoffeeDetailsForm";
+import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
 
@@ -67,15 +71,23 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     const varietyId = String(fd.get("variety") ?? "") || null;
     const roastLevel = String(fd.get("roast") ?? "") as RoastLevel;
     const notes = parseFlavorNotes(String(fd.get("notes") ?? ""));
+    const producer = String(fd.get("producer") ?? "").trim();
+    const region = String(fd.get("region") ?? "").trim();
+    const altitudeMin = String(fd.get("altitudeMin") ?? "");
+    const altitudeMax = String(fd.get("altitudeMax") ?? "");
 
     const detailsProblem = coffeeDetailsProblem(
-      { name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes },
+      {
+        name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes,
+        producer, region, altitudeMin, altitudeMax,
+      },
       ROAST_LEVELS,
     );
-    if (detailsProblem === "required") return setError({ key: "cf.error.required" });
-    if (detailsProblem === "notes") {
-      return setError({ key: "cf.error.notes", vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
+    if (detailsProblem) {
+      return setError({ key: detailsErrorKey(detailsProblem), vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
     }
+    const altitude = parseAltitude(altitudeMin, altitudeMax);
+    if (altitude === "invalid") return setError({ key: "cf.error.altitude" });
     if (rows.length === 0) return setError({ key: "cf.error.noVariants" });
     const firstProblem = problems.values().next();
     if (!firstProblem.done) return setError({ key: VARIANT_PROBLEM_KEY[firstProblem.value] });
@@ -92,6 +104,10 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           varietyId,
           roastLevel,
           flavorNotes: notes,
+          producer,
+          region,
+          altitudeMinM: altitude.minM,
+          altitudeMaxM: altitude.maxM,
           variants: rows.map((r) => ({
             grind: r.grind as GrindOption,
             weightG: parseWhole(r.weightG, 1, LIMITS.weightG)!,
@@ -103,7 +119,11 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       router.push("/dashboard");
     } catch (err) {
       const e2 = toApiError(err);
-      setError({ key: e2.code === "BAD_USER_INPUT" && e2.field === "flavorNotes" ? "cf.error.notes" : "cf.error.generic", vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
+      const key =
+        e2.code === "BAD_USER_INPUT" && ["flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region"].includes(e2.field ?? "")
+          ? detailsErrorKey(apiDetailsProblem(e2.field))
+          : "cf.error.generic";
+      setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);
     }
   }
@@ -151,6 +171,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
             {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
           </span>
         </label>
+        <ProvenanceFields locale={locale} />
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />

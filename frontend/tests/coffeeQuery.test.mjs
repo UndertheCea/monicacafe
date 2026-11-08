@@ -6,10 +6,12 @@ import {
   SORT_PARAMS,
   brewParam,
   parseBrewParam,
+  parseHarvestParam,
   parseInStockParam,
   parseRoastParam,
   parseSearchParam,
   parseSortParam,
+  recentHarvestFrom,
   searchHref,
   shopCoffeesHref,
   sortForApi,
@@ -96,6 +98,8 @@ test("shopCoffeesHref keeps search, roast and sort; drops defaults", () => {
     [{ q: "花香 berry", roast: "DARK", sort: "price_asc" }, "/shops/beans?q=%E8%8A%B1%E9%A6%99+berry&roast=DARK&sort=price_asc"],
     [{ sort: "discussed" }, "/shops/beans?sort=discussed"],
     [{ roast: "LIGHT", brew: "ESPRESSO" }, "/shops/beans?roast=LIGHT&brew=espresso"],
+    [{ harvest: true, sort: "saved" }, "/shops/beans?harvest=recent&sort=saved"],
+    [{ harvest: false }, "/shops/beans"],
   ];
   for (const [input, want] of cases) assert.equal(shopCoffeesHref("beans", input), want, JSON.stringify(input));
 });
@@ -114,4 +118,24 @@ test("parseBrewParam accepts filter / espresso / omni, any case; brewParam is lo
   for (const [input, want] of cases) assert.equal(parseBrewParam(input), want, JSON.stringify(input));
   for (const m of ["FILTER", "ESPRESSO", "OMNI"]) assert.equal(parseBrewParam(brewParam(m)), m);
   assert.equal(brewParam("ESPRESSO"), "espresso");
+});
+
+test("parseHarvestParam accepts only recent, any case", () => {
+  const cases = [
+    [undefined, false],
+    ["", false],
+    ["recent", true],
+    [" Recent ", true],
+    [["recent", "x"], true],
+    ["1", false],
+    ["2025", false],
+  ];
+  for (const [input, want] of cases) assert.equal(parseHarvestParam(input), want, JSON.stringify(input));
+});
+
+test("recentHarvestFrom is last year in Taipei", () => {
+  assert.equal(recentHarvestFrom(new Date("2026-06-01T00:00:00Z")), 2025);
+  // 2026-12-31 16:00 UTC is already 2027 in Taipei.
+  assert.equal(recentHarvestFrom(new Date("2026-12-31T15:59:59Z")), 2025);
+  assert.equal(recentHarvestFrom(new Date("2026-12-31T16:00:00Z")), 2026);
 });

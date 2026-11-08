@@ -9,6 +9,8 @@ import {
   normaliseShopSlug,
   parseAltitude,
   parseCoords,
+  parseHarvestYear,
+  taipeiYear,
   parseFlavorNotes,
   parseWhole,
   shopProfilePatch,
@@ -95,7 +97,32 @@ const baseCoffee = {
   altitudeMin: "1800",
   altitudeMax: "2100",
   brewMethod: "FILTER",
+  harvestYear: "2024",
 };
+
+test("taipeiYear turns over at midnight in Taiwan, not UTC", () => {
+  assert.equal(taipeiYear(new Date("2026-12-31T15:59:59Z")), 2026);
+  assert.equal(taipeiYear(new Date("2026-12-31T16:00:00Z")), 2027);
+});
+
+test("parseHarvestYear: blank, 2000 to this year, else invalid", () => {
+  const cases = [
+    ["", null],
+    ["  ", null],
+    ["2000", 2000],
+    [" 2025 ", 2025],
+    ["2026", 2026],
+    ["2027", "invalid"], // future crop
+    ["1999", "invalid"],
+    ["25", "invalid"],
+    ["2025/26", "invalid"],
+    ["2025.5", "invalid"],
+  ];
+  for (const [input, want] of cases) assert.equal(parseHarvestYear(input, 2026), want, input);
+  // Default "latest" is this year in Taipei.
+  assert.equal(parseHarvestYear(String(taipeiYear())), taipeiYear());
+  assert.equal(parseHarvestYear(String(taipeiYear() + 1)), "invalid");
+});
 
 test("coffeeDetailsProblem", () => {
   const cases = [
@@ -115,6 +142,9 @@ test("coffeeDetailsProblem", () => {
     [{ altitudeMin: "", altitudeMax: "2000" }, "altitude"],
     [{ altitudeMin: "2200" }, "altitude"],
     [{ altitudeMin: "1,900", altitudeMax: "" }, null],
+    [{ harvestYear: "" }, null],
+    [{ harvestYear: "1999" }, "harvest"],
+    [{ harvestYear: String(taipeiYear() + 1) }, "harvest"],
   ];
   for (const [patch, want] of cases) {
     assert.equal(coffeeDetailsProblem({ ...baseCoffee, ...patch }, ROASTS), want, JSON.stringify(patch));
@@ -144,6 +174,10 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     [{ brewMethod: "OMNI" }, { brewMethod: "OMNI" }],
     [{ brewMethod: null }, { clearBrewMethod: true }],
     [{ brewMethod: "" }, { clearBrewMethod: true }],
+    [{ harvestYear: " 2024 " }, {}],
+    [{ harvestYear: "2025" }, { harvestYear: 2025 }],
+    [{ harvestYear: "" }, { clearHarvestYear: true }],
+    [{ harvestYear: "1999" }, {}], // invalid: left to coffeeDetailsProblem
   ];
   for (const [patch, want] of cases) {
     assert.deepEqual(coffeeDetailsPatch(baseCoffee, { ...baseCoffee, ...patch }), want, JSON.stringify(patch));
@@ -155,6 +189,11 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     brewMethod: "ESPRESSO",
   });
   assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, brewMethod: null }, { ...baseCoffee, brewMethod: "" }), {});
+  // Setting a harvest year on a coffee that had none; none → none sends nothing.
+  assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, harvestYear: "" }, { ...baseCoffee, harvestYear: "2023" }), {
+    harvestYear: 2023,
+  });
+  assert.deepEqual(coffeeDetailsPatch({ ...baseCoffee, harvestYear: "" }, { ...baseCoffee, harvestYear: " " }), {});
 });
 
 test("parseCoords", () => {
@@ -246,6 +285,8 @@ test("apiDetailsProblem maps the API's field to a form message", () => {
   assert.equal(apiDetailsProblem("altitudeMinM"), "altitude");
   assert.equal(apiDetailsProblem("altitudeMaxM"), "altitude");
   assert.equal(apiDetailsProblem("clearAltitude"), "altitude");
+  assert.equal(apiDetailsProblem("harvestYear"), "harvest");
+  assert.equal(apiDetailsProblem("clearHarvestYear"), "harvest");
   assert.equal(apiDetailsProblem("producer"), "required");
   assert.equal(apiDetailsProblem(undefined), "required");
 });

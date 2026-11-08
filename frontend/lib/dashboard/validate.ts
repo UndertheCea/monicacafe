@@ -16,6 +16,7 @@ export const LIMITS = {
   stock: 100_000,
   provenance: 100,
   altitudeM: 6000,
+  harvestYearMin: 2000,
 } as const;
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -104,9 +105,27 @@ export interface CoffeeDetails {
   altitudeMax: string;
   /** FILTER | ESPRESSO | OMNI, or null when not given. */
   brewMethod: string | null;
+  /** The crop year as typed: blank = not given. */
+  harvestYear: string;
 }
 
-export type CoffeeDetailsProblem = "required" | "notes" | "altitude";
+export type CoffeeDetailsProblem = "required" | "notes" | "altitude" | "harvest";
+
+/** The calendar year in Taiwan (UTC+8, no DST): what the API compares crop years with. */
+export function taipeiYear(now: Date = new Date()): number {
+  return new Date(now.getTime() + 8 * 60 * 60 * 1000).getUTCFullYear();
+}
+
+/**
+ * Parse the harvest-year box: blank → null (not given); a whole year from
+ * 2000 through `latest` (this year in Taipei) → the year; anything else →
+ * "invalid". Mirrors validateHarvestYear in backend/graph/helpers.go.
+ */
+export function parseHarvestYear(s: string, latest: number = taipeiYear()): number | null | "invalid" {
+  const v = s.trim();
+  if (!v) return null;
+  return parseWhole(v, LIMITS.harvestYearMin, latest) ?? "invalid";
+}
 
 export type Altitude = { minM: number | null; maxM: number | null };
 
@@ -136,6 +155,7 @@ export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly str
   if (runes(d.producer.trim()) > LIMITS.provenance || runes(d.region.trim()) > LIMITS.provenance) return "required";
   if (d.flavorNotes.length > LIMITS.flavorNotes || d.flavorNotes.some((n) => runes(n) > LIMITS.flavorNote)) return "notes";
   if (parseAltitude(d.altitudeMin, d.altitudeMax) === "invalid") return "altitude";
+  if (parseHarvestYear(d.harvestYear) === "invalid") return "harvest";
   return null;
 }
 
@@ -144,6 +164,7 @@ export function apiDetailsProblem(field: string | undefined): CoffeeDetailsProbl
   if (field === "flavorNotes") return "notes";
   // brewMethod / clearBrewMethod can only fail on a stale or tampered form.
   if (field === "altitudeMinM" || field === "altitudeMaxM" || field === "clearAltitude") return "altitude";
+  if (field === "harvestYear" || field === "clearHarvestYear") return "harvest";
   return "required";
 }
 
@@ -164,6 +185,8 @@ export interface CoffeeDetailsPatch {
   clearAltitude?: boolean;
   brewMethod?: string;
   clearBrewMethod?: boolean;
+  harvestYear?: number;
+  clearHarvestYear?: boolean;
 }
 
 export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails): CoffeeDetailsPatch {
@@ -200,6 +223,12 @@ export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails):
   if ((after.brewMethod || null) !== (before.brewMethod || null)) {
     if (after.brewMethod) p.brewMethod = after.brewMethod;
     else p.clearBrewMethod = true;
+  }
+  const yearWas = parseHarvestYear(before.harvestYear, Infinity);
+  const yearNow = parseHarvestYear(after.harvestYear);
+  if (yearNow !== "invalid" && yearNow !== (yearWas === "invalid" ? null : yearWas)) {
+    if (yearNow === null) p.clearHarvestYear = true;
+    else p.harvestYear = yearNow;
   }
   return p;
 }

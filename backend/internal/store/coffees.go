@@ -8,14 +8,14 @@ import (
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
 	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
-	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method`
+	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
 		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
-		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod); err != nil {
+		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {
@@ -77,8 +77,8 @@ type CoffeeFilter struct {
 	RoastLevel         *string
 	FlavorNote         *string
 	// SearchTerms: every term must appear (case-insensitive substring) in the
-	// coffee's name, description, a flavor note, its producer or region, its
-	// shop's name, or its origin / variety / process names. Terms are matched
+	// coffee's name, description, a flavor note, its producer, region or
+	// harvest year, its shop's name, or its origin / variety / process names. Terms are matched
 	// literally.
 	SearchTerms []string
 	MinPriceTWD *int64
@@ -87,6 +87,9 @@ type CoffeeFilter struct {
 	InStock bool
 	// BrewMethods keeps coffees whose brew_method is any of these (nil = all).
 	BrewMethods []string
+	// MinHarvestYear keeps coffees harvested in this year or later; a coffee
+	// without a harvest year never matches.
+	MinHarvestYear *int
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -142,6 +145,9 @@ func (f CoffeeFilter) where() (string, []any) {
 	if len(f.BrewMethods) > 0 {
 		add("c.brew_method = ANY($%d)", f.BrewMethods)
 	}
+	if f.MinHarvestYear != nil {
+		add("c.harvest_year >= $%d", *f.MinHarvestYear)
+	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")
 	}
@@ -154,7 +160,7 @@ func (f CoffeeFilter) where() (string, []any) {
 // searchCond matches one search term (a LIKE pattern, $N) against every text
 // a buyer might type: names in both languages, notes, provenance, the shop.
 const searchCond = `(c.name ILIKE $%[1]d OR c.description ILIKE $%[1]d
-		OR c.producer ILIKE $%[1]d OR c.region ILIKE $%[1]d
+		OR c.producer ILIKE $%[1]d OR c.region ILIKE $%[1]d OR c.harvest_year::text ILIKE $%[1]d
 		OR EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE n ILIKE $%[1]d)
 		OR EXISTS (SELECT 1 FROM shops s WHERE s.id = c.shop_id AND s.name ILIKE $%[1]d)
 		OR EXISTS (SELECT 1 FROM origin_countries o WHERE o.id = c.origin_country_id AND (o.name_en ILIKE $%[1]d OR o.name_zh ILIKE $%[1]d))
@@ -307,6 +313,7 @@ type CreateCoffeeParams struct {
 	AltitudeMinM       *int
 	AltitudeMaxM       *int
 	BrewMethod         *string
+	HarvestYear        *int
 }
 
 // CreateCoffee inserts a draft coffee.
@@ -318,14 +325,14 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14)
+				brew_method, harvest_year)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14, $15)
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		p.ShopID, p.Name, p.Slug, p.Description, p.OriginCountryID, p.VarietyID,
 		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes, p.Producer, p.Region, p.AltitudeMinM, p.AltitudeMaxM,
-		p.BrewMethod))
+		p.BrewMethod, p.HarvestYear))
 }
 
 // DuplicateCoffee copies coffee srcID into a new draft in the same shop with
@@ -338,10 +345,10 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method)
+				brew_method, harvest_year)
 			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method
+				brew_method, harvest_year
 			FROM coffees WHERE id = $1
 			RETURNING *
 		)
@@ -380,6 +387,10 @@ type UpdateCoffeeParams struct {
 	// leaves it unchanged.
 	SetBrewMethod bool
 	BrewMethod    *string
+	// SetHarvestYear replaces harvest_year with HarvestYear (nil = NULL);
+	// false leaves it unchanged.
+	SetHarvestYear bool
+	HarvestYear    *int
 }
 
 // UpdateCoffee applies a partial update.
@@ -399,14 +410,15 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				region               = COALESCE($12, region),
 				altitude_min_m       = CASE WHEN $13 THEN $14 ELSE altitude_min_m END,
 				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END,
-				brew_method          = CASE WHEN $16 THEN $17 ELSE brew_method END
+				brew_method          = CASE WHEN $16 THEN $17 ELSE brew_method END,
+				harvest_year         = CASE WHEN $18 THEN $19::int ELSE harvest_year END
 			WHERE id = $1
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
 		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs,
-		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod))
+		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

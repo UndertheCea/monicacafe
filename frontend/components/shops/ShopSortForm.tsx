@@ -4,6 +4,7 @@ import {
   SEARCH_MAX_CHARS,
   SORT_PARAMS,
   brewParam,
+  recentHarvestFrom,
   type BrewMethod,
   type RoastLevel,
   type SortParam,
@@ -15,7 +16,7 @@ const fieldCls =
   "rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
 /**
- * Search, roast, brew method and sort for one shop's coffees: a plain GET form
+ * Search, roast, brew method, recent harvest and sort for one shop's coffees: a plain GET form
  * (works without JavaScript); submitting keeps them all and resets to page 1.
  */
 export function ShopCoffeesForm({
@@ -25,6 +26,7 @@ export function ShopCoffeesForm({
   q,
   roast,
   brew,
+  harvest,
 }: {
   locale: Locale;
   action: string;
@@ -32,6 +34,7 @@ export function ShopCoffeesForm({
   q?: string;
   roast?: RoastLevel;
   brew?: BrewMethod;
+  harvest?: boolean;
 }) {
   return (
     <SortForm
@@ -63,6 +66,10 @@ export function ShopCoffeesForm({
             </option>
           ))}
         </select>
+      </label>
+      <label className="flex cursor-pointer items-center gap-2">
+        <input type="checkbox" name="harvest" value="recent" defaultChecked={harvest} className="h-4 w-4 accent-ink" />
+        <span className="text-neutral-700">{t(locale, "filter.recentHarvest", { year: recentHarvestFrom() })}</span>
       </label>
     </SortForm>
   );

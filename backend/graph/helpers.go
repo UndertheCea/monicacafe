@@ -9,6 +9,7 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -18,6 +19,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
+	"github.com/underthecea/monicacafe/backend/internal/platform/tz"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
@@ -143,7 +145,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
-		BrewMethod: toBrewMethod(c.BrewMethod),
+		BrewMethod: toBrewMethod(c.BrewMethod), HarvestYear: c.HarvestYear,
 	}
 }
 
@@ -366,6 +368,26 @@ func validateAltitude(minM, maxM *int) error {
 		if *maxM < *minM {
 			return errBadInput("altitudeMaxM", "the highest altitude can't be below the lowest")
 		}
+	}
+	return nil
+}
+
+// Harvest years (migration 012's CHECK is the wider 2000–2100).
+const (
+	minHarvestYear = 2000
+	maxHarvestYear = 2100
+)
+
+// validateHarvestYear checks an optional crop year: nil is "not given";
+// otherwise minHarvestYear through the current year in Taipei, because a
+// crop can't be harvested in the future.
+func validateHarvestYear(field string, year *int, now time.Time) error {
+	if year == nil {
+		return nil
+	}
+	latest := tz.ToTaipei(now).Year()
+	if *year < minHarvestYear || *year > latest {
+		return errBadInput(field, fmt.Sprintf("harvest year must be %d–%d", minHarvestYear, latest))
 	}
 	return nil
 }
@@ -762,6 +784,14 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 			return out, errBadInput("brewMethod", "invalid brew method")
 		}
 		out.BrewMethods = brewMethodsMatching(*f.BrewMethod)
+	}
+	if f.MinHarvestYear != nil {
+		// Not capped at the current year: asking for next year's crop is just
+		// an empty list, not a mistake.
+		if y := *f.MinHarvestYear; y < minHarvestYear || y > maxHarvestYear {
+			return out, errBadInput("minHarvestYear", fmt.Sprintf("minHarvestYear must be %d–%d", minHarvestYear, maxHarvestYear))
+		}
+		out.MinHarvestYear = f.MinHarvestYear
 	}
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")

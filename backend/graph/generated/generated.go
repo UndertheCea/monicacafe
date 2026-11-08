@@ -67,6 +67,7 @@ type ComplexityRoot struct {
 		CreatedAt        func(childComplexity int) int
 		Description      func(childComplexity int) int
 		FlavorNotes      func(childComplexity int) int
+		HarvestYear      func(childComplexity int) int
 		ID               func(childComplexity int) int
 		ImageUrls        func(childComplexity int) int
 		IsPublished      func(childComplexity int) int
@@ -414,6 +415,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Coffee.FlavorNotes(childComplexity), true
+
+	case "Coffee.harvestYear":
+		if e.complexity.Coffee.HarvestYear == nil {
+			break
+		}
+
+		return e.complexity.Coffee.HarvestYear(childComplexity), true
 
 	case "Coffee.id":
 		if e.complexity.Coffee.ID == nil {
@@ -1796,6 +1804,8 @@ type Coffee {
   altitudeMaxM: Int
   # What the coffee is roasted for; null when not given.
   brewMethod: BrewMethod
+  # The crop (產季): the year its harvest ended; null when not given.
+  harvestYear: Int
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -1993,6 +2003,8 @@ input CreateCoffeeInput {
   altitudeMinM: Int
   altitudeMaxM: Int
   brewMethod: BrewMethod
+  # 2000 through the current year (Asia/Taipei).
+  harvestYear: Int
   variants: [VariantInput!]!
 }
 
@@ -2019,6 +2031,10 @@ input UpdateCoffeeInput {
   brewMethod: BrewMethod
   # true removes the brew method. Can't be combined with brewMethod.
   clearBrewMethod: Boolean
+  # Same range as CreateCoffeeInput.
+  harvestYear: Int
+  # true removes the harvest year. Can't be combined with harvestYear.
+  clearHarvestYear: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]
@@ -2054,8 +2070,8 @@ input CoffeeFilter {
   roastLevel: RoastLevel
   flavorNote: String
   # Keywords (≤ 100 characters, ≤ 8 words). Every word must appear in the
-  # coffee's name, description, a flavor note, its producer or region, the shop
-  # name, or the origin / variety / process name (zh or en). Case-insensitive;
+  # coffee's name, description, a flavor note, its producer, region or harvest
+  # year, the shop name, or the origin / variety / process name (zh or en). Case-insensitive;
   # blank is ignored.
   search: String
   minPriceTwd: Int
@@ -2065,6 +2081,9 @@ input CoffeeFilter {
   # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
   # only OMNI. Coffees without a brew method never match.
   brewMethod: BrewMethod
+  # Only coffees harvested in this year or later (2000–2100). Coffees without
+  # a harvest year never match.
+  minHarvestYear: Int
 }
 
 input AddCommentInput {
@@ -4687,6 +4706,47 @@ func (ec *executionContext) fieldContext_Coffee_brewMethod(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Coffee_harvestYear(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Coffee_harvestYear(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HarvestYear, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Coffee_harvestYear(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Coffee",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Coffee_imageUrls(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Coffee_imageUrls(ctx, field)
 	if err != nil {
@@ -4973,6 +5033,8 @@ func (ec *executionContext) fieldContext_Coffee_similar(ctx context.Context, fie
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -5300,6 +5362,8 @@ func (ec *executionContext) fieldContext_CoffeeConnection_nodes(_ context.Contex
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -5718,6 +5782,8 @@ func (ec *executionContext) fieldContext_Comment_coffee(_ context.Context, field
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6888,6 +6954,8 @@ func (ec *executionContext) fieldContext_Mutation_createCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -6995,6 +7063,8 @@ func (ec *executionContext) fieldContext_Mutation_updateCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -7102,6 +7172,8 @@ func (ec *executionContext) fieldContext_Mutation_publishCoffee(ctx context.Cont
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -7209,6 +7281,8 @@ func (ec *executionContext) fieldContext_Mutation_unpublishCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -7371,6 +7445,8 @@ func (ec *executionContext) fieldContext_Mutation_duplicateCoffee(ctx context.Co
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -7933,6 +8009,8 @@ func (ec *executionContext) fieldContext_Mutation_saveCoffee(ctx context.Context
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -8037,6 +8115,8 @@ func (ec *executionContext) fieldContext_Mutation_unsaveCoffee(ctx context.Conte
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -8931,6 +9011,8 @@ func (ec *executionContext) fieldContext_Query_coffee(ctx context.Context, field
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -9099,6 +9181,8 @@ func (ec *executionContext) fieldContext_Query_popularCoffees(ctx context.Contex
 				return ec.fieldContext_Coffee_altitudeMaxM(ctx, field)
 			case "brewMethod":
 				return ec.fieldContext_Coffee_brewMethod(ctx, field)
+			case "harvestYear":
+				return ec.fieldContext_Coffee_harvestYear(ctx, field)
 			case "imageUrls":
 				return ec.fieldContext_Coffee_imageUrls(ctx, field)
 			case "variants":
@@ -13448,7 +13532,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13525,6 +13609,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.BrewMethod = data
+		case "minHarvestYear":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minHarvestYear"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinHarvestYear = data
 		}
 	}
 
@@ -13538,7 +13629,7 @@ func (ec *executionContext) unmarshalInputCreateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "producer", "region", "altitudeMinM", "altitudeMaxM", "brewMethod", "variants"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "producer", "region", "altitudeMinM", "altitudeMaxM", "brewMethod", "harvestYear", "variants"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13629,6 +13720,13 @@ func (ec *executionContext) unmarshalInputCreateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.BrewMethod = data
+		case "harvestYear":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("harvestYear"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HarvestYear = data
 		case "variants":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("variants"))
 			data, err := ec.unmarshalNVariantInput2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantInputᚄ(ctx, v)
@@ -13820,7 +13918,7 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety", "producer", "region", "altitudeMinM", "altitudeMaxM", "clearAltitude", "brewMethod", "clearBrewMethod", "imageUrls"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety", "producer", "region", "altitudeMinM", "altitudeMaxM", "clearAltitude", "brewMethod", "clearBrewMethod", "harvestYear", "clearHarvestYear", "imageUrls"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13932,6 +14030,20 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.ClearBrewMethod = data
+		case "harvestYear":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("harvestYear"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.HarvestYear = data
+		case "clearHarvestYear":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearHarvestYear"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearHarvestYear = data
 		case "imageUrls":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("imageUrls"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
@@ -14385,6 +14497,8 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = ec._Coffee_altitudeMaxM(ctx, field, obj)
 		case "brewMethod":
 			out.Values[i] = ec._Coffee_brewMethod(ctx, field, obj)
+		case "harvestYear":
+			out.Values[i] = ec._Coffee_harvestYear(ctx, field, obj)
 		case "imageUrls":
 			out.Values[i] = ec._Coffee_imageUrls(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

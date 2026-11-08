@@ -122,6 +122,19 @@ FROM (VALUES
 ) AS v(id, brew)
 WHERE c.id = v.id;
 
+-- Harvest year (#129, #134): relative to the current year in Taiwan so a fresh
+-- install always has recent crops for ?harvest=recent. The Huila is an older
+-- crop (two years back); the espresso blend mixes harvests and stays unset.
+UPDATE coffees AS c SET harvest_year = EXTRACT(YEAR FROM now() AT TIME ZONE 'Asia/Taipei')::int - v.years_ago
+FROM (VALUES
+  ('00000000-0000-4000-8000-000000000201'::uuid, 1),
+  ('00000000-0000-4000-8000-000000000202'::uuid, 1),
+  ('00000000-0000-4000-8000-000000000203'::uuid, 2),
+  ('00000000-0000-4000-8000-000000000204'::uuid, 0),
+  ('00000000-0000-4000-8000-000000000205'::uuid, 1)
+) AS v(id, years_ago)
+WHERE c.id = v.id;
+
 -- One demo comment so the comment list renders on a fresh install.
 INSERT INTO comments (id, coffee_id, user_id, body) VALUES
   ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000201',

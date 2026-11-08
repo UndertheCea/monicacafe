@@ -11,6 +11,7 @@ import {
   coffeeDetailsProblem,
   parseFlavorNotes,
   type CoffeeDetails,
+  type CoffeeDetailsProblem,
 } from "@/lib/dashboard/validate";
 import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
@@ -23,7 +24,7 @@ const loadOptions = () => query(FILTER_OPTIONS);
 
 type DetailFields =
   | "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes"
-  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod";
+  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod" | "harvestYear";
 
 export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails {
   return {
@@ -39,6 +40,7 @@ export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails 
     altitudeMin: c.altitudeMinM === null ? "" : String(c.altitudeMinM),
     altitudeMax: c.altitudeMaxM === null ? "" : String(c.altitudeMaxM),
     brewMethod: c.brewMethod ?? null,
+    harvestYear: c.harvestYear == null ? "" : String(c.harvestYear),
   };
 }
 
@@ -48,8 +50,11 @@ export function brewOptions(locale: Locale) {
 }
 
 /** The message for a coffee-details problem (local check or the API's field). */
-export function detailsErrorKey(problem: "required" | "notes" | "altitude"): MessageKey {
-  return problem === "notes" ? "cf.error.notes" : problem === "altitude" ? "cf.error.altitude" : "cf.error.required";
+export function detailsErrorKey(problem: CoffeeDetailsProblem): MessageKey {
+  if (problem === "notes") return "cf.error.notes";
+  if (problem === "altitude") return "cf.error.altitude";
+  if (problem === "harvest") return "cf.error.harvest";
+  return "cf.error.required";
 }
 
 /** Edit form for a coffee's text fields; saves only what changed via updateCoffee. */

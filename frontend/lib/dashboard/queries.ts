@@ -110,6 +110,7 @@ export const CREATE_COFFEE = typed<
       altitudeMinM: number | null;
       altitudeMaxM: number | null;
       brewMethod: BrewMethod | null;
+      harvestYear: number | null;
       variants: VariantInput[];
     };
   }
@@ -133,6 +134,7 @@ export interface EditableCoffee {
   altitudeMinM: number | null;
   altitudeMaxM: number | null;
   brewMethod: BrewMethod | null;
+  harvestYear: number | null;
   imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
@@ -140,7 +142,7 @@ export interface EditableCoffee {
 }
 
 const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
-  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM brewMethod imageUrls isPublished shop { id }`;
+  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM brewMethod harvestYear imageUrls isPublished shop { id }`;
 
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
@@ -167,6 +169,9 @@ export interface UpdateCoffeeInput {
   /** clearBrewMethod removes it; the two can't be combined. */
   brewMethod?: string;
   clearBrewMethod?: boolean;
+  /** clearHarvestYear removes it; the two can't be combined. */
+  harvestYear?: number;
+  clearHarvestYear?: boolean;
   /** Replaces the gallery (order kept; first is the cover). */
   imageUrls?: string[];
 }

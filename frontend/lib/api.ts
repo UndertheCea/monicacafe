@@ -37,6 +37,8 @@ export interface CoffeeFilter {
   minPriceTwd?: number;
   maxPriceTwd?: number;
   inStock?: boolean;
+  /** Only coffees harvested in this year or later. */
+  minHarvestYear?: number;
 }
 
 export interface CoffeeCardData {
@@ -135,6 +137,7 @@ export interface CoffeeDetail {
   altitudeMinM: number | null;
   altitudeMaxM: number | null;
   brewMethod: BrewMethod | null;
+  harvestYear: number | null;
   imageUrls: string[];
   isPublished: boolean;
   commentCount: number;
@@ -149,7 +152,7 @@ export interface CoffeeDetail {
 
 const COFFEE_DETAIL_FIELDS = `
   id slug name description roastLevel flavorNotes imageUrls isPublished commentCount saveCount
-  producer region altitudeMinM altitudeMaxM brewMethod
+  producer region altitudeMinM altitudeMaxM brewMethod harvestYear
   shop { id slug name city description logoUrl }
   originCountry { nameEn nameZh region }
   processingMethod { nameEn nameZh }

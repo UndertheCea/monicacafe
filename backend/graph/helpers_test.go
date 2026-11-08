@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/underthecea/monicacafe/backend/graph/model"
@@ -156,6 +157,22 @@ func TestStoreFilter(t *testing.T) {
 		f, err := storeFilter(&model.CoffeeFilter{InStock: tc.in})
 		if err != nil || f.InStock != tc.want {
 			t.Errorf("inStock %v: got %v, %v", tc.in, f.InStock, err)
+		}
+	}
+	for _, tc := range []struct {
+		year int
+		ok   bool
+	}{{1999, false}, {2000, true}, {2025, true}, {2100, true}, {2101, false}, {25, false}} {
+		y := tc.year
+		f, err := storeFilter(&model.CoffeeFilter{MinHarvestYear: &y})
+		if !tc.ok {
+			if ae, ok := err.(*apiError); !ok || ae.field != "minHarvestYear" {
+				t.Errorf("minHarvestYear %d: got %v, want a bad-input error", y, err)
+			}
+			continue
+		}
+		if err != nil || f.MinHarvestYear == nil || *f.MinHarvestYear != y {
+			t.Errorf("minHarvestYear %d: got %+v, %v", y, f.MinHarvestYear, err)
 		}
 	}
 }
@@ -526,5 +543,40 @@ func TestBrewMethodsMatching(t *testing.T) {
 	}
 	if f, _ := storeFilter(&model.CoffeeFilter{}); f.BrewMethods != nil {
 		t.Errorf("no brew method should mean no filter, got %v", f.BrewMethods)
+	}
+}
+
+func TestValidateHarvestYear(t *testing.T) {
+	y := func(v int) *int { return &v }
+	// 2026-12-31 16:30 UTC is already 2027-01-01 in Taipei.
+	newYearsEve := time.Date(2026, 12, 31, 16, 30, 0, 0, time.UTC)
+	midYear := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	for _, tt := range []struct {
+		name string
+		in   *int
+		now  time.Time
+		ok   bool
+	}{
+		{"not given", nil, midYear, true},
+		{"earliest", y(2000), midYear, true},
+		{"this year", y(2026), midYear, true},
+		{"next year", y(2027), midYear, false},
+		{"next year once Taipei is in it", y(2027), newYearsEve, true},
+		{"too old", y(1999), midYear, false},
+		{"two digits", y(25), midYear, false},
+		{"negative", y(-2025), midYear, false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateHarvestYear("harvestYear", tt.in, tt.now)
+			if tt.ok {
+				if err != nil {
+					t.Fatalf("got %v, want ok", err)
+				}
+				return
+			}
+			if ae, ok := err.(*apiError); !ok || ae.field != "harvestYear" {
+				t.Fatalf("got %v, want a bad-input error on harvestYear", err)
+			}
+		})
 	}
 }

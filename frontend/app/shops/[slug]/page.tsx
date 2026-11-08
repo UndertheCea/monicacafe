@@ -7,9 +7,11 @@ import { SHOP } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import {
   parseBrewParam,
+  parseHarvestParam,
   parseRoastParam,
   parseSearchParam,
   parseSortParam,
+  recentHarvestFrom,
   shopCoffeesHref,
   sortForApi,
   type BrewMethod,
@@ -34,7 +36,15 @@ const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 // Primitive arguments only: cache() matches calls by argument identity.
 const loadShop = cache(
-  async (slug: string, page: number, sort: SortParam, q?: string, roast?: RoastLevel, brew?: BrewMethod) =>
+  async (
+    slug: string,
+    page: number,
+    sort: SortParam,
+    q?: string,
+    roast?: RoastLevel,
+    brew?: BrewMethod,
+    harvestFrom?: number,
+  ) =>
     SLUG_RE.test(slug)
       ? (
           await query(SHOP, {
@@ -43,6 +53,7 @@ const loadShop = cache(
               ...(q ? { search: q } : {}),
               ...(roast ? { roastLevel: roast } : {}),
               ...(brew ? { brewMethod: brew } : {}),
+              ...(harvestFrom ? { minHarvestYear: harvestFrom } : {}),
             },
             sort: sortForApi(sort),
             limit: PAGE_SIZE,
@@ -60,6 +71,7 @@ function listOptions(sp: SearchParams) {
     q: parseSearchParam(sp.q),
     roast: parseRoastParam(sp.roast),
     brew: parseBrewParam(sp.brew),
+    harvest: parseHarvestParam(sp.harvest),
   };
 }
 
@@ -72,8 +84,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const { page, sort, q, roast, brew } = listOptions(sp);
-    const shop = await loadShop(slug, page, sort, q, roast, brew);
+    const { page, sort, q, roast, brew, harvest } = listOptions(sp);
+    const shop = await loadShop(slug, page, sort, q, roast, brew, harvest ? recentHarvestFrom() : undefined);
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
@@ -99,12 +111,12 @@ export default async function ShopPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
-  const { page, sort, q, roast, brew } = listOptions(sp);
-  const filtering = Boolean(q || roast || brew);
+  const { page, sort, q, roast, brew, harvest } = listOptions(sp);
+  const filtering = Boolean(q || roast || brew || harvest);
 
   let shop;
   try {
-    shop = await loadShop(slug, page, sort, q, roast, brew);
+    shop = await loadShop(slug, page, sort, q, roast, brew, harvest ? recentHarvestFrom() : undefined);
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -156,6 +168,7 @@ export default async function ShopPage({
                 q={q}
                 roast={roast}
                 brew={brew}
+                harvest={harvest}
                 action={`/shops/${shop.slug}`}
               />
             )}

@@ -37,6 +37,8 @@ export interface CoffeeFilter {
   minPriceTwd?: number;
   maxPriceTwd?: number;
   inStock?: boolean;
+  /** Only coffees harvested in this year or later. */
+  minHarvestYear?: number;
 }
 
 export interface CoffeeCardData {

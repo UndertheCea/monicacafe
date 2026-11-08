@@ -1,5 +1,14 @@
 import type { CoffeeFilter } from "./api";
-import { parseBrewParam, parseInStockParam, parseRoastParam, parseSearchParam, parseSortParam, type SortParam } from "./coffeeQuery";
+import {
+  parseBrewParam,
+  parseHarvestParam,
+  parseInStockParam,
+  parseRoastParam,
+  parseSearchParam,
+  parseSortParam,
+  recentHarvestFrom,
+  type SortParam,
+} from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -15,7 +24,7 @@ function wholeNTD(v: string | undefined): number | undefined {
   return Number(v);
 }
 
-/** Parse `/coffees?q=…&origin=…&roast=…&brew=…&sort=…&page=2` into a CoffeeFilter, sort + page. */
+/** Parse `/coffees?q=…&origin=…&roast=…&brew=…&harvest=recent&sort=…&page=2` into a CoffeeFilter, sort + page. */
 export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sort: SortParam; page: number } {
   const filter: CoffeeFilter = {
     originCountryId: one(sp.origin),
@@ -28,6 +37,7 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sor
     minPriceTwd: wholeNTD(one(sp.min)),
     maxPriceTwd: wholeNTD(one(sp.max)),
     inStock: parseInStockParam(sp.instock) || undefined,
+    minHarvestYear: parseHarvestParam(sp.harvest) ? recentHarvestFrom() : undefined,
   };
   // Drop undefined keys so the GraphQL variables stay minimal.
   for (const k of Object.keys(filter) as (keyof CoffeeFilter)[]) {

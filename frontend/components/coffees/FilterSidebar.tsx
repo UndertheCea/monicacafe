@@ -7,7 +7,7 @@ import {
   type OriginCountry,
   type ProcessingMethod,
 } from "@/lib/api";
-import { SEARCH_MAX_CHARS, SORT_PARAMS, brewParam, type SortParam } from "@/lib/coffeeQuery";
+import { SEARCH_MAX_CHARS, SORT_PARAMS, brewParam, recentHarvestFrom, type SortParam } from "@/lib/coffeeQuery";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 
 interface Props {
@@ -189,6 +189,17 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
           className="h-4 w-4 accent-ink"
         />
         {t(locale, "filter.inStock")}
+      </label>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+        <input
+          type="checkbox"
+          name="harvest"
+          value="recent"
+          defaultChecked={filter.minHarvestYear !== undefined}
+          className="h-4 w-4 accent-ink"
+        />
+        {t(locale, "filter.recentHarvest", { year: recentHarvestFrom() })}
       </label>
 
       <div className="flex gap-2">

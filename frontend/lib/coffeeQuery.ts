@@ -31,6 +31,21 @@ export function brewParam(m: BrewMethod): string {
   return m.toLowerCase();
 }
 
+/** `?harvest=recent` (any case) → true: only recent crops; anything else → every coffee. */
+export function parseHarvestParam(v: string | string[] | undefined): boolean {
+  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "recent";
+}
+
+/**
+ * The earliest crop year "recent harvest" covers: last year in Taiwan (UTC+8,
+ * no DST), so this year's and last year's crops. Green coffee ships for a year
+ * or more after harvest, so last year's crop is still the current one for many
+ * origins. (lib/dashboard/validate.ts computes the Taipei year the same way.)
+ */
+export function recentHarvestFrom(now: Date = new Date()): number {
+  return new Date(now.getTime() + 8 * 60 * 60 * 1000).getUTCFullYear() - 1;
+}
+
 /** `?sort=` values in the order the dropdown lists them ("" = newest, the default). */
 export const SORT_PARAMS = ["", "price_asc", "price_desc", "discussed", "saved"] as const;
 export type SortParam = (typeof SORT_PARAMS)[number];
@@ -88,13 +103,14 @@ export function searchHref(q: string | undefined): string {
  */
 export function shopCoffeesHref(
   slug: string,
-  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; sort?: SortParam },
+  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; sort?: SortParam },
 ): string {
   const params = new URLSearchParams();
   const q = p.q?.trim();
   if (q) params.set("q", q);
   if (p.roast) params.set("roast", p.roast);
   if (p.brew) params.set("brew", brewParam(p.brew));
+  if (p.harvest) params.set("harvest", "recent");
   if (p.sort) params.set("sort", p.sort);
   const qs = params.toString();
   return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;

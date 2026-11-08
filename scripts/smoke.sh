@@ -25,6 +25,16 @@ for path in / /coffees /shops /map /login /register /account /dashboard /dashboa
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
 
+# Site icons (#114): served as images, not the 404 page; the home page links them.
+icon_check() { # path content-type-prefix
+  local ct
+  ct=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' --max-time 15 "$BASE_URL$1") || ct="000"
+  if [[ "$ct" == "200 $2"* ]]; then echo "ok   icon $1 ($ct)"; else echo "FAIL icon $1 → $ct (want 200 $2)"; fail=1; fi
+}
+icon_check /favicon.ico image/
+icon_check /icon.svg image/svg+xml
+icon_check /apple-icon.png image/png
+
 # Content-Security-Policy from frontend/proxy.ts: a fresh nonce per request,
 # and Next puts that same nonce on its own <script> tags.
 csp_page=$(curl -s -D - --max-time 15 "$BASE_URL/") || csp_page=""

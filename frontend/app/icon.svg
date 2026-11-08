@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Moni Cafe site icon (#114): the wordmark's heavy italic lowercase "m", white on black. Drawn as a path, no font. -->
+  <rect width="64" height="64" rx="12" fill="#111111"/>
+  <path transform="translate(32 35) skewX(-12) translate(-32 -35)" d="M14 47V23M14 31a8 8 0 0 1 16 0v16M30 31a8 8 0 0 1 16 0v16" fill="none" stroke="#ffffff" stroke-width="8.5" stroke-linecap="butt" stroke-linejoin="round"/>
+</svg>

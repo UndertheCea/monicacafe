@@ -7,8 +7,8 @@ export default async function NotFound() {
   const locale = await getLocale();
   return (
     <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-      <p aria-hidden className="text-5xl">
-        ☕
+      <p aria-hidden className="font-wordmark text-7xl font-extrabold italic tracking-[-0.06em] text-ink">
+        404
       </p>
       <h1 className="mt-4 text-2xl font-bold text-ink">{t(locale, "notFound.title")}</h1>
       <p className="mt-2 text-neutral-600">{t(locale, "notFound.body")}</p>

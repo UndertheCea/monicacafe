@@ -24,6 +24,7 @@ import { FollowButton } from "@/components/shops/FollowButton";
 import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
+import { ShopLogo } from "@/components/shops/ShopLogo";
 
 type Params = Promise<{ slug: string }>;
 
@@ -105,24 +106,18 @@ export default async function ShopPage({
     <div>
       {/* Structured data (anonymous fetch: published coffees only); serializeJsonLd escapes seller text. */}
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-      <div className={`relative border-b border-line bg-paper ${shop.bannerUrl ? "h-48 md:h-64" : "h-20"}`}>
-        {shop.bannerUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
+      {/* No banner: no block at all, just white space (#112). */}
+      {shop.bannerUrl && (
+        <div className="relative h-48 border-b border-line md:h-64">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={shop.bannerUrl} alt="" className="h-full w-full object-cover" />
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mx-auto max-w-7xl px-4">
-        <div className="relative -mt-12 flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-4xl ring-4 ring-white">
-            {shop.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.logoUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span aria-hidden>☕</span>
-            )}
-          </div>
-          <div className="sm:pt-14">
+        <div className={`relative flex flex-col gap-4 sm:flex-row ${shop.bannerUrl ? "-mt-12 sm:items-start" : "pt-10 sm:items-center"}`}>
+          <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-paper" />
+          <div className={shop.bannerUrl ? "sm:pt-14" : ""}>
             <h1 className="text-3xl font-bold text-ink">{shop.name}</h1>
             {shop.city && <p className="text-sm text-neutral-500">{shop.city}</p>}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />

@@ -7,6 +7,7 @@ import { MY_FOLLOWED_SHOPS, UNFOLLOW_SHOP, type ShopSummary } from "@/lib/api";
 import { FOLLOWED_PAGE } from "@/lib/follows";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
+import { ShopLogo } from "@/components/shops/ShopLogo";
 
 type List = { total: number; nodes: ShopSummary[] };
 type State =
@@ -103,16 +104,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
         <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
           {s.list.nodes.map((sh) => (
             <li key={sh.id} className="flex items-center gap-4 p-4">
-              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white">
-                {sh.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={sh.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-                ) : (
-                  <span aria-hidden className="text-2xl">
-                    ☕
-                  </span>
-                )}
-              </div>
+              <ShopLogo name={sh.name} logoUrl={sh.logoUrl} size="md" />
               <div className="min-w-0 flex-1">
                 <Link href={`/shops/${encodeURIComponent(sh.slug)}`} className="font-semibold text-ink hover:text-ink hover:underline underline-offset-4">
                   {sh.name}

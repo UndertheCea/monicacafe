@@ -18,9 +18,9 @@ export default async function HomePage() {
   const home = await query(HOME, { popular: POPULAR_COUNT, shops: FEATURED_SHOPS }).catch(() => null);
 
   const why = [
-    { icon: "🏠", title: t(locale, "home.why1Title"), body: t(locale, "home.why1Body") },
-    { icon: "🔎", title: t(locale, "home.why2Title"), body: t(locale, "home.why2Body") },
-    { icon: "💬", title: t(locale, "home.why3Title"), body: t(locale, "home.why3Body") },
+    { title: t(locale, "home.why1Title"), body: t(locale, "home.why1Body") },
+    { title: t(locale, "home.why2Title"), body: t(locale, "home.why2Body") },
+    { title: t(locale, "home.why3Title"), body: t(locale, "home.why3Body") },
   ];
 
   return (
@@ -104,10 +104,10 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-center text-3xl font-bold text-ink">{t(locale, "home.whyTitle")}</h2>
           <div className="grid gap-8 md:grid-cols-3">
-            {why.map((f) => (
+            {why.map((f, i) => (
               <div key={f.title} className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-neutral-100">
-                <span aria-hidden className="mb-4 block text-4xl">
-                  {f.icon}
+                <span aria-hidden className="label-caps mb-4 block text-muted">
+                  {String(i + 1).padStart(2, "0")}
                 </span>
                 <h3 className="mb-3 text-lg font-semibold text-ink">{f.title}</h3>
                 <p className="text-neutral-500">{f.body}</p>

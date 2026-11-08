@@ -5,6 +5,7 @@ import { pricePer100g } from "@/lib/pricing";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { PhotoGallery } from "./PhotoGallery";
+import { ShopLogo } from "@/components/shops/ShopLogo";
 
 /**
  * The body of a coffee page: images, facts, flavour notes, description,
@@ -134,14 +135,7 @@ export function CoffeeDetailView({
         </section>
 
         <aside className="mt-8 flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-neutral-200">
-          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-white text-xl">
-            {coffee.shop.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={coffee.shop.logoUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span aria-hidden>☕</span>
-            )}
-          </div>
+          <ShopLogo name={coffee.shop.name} logoUrl={coffee.shop.logoUrl} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-neutral-500">{t(locale, "coffee.soldBy")}</p>
             <p className="truncate font-semibold text-ink">{coffee.shop.name}</p>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ShopSummary } from "@/lib/api";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { ShopLogo } from "./ShopLogo";
 
 export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }) {
   return (
@@ -12,14 +13,7 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
         )}
       </div>
       <div className="flex flex-1 flex-col p-4">
-        <div className="relative -mt-10 mb-2 grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-white text-2xl ring-4 ring-white">
-          {shop.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={shop.logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
-          ) : (
-            <span aria-hidden>☕</span>
-          )}
-        </div>
+        <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="md" className="relative -mt-10 mb-2 outline-4 outline-paper" />
         <h2 className="text-base font-bold text-ink">
           <Link href={`/shops/${shop.slug}`} className="after:absolute after:inset-0 focus:outline-none">
             {shop.name}

@@ -234,6 +234,14 @@ if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-0000
 else
   echo "ok   graphql search"
 fi
+# Provenance search (#120): the seeded Yirgacheffe lists region "Gedeo, Yirgacheffe".
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ coffees(filter: { search: \"gedeo\" }) { nodes { id region altitudeMinM altitudeMaxM } } }"}') || body=""
+if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-000000000201","region":"Gedeo, Yirgacheffe","altitudeMinM":1800,"altitudeMaxM":2100'* ]]; then
+  echo "FAIL provenance search: expected the seeded Yirgacheffe by region, got: ${body:0:300}"; fail=1
+else
+  echo "ok   graphql provenance search"
+fi
 if curl -s --max-time 15 "$BASE_URL/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2" | grep -q '/coffees/00000000-0000-4000-8000-000000000201'; then
   echo "ok   /coffees?q= lists the match"
 else

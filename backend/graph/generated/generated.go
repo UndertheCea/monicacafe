@@ -2032,8 +2032,9 @@ input CoffeeFilter {
   roastLevel: RoastLevel
   flavorNote: String
   # Keywords (≤ 100 characters, ≤ 8 words). Every word must appear in the
-  # coffee's name, description, a flavor note, the shop name, or the origin /
-  # variety / process name (zh or en). Case-insensitive; blank is ignored.
+  # coffee's name, description, a flavor note, its producer or region, the shop
+  # name, or the origin / variety / process name (zh or en). Case-insensitive;
+  # blank is ignored.
   search: String
   minPriceTwd: Int
   maxPriceTwd: Int

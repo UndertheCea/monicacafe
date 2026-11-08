@@ -97,6 +97,19 @@ INSERT INTO variants (id, coffee_id, grind, weight_g, price_twd, stock) VALUES
   ('00000000-0000-4000-8000-000000000310', '00000000-0000-4000-8000-000000000206', 'ESPRESSO',   454, 520, 25)
 ON CONFLICT DO NOTHING;
 
+-- Provenance (#116, #120): producer, region and growing altitude, so the coffee
+-- page, cards and search show them on a fresh install. The blend has none.
+UPDATE coffees AS c SET producer = v.producer, region = v.region,
+       altitude_min_m = v.amin, altitude_max_m = v.amax
+FROM (VALUES
+  ('00000000-0000-4000-8000-000000000201'::uuid, '孔加合作社 Konga Cooperative', 'Gedeo, Yirgacheffe', 1800, 2100),
+  ('00000000-0000-4000-8000-000000000202'::uuid, '翡翠莊園 Hacienda La Esmeralda', 'Boquete, Chiriquí', 1600, 1800),
+  ('00000000-0000-4000-8000-000000000203'::uuid, '', 'Huila', 1700, NULL),
+  ('00000000-0000-4000-8000-000000000204'::uuid, 'Gatomboya 處理廠', 'Nyeri', 1700, 1900),
+  ('00000000-0000-4000-8000-000000000205'::uuid, '', 'Antigua', 1500, 1700)
+) AS v(id, producer, region, amin, amax)
+WHERE c.id = v.id;
+
 -- One demo comment so the comment list renders on a fresh install.
 INSERT INTO comments (id, coffee_id, user_id, body) VALUES
   ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000201',

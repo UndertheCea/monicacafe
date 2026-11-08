@@ -70,6 +70,7 @@ type CreateCoffeeInput struct {
 	AltitudeMinM       *int            `json:"altitudeMinM,omitempty"`
 	AltitudeMaxM       *int            `json:"altitudeMaxM,omitempty"`
 	BrewMethod         *BrewMethod     `json:"brewMethod,omitempty"`
+	HarvestYear        *int            `json:"harvestYear,omitempty"`
 	Variants           []*VariantInput `json:"variants"`
 }
 
@@ -155,6 +156,8 @@ type UpdateCoffeeInput struct {
 	ClearAltitude      *bool       `json:"clearAltitude,omitempty"`
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
 	ClearBrewMethod    *bool       `json:"clearBrewMethod,omitempty"`
+	HarvestYear        *int        `json:"harvestYear,omitempty"`
+	ClearHarvestYear   *bool       `json:"clearHarvestYear,omitempty"`
 	ImageUrls          []string    `json:"imageUrls,omitempty"`
 }
 

@@ -52,6 +52,8 @@ type Coffee struct {
 	AltitudeMaxM *int
 	// BrewMethod (migration 011): FILTER | ESPRESSO | OMNI; nil = not given.
 	BrewMethod *string
+	// HarvestYear (migration 012): the crop year; nil = not given.
+	HarvestYear *int
 }
 
 // Variant is a purchasable size/grind of a coffee.

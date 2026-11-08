@@ -50,6 +50,7 @@ type Coffee struct {
 	AltitudeMinM       *int        `json:"altitudeMinM,omitempty"`
 	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
+	HarvestYear        *int        `json:"harvestYear,omitempty"`
 	ImageUrls          []string    `json:"imageUrls"`
 	IsPublished        bool        `json:"isPublished"`
 	CreatedAt          time.Time   `json:"createdAt"`

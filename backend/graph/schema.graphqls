@@ -217,6 +217,8 @@ type Coffee {
   altitudeMaxM: Int
   # What the coffee is roasted for; null when not given.
   brewMethod: BrewMethod
+  # The crop (產季): the year its harvest ended; null when not given.
+  harvestYear: Int
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -414,6 +416,8 @@ input CreateCoffeeInput {
   altitudeMinM: Int
   altitudeMaxM: Int
   brewMethod: BrewMethod
+  # 2000 through the current year (Asia/Taipei).
+  harvestYear: Int
   variants: [VariantInput!]!
 }
 
@@ -440,6 +444,10 @@ input UpdateCoffeeInput {
   brewMethod: BrewMethod
   # true removes the brew method. Can't be combined with brewMethod.
   clearBrewMethod: Boolean
+  # Same range as CreateCoffeeInput.
+  harvestYear: Int
+  # true removes the harvest year. Can't be combined with harvestYear.
+  clearHarvestYear: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]

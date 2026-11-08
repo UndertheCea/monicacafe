@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/graph/model"
@@ -502,6 +503,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := validateHarvestYear("harvestYear", input.HarvestYear, time.Now()); err != nil {
+		return nil, err
+	}
 	variants, err := validateVariants(input.Variants)
 	if err != nil {
 		return nil, err
@@ -522,6 +526,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
 				FlavorNotes: notes, Producer: producer, Region: region,
 				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM, BrewMethod: brew,
+				HarvestYear: input.HarvestYear,
 			})
 			if err != nil {
 				return err
@@ -608,6 +613,17 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 			return nil, err
 		}
 		p.SetBrewMethod = true
+	}
+	if input.ClearHarvestYear != nil && *input.ClearHarvestYear {
+		if input.HarvestYear != nil {
+			return nil, errBadInput("clearHarvestYear", "clearHarvestYear can't be combined with harvestYear")
+		}
+		p.SetHarvestYear = true
+	} else if input.HarvestYear != nil {
+		if err := validateHarvestYear("harvestYear", input.HarvestYear, time.Now()); err != nil {
+			return nil, err
+		}
+		p.SetHarvestYear, p.HarvestYear = true, input.HarvestYear
 	}
 
 	co, err := r.Store.UpdateCoffee(ctx, id, p)

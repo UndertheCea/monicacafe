@@ -92,6 +92,9 @@ type CoffeeFilter struct {
 	// MinHarvestYear keeps coffees harvested in this year or later; a coffee
 	// without a harvest year never matches.
 	MinHarvestYear *int
+	// MaxAcidity keeps coffees whose acidity is at most this; a coffee
+	// without an acidity never matches.
+	MaxAcidity *int
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -149,6 +152,9 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	if f.MinHarvestYear != nil {
 		add("c.harvest_year >= $%d", *f.MinHarvestYear)
+	}
+	if f.MaxAcidity != nil {
+		add("c.acidity <= $%d", *f.MaxAcidity)
 	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")

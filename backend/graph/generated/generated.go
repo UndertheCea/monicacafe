@@ -2127,6 +2127,9 @@ input CoffeeFilter {
   # Only coffees harvested in this year or later (2000–2100). Coffees without
   # a harvest year never match.
   minHarvestYear: Int
+  # Only coffees whose acidity is this or lower (1–5). Coffees without an
+  # acidity never match.
+  maxAcidity: Int
 }
 
 input AddCommentInput {
@@ -13770,7 +13773,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear", "maxAcidity"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13854,6 +13857,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.MinHarvestYear = data
+		case "maxAcidity":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxAcidity"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxAcidity = data
 		}
 	}
 

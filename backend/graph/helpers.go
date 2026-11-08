@@ -821,6 +821,12 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		}
 		out.MinHarvestYear = f.MinHarvestYear
 	}
+	if f.MaxAcidity != nil {
+		if a := *f.MaxAcidity; a < minCupScale || a > maxCupScale {
+			return out, errBadInput("maxAcidity", fmt.Sprintf("maxAcidity must be %d–%d", minCupScale, maxCupScale))
+		}
+		out.MaxAcidity = f.MaxAcidity
+	}
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")
 	}

@@ -515,6 +515,9 @@ input CoffeeFilter {
   # Only coffees harvested in this year or later (2000–2100). Coffees without
   # a harvest year never match.
   minHarvestYear: Int
+  # Only coffees whose acidity is this or lower (1–5). Coffees without an
+  # acidity never match.
+  maxAcidity: Int
 }
 
 input AddCommentInput {

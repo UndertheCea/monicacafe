@@ -176,6 +176,22 @@ func TestStoreFilter(t *testing.T) {
 			t.Errorf("minHarvestYear %d: got %+v, %v", y, f.MinHarvestYear, err)
 		}
 	}
+	for _, tc := range []struct {
+		acidity int
+		ok      bool
+	}{{0, false}, {1, true}, {2, true}, {5, true}, {6, false}, {-1, false}} {
+		a := tc.acidity
+		f, err := storeFilter(&model.CoffeeFilter{MaxAcidity: &a})
+		if !tc.ok {
+			if ae, ok := err.(*apiError); !ok || ae.field != "maxAcidity" {
+				t.Errorf("maxAcidity %d: got %v, want a bad-input error", a, err)
+			}
+			continue
+		}
+		if err != nil || f.MaxAcidity == nil || *f.MaxAcidity != a {
+			t.Errorf("maxAcidity %d: got %+v, %v", a, f.MaxAcidity, err)
+		}
+	}
 }
 
 func TestSearchTerms(t *testing.T) {

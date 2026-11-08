@@ -498,6 +498,10 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
 		return nil, err
 	}
+	brew, err := brewMethodParam(input.BrewMethod)
+	if err != nil {
+		return nil, err
+	}
 	variants, err := validateVariants(input.Variants)
 	if err != nil {
 		return nil, err
@@ -517,7 +521,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 				OriginCountryID: input.OriginCountryID, VarietyID: input.VarietyID,
 				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
 				FlavorNotes: notes, Producer: producer, Region: region,
-				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM,
+				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM, BrewMethod: brew,
 			})
 			if err != nil {
 				return err
@@ -593,6 +597,17 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 			return nil, err
 		}
 		p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM = true, input.AltitudeMinM, input.AltitudeMaxM
+	}
+	if input.ClearBrewMethod != nil && *input.ClearBrewMethod {
+		if input.BrewMethod != nil {
+			return nil, errBadInput("clearBrewMethod", "clearBrewMethod can't be combined with brewMethod")
+		}
+		p.SetBrewMethod = true
+	} else if input.BrewMethod != nil {
+		if p.BrewMethod, err = brewMethodParam(input.BrewMethod); err != nil {
+			return nil, err
+		}
+		p.SetBrewMethod = true
 	}
 
 	co, err := r.Store.UpdateCoffee(ctx, id, p)

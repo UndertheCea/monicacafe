@@ -460,3 +460,71 @@ func TestCleanProvenance(t *testing.T) {
 		})
 	}
 }
+
+func TestBrewMethodParam(t *testing.T) {
+	m := func(v string) *model.BrewMethod { b := model.BrewMethod(v); return &b }
+	for _, tt := range []struct {
+		name string
+		in   *model.BrewMethod
+		want string // "nil" = not given
+		fail bool
+	}{
+		{"not given", nil, "nil", false},
+		{"filter", m("FILTER"), "FILTER", false},
+		{"espresso", m("ESPRESSO"), "ESPRESSO", false},
+		{"omni", m("OMNI"), "OMNI", false},
+		{"lower case", m("filter"), "", true},
+		{"unknown", m("COLD_BREW"), "", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := brewMethodParam(tt.in)
+			if tt.fail {
+				if ae, ok := err.(*apiError); !ok || ae.field != "brewMethod" {
+					t.Fatalf("got %v, want a bad-input error on brewMethod", err)
+				}
+				return
+			}
+			s := "nil"
+			if got != nil {
+				s = *got
+			}
+			if err != nil || s != tt.want {
+				t.Fatalf("got (%s, %v), want %s", s, err, tt.want)
+			}
+			// And back: the stored value maps to the same enum.
+			if back := toBrewMethod(got); (back == nil) != (tt.in == nil) || (back != nil && *back != *tt.in) {
+				t.Fatalf("round trip: got %v, want %v", back, tt.in)
+			}
+		})
+	}
+	bad := "COLD_BREW"
+	if toBrewMethod(&bad) != nil {
+		t.Fatal("an unknown stored value should read as not given")
+	}
+}
+
+func TestBrewMethodsMatching(t *testing.T) {
+	for _, tt := range []struct {
+		in   model.BrewMethod
+		want []string
+	}{
+		{model.BrewMethodFilter, []string{"FILTER", "OMNI"}},
+		{model.BrewMethodEspresso, []string{"ESPRESSO", "OMNI"}},
+		{model.BrewMethodOmni, []string{"OMNI"}},
+	} {
+		if got := brewMethodsMatching(tt.in); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("brewMethodsMatching(%s) = %v, want %v", tt.in, got, tt.want)
+		}
+		f, err := storeFilter(&model.CoffeeFilter{BrewMethod: &tt.in})
+		if err != nil || !reflect.DeepEqual(f.BrewMethods, tt.want) {
+			t.Errorf("storeFilter brewMethod %s: %v %v", tt.in, f.BrewMethods, err)
+		}
+	}
+	bad := model.BrewMethod("COLD_BREW")
+	if _, err := storeFilter(&model.CoffeeFilter{BrewMethod: &bad}); err == nil {
+		t.Error("unknown brew method accepted")
+	}
+	if f, _ := storeFilter(&model.CoffeeFilter{}); f.BrewMethods != nil {
+		t.Errorf("no brew method should mean no filter, got %v", f.BrewMethods)
+	}
+}

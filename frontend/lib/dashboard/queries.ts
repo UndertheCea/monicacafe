@@ -1,5 +1,5 @@
 // GraphQL documents for the seller dashboard (all require a signed-in user).
-import type { GrindOption, RoastLevel } from "../api";
+import type { BrewMethod, GrindOption, RoastLevel } from "../api";
 import { typed } from "../graphql";
 import { DASH_COFFEES_PAGE } from "./coffeePages";
 
@@ -109,6 +109,7 @@ export const CREATE_COFFEE = typed<
       region: string;
       altitudeMinM: number | null;
       altitudeMaxM: number | null;
+      brewMethod: BrewMethod | null;
       variants: VariantInput[];
     };
   }
@@ -131,6 +132,7 @@ export interface EditableCoffee {
   region: string;
   altitudeMinM: number | null;
   altitudeMaxM: number | null;
+  brewMethod: BrewMethod | null;
   imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
@@ -138,7 +140,7 @@ export interface EditableCoffee {
 }
 
 const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
-  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM imageUrls isPublished shop { id }`;
+  roastLevel flavorNotes producer region altitudeMinM altitudeMaxM brewMethod imageUrls isPublished shop { id }`;
 
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
@@ -162,6 +164,9 @@ export interface UpdateCoffeeInput {
   altitudeMinM?: number;
   altitudeMaxM?: number;
   clearAltitude?: boolean;
+  /** clearBrewMethod removes it; the two can't be combined. */
+  brewMethod?: string;
+  clearBrewMethod?: boolean;
   /** Replaces the gallery (order kept; first is the cover). */
   imageUrls?: string[];
 }

@@ -15,6 +15,46 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 22 — 2026-11-08 — Brew method: filter, espresso or omni
+PR: #128
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from a gap: specialty roasters label every bag 手沖 / 義式 / 全方位 (filter / espresso /
+omni) and buyers shop by it, but a coffee could only say so in its description. Roast level isn't the same thing.
+
+### Shipped (one line per slice: area — what — key files)
+- #122 backend — migration 011: `coffees.brew_method` (FILTER | ESPRESSO | OMNI, NULL = not given, CHECK);
+  `enum BrewMethod`, `Coffee.brewMethod`; create / update inputs (`clearBrewMethod` removes it, can't be combined
+  with a value); `duplicateCoffee` copies it (`brewMethodParam`, `toBrewMethod` in `graph/helpers.go`)
+- #123 backend — `CoffeeFilter.brewMethod` on `Query.coffees` and `Shop.coffees`: FILTER / ESPRESSO also match OMNI,
+  OMNI matches only OMNI, unset never matches (`brewMethodsMatching`, `CoffeeFilter.BrewMethods` → `= ANY($n)`)
+- #124 frontend — dashboard new + edit forms: optional "Roasted for" select; `coffeeDetailsPatch` sends `brewMethod`
+  or `clearBrewMethod` (`lib/dashboard/validate.ts`, `brewOptions` in `CoffeeDetailsForm.tsx`)
+- #125 frontend — coffee page + draft preview list 適合沖煮 / Roasted for (omni spelled out as "filter and
+  espresso"); Product JSON-LD "Roasted for" PropertyValue; card pills read "淺焙 · 手沖" (`lib/brew.ts`)
+- #126 frontend — `?brew=filter|espresso|omni` (`parseBrewParam`, `brewParam`): radio group + hint in the /coffees
+  sidebar, select in the shop page's in-shop filters, kept by `shopCoffeesHref`
+- #127 cross-cutting — demo seed gives five coffees a brew method (Antigua unset); smoke checks the ESPRESSO filter in
+  GraphQL and /coffees?brew=espresso; `Coffee.similar` adds 1 for the same brew method, only to order coffees that
+  already pass the minimum score
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 (migrations
+  001–011 + seed). New: `TestBrewMethodParam`, `TestBrewMethodsMatching`, a `where()` case, `TestCoffeeBrewMethod`,
+  `TestCoffeesBrewMethodFilter` (Query + Shop, anon + owner with drafts); `TestSimilarCoffees` gained brew cases.
+- Frontend: tsc, lint, `npm test` (142; new `tests/brew.test.mjs`, brew cases in dashboard / coffeeQuery tests),
+  `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + `next start` on a fresh DB: `scripts/smoke.sh` all ok (incl. the two new brew checks) except the two
+  `/media/` checks (no SeaweedFS / nginx here). Playwright (en): card pills, sidebar Espresso → 2 coffees, coffee
+  page fact + JSON-LD, shop page `?brew=filter`; seller creates an espresso coffee → edit form shows it → clearing
+  saves null → OMNI survives a reload → draft preview lists it; no page errors. Not run: `docker compose up`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- One brew method per coffee, not a set: "omni" covers coffees roasted for both, which is how roasters label them.
+- Asking for filter or espresso also lists omni roasts; asking for omni lists only omni.
+- Keyword search doesn't match the brew method (a coffee's own text still matches, e.g. "義式配方"); buyers use the
+  `?brew=` filter instead.
+
 ## Session 21 — 2026-11-08 — Coffee provenance: producer, region, growing altitude
 PR: #121
 

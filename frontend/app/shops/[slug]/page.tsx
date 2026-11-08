@@ -6,11 +6,13 @@ import { cache } from "react";
 import { SHOP } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import {
+  parseBrewParam,
   parseRoastParam,
   parseSearchParam,
   parseSortParam,
   shopCoffeesHref,
   sortForApi,
+  type BrewMethod,
   type RoastLevel,
   type SortParam,
 } from "@/lib/coffeeQuery";
@@ -31,23 +33,34 @@ type Params = Promise<{ slug: string }>;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 // Primitive arguments only: cache() matches calls by argument identity.
-const loadShop = cache(async (slug: string, page: number, sort: SortParam, q?: string, roast?: RoastLevel) =>
-  SLUG_RE.test(slug)
-    ? (
-        await query(SHOP, {
-          slug,
-          filter: { ...(q ? { search: q } : {}), ...(roast ? { roastLevel: roast } : {}) },
-          sort: sortForApi(sort),
-          limit: PAGE_SIZE,
-          offset: (page - 1) * PAGE_SIZE,
-        })
-      ).shop
-    : null,
+const loadShop = cache(
+  async (slug: string, page: number, sort: SortParam, q?: string, roast?: RoastLevel, brew?: BrewMethod) =>
+    SLUG_RE.test(slug)
+      ? (
+          await query(SHOP, {
+            slug,
+            filter: {
+              ...(q ? { search: q } : {}),
+              ...(roast ? { roastLevel: roast } : {}),
+              ...(brew ? { brewMethod: brew } : {}),
+            },
+            sort: sortForApi(sort),
+            limit: PAGE_SIZE,
+            offset: (page - 1) * PAGE_SIZE,
+          })
+        ).shop
+      : null,
 );
 
 /** The shop page's list options from the URL (same parsing as /coffees). */
 function listOptions(sp: SearchParams) {
-  return { page: parsePage(sp), sort: parseSortParam(sp.sort), q: parseSearchParam(sp.q), roast: parseRoastParam(sp.roast) };
+  return {
+    page: parsePage(sp),
+    sort: parseSortParam(sp.sort),
+    q: parseSearchParam(sp.q),
+    roast: parseRoastParam(sp.roast),
+    brew: parseBrewParam(sp.brew),
+  };
 }
 
 export async function generateMetadata({
@@ -59,8 +72,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const { page, sort, q, roast } = listOptions(sp);
-    const shop = await loadShop(slug, page, sort, q, roast);
+    const { page, sort, q, roast, brew } = listOptions(sp);
+    const shop = await loadShop(slug, page, sort, q, roast, brew);
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
@@ -86,12 +99,12 @@ export default async function ShopPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
-  const { page, sort, q, roast } = listOptions(sp);
-  const filtering = Boolean(q || roast);
+  const { page, sort, q, roast, brew } = listOptions(sp);
+  const filtering = Boolean(q || roast || brew);
 
   let shop;
   try {
-    shop = await loadShop(slug, page, sort, q, roast);
+    shop = await loadShop(slug, page, sort, q, roast, brew);
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -137,7 +150,14 @@ export default async function ShopPage({
               <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
             </div>
             {(shop.coffeeCount > 1 || filtering) && (
-              <ShopCoffeesForm locale={locale} sort={sort} q={q} roast={roast} action={`/shops/${shop.slug}`} />
+              <ShopCoffeesForm
+                locale={locale}
+                sort={sort}
+                q={q}
+                roast={roast}
+                brew={brew}
+                action={`/shops/${shop.slug}`}
+              />
             )}
           </div>
           {q && (

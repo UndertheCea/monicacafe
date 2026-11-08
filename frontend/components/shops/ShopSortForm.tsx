@@ -1,4 +1,13 @@
-import { ROAST_LEVELS, SEARCH_MAX_CHARS, SORT_PARAMS, type RoastLevel, type SortParam } from "@/lib/coffeeQuery";
+import {
+  BREW_METHODS,
+  ROAST_LEVELS,
+  SEARCH_MAX_CHARS,
+  SORT_PARAMS,
+  brewParam,
+  type BrewMethod,
+  type RoastLevel,
+  type SortParam,
+} from "@/lib/coffeeQuery";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
 
@@ -6,8 +15,8 @@ const fieldCls =
   "rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
 /**
- * Search, roast and sort for one shop's coffees: a plain GET form (works
- * without JavaScript); submitting keeps all three and resets to page 1.
+ * Search, roast, brew method and sort for one shop's coffees: a plain GET form
+ * (works without JavaScript); submitting keeps them all and resets to page 1.
  */
 export function ShopCoffeesForm({
   locale,
@@ -15,12 +24,14 @@ export function ShopCoffeesForm({
   sort,
   q,
   roast,
+  brew,
 }: {
   locale: Locale;
   action: string;
   sort: SortParam;
   q?: string;
   roast?: RoastLevel;
+  brew?: BrewMethod;
 }) {
   return (
     <SortForm
@@ -38,6 +49,17 @@ export function ShopCoffeesForm({
           {ROAST_LEVELS.map((r) => (
             <option key={r} value={r}>
               {t(locale, `roast.${r}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-neutral-500">{t(locale, "filter.brew")}</span>
+        <select name="brew" defaultValue={brew ? brewParam(brew) : ""} className={fieldCls}>
+          <option value="">{t(locale, "filter.any")}</option>
+          {BREW_METHODS.map((m) => (
+            <option key={m} value={brewParam(m)}>
+              {t(locale, `brew.${m}`)}
             </option>
           ))}
         </select>

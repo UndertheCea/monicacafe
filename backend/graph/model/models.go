@@ -35,24 +35,25 @@ type Shop struct {
 }
 
 type Coffee struct {
-	ID                 string     `json:"id"`
-	ShopID             string     `json:"-"`
-	Name               string     `json:"name"`
-	Slug               string     `json:"slug"`
-	Description        string     `json:"description"`
-	OriginCountryID    string     `json:"-"`
-	VarietyID          *string    `json:"-"`
-	ProcessingMethodID string     `json:"-"`
-	RoastLevel         RoastLevel `json:"roastLevel"`
-	FlavorNotes        []string   `json:"flavorNotes"`
-	Producer           string     `json:"producer"`
-	Region             string     `json:"region"`
-	AltitudeMinM       *int       `json:"altitudeMinM,omitempty"`
-	AltitudeMaxM       *int       `json:"altitudeMaxM,omitempty"`
-	ImageUrls          []string   `json:"imageUrls"`
-	IsPublished        bool       `json:"isPublished"`
-	CreatedAt          time.Time  `json:"createdAt"`
-	UpdatedAt          time.Time  `json:"updatedAt"`
+	ID                 string      `json:"id"`
+	ShopID             string      `json:"-"`
+	Name               string      `json:"name"`
+	Slug               string      `json:"slug"`
+	Description        string      `json:"description"`
+	OriginCountryID    string      `json:"-"`
+	VarietyID          *string     `json:"-"`
+	ProcessingMethodID string      `json:"-"`
+	RoastLevel         RoastLevel  `json:"roastLevel"`
+	FlavorNotes        []string    `json:"flavorNotes"`
+	Producer           string      `json:"producer"`
+	Region             string      `json:"region"`
+	AltitudeMinM       *int        `json:"altitudeMinM,omitempty"`
+	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
+	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
+	ImageUrls          []string    `json:"imageUrls"`
+	IsPublished        bool        `json:"isPublished"`
+	CreatedAt          time.Time   `json:"createdAt"`
+	UpdatedAt          time.Time   `json:"updatedAt"`
 }
 
 type Comment struct {

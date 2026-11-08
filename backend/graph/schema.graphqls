@@ -215,6 +215,8 @@ type Coffee {
   # Both null when not given.
   altitudeMinM: Int
   altitudeMaxM: Int
+  # What the coffee is roasted for; null when not given.
+  brewMethod: BrewMethod
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -266,6 +268,14 @@ enum RoastLevel {
   MEDIUM
   MEDIUM_DARK
   DARK
+}
+
+# What a coffee is roasted for: filter (手沖, pour-over / batch brew),
+# espresso (義式) or omni (both). Independent of the roast level.
+enum BrewMethod {
+  FILTER
+  ESPRESSO
+  OMNI
 }
 
 enum GrindOption {
@@ -403,6 +413,7 @@ input CreateCoffeeInput {
   # Metres, 0–6000. altitudeMaxM needs altitudeMinM and must be ≥ it.
   altitudeMinM: Int
   altitudeMaxM: Int
+  brewMethod: BrewMethod
   variants: [VariantInput!]!
 }
 
@@ -426,6 +437,9 @@ input UpdateCoffeeInput {
   altitudeMaxM: Int
   # true removes the altitude. Can't be combined with altitudeMinM / altitudeMaxM.
   clearAltitude: Boolean
+  brewMethod: BrewMethod
+  # true removes the brew method. Can't be combined with brewMethod.
+  clearBrewMethod: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]
@@ -469,6 +483,9 @@ input CoffeeFilter {
   maxPriceTwd: Int
   # true: only coffees with at least one available, in-stock variant.
   inStock: Boolean
+  # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
+  # only OMNI. Coffees without a brew method never match.
+  brewMethod: BrewMethod
 }
 
 input AddCommentInput {

@@ -76,7 +76,16 @@ export interface JsonLdCoffee {
   variants: { priceTwd: number; stock: number; isAvailable: boolean }[];
   /** provenanceFacts(coffee) from lib/provenance (passed in to keep this file import-free). */
   provenance?: [ProvenanceKey, string][];
+  /** FILTER | ESPRESSO | OMNI; null / unknown is left out. */
+  brewMethod?: string | null;
 }
+
+/** English values for the "Roasted for" property (JSON-LD isn't localised). */
+const BREW_VALUES: Record<string, string> = {
+  FILTER: "Filter",
+  ESPRESSO: "Espresso",
+  OMNI: "Filter and espresso",
+};
 
 type ProvenanceKey = "coffee.producer" | "coffee.region" | "coffee.altitude";
 
@@ -89,8 +98,8 @@ const PROVENANCE_NAMES: Record<ProvenanceKey, string> = {
 /**
  * A schema.org Product for a published coffee. The offer covers the options a
  * buyer can pick (available ones); it's InStock when any of them has stock.
- * No variants → no offer. Producer / region / altitude, when set, become
- * additionalProperty PropertyValues.
+ * No variants → no offer. Producer / region / altitude and the brew method,
+ * when set, become additionalProperty PropertyValues.
  */
 export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/coffees/${c.id}`, base) ?? base;
@@ -112,14 +121,12 @@ export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unkn
   const description = shareDescription(c.description, 500);
   if (description) ld.description = description;
   if (images.length > 0) ld.image = images;
-  const provenance = (c.provenance ?? []).filter(([key, value]) => key in PROVENANCE_NAMES && value.trim() !== "");
-  if (provenance.length > 0) {
-    ld.additionalProperty = provenance.map(([key, value]) => ({
-      "@type": "PropertyValue",
-      name: PROVENANCE_NAMES[key],
-      value,
-    }));
-  }
+  const props = (c.provenance ?? [])
+    .filter(([key, value]) => key in PROVENANCE_NAMES && value.trim() !== "")
+    .map(([key, value]) => ({ "@type": "PropertyValue", name: PROVENANCE_NAMES[key], value }));
+  const brew = c.brewMethod ? BREW_VALUES[c.brewMethod] : undefined;
+  if (brew) props.push({ "@type": "PropertyValue", name: "Roasted for", value: brew });
+  if (props.length > 0) ld.additionalProperty = props;
   if (prices.length > 0) {
     ld.offers = {
       "@type": "AggregateOffer",

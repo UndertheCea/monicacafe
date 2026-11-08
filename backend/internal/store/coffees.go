@@ -8,14 +8,14 @@ import (
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
 	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
-	c.producer, c.region, c.altitude_min_m, c.altitude_max_m`
+	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
 		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
-		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM); err != nil {
+		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {
@@ -85,6 +85,8 @@ type CoffeeFilter struct {
 	MaxPriceTWD *int64
 	// InStock keeps only coffees with an available variant that has stock.
 	InStock bool
+	// BrewMethods keeps coffees whose brew_method is any of these (nil = all).
+	BrewMethods []string
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -136,6 +138,9 @@ func (f CoffeeFilter) where() (string, []any) {
 		}
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND "+
 			strings.Join(priceConds, " AND ")+")")
+	}
+	if len(f.BrewMethods) > 0 {
+		add("c.brew_method = ANY($%d)", f.BrewMethods)
 	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")
@@ -239,23 +244,27 @@ func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error
 }
 
 // Similarity weights for SimilarCoffees. A shared roast alone (one of four
-// levels) is too common to count as similar, hence the minimum score.
+// levels) is too common to count as similar, hence the minimum score. The
+// same brew method only reorders coffees that already qualify: most coffees
+// are filter roasts, so it can't make a coffee similar on its own.
 const (
 	similarOrigin   = 3
 	similarProcess  = 2
 	similarRoast    = 1
 	similarMaxNotes = 3 // each shared flavour note scores 1, up to this many
 	similarMinScore = 2
+	similarBrew     = 1
 )
 
 // SimilarCoffees returns published coffees from other shops that resemble
 // coffeeID: origin (3) + process (2) + roast (1) + shared flavour notes
 // (case-insensitive, 1 each, at most 3). Coffees scoring below 2 are left
-// out. In-stock coffees come first, then by score, then newest.
+// out. In-stock coffees come first, then by score plus 1 for the same brew
+// method, then newest.
 func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) ([]*Coffee, error) {
 	rows, err := s.db.Query(ctx, `
 		WITH src AS (
-			SELECT shop_id, origin_country_id, processing_method_id, roast_level,
+			SELECT shop_id, origin_country_id, processing_method_id, roast_level, brew_method,
 				ARRAY(SELECT DISTINCT lower(n) FROM unnest(flavor_notes) n) AS notes
 			FROM coffees WHERE id = $1
 		)
@@ -271,8 +280,11 @@ func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) 
 		CROSS JOIN LATERAL (SELECT EXISTS (SELECT 1 FROM variants v
 			WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) AS ok) st
 		WHERE c.is_published AND c.shop_id <> src.shop_id AND sc.score >= $7
-		ORDER BY st.ok DESC, sc.score DESC, c.created_at DESC, c.id
-		LIMIT $2`, coffeeID, limit, similarOrigin, similarProcess, similarRoast, similarMaxNotes, similarMinScore)
+		ORDER BY st.ok DESC,
+			sc.score + CASE WHEN c.brew_method = src.brew_method THEN $8::int ELSE 0 END DESC,
+			c.created_at DESC, c.id
+		LIMIT $2`, coffeeID, limit, similarOrigin, similarProcess, similarRoast, similarMaxNotes, similarMinScore,
+		similarBrew)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -294,6 +306,7 @@ type CreateCoffeeParams struct {
 	Region             string
 	AltitudeMinM       *int
 	AltitudeMaxM       *int
+	BrewMethod         *string
 }
 
 // CreateCoffee inserts a draft coffee.
@@ -304,13 +317,15 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 	return scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
-				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13)
+				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
+				brew_method)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14)
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		p.ShopID, p.Name, p.Slug, p.Description, p.OriginCountryID, p.VarietyID,
-		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes, p.Producer, p.Region, p.AltitudeMinM, p.AltitudeMaxM))
+		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes, p.Producer, p.Region, p.AltitudeMinM, p.AltitudeMaxM,
+		p.BrewMethod))
 }
 
 // DuplicateCoffee copies coffee srcID into a new draft in the same shop with
@@ -322,9 +337,11 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 	co, err := scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
-				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m)
+				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
+				brew_method)
 			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
-				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m
+				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
+				brew_method
 			FROM coffees WHERE id = $1
 			RETURNING *
 		)
@@ -359,6 +376,10 @@ type UpdateCoffeeParams struct {
 	SetAltitude  bool
 	AltitudeMinM *int
 	AltitudeMaxM *int
+	// SetBrewMethod replaces brew_method with BrewMethod (nil = NULL); false
+	// leaves it unchanged.
+	SetBrewMethod bool
+	BrewMethod    *string
 }
 
 // UpdateCoffee applies a partial update.
@@ -377,14 +398,15 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				producer             = COALESCE($11, producer),
 				region               = COALESCE($12, region),
 				altitude_min_m       = CASE WHEN $13 THEN $14 ELSE altitude_min_m END,
-				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END
+				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END,
+				brew_method          = CASE WHEN $16 THEN $17 ELSE brew_method END
 			WHERE id = $1
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
 		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs,
-		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM))
+		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

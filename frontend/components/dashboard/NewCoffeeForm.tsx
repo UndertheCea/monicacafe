@@ -44,7 +44,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   if (!user?.shop) {
     return (
       <Notice>
-        <Link href="/dashboard" className="font-semibold text-amber-700 hover:underline">
+        <Link href="/dashboard" className="font-semibold text-ink underline-offset-4 hover:underline">
           {t(locale, "dash.openTitle")}
         </Link>
       </Notice>
@@ -109,7 +109,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   }
 
   const select = (name: string, label: MessageKey, items: { id: string; label: string }[], required = true) => (
-    <label className="block text-sm font-medium text-stone-700">
+    <label className="block text-sm font-medium text-neutral-700">
       {t(locale, label)}
       {required && " *"}
       <select name={name} required={required} defaultValue="" className={inputCls}>
@@ -127,8 +127,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     <form onSubmit={onSubmit} noValidate className="space-y-6">
       {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
 
-      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-stone-200 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-stone-700 sm:col-span-2">
+      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.name")} *
           <input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className={inputCls} />
         </label>
@@ -144,29 +144,29 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         )}
         {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })), false)}
         {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })))}
-        <label className="block text-sm font-medium text-stone-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.flavorNotes")}
           <input name="notes" placeholder={t(locale, "filter.flavorPlaceholder")} className={inputCls} />
-          <span className="mt-1 block text-xs font-normal text-stone-500">
+          <span className="mt-1 block text-xs font-normal text-neutral-500">
             {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
           </span>
         </label>
-        <label className="block text-sm font-medium text-stone-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
         </label>
       </section>
 
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-        <h2 className="text-lg font-bold text-stone-900">{t(locale, "cf.variants")} *</h2>
-        <p className="mt-1 text-sm text-stone-500">{t(locale, "cf.variantsHint")}</p>
+      <section className="rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
+        <h2 className="text-lg font-bold text-ink">{t(locale, "cf.variants")} *</h2>
+        <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
         <ul className="mt-4 space-y-3">
           {rows.map((r, i) => {
             const problem = problems.get(i);
             return (
-              <li key={i} className="rounded-xl bg-stone-50 p-3 ring-1 ring-stone-200">
+              <li key={i} className="rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
-                  <label className="block text-xs font-medium text-stone-600">
+                  <label className="block text-xs font-medium text-neutral-600">
                     {t(locale, "cf.grind")}
                     <select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className={inputCls}>
                       {GRINDS.map((g) => (
@@ -176,15 +176,15 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
                       ))}
                     </select>
                   </label>
-                  <label className="block text-xs font-medium text-stone-600">
+                  <label className="block text-xs font-medium text-neutral-600">
                     {t(locale, "cf.weightG")}
                     <input inputMode="numeric" value={r.weightG} onChange={(e) => setRow(i, { weightG: e.target.value })} className={inputCls} />
                   </label>
-                  <label className="block text-xs font-medium text-stone-600">
+                  <label className="block text-xs font-medium text-neutral-600">
                     {t(locale, "cf.priceTwd")}
                     <input inputMode="numeric" value={r.priceTwd} onChange={(e) => setRow(i, { priceTwd: e.target.value })} className={inputCls} />
                   </label>
-                  <label className="block text-xs font-medium text-stone-600">
+                  <label className="block text-xs font-medium text-neutral-600">
                     {t(locale, "cf.stock")}
                     <input inputMode="numeric" value={r.stock} onChange={(e) => setRow(i, { stock: e.target.value })} className={inputCls} />
                   </label>
@@ -192,7 +192,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
                     type="button"
                     disabled={rows.length === 1}
                     onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
-                    className="col-span-2 justify-self-end rounded-full px-3 py-2 text-sm text-stone-500 hover:text-red-700 disabled:opacity-40 sm:col-span-1"
+                    className="col-span-2 justify-self-end rounded-full px-3 py-2 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40 sm:col-span-1"
                   >
                     {t(locale, "cf.removeRow")}
                   </button>
@@ -208,7 +208,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           type="button"
           disabled={rows.length >= LIMITS.variants}
           onClick={() => setRows((rs) => [...rs, { ...emptyRow(), weightG: "" }])}
-          className="mt-3 rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500 disabled:opacity-40"
+          className="mt-3 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-40"
         >
           {t(locale, "cf.addRow")}
         </button>
@@ -218,11 +218,11 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         <button
           type="submit"
           disabled={busy}
-          className="rounded-full bg-stone-900 px-6 py-2.5 font-semibold text-white hover:bg-stone-700 disabled:opacity-60"
+          className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.save")}
         </button>
-        <Link href="/dashboard" className="text-sm text-stone-600 hover:text-amber-700">
+        <Link href="/dashboard" className="text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4">
           {t(locale, "cf.back")}
         </Link>
       </div>

@@ -41,7 +41,7 @@ export function AccountMenu({ locale }: { locale: Locale }) {
     return (
       <Link
         href={`/login${next}`}
-        className="rounded-full bg-stone-900 px-3 py-1 text-sm font-semibold text-white hover:bg-stone-700"
+        className="rounded-full bg-ink px-3 py-1 text-sm font-semibold text-white hover:bg-neutral-700"
       >
         {t(locale, "nav.login")}
       </Link>
@@ -56,17 +56,17 @@ export function AccountMenu({ locale }: { locale: Locale }) {
         aria-expanded={open}
         aria-label={t(locale, "nav.account")}
         onClick={() => setOpen((o) => !o)}
-        className="flex max-w-[9rem] items-center gap-1 rounded-full border border-stone-300 px-3 py-1 text-sm hover:border-amber-500"
+        className="flex max-w-[9rem] items-center gap-1 rounded-full border border-neutral-300 px-3 py-1 text-sm hover:border-ink"
       >
         <span className="truncate">{user.displayName}</span>
         <span aria-hidden className="text-xs">▾</span>
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl bg-white py-1 shadow-lg ring-1 ring-stone-200">
-          <Link role="menuitem" href="/dashboard" className="block px-4 py-2 text-sm hover:bg-stone-50">
+        <div role="menu" className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl bg-white py-1 shadow-lg ring-1 ring-neutral-200">
+          <Link role="menuitem" href="/dashboard" className="block px-4 py-2 text-sm hover:bg-neutral-50">
             {t(locale, user.shop ? "nav.dashboard" : "nav.openShop")}
           </Link>
-          <Link role="menuitem" href="/account" className="block px-4 py-2 text-sm hover:bg-stone-50">
+          <Link role="menuitem" href="/account" className="block px-4 py-2 text-sm hover:bg-neutral-50">
             {t(locale, "nav.settings")}
           </Link>
           <button
@@ -77,7 +77,7 @@ export function AccountMenu({ locale }: { locale: Locale }) {
               await logout();
               router.refresh();
             }}
-            className="block w-full px-4 py-2 text-left text-sm hover:bg-stone-50"
+            className="block w-full px-4 py-2 text-left text-sm hover:bg-neutral-50"
           >
             {t(locale, "nav.logout")}
           </button>

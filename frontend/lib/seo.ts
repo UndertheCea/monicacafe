@@ -46,7 +46,7 @@ export function shareMetadata(i: ShareInput) {
     alternates: { canonical: url },
     openGraph: {
       type: i.type ?? "website",
-      siteName: "MONI CAFE",
+      siteName: "Moni Cafe",
       url,
       title: i.title,
       description,

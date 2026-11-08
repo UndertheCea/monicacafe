@@ -7,16 +7,16 @@ export default async function NotFound() {
   const locale = await getLocale();
   return (
     <div className="mx-auto max-w-3xl px-4 py-24 text-center">
-      <p aria-hidden className="text-5xl">
-        ☕
+      <p aria-hidden className="font-wordmark text-7xl font-extrabold italic tracking-[-0.06em] text-ink">
+        404
       </p>
-      <h1 className="mt-4 text-2xl font-bold text-stone-900">{t(locale, "notFound.title")}</h1>
-      <p className="mt-2 text-stone-600">{t(locale, "notFound.body")}</p>
+      <h1 className="mt-4 text-2xl font-bold text-ink">{t(locale, "notFound.title")}</h1>
+      <p className="mt-2 text-neutral-600">{t(locale, "notFound.body")}</p>
       <div className="mt-6 flex justify-center gap-6 text-sm font-medium">
-        <Link href="/" className="text-amber-700 hover:underline">
+        <Link href="/" className="text-ink underline-offset-4 hover:underline">
           {t(locale, "notFound.home")}
         </Link>
-        <Link href="/coffees" className="text-amber-700 hover:underline">
+        <Link href="/coffees" className="text-ink underline-offset-4 hover:underline">
           {t(locale, "notFound.coffees")}
         </Link>
       </div>

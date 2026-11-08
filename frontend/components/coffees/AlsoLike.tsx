@@ -7,7 +7,7 @@ export function AlsoLike({ coffees, locale }: { coffees: CoffeeCardData[]; local
   if (coffees.length === 0) return null;
   return (
     <section aria-labelledby="also-like" className="mt-12">
-      <h2 id="also-like" className="mb-4 text-xl font-bold text-stone-900">
+      <h2 id="also-like" className="mb-4 text-xl font-bold text-ink">
         {t(locale, "coffee.alsoLike")}
       </h2>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">

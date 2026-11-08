@@ -3,7 +3,7 @@ import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
 
 const fieldCls =
-  "rounded-lg border border-stone-300 bg-white px-2 py-1.5 text-stone-800 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500";
+  "rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
 /**
  * Search, roast and sort for one shop's coffees: a plain GET form (works
@@ -32,7 +32,7 @@ export function ShopCoffeesForm({
     >
       <SearchField locale={locale} q={q} label="shops.searchCoffees" placeholder="shops.searchCoffeesPlaceholder" />
       <label className="flex items-center gap-2">
-        <span className="text-stone-500">{t(locale, "filter.roast")}</span>
+        <span className="text-neutral-500">{t(locale, "filter.roast")}</span>
         <select name="roast" defaultValue={roast ?? ""} className={fieldCls}>
           <option value="">{t(locale, "filter.any")}</option>
           {ROAST_LEVELS.map((r) => (
@@ -113,7 +113,7 @@ export function SortForm({
     <form method="get" action={action} className="flex flex-wrap items-center gap-2 text-sm">
       {children}
       <label className="flex items-center gap-2">
-        <span className="text-stone-500">{t(locale, "sort.label")}</span>
+        <span className="text-neutral-500">{t(locale, "sort.label")}</span>
         <select name="sort" defaultValue={value} className={fieldCls}>
           {options.map((o) => (
             <option key={o.value || "newest"} value={o.value}>
@@ -122,7 +122,7 @@ export function SortForm({
           ))}
         </select>
       </label>
-      <button type="submit" className="rounded-full border border-stone-300 px-3 py-1.5 hover:border-stone-500">
+      <button type="submit" className="rounded-full border border-neutral-300 px-3 py-1.5 hover:border-neutral-500">
         {t(locale, submit)}
       </button>
     </form>

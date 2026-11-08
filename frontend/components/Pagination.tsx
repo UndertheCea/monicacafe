@@ -2,7 +2,7 @@ import Link from "next/link";
 import { pageHref, type SearchParams } from "@/lib/coffeeFilters";
 import { t, type Locale } from "@/lib/i18n/dict";
 
-const btn = "rounded-full border border-stone-300 px-4 py-2 hover:border-stone-500";
+const btn = "rounded-full border border-neutral-300 px-4 py-2 hover:border-neutral-500";
 
 /** Prev / "page X of Y" / next links that preserve the current query string. */
 export function Pagination({
@@ -26,7 +26,7 @@ export function Pagination({
           {t(locale, "page.prev")}
         </Link>
       ) : null}
-      <span className="text-stone-500">{t(locale, "page.of", { page, pages })}</span>
+      <span className="text-neutral-500">{t(locale, "page.of", { page, pages })}</span>
       {page < pages ? (
         <Link href={pageHref(sp, page + 1, base)} className={btn}>
           {t(locale, "page.next")}

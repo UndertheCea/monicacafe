@@ -42,16 +42,16 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
   }
 
   return (
-    <section className="rounded-2xl bg-white p-6 ring-1 ring-stone-200">
-      <h2 className="text-xl font-bold text-stone-900">{t(locale, "dash.openTitle")}</h2>
-      <p className="mt-1 text-sm text-stone-600">{t(locale, "dash.openSub")}</p>
+    <section className="rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
+      <h2 className="text-xl font-bold text-ink">{t(locale, "dash.openTitle")}</h2>
+      <p className="mt-1 text-sm text-neutral-600">{t(locale, "dash.openSub")}</p>
       <form onSubmit={onSubmit} noValidate className="mt-5 grid gap-4 sm:grid-cols-2">
         {error && (
           <div className="sm:col-span-2">
             <FormError>{t(locale, error)}</FormError>
           </div>
         )}
-        <label className="block text-sm font-medium text-stone-700">
+        <label className="block text-sm font-medium text-neutral-700">
           {t(locale, "dash.shopName")} *
           <input
             value={name}
@@ -64,7 +64,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             className={inputCls}
           />
         </label>
-        <label className="block text-sm font-medium text-stone-700">
+        <label className="block text-sm font-medium text-neutral-700">
           {t(locale, "dash.city")} *
           <input
             name="city"
@@ -74,7 +74,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             className={inputCls}
           />
         </label>
-        <label className="block text-sm font-medium text-stone-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "dash.shopSlug")} *
           <input
             value={slug}
@@ -89,11 +89,11 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             aria-describedby="slug-hint"
             className={`${inputCls} font-mono`}
           />
-          <span id="slug-hint" className="mt-1 block text-xs font-normal text-stone-500">
+          <span id="slug-hint" className="mt-1 block text-xs font-normal text-neutral-500">
             {t(locale, "dash.shopSlugHint", { slug: normaliseShopSlug(slug) ?? "…" })}
           </span>
         </label>
-        <label className="block text-sm font-medium text-stone-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "dash.description")}
           <textarea
             name="description"
@@ -110,7 +110,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
           <button
             type="submit"
             disabled={busy}
-            className="rounded-full bg-stone-900 px-5 py-2.5 font-semibold text-white hover:bg-stone-700 disabled:opacity-60"
+            className="rounded-full bg-ink px-5 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
           >
             {busy ? t(locale, "auth.submitting") : t(locale, "dash.createShop")}
           </button>

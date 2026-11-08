@@ -8,7 +8,7 @@ export function AuthorBadge({ comment, locale }: { comment: { fromShop?: boolean
   return (
     <span
       title={t(locale, "comments.fromShopTitle")}
-      className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+      className="ml-2 rounded-full bg-white px-2 py-0.5 text-xs font-medium text-ink ring-1 ring-ink"
     >
       {t(locale, key)}
     </span>

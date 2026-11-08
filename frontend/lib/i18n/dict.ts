@@ -19,7 +19,7 @@ const zhTW = {
   "nav.openShop": "開設店家",
   "nav.logout": "登出",
   "nav.settings": "帳號設定",
-  "auth.loginTitle": "登入 MONI CAFE",
+  "auth.loginTitle": "登入 Moni Cafe",
   "auth.loginSub": "登入後即可留言，或管理你的店家。",
   "auth.registerTitle": "建立帳號",
   "auth.registerSub": "加入台灣精品咖啡社群。",
@@ -260,7 +260,7 @@ const zhTW = {
   "home.eyebrow": "台灣烘豆師 · 精品咖啡",
   "home.title": "一杯咖啡，",
   "home.titleAccent": "一段台灣的故事",
-  "home.lead": "MONI CAFE 匯集台灣各地烘豆師的精品咖啡。依產地、品種、處理法與風味探索，找到屬於你的那一支豆子。",
+  "home.lead": "Moni Cafe 匯集台灣各地烘豆師的精品咖啡。依產地、品種、處理法與風味探索，找到屬於你的那一支豆子。",
   "home.ctaCoffees": "開始探索咖啡豆",
   "home.ctaMap": "查看咖啡地圖",
   "home.popular": "熱門咖啡豆",
@@ -268,7 +268,7 @@ const zhTW = {
   "home.seeAll": "查看全部 →",
   "home.shops": "精選店家",
   "home.shopsSub": "認識背後的烘豆師",
-  "home.whyTitle": "為什麼選擇 MONI CAFE？",
+  "home.whyTitle": "為什麼選擇 Moni Cafe？",
   "home.why1Title": "在地烘豆師",
   "home.why1Body": "從台北到台南，每間店家都是親自烘焙的台灣烘豆師與咖啡店。",
   "home.why2Title": "看得懂的咖啡",
@@ -421,7 +421,7 @@ const zhTW = {
   "cf.error.duplicate": "同一研磨與重量只能有一種規格。",
   "cf.error.lastVariant": "已上架的咖啡至少要保留一種規格，請先下架。",
   "cf.error.generic": "儲存失敗，請再試一次。",
-  "footer.copy": "© {year} MONI CAFE · 僅配送台灣本島及離島",
+  "footer.copy": "© {year} Moni Cafe · 僅配送台灣本島及離島",
 } as const;
 
 export type MessageKey = keyof typeof zhTW;
@@ -440,7 +440,7 @@ const en: Messages = {
   "nav.openShop": "Open a shop",
   "nav.logout": "Log out",
   "nav.settings": "Account settings",
-  "auth.loginTitle": "Log in to MONI CAFE",
+  "auth.loginTitle": "Log in to Moni Cafe",
   "auth.loginSub": "Log in to comment or manage your shop.",
   "auth.registerTitle": "Create an account",
   "auth.registerSub": "Join Taiwan's specialty coffee community.",
@@ -681,7 +681,7 @@ const en: Messages = {
   "home.eyebrow": "Taiwan roasters · Specialty coffee",
   "home.title": "Every cup tells ",
   "home.titleAccent": "a Taiwan story",
-  "home.lead": "MONI CAFE brings together specialty coffee from roasters across Taiwan. Explore by origin, variety, process and flavor to find the bean that's right for you.",
+  "home.lead": "Moni Cafe brings together specialty coffee from roasters across Taiwan. Explore by origin, variety, process and flavor to find the bean that's right for you.",
   "home.ctaCoffees": "Explore coffees",
   "home.ctaMap": "Open the coffee map",
   "home.popular": "Popular coffees",
@@ -689,7 +689,7 @@ const en: Messages = {
   "home.seeAll": "See all →",
   "home.shops": "Featured shops",
   "home.shopsSub": "Meet the roasters behind the beans",
-  "home.whyTitle": "Why MONI CAFE?",
+  "home.whyTitle": "Why Moni Cafe?",
   "home.why1Title": "Local roasters",
   "home.why1Body": "From Taipei to Tainan, every shop is a Taiwan roaster or café roasting its own beans.",
   "home.why2Title": "Coffee made legible",
@@ -842,7 +842,7 @@ const en: Messages = {
   "cf.error.duplicate": "Each grind + weight combination can only appear once.",
   "cf.error.lastVariant": "A published coffee needs at least one option — unpublish it first.",
   "cf.error.generic": "Couldn't save. Please try again.",
-  "footer.copy": "© {year} MONI CAFE · Ships within Taiwan only",
+  "footer.copy": "© {year} Moni Cafe · Ships within Taiwan only",
 };
 
 export const DICTS: Record<Locale, Messages> = { "zh-TW": zhTW, en };

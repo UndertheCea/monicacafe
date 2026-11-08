@@ -10,6 +10,7 @@ import { MY_SHOP, MY_SHOP_COFFEES, MY_SHOP_COMMENTS, PUBLISH_COFFEE, UNPUBLISH_C
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
+import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
 import { CommentFeed } from "@/components/CommentFeed";
@@ -111,10 +112,10 @@ export function Dashboard({ locale }: { locale: Locale }) {
   const followers = followerPart(shop.followerCount);
   return (
     <div className="space-y-8">
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-6 ring-1 ring-stone-200">
+      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
         <div className="min-w-0">
-          <h2 className="truncate text-2xl font-bold text-stone-900">{shop.name}</h2>
-          <p className="text-sm text-stone-500">
+          <h2 className="truncate text-2xl font-bold text-ink">{shop.name}</h2>
+          <p className="text-sm text-neutral-500">
             {shop.city} · <span className="font-mono">/shops/{shop.slug}</span> ·{" "}
             {t(locale, followers.key, { n: followers.n })}
           </p>
@@ -122,13 +123,13 @@ export function Dashboard({ locale }: { locale: Locale }) {
         <div className="flex flex-wrap gap-2">
           <Link
             href="/dashboard/shop"
-            className="rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-700"
+            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
           >
             {t(locale, "dash.editShop")}
           </Link>
           <Link
             href={`/shops/${shop.slug}`}
-            className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500"
+            className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500"
           >
             {t(locale, "dash.viewShop")}
           </Link>
@@ -137,15 +138,15 @@ export function Dashboard({ locale }: { locale: Locale }) {
 
       <section aria-labelledby="my-coffees">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="my-coffees" className="text-xl font-bold text-stone-900">
+          <h2 id="my-coffees" className="text-xl font-bold text-ink">
             {t(locale, "dash.coffees")}{" "}
-            <span className="text-sm font-normal text-stone-500">
+            <span className="text-sm font-normal text-neutral-500">
               {t(locale, "dash.coffeesCount", { n: shop.coffees.total })}
             </span>
           </h2>
           <Link
             href="/dashboard/coffees/new"
-            className="rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-400"
+            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
           >
             {t(locale, "dash.newCoffee")}
           </Link>
@@ -156,26 +157,34 @@ export function Dashboard({ locale }: { locale: Locale }) {
             <Notice>{t(locale, "dash.noCoffees")}</Notice>
           </div>
         ) : (
-          <ul className="mt-4 divide-y divide-stone-100 rounded-2xl bg-white ring-1 ring-stone-200">
+          <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
             {shop.coffees.nodes.map((c) => {
               const price = fromPrice(c);
               return (
                 <li key={c.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                  <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-neutral-200 sm:block">
+                    {c.imageUrls[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.imageUrls[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <CoffeeTile size="thumb" id={c.id} name={c.name} />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
                         className={
                           c.isPublished
-                            ? "rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200"
-                            : "rounded-full bg-stone-100 px-2 py-0.5 text-xs font-semibold text-stone-600 ring-1 ring-stone-200"
+                            ? "rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white ring-1 ring-ink"
+                            : "rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200"
                         }
                       >
                         {t(locale, c.isPublished ? "dash.published" : "dash.draft")}
                       </span>
                       <StockBadge locale={locale} variants={c.variants} />
-                      <span className="truncate font-semibold text-stone-900">{c.name}</span>
+                      <span className="truncate font-semibold text-ink">{c.name}</span>
                     </div>
-                    <p className="mt-1 text-sm text-stone-500">
+                    <p className="mt-1 text-sm text-neutral-500">
                       {c.variants.length === 0
                         ? t(locale, "dash.noVariants")
                         : t(locale, "dash.variantsCount", { n: c.variants.length })}
@@ -192,19 +201,19 @@ export function Dashboard({ locale }: { locale: Locale }) {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {c.isPublished && (
-                      <Link href={`/coffees/${c.id}`} className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:text-amber-700">
+                      <Link href={`/coffees/${c.id}`} className="rounded-full px-3 py-1.5 text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4">
                         {t(locale, "dash.view")}
                       </Link>
                     )}
                     <Link
                       href={`/dashboard/coffees/${c.id}/preview`}
-                      className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:text-amber-700"
+                      className="rounded-full px-3 py-1.5 text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4"
                     >
                       {t(locale, "dash.preview")}
                     </Link>
                     <Link
                       href={`/dashboard/coffees/${c.id}`}
-                      className="rounded-full border border-stone-300 px-3 py-1.5 text-sm hover:border-stone-500"
+                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-sm hover:border-neutral-500"
                     >
                       {t(locale, "dash.edit")}
                     </Link>
@@ -214,8 +223,8 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       onClick={() => void toggle(c.id, !c.isPublished)}
                       className={
                         c.isPublished
-                          ? "rounded-full border border-stone-300 px-3 py-1.5 text-sm hover:border-red-400 hover:text-red-700 disabled:opacity-50"
-                          : "rounded-full bg-stone-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-stone-700 disabled:opacity-50"
+                          ? "rounded-full border border-neutral-300 px-3 py-1.5 text-sm hover:border-red-400 hover:text-red-700 disabled:opacity-50"
+                          : "rounded-full bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
                       }
                     >
                       {t(locale, c.isPublished ? "dash.unpublish" : "dash.publish")}
@@ -242,7 +251,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
               type="button"
               disabled={more === "loading"}
               onClick={() => void loadMore()}
-              className="rounded-full border border-stone-300 px-4 py-2 text-sm hover:border-stone-500 disabled:opacity-50"
+              className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-50"
             >
               {t(locale, more === "loading" ? "dash.loading" : "dash.moreCoffees", {
                 n: shop.coffees.total - shop.coffees.nodes.length,
@@ -276,7 +285,7 @@ function StockBadge({ locale, variants }: { locale: Locale; variants: DashboardS
   }
   if (s.kind === "low") {
     return (
-      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-200">
+      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-ink ring-1 ring-neutral-300">
         {t(locale, "dash.stockLow", { n: s.units })}
       </span>
     );

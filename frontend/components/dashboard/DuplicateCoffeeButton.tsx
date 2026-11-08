@@ -35,7 +35,7 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
         disabled={busy}
         onClick={() => void duplicate()}
         title={t(locale, "dash.duplicateHint")}
-        className="rounded-full px-3 py-1.5 text-sm text-stone-600 hover:text-amber-700 disabled:opacity-50"
+        className="rounded-full px-3 py-1.5 text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4 disabled:opacity-50"
       >
         {t(locale, busy ? "dash.duplicating" : "dash.duplicate")}
       </button>

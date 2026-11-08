@@ -15,6 +15,46 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 20 — 2026-11-08 — White + black visual direction, wordmark, colour tiles, site icon
+PR: #115
+
+The owner filed a new visual direction (#109–#112, after comparing with SEY / La Cabra / Coffee Collective / Poma);
+all four were taken, plus one gap found while doing them (no site icon: every page load 404'd on /favicon.ico).
+
+### Shipped (one line per slice: area — what — key files)
+- #109 frontend — white page + black type: palette tokens `ink / paper / muted / line` in `globals.css` (`@theme`),
+  every amber accent → black / neutral, stone → neutral, the dark home hero → white with black buttons, gradients
+  gone, black map pins, visible black focus outline, `label-caps` for SEY-style small uppercase labels; a follow-up
+  commit also turned the rose "saved" pill and emerald "published" / success colours black / grey.
+  `tests/palette.test.mjs` allows only neutral, black / white tokens and error red in `app/` + `components/`.
+- #110 frontend — `Wordmark`: heavy italic lowercase "moni" (Inter Tight 800 italic via `next/font`) with "cafe"
+  under its right edge, in header (tagline beside "cafe" from `sm`) and footer; `lib/brand.ts` (`BRAND_NAME`,
+  `pageTitle`); "MONI CAFE" → "Moni Cafe" in metadata / OG / copy.
+- #111 frontend — `lib/coffeeTile.ts`: Radix light scales steps 4–8 (17 hues, copied from @radix-ui/colors 3.0.0, MIT,
+  attributed), `coffeeTile(id)` (FNV-1a, deterministic), `tileLines()`; `CoffeeTile` on cards, the detail image,
+  /account saved thumbnails and new dashboard row thumbnails (dashboard query now fetches `imageUrls`).
+- #112 frontend — `lib/shopInitials.ts` + `ShopLogo` (black-outlined circle with initials) on shop cards, shop page,
+  seller box, followed shops; no banner → no band at all; last emoji decorations removed (404 shows an italic "404",
+  home "why" cards numbered 01–03).
+- #114 cross-cutting — `app/icon.svg` (italic "m" drawn as a path), `favicon.ico` (16/32/48 RGBA) and
+  `apple-icon.png` (180 px); CSP proxy matcher skips them; `smoke.sh` checks all three.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Frontend: tsc, lint, `npm test` (132), `next build`; `docker compose config`, `check_brief.sh`.
+- Backend (unchanged): gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16
+  (migrations 001–009 + seed).
+- API binary + `next start` locally: `scripts/smoke.sh` all ok (incl. the new icon checks) except the two `/media/`
+  checks (no SeaweedFS / nginx here). Playwright screenshots (desktop + 390 px phone) of home, /coffees, a coffee page,
+  /shops, a shop page and the 404 checked by eye. Not run: `docker compose up`; dashboard and /account were not
+  screenshotted signed in (type-checked and unit-tested only).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Radix hex values are copied into `lib/coffeeTile.ts` (with the MIT notice) rather than adding `@radix-ui/colors`
+  as a dependency — 85 constants, no runtime cost.
+- Tile colour comes from the coffee id, so it never changes when a coffee is renamed; 17 hues × 5 steps.
+- List thumbnails (/account, dashboard) show the tile colour only — words don't fit at 48–56 px.
+- Error red is the one semantic colour kept; the published / draft badge is now filled black vs outlined grey.
+
 ## Session 19 — 2026-11-07 — Follow roasters: follows, following feed, most-followed shops
 PR: #108
 

@@ -43,7 +43,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   }, [status, request, coffeeId]);
 
   const count = (
-    <span className="text-xs font-normal text-stone-500">
+    <span className="text-xs font-normal text-neutral-500">
       {t(locale, "save.count", { n: state.count })}
     </span>
   );
@@ -54,7 +54,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
         {status === "anonymous" ? (
           <Link
             href={`/login?next=${encodeURIComponent(pathname)}`}
-            className={`${pillCls} bg-white text-stone-700 ring-stone-300 hover:bg-stone-50`}
+            className={`${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`}
           >
             <span aria-hidden>♡</span> {t(locale, "save.loginToSave")}
           </Link>
@@ -95,8 +95,8 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
           aria-pressed={state.saved}
           className={
             state.saved
-              ? `${pillCls} bg-rose-50 text-rose-700 ring-rose-200 hover:bg-rose-100`
-              : `${pillCls} bg-white text-stone-700 ring-stone-300 hover:bg-stone-50`
+              ? `${pillCls} bg-ink text-white ring-ink hover:bg-neutral-700`
+              : `${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`
           }
         >
           <span aria-hidden>{state.saved ? "♥" : "♡"}</span>

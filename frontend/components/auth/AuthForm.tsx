@@ -12,7 +12,7 @@ import { useAuth } from "./AuthProvider";
 type Mode = "login" | "register";
 
 const inputCls =
-  "mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200";
+  "mt-1 w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-neutral-300";
 
 export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
   const auth = useAuth();
@@ -23,11 +23,11 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
 
   if (auth.status === "authenticated" && auth.user && !busy) {
     return (
-      <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-stone-200">
-        <p className="text-stone-700">{t(locale, "auth.alreadyIn", { name: auth.user.displayName })}</p>
+      <div className="rounded-2xl bg-white p-6 text-center ring-1 ring-neutral-200">
+        <p className="text-neutral-700">{t(locale, "auth.alreadyIn", { name: auth.user.displayName })}</p>
         <Link
           href={next}
-          className="mt-4 inline-block rounded-full bg-stone-900 px-5 py-2 text-sm font-semibold text-white hover:bg-stone-700"
+          className="mt-4 inline-block rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
         >
           {t(locale, "auth.continue")}
         </Link>
@@ -65,24 +65,24 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-stone-200">
+    <form onSubmit={onSubmit} noValidate className="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
       {error && (
         <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200">
           {t(locale, error.key, "vars" in error ? error.vars : undefined)}
         </p>
       )}
       {mode === "register" && (
-        <label className="block text-sm font-medium text-stone-700">
+        <label className="block text-sm font-medium text-neutral-700">
           {t(locale, "auth.displayName")}
           <input name="displayName" required maxLength={50} autoComplete="nickname" className={inputCls} />
-          <span className="mt-1 block text-xs font-normal text-stone-500">{t(locale, "auth.displayNameHint")}</span>
+          <span className="mt-1 block text-xs font-normal text-neutral-500">{t(locale, "auth.displayNameHint")}</span>
         </label>
       )}
-      <label className="block text-sm font-medium text-stone-700">
+      <label className="block text-sm font-medium text-neutral-700">
         {t(locale, "auth.email")}
         <input name="email" type="email" required autoComplete="email" className={inputCls} />
       </label>
-      <label className="block text-sm font-medium text-stone-700">
+      <label className="block text-sm font-medium text-neutral-700">
         {t(locale, "auth.password")}
         <input
           name="password"
@@ -93,21 +93,21 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
           className={inputCls}
         />
         {mode === "register" && (
-          <span className="mt-1 block text-xs font-normal text-stone-500">{t(locale, "auth.passwordHint")}</span>
+          <span className="mt-1 block text-xs font-normal text-neutral-500">{t(locale, "auth.passwordHint")}</span>
         )}
       </label>
       <button
         type="submit"
         disabled={busy}
-        className="w-full rounded-full bg-stone-900 px-5 py-2.5 font-semibold text-white transition hover:bg-stone-700 disabled:opacity-60"
+        className="w-full rounded-full bg-ink px-5 py-2.5 font-semibold text-white transition hover:bg-neutral-700 disabled:opacity-60"
       >
         {busy ? t(locale, "auth.submitting") : t(locale, mode === "login" ? "auth.submitLogin" : "auth.submitRegister")}
       </button>
-      <p className="text-center text-sm text-stone-600">
+      <p className="text-center text-sm text-neutral-600">
         {t(locale, mode === "login" ? "auth.noAccount" : "auth.haveAccount")}{" "}
         <Link
           href={`/${mode === "login" ? "register" : "login"}${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}
-          className="font-semibold text-amber-700 hover:underline"
+          className="font-semibold text-ink underline-offset-4 hover:underline"
         >
           {t(locale, mode === "login" ? "auth.toRegister" : "auth.toLogin")}
         </Link>

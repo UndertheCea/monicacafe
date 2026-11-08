@@ -24,6 +24,7 @@ import { FollowButton } from "@/components/shops/FollowButton";
 import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
+import { ShopLogo } from "@/components/shops/ShopLogo";
 
 type Params = Promise<{ slug: string }>;
 
@@ -105,59 +106,53 @@ export default async function ShopPage({
     <div>
       {/* Structured data (anonymous fetch: published coffees only); serializeJsonLd escapes seller text. */}
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
-      <div className="relative h-48 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-800 md:h-64">
-        {shop.bannerUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={shop.bannerUrl} alt="" className="h-full w-full object-cover opacity-80" />
-        )}
-      </div>
+      {/* No banner: no block at all, just white space (#112). */}
+      {shop.bannerUrl && (
+        <div className="relative h-48 border-b border-line md:h-64">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={shop.bannerUrl} alt="" className="h-full w-full object-cover" />
+        </div>
+      )}
 
       <div className="mx-auto max-w-7xl px-4">
-        <div className="relative -mt-12 flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 text-4xl ring-4 ring-white">
-            {shop.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={shop.logoUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <span aria-hidden>☕</span>
-            )}
-          </div>
-          <div className="sm:pt-14">
-            <h1 className="text-3xl font-bold text-stone-900">{shop.name}</h1>
-            {shop.city && <p className="text-sm text-stone-500">{shop.city}</p>}
+        <div className={`relative flex flex-col gap-4 sm:flex-row ${shop.bannerUrl ? "-mt-12 sm:items-start" : "pt-10 sm:items-center"}`}>
+          <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-paper" />
+          <div className={shop.bannerUrl ? "sm:pt-14" : ""}>
+            <h1 className="text-3xl font-bold text-ink">{shop.name}</h1>
+            {shop.city && <p className="text-sm text-neutral-500">{shop.city}</p>}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
           </div>
         </div>
 
         {shop.description && (
-          <p className="mt-6 max-w-3xl whitespace-pre-line leading-relaxed text-stone-700">{shop.description}</p>
+          <p className="mt-6 max-w-3xl whitespace-pre-line leading-relaxed text-neutral-700">{shop.description}</p>
         )}
 
         <section className="mt-10 pb-12" aria-labelledby="shop-coffees">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-baseline gap-3">
-              <h2 id="shop-coffees" className="text-xl font-bold text-stone-900">
+              <h2 id="shop-coffees" className="text-xl font-bold text-ink">
                 {t(locale, "shops.coffees")}
               </h2>
-              <span className="text-sm text-stone-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
+              <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
             </div>
             {(shop.coffeeCount > 1 || filtering) && (
               <ShopCoffeesForm locale={locale} sort={sort} q={q} roast={roast} action={`/shops/${shop.slug}`} />
             )}
           </div>
           {q && (
-            <p className="mb-4 text-sm font-semibold text-stone-900" aria-live="polite">
+            <p className="mb-4 text-sm font-semibold text-ink" aria-live="polite">
               {t(locale, "shops.coffeeResults", { q })}
             </p>
           )}
 
           {shop.coffees.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-stone-500 ring-1 ring-stone-200">
+            <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
               <p>{filtering ? t(locale, "shops.noMatches") : t(locale, "shops.noCoffees")}</p>
               {filtering && (
                 <Link
                   href={shopCoffeesHref(shop.slug, { sort })}
-                  className="mt-4 inline-block text-sm font-semibold text-amber-700 hover:underline"
+                  className="mt-4 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
                 >
                   {t(locale, "shops.clearFilters")}
                 </Link>
@@ -173,7 +168,7 @@ export default async function ShopPage({
 
           <Pagination locale={locale} sp={sp} page={page} pages={pages} base={`/shops/${shop.slug}`} />
 
-          <Link href="/shops" className="mt-8 inline-block text-sm font-medium text-amber-700 hover:underline">
+          <Link href="/shops" className="mt-8 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
             {t(locale, "shops.back")}
           </Link>
         </section>

@@ -22,12 +22,12 @@ export function CommentItem({
     <li className="p-4">
       <div className="flex items-baseline justify-between gap-3">
         <span>
-          <span className="font-semibold text-stone-800">{c.user.displayName}</span>
+          <span className="font-semibold text-neutral-800">{c.user.displayName}</span>
           <AuthorBadge comment={c} locale={locale} />
         </span>
         <span className="flex items-baseline gap-3">
           <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={onDeleted} />
-          <time dateTime={c.createdAt} className="text-xs text-stone-400">
+          <time dateTime={c.createdAt} className="text-xs text-neutral-400">
             {formatTaipeiDate(c.createdAt, locale)}
           </time>
         </span>

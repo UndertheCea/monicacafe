@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fromPrice, type CoffeeCardData } from "@/lib/api";
+import { brewShortKey } from "@/lib/brew";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { originLine } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
@@ -11,6 +12,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
   const country = pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn);
   // Producer · region tells two coffees from the same country apart.
   const source = originLine({ producer: coffee.producer, region: coffee.region });
+  const brew = brewShortKey(coffee.brewMethod);
 
   return (
     <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-neutral-200 transition hover:shadow-md focus-within:ring-2 focus-within:ring-ink">
@@ -30,6 +32,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
         )}
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
           {t(locale, `roast.${coffee.roastLevel}`)}
+          {brew && ` · ${t(locale, brew)}`}
         </span>
       </div>
 

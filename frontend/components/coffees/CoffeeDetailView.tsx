@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
+import { brewLongKey } from "@/lib/brew";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
 import { originLine, provenanceFacts } from "@/lib/provenance";
@@ -28,6 +29,8 @@ export function CoffeeDetailView({
     [t(locale, "coffee.process"), pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)],
     [t(locale, "coffee.roast"), t(locale, `roast.${coffee.roastLevel}`)],
   ];
+  const brew = brewLongKey(coffee.brewMethod);
+  if (brew) facts.push([t(locale, "coffee.brew"), t(locale, brew)]);
   if (coffee.variety) facts.splice(1, 0, [t(locale, "coffee.variety"), coffee.variety.name]);
   // Producer / region / altitude follow the origin facts, only when set.
   for (const [key, value] of provenanceFacts(coffee)) facts.push([t(locale, key), value]);

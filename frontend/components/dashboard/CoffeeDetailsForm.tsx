@@ -12,6 +12,7 @@ import {
   parseFlavorNotes,
   type CoffeeDetails,
 } from "@/lib/dashboard/validate";
+import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ProvenanceFields } from "./ProvenanceFields";
@@ -43,7 +44,7 @@ export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails 
 
 /** Brew-method choices for the coffee forms; omni spells out that it suits both. */
 export function brewOptions(locale: Locale) {
-  return BREW_METHODS.map((m) => ({ id: m, label: t(locale, m === "OMNI" ? "cf.brewHint" : `brew.${m}`) }));
+  return BREW_METHODS.map((m) => ({ id: m, label: t(locale, brewLongKey(m)!) }));
 }
 
 /** The message for a coffee-details problem (local check or the API's field). */

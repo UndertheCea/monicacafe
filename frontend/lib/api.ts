@@ -2,7 +2,7 @@
 // sync with the schema (a codegen step can replace them later).
 import { typed } from "./graphql";
 import { COMMENTS_PAGE, COMMENT_MAX_CHARS } from "./comments";
-import type { CoffeeSort, RoastLevel } from "./coffeeQuery";
+import type { BrewMethod, CoffeeSort, RoastLevel } from "./coffeeQuery";
 import type { ShopSort } from "./shopQuery";
 import type { SitemapCoffee, SitemapShop } from "./sitemap";
 
@@ -42,6 +42,7 @@ export interface CoffeeCardData {
   slug: string;
   name: string;
   roastLevel: RoastLevel;
+  brewMethod: BrewMethod | null;
   flavorNotes: string[];
   producer: string;
   region: string;
@@ -68,7 +69,7 @@ export const FILTER_OPTIONS = typed<{
 
 /** Fields every CoffeeCard needs (keep in sync with CoffeeCardData). */
 const CARD_FIELDS = `
-  id slug name roastLevel flavorNotes producer region imageUrls commentCount
+  id slug name roastLevel brewMethod flavorNotes producer region imageUrls commentCount
   shop { slug name city }
   originCountry { nameEn nameZh }
   processingMethod { nameEn nameZh }
@@ -131,6 +132,7 @@ export interface CoffeeDetail {
   region: string;
   altitudeMinM: number | null;
   altitudeMaxM: number | null;
+  brewMethod: BrewMethod | null;
   imageUrls: string[];
   isPublished: boolean;
   commentCount: number;
@@ -145,7 +147,7 @@ export interface CoffeeDetail {
 
 const COFFEE_DETAIL_FIELDS = `
   id slug name description roastLevel flavorNotes imageUrls isPublished commentCount saveCount
-  producer region altitudeMinM altitudeMaxM
+  producer region altitudeMinM altitudeMaxM brewMethod
   shop { id slug name city description logoUrl }
   originCountry { nameEn nameZh region }
   processingMethod { nameEn nameZh }

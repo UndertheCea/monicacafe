@@ -26,6 +26,12 @@ Product rules that never change: Taiwan only, ships within Taiwan, no green bean
 zh-TW first, English second; sellers never expose personal contact info and can't link out (the platform
 takes a commission on each sale).
 
+**Look and feel (owner, 2026-11-08):** clean like SEY, La Cabra, Coffee Collective and Poma — a white page
+with black type and nothing else. No yellow / amber, no dark "black and yellow" blocks, no gradients. The
+wordmark is a heavy, italic, lowercase "moni cafe" in the style of the *motors coffee* sign (#110). Coffees
+without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8) with the coffee's words written
+on it (#111). Slices: #109–#112.
+
 ## Status
 
 | Area | State |
@@ -65,6 +71,9 @@ with follower counts on cards and the dashboard (#107). Verified with race tests
 on a local API + Next.
 
 ## Current focus
+
+**Next: the owner's new visual direction (#109–#112, p1) — white + black only, italic wordmark, SEY-style colour
+tiles for coffees without photos, plain shop placeholders.** Take these before anything else.
 
 Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers to #9 (cart storage) and
 #12 (commission + payouts). No pickable slices remain after Session 19; next sessions should file real gaps or wait for #9 / #12
@@ -144,5 +153,7 @@ Open questions for the owner (answer by commenting on the issue):
   `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).
 - **"Roaster" badge derived from shop ownership, not stored** — `Comment.fromShop` is an `EXISTS` on every read, so
   there is no flag to forge or keep in sync (#95).
+- **White + black visual style, no amber or gradients** — the owner's call (2026-11-08) after comparing with SEY /
+  La Cabra / Coffee Collective / Poma; the only colour is the soft Radix tile behind a coffee with no photo (#109–#112).
 - **Follows: public count, private list** — like saves; nobody (the seller included) sees who follows a shop, and
   owners can't follow themselves, so the count means other people (#102).

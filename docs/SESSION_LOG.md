@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 23 — 2026-11-08 — Harvest year (產季)
-PR: #TBD
+PR: #135
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from a gap: Taiwan specialty roasters print the crop on every bag ("2025 產季") and buyers

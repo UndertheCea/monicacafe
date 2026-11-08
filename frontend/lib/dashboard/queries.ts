@@ -19,6 +19,8 @@ export interface DashboardCoffee {
   commentCount: number;
   saveCount: number;
   createdAt: string;
+  /** Only the first (the cover) is shown, as the row thumbnail. */
+  imageUrls: string[];
   variants: DashboardVariant[];
 }
 
@@ -34,7 +36,7 @@ export interface DashboardShop {
 
 const VARIANT_FIELDS = `id grind weightG priceTwd stock isAvailable`;
 
-const DASHBOARD_COFFEE_FIELDS = `id name isPublished commentCount saveCount createdAt variants { ${VARIANT_FIELDS} }`;
+const DASHBOARD_COFFEE_FIELDS = `id name isPublished commentCount saveCount createdAt imageUrls variants { ${VARIANT_FIELDS} }`;
 
 /** The signed-in seller's shop with its first page of coffees, drafts included (owner-only). */
 export const MY_SHOP = typed<{ me: { id: string; shop: DashboardShop | null } | null }>(/* GraphQL */ `

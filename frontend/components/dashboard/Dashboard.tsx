@@ -10,6 +10,7 @@ import { MY_SHOP, MY_SHOP_COFFEES, MY_SHOP_COMMENTS, PUBLISH_COFFEE, UNPUBLISH_C
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
+import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
 import { CommentFeed } from "@/components/CommentFeed";
@@ -161,6 +162,14 @@ export function Dashboard({ locale }: { locale: Locale }) {
               const price = fromPrice(c);
               return (
                 <li key={c.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                  <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-neutral-200 sm:block">
+                    {c.imageUrls[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.imageUrls[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <CoffeeTile size="thumb" id={c.id} name={c.name} />
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span

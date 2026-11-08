@@ -7,6 +7,7 @@ import { MY_SAVED_COFFEES, UNSAVE_COFFEE, fromPrice, type CoffeeCardData } from 
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { SAVED_PAGE, appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { formatTWD } from "@/lib/utils";
+import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 
 type List = { total: number; nodes: CoffeeCardData[] };
 type State =
@@ -113,9 +114,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" />
                   ) : (
-                    <span aria-hidden className="text-2xl">
-                      ☕
-                    </span>
+                    <CoffeeTile size="thumb" id={c.id} name={c.name} />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">

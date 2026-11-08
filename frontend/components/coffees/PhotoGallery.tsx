@@ -9,7 +9,18 @@ import { t, type Locale } from "@/lib/i18n/dict";
  * thumbnail button underneath. Arrow keys move between thumbnails. Images come
  * from our media bucket (backend/internal/storage), so plain <img> is fine.
  */
-export function PhotoGallery({ images, name, locale }: { images: string[]; name: string; locale: Locale }) {
+export function PhotoGallery({
+  images,
+  name,
+  locale,
+  placeholder,
+}: {
+  images: string[];
+  name: string;
+  locale: Locale;
+  /** Shown when the coffee has no photo (the colour tile, #111). */
+  placeholder: React.ReactNode;
+}) {
   const photos = galleryPhotos(images);
   const [selected, setSelected] = useState(0);
   const thumbs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -36,9 +47,7 @@ export function PhotoGallery({ images, name, locale }: { images: string[]; name:
             className="h-full w-full object-cover"
           />
         ) : (
-          <span aria-hidden className="absolute inset-0 grid place-items-center text-8xl">
-            ☕
-          </span>
+          placeholder
         )}
       </div>
       {photos.length > 1 && (

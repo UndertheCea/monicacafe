@@ -3,6 +3,7 @@ import type { CoffeeDetail } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
 import { formatTWD } from "@/lib/utils";
+import { CoffeeTile } from "./CoffeeTile";
 import { PhotoGallery } from "./PhotoGallery";
 
 /**
@@ -30,7 +31,21 @@ export function CoffeeDetailView({
   return (
     <div className="mt-6 grid gap-10 lg:grid-cols-2">
       {/* Images */}
-      <PhotoGallery images={coffee.imageUrls} name={coffee.name} locale={locale} />
+      <PhotoGallery
+        images={coffee.imageUrls}
+        name={coffee.name}
+        locale={locale}
+        placeholder={
+          <CoffeeTile
+            size="hero"
+            id={coffee.id}
+            name={coffee.name}
+            variety={coffee.variety?.name}
+            process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
+            origin={pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
+          />
+        }
+      />
 
       {/* Details */}
       <div>

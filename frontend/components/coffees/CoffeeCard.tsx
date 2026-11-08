@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
+import { CoffeeTile } from "./CoffeeTile";
 
 export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale: Locale }) {
   const price = fromPrice(coffee);
@@ -15,9 +16,13 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
           // eslint-disable-next-line @next/next/no-img-element
           <img src={img} alt={coffee.name} className="h-full w-full object-cover" loading="lazy" />
         ) : (
-          <span aria-hidden className="absolute inset-0 grid place-items-center text-5xl">
-            ☕
-          </span>
+          <CoffeeTile
+            id={coffee.id}
+            name={coffee.name}
+            variety={coffee.variety?.name}
+            process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
+            origin={pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)}
+          />
         )}
         <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
           {t(locale, `roast.${coffee.roastLevel}`)}

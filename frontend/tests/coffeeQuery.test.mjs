@@ -9,6 +9,13 @@ import {
   parseHarvestParam,
   parseAcidityParam,
   LOW_ACIDITY_MAX,
+  parseSweetParam,
+  parseBodyParam,
+  cupFilter,
+  hasFiltersBesidesSearch,
+  clearFiltersHref,
+  parseAltitudeParam,
+  HIGH_GROWN_MIN_M,
   parseInStockParam,
   parseRoastParam,
   parseSearchParam,
@@ -104,6 +111,10 @@ test("shopCoffeesHref keeps search, roast and sort; drops defaults", () => {
     [{ harvest: false }, "/shops/beans"],
     [{ lowAcid: true, harvest: true }, "/shops/beans?harvest=recent&acidity=low"],
     [{ lowAcid: false }, "/shops/beans"],
+    [{ sweet: true, body: "full" }, "/shops/beans?sweet=high&body=full"],
+    [{ highGrown: true, body: "light" }, "/shops/beans?body=light&altitude=high"],
+    [{ highGrown: false }, "/shops/beans"],
+    [{ lowAcid: true, sweet: false, body: "light", sort: "price_asc" }, "/shops/beans?acidity=low&body=light&sort=price_asc"],
   ];
   for (const [input, want] of cases) assert.equal(shopCoffeesHref("beans", input), want, JSON.stringify(input));
 });
@@ -156,4 +167,81 @@ test("parseAcidityParam accepts only low, any case; low means 1–2", () => {
   ];
   for (const [input, want] of cases) assert.equal(parseAcidityParam(input), want, JSON.stringify(input));
   assert.equal(LOW_ACIDITY_MAX, 2);
+});
+
+test("parseSweetParam accepts only high, any case", () => {
+  const cases = [
+    [undefined, false],
+    ["", false],
+    ["high", true],
+    [" HIGH ", true],
+    [["high", "low"], true],
+    ["low", false],
+    ["4", false],
+  ];
+  for (const [input, want] of cases) assert.equal(parseSweetParam(input), want, JSON.stringify(input));
+});
+
+test("parseBodyParam accepts light and full, any case", () => {
+  const cases = [
+    [undefined, undefined],
+    ["", undefined],
+    ["light", "light"],
+    [" FULL ", "full"],
+    [["full", "light"], "full"],
+    ["medium", undefined],
+    ["5", undefined],
+  ];
+  for (const [input, want] of cases) assert.equal(parseBodyParam(input), want, JSON.stringify(input));
+});
+
+test("cupFilter maps choices to API bounds and leaves the rest out", () => {
+  const cases = [
+    [{}, {}],
+    [{ lowAcid: false, sweet: false }, {}],
+    [{ lowAcid: true }, { maxAcidity: 2 }],
+    [{ sweet: true }, { minSweetness: 4 }],
+    [{ body: "light" }, { maxBody: 2 }],
+    [{ body: "full" }, { minBody: 4 }],
+    [{ lowAcid: true, sweet: true, body: "full" }, { maxAcidity: 2, minSweetness: 4, minBody: 4 }],
+  ];
+  for (const [input, want] of cases) assert.deepEqual(cupFilter(input), want, JSON.stringify(input));
+});
+
+test("parseAltitudeParam accepts only high, any case; high-grown starts at 1,500 m", () => {
+  const cases = [
+    [undefined, false],
+    ["", false],
+    ["high", true],
+    [" High ", true],
+    [["high"], true],
+    ["1500", false],
+    ["low", false],
+  ];
+  for (const [input, want] of cases) assert.equal(parseAltitudeParam(input), want, JSON.stringify(input));
+  assert.equal(HIGH_GROWN_MIN_M, 1500);
+});
+
+test("hasFiltersBesidesSearch ignores the keyword search and unset keys", () => {
+  const cases = [
+    [{}, false],
+    [{ search: "geisha" }, false],
+    [{ search: "geisha", roastLevel: undefined }, false],
+    [{ roastLevel: "LIGHT" }, true],
+    [{ search: "x", inStock: true }, true],
+    [{ minAltitudeM: 1500 }, true],
+    [{ maxBody: 2 }, true],
+  ];
+  for (const [input, want] of cases) assert.equal(hasFiltersBesidesSearch(input), want, JSON.stringify(input));
+});
+
+test("clearFiltersHref keeps only the search and sort", () => {
+  const cases = [
+    [[undefined, ""], "/coffees"],
+    [["  ", ""], "/coffees"],
+    [["耶加雪菲", ""], "/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2"],
+    [[undefined, "price_asc"], "/coffees?sort=price_asc"],
+    [["kenya", "saved"], "/coffees?q=kenya&sort=saved"],
+  ];
+  for (const [[q, sort], want] of cases) assert.equal(clearFiltersHref(q, sort), want, JSON.stringify([q, sort]));
 });

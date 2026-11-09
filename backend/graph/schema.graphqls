@@ -518,6 +518,16 @@ input CoffeeFilter {
   # Only coffees whose acidity is this or lower (1–5). Coffees without an
   # acidity never match.
   maxAcidity: Int
+  # Only coffees whose sweetness is this or higher (1–5).
+  minSweetness: Int
+  # Only coffees whose body is within these bounds (1–5 each; minBody must
+  # not exceed maxBody). Coffees without that scale never match.
+  minBody: Int
+  maxBody: Int
+  # Only coffees grown at or above this altitude in metres (0–6000), judged
+  # by the top of the coffee's range (or its single height). Coffees without
+  # an altitude never match.
+  minAltitudeM: Int
 }
 
 input AddCommentInput {

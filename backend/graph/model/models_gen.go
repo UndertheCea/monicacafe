@@ -46,6 +46,10 @@ type CoffeeFilter struct {
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
 	MinHarvestYear     *int        `json:"minHarvestYear,omitempty"`
 	MaxAcidity         *int        `json:"maxAcidity,omitempty"`
+	MinSweetness       *int        `json:"minSweetness,omitempty"`
+	MinBody            *int        `json:"minBody,omitempty"`
+	MaxBody            *int        `json:"maxBody,omitempty"`
+	MinAltitudeM       *int        `json:"minAltitudeM,omitempty"`
 }
 
 type CoffeeVariety struct {

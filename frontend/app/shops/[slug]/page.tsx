@@ -3,21 +3,23 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { SHOP } from "@/lib/api";
+import { SHOP, type CoffeeFilter } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import {
+  HIGH_GROWN_MIN_M,
+  cupFilter,
+  parseAltitudeParam,
   parseBrewParam,
   parseHarvestParam,
   parseAcidityParam,
-  LOW_ACIDITY_MAX,
+  parseBodyParam,
   parseRoastParam,
   parseSearchParam,
   parseSortParam,
+  parseSweetParam,
   recentHarvestFrom,
   shopCoffeesHref,
   sortForApi,
-  type BrewMethod,
-  type RoastLevel,
   type SortParam,
 } from "@/lib/coffeeQuery";
 import { query } from "@/lib/graphql";
@@ -36,35 +38,20 @@ type Params = Promise<{ slug: string }>;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Primitive arguments only: cache() matches calls by argument identity.
-const loadShop = cache(
-  async (
-    slug: string,
-    page: number,
-    sort: SortParam,
-    q?: string,
-    roast?: RoastLevel,
-    brew?: BrewMethod,
-    harvestFrom?: number,
-    maxAcidity?: number,
-  ) =>
-    SLUG_RE.test(slug)
-      ? (
-          await query(SHOP, {
-            slug,
-            filter: {
-              ...(q ? { search: q } : {}),
-              ...(roast ? { roastLevel: roast } : {}),
-              ...(brew ? { brewMethod: brew } : {}),
-              ...(harvestFrom ? { minHarvestYear: harvestFrom } : {}),
-              ...(maxAcidity ? { maxAcidity } : {}),
-            },
-            sort: sortForApi(sort),
-            limit: PAGE_SIZE,
-            offset: (page - 1) * PAGE_SIZE,
-          })
-        ).shop
-      : null,
+// Primitive arguments only: cache() matches calls by argument identity, so the
+// filter travels as JSON (shopFilter builds it with a stable key order).
+const loadShop = cache(async (slug: string, page: number, sort: SortParam, filterJson: string) =>
+  SLUG_RE.test(slug)
+    ? (
+        await query(SHOP, {
+          slug,
+          filter: JSON.parse(filterJson) as CoffeeFilter,
+          sort: sortForApi(sort),
+          limit: PAGE_SIZE,
+          offset: (page - 1) * PAGE_SIZE,
+        })
+      ).shop
+    : null,
 );
 
 /** The shop page's list options from the URL (same parsing as /coffees). */
@@ -77,6 +64,21 @@ function listOptions(sp: SearchParams) {
     brew: parseBrewParam(sp.brew),
     harvest: parseHarvestParam(sp.harvest),
     lowAcid: parseAcidityParam(sp.acidity),
+    sweet: parseSweetParam(sp.sweet),
+    body: parseBodyParam(sp.body),
+    highGrown: parseAltitudeParam(sp.altitude),
+  };
+}
+
+/** The API filter for the shop page's options (blank ones left out). */
+function shopFilter(o: ReturnType<typeof listOptions>): CoffeeFilter {
+  return {
+    ...(o.q ? { search: o.q } : {}),
+    ...(o.roast ? { roastLevel: o.roast } : {}),
+    ...(o.brew ? { brewMethod: o.brew } : {}),
+    ...(o.harvest ? { minHarvestYear: recentHarvestFrom() } : {}),
+    ...cupFilter(o),
+    ...(o.highGrown ? { minAltitudeM: HIGH_GROWN_MIN_M } : {}),
   };
 }
 
@@ -89,18 +91,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const { page, sort, q, roast, brew, harvest, lowAcid } = listOptions(sp);
-    const shop = await loadShop(
-      slug, page, sort, q, roast, brew,
-      harvest ? recentHarvestFrom() : undefined,
-      lowAcid ? LOW_ACIDITY_MAX : undefined,
-    );
+    const opts = listOptions(sp);
+    const shop = await loadShop(slug, opts.page, opts.sort, JSON.stringify(shopFilter(opts)));
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
       ...shareMetadata({
         base: siteBase(process.env.SITE_URL),
-        path: `/shops/${shop.slug}${page > 1 ? `?page=${page}` : ""}`,
+        path: `/shops/${shop.slug}${opts.page > 1 ? `?page=${opts.page}` : ""}`,
         title: shop.name,
         description: shop.description,
         images: [shop.bannerUrl, shop.logoUrl],
@@ -120,16 +118,14 @@ export default async function ShopPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
-  const { page, sort, q, roast, brew, harvest, lowAcid } = listOptions(sp);
-  const filtering = Boolean(q || roast || brew || harvest || lowAcid);
+  const opts = listOptions(sp);
+  const { page, sort, q, roast, brew, harvest, lowAcid, sweet, body, highGrown } = opts;
+  const filter = shopFilter(opts);
+  const filtering = Object.keys(filter).length > 0;
 
   let shop;
   try {
-    shop = await loadShop(
-      slug, page, sort, q, roast, brew,
-      harvest ? recentHarvestFrom() : undefined,
-      lowAcid ? LOW_ACIDITY_MAX : undefined,
-    );
+    shop = await loadShop(slug, page, sort, JSON.stringify(filter));
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -183,6 +179,9 @@ export default async function ShopPage({
                 brew={brew}
                 harvest={harvest}
                 lowAcid={lowAcid}
+                sweet={sweet}
+                body={body}
+                highGrown={highGrown}
                 action={`/shops/${shop.slug}`}
               />
             )}

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { COFFEES, FILTER_OPTIONS } from "@/lib/api";
 import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
-import { sortForApi } from "@/lib/coffeeQuery";
+import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -35,6 +35,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const { options, list } = data;
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const q = filter.search;
+  const filtered = hasFiltersBesidesSearch(filter);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -62,13 +63,25 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           {list.nodes.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
               <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
-              {q && (
-                <Link
-                  href={pageHref({ ...sp, q: undefined }, 1)}
-                  className="mt-4 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
-                >
-                  {t(locale, "coffees.clearSearch")}
-                </Link>
+              {(q || filtered) && (
+                <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2">
+                  {q && (
+                    <Link
+                      href={pageHref({ ...sp, q: undefined }, 1)}
+                      className="text-sm font-semibold text-ink underline-offset-4 hover:underline"
+                    >
+                      {t(locale, "coffees.clearSearch")}
+                    </Link>
+                  )}
+                  {filtered && (
+                    <Link
+                      href={clearFiltersHref(q, sort)}
+                      className="text-sm font-semibold text-ink underline-offset-4 hover:underline"
+                    >
+                      {t(locale, "coffees.clearFilters")}
+                    </Link>
+                  )}
+                </div>
               )}
             </div>
           ) : (

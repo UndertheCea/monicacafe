@@ -1,13 +1,17 @@
 import type { CoffeeFilter } from "./api";
 import {
-  LOW_ACIDITY_MAX,
+  HIGH_GROWN_MIN_M,
+  cupFilter,
   parseAcidityParam,
+  parseAltitudeParam,
+  parseBodyParam,
   parseBrewParam,
   parseHarvestParam,
   parseInStockParam,
   parseRoastParam,
   parseSearchParam,
   parseSortParam,
+  parseSweetParam,
   recentHarvestFrom,
   type SortParam,
 } from "./coffeeQuery";
@@ -26,7 +30,7 @@ function wholeNTD(v: string | undefined): number | undefined {
   return Number(v);
 }
 
-/** Parse `/coffees?q=…&origin=…&roast=…&brew=…&harvest=recent&acidity=low&sort=…&page=2` into a CoffeeFilter, sort + page. */
+/** Parse `/coffees?q=…&origin=…&roast=…&brew=…&harvest=recent&acidity=low&sweet=high&body=full&altitude=high&sort=…&page=2` into a CoffeeFilter, sort + page. */
 export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sort: SortParam; page: number } {
   const filter: CoffeeFilter = {
     originCountryId: one(sp.origin),
@@ -40,7 +44,12 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sor
     maxPriceTwd: wholeNTD(one(sp.max)),
     inStock: parseInStockParam(sp.instock) || undefined,
     minHarvestYear: parseHarvestParam(sp.harvest) ? recentHarvestFrom() : undefined,
-    maxAcidity: parseAcidityParam(sp.acidity) ? LOW_ACIDITY_MAX : undefined,
+    ...cupFilter({
+      lowAcid: parseAcidityParam(sp.acidity),
+      sweet: parseSweetParam(sp.sweet),
+      body: parseBodyParam(sp.body),
+    }),
+    minAltitudeM: parseAltitudeParam(sp.altitude) ? HIGH_GROWN_MIN_M : undefined,
   };
   // Drop undefined keys so the GraphQL variables stay minimal.
   for (const k of Object.keys(filter) as (keyof CoffeeFilter)[]) {

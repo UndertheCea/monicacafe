@@ -821,11 +821,32 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		}
 		out.MinHarvestYear = f.MinHarvestYear
 	}
-	if f.MaxAcidity != nil {
-		if a := *f.MaxAcidity; a < minCupScale || a > maxCupScale {
-			return out, errBadInput("maxAcidity", fmt.Sprintf("maxAcidity must be %d–%d", minCupScale, maxCupScale))
+	for _, sc := range []struct {
+		field string
+		in    *int
+		out   **int
+	}{
+		{"maxAcidity", f.MaxAcidity, &out.MaxAcidity},
+		{"minSweetness", f.MinSweetness, &out.MinSweetness},
+		{"minBody", f.MinBody, &out.MinBody},
+		{"maxBody", f.MaxBody, &out.MaxBody},
+	} {
+		if sc.in == nil {
+			continue
 		}
-		out.MaxAcidity = f.MaxAcidity
+		if v := *sc.in; v < minCupScale || v > maxCupScale {
+			return out, errBadInput(sc.field, fmt.Sprintf("%s must be %d–%d", sc.field, minCupScale, maxCupScale))
+		}
+		*sc.out = sc.in
+	}
+	if out.MinBody != nil && out.MaxBody != nil && *out.MinBody > *out.MaxBody {
+		return out, errBadInput("minBody", "minBody must not exceed maxBody")
+	}
+	if f.MinAltitudeM != nil {
+		if m := *f.MinAltitudeM; m < 0 || m > maxAltitudeM {
+			return out, errBadInput("minAltitudeM", fmt.Sprintf("minAltitudeM must be 0–%d", maxAltitudeM))
+		}
+		out.MinAltitudeM = f.MinAltitudeM
 	}
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")

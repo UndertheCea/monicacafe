@@ -308,6 +308,45 @@ else
   echo "FAIL coffee page should show the Yirgacheffe's acidity (4 of 5)"; fail=1
 fi
 
+# Sweet / body / high-grown (#143–#147): minSweetness 4 lists the Geisha (202)
+# and Huila (203) only; light body (≤ 2) is the Yirgacheffe (201) alone, full
+# body (≥ 4) the blend (206) alone; 1,500 m+ leaves out the 1,000–1,400 m blend
+# and the coffees are judged by the top of their range.
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ sweet: coffees(filter: { minSweetness: 4 }, limit: 100) { nodes { id } } light: coffees(filter: { maxBody: 2 }, limit: 100) { nodes { id } } full: coffees(filter: { minBody: 4 }, limit: 100) { nodes { id } } high: coffees(filter: { minAltitudeM: 1500 }, limit: 100) { nodes { id } } }"}') || body=""
+sweet=$(echo "$body" | grep -o '"sweet":{"nodes":\[[^]]*\]') || sweet=""
+light=$(echo "$body" | grep -o '"light":{"nodes":\[[^]]*\]') || light=""
+full=$(echo "$body" | grep -o '"full":{"nodes":\[[^]]*\]') || full=""
+high=$(echo "$body" | grep -o '"high":{"nodes":\[[^]]*\]') || high=""
+if [[ "$body" == *'"errors"'* \
+      || "$sweet" != *'000000000202'* || "$sweet" != *'000000000203'* || "$sweet" == *'000000000201'* || "$sweet" == *'000000000206'* \
+      || "$light" != *'000000000201'* || "$light" == *'000000000202'* || "$light" == *'000000000206'* \
+      || "$full" != *'000000000206'* || "$full" == *'000000000201'* || "$full" == *'000000000203'* \
+      || "$high" != *'000000000201'* || "$high" != *'000000000205'* || "$high" == *'000000000206'* ]]; then
+  echo "FAIL sweet / body / altitude filters: got ${body:0:400}"; fail=1
+else
+  echo "ok   graphql sweet / body / altitude filters"
+fi
+# Scoped to the seeded Dawn Roastery by keyword: its sweet coffees are medium-bodied.
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?q=dawn&sweet=high&body=full") || page=""
+if [[ "$page" == *'Clear filters'* || "$page" == *'清除篩選'* ]] && [[ "$page" != *'/coffees/00000000-0000-4000-8000-0000000002'* ]]; then
+  echo "ok   /coffees?q=dawn&sweet=high&body=full is empty and offers Clear filters"
+else
+  echo "FAIL /coffees?q=dawn&sweet=high&body=full should be empty with a Clear filters link"; fail=1
+fi
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?altitude=high&body=light") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000206'* ]]; then
+  echo "ok   /coffees?altitude=high&body=light lists the Yirgacheffe only"
+else
+  echo "FAIL /coffees?altitude=high&body=light should list the Yirgacheffe and not the blend"; fail=1
+fi
+shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?sweet=high") || shop=""
+if [[ "$shop" == *'/coffees/00000000-0000-4000-8000-000000000202'* && "$shop" != *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
+  echo "ok   shop page ?sweet=high narrows the shop's coffees"
+else
+  echo "FAIL /shops/demo-roastery?sweet=high should list the Geisha and not the Yirgacheffe"; fail=1
+fi
+
 # Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
 # lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
 # the seeded coffee, and roast=DARK alone shows the "no matches" state.

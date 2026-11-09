@@ -32,3 +32,14 @@ test("header and footer both render the wordmark; no shouty 'MONI CAFE' remains"
     assert.doesNotMatch(readFileSync(join(root, f), "utf8"), /MONI CAFE/, f);
   }
 });
+
+test("the header wordmark has no tagline and sets 'cafe' at the size of 'moni' (#164)", () => {
+  const header = readFileSync(join(root, "components/SiteHeader.tsx"), "utf8");
+  assert.match(header, /<Wordmark \/>/);
+  assert.doesNotMatch(header, /brand\.tagline/);
+  const mark = readFileSync(join(root, "components/Wordmark.tsx"), "utf8");
+  assert.doesNotMatch(mark, /\bsub\?:|\{sub\b/, "no tagline prop");
+  // One shared size class on the element that wraps both words; no smaller text size on "cafe".
+  assert.match(mark, /<span>\{WORDMARK\.main\}<\/span>\s*<span>\{WORDMARK\.sub\}<\/span>/);
+  assert.doesNotMatch(mark, /text-\[0\.\d+rem\]/, "no small second line");
+});

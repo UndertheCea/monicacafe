@@ -7,7 +7,6 @@ export const DEFAULT_LOCALE: Locale = "zh-TW";
 export const LOCALE_COOKIE = "locale";
 
 const zhTW = {
-  "brand.tagline": "台灣精品咖啡市集",
   "nav.coffees": "咖啡豆",
   "nav.shops": "店家",
   "nav.map": "地圖",
@@ -482,7 +481,6 @@ export type MessageKey = keyof typeof zhTW;
 type Messages = Record<MessageKey, string>;
 
 const en: Messages = {
-  "brand.tagline": "Taiwan specialty coffee marketplace",
   "nav.coffees": "Coffees",
   "nav.shops": "Shops",
   "nav.map": "Map",

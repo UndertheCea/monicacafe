@@ -25,6 +25,17 @@ for path in / /coffees /shops /map /menu /login /register /account /dashboard /d
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
 
+# No-JavaScript rendering (#156): list pages arrive complete, not streamed into
+# hidden placeholders behind a loading skeleton.
+for path in /coffees /shops; do
+  page=$(curl -s --max-time 15 "$BASE_URL$path") || page=""
+  if [[ -n "$page" && "$page" != *'<div hidden id="S:'* && "$page" == *'<article'* ]]; then
+    echo "ok   $path renders its list without JavaScript"
+  else
+    echo "FAIL $path should render its list in the HTML, not in a hidden streamed placeholder"; fail=1
+  fi
+done
+
 # Navigation drawer (#175): the server-rendered header's menu button is a link
 # to /menu (the no-JavaScript fallback), which lists the drawer's links.
 home=$(curl -s --max-time 15 "$BASE_URL/") || home=""

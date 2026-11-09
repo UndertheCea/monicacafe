@@ -4,6 +4,7 @@ import { t, type Locale } from "@/lib/i18n/dict";
 import { AccountMenu } from "./auth/AccountMenu";
 import { HeaderSearch, HeaderSearchForm } from "./HeaderSearch";
 import { LanguageToggle } from "./LanguageToggle";
+import { LinkPending } from "./LinkPending";
 import { NavDrawer } from "./NavDrawer";
 import { SearchToggle } from "./SearchToggle";
 import { Wordmark } from "./Wordmark";
@@ -26,12 +27,15 @@ export function SiteHeader({ locale }: { locale: Locale }) {
         >
           <Link href="/coffees" className="hover:text-ink hover:underline underline-offset-4">
             {t(locale, "nav.coffees")}
+            <LinkPending />
           </Link>
           <Link href="/shops" className="hover:text-ink hover:underline underline-offset-4">
             {t(locale, "nav.shops")}
+            <LinkPending />
           </Link>
           <Link href="/map" className="hover:text-ink hover:underline underline-offset-4">
             {t(locale, "nav.map")}
+            <LinkPending />
           </Link>
           <Suspense fallback={<HeaderSearchForm locale={locale} />}>
             <HeaderSearch locale={locale} />

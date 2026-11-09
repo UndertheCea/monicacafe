@@ -46,7 +46,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API only (site dropped them, #167); "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
-| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
+| Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Skip-to-content link, one `main` landmark per page | Done (#85) |
@@ -140,8 +140,9 @@ Open questions for the owner (answer by commenting on the issue):
   images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.
 - **Next.js 16 after Stage 1** — owner's answer on #11; done in Session 10 (#35).
-- **Loading skeletons only on list pages** — a loading boundary above a detail page streams the response, so
-  `notFound()` can't set a 404; list pages sit in `(list)` route groups instead.
+- **No loading boundaries (#156)** — a `loading.tsx` makes Next stream the page into hidden placeholders that only an
+  inline script reveals, so without JavaScript /coffees and /shops showed a skeleton forever. Header and pagination links
+  show a pending dot (`useLinkStatus`) instead; a test keeps `loading.*` out of `app/`.
 - **Comment pages by offset, not cursor** — simple; "load more" dedupes by id, so a new comment can't show twice.
   The dashboard coffee list pages the same way (#49).
 - **Price sort = cheapest available, in-stock variant; sold-out last** — matches the "from NT$…" on cards (#44).

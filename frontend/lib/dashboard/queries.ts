@@ -86,6 +86,18 @@ export const UNPUBLISH_COFFEE = typed<{ unpublishCoffee: { id: string; isPublish
   `,
 );
 
+/**
+ * Sets the shop's lineup: every coffee id (drafts included) in the order
+ * buyers should see them on the shop page (#161).
+ */
+export const REORDER_SHOP_COFFEES = typed<{ reorderShopCoffees: { id: string } }, { shopId: string; coffeeIds: string[] }>(
+  /* GraphQL */ `
+    mutation ReorderShopCoffees($shopId: ID!, $coffeeIds: [ID!]!) {
+      reorderShopCoffees(shopId: $shopId, coffeeIds: $coffeeIds) { id }
+    }
+  `,
+);
+
 // ── Coffee editor ────────────────────────────────────────────────────────────
 
 export interface VariantInput {

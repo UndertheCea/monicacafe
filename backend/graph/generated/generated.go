@@ -2130,6 +2130,12 @@ input CoffeeFilter {
   # Only coffees whose acidity is this or lower (1–5). Coffees without an
   # acidity never match.
   maxAcidity: Int
+  # Only coffees whose sweetness is this or higher (1–5).
+  minSweetness: Int
+  # Only coffees whose body is within these bounds (1–5 each; minBody must
+  # not exceed maxBody). Coffees without that scale never match.
+  minBody: Int
+  maxBody: Int
 }
 
 input AddCommentInput {
@@ -13773,7 +13779,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear", "maxAcidity"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear", "maxAcidity", "minSweetness", "minBody", "maxBody"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13864,6 +13870,27 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.MaxAcidity = data
+		case "minSweetness":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minSweetness"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinSweetness = data
+		case "minBody":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minBody"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinBody = data
+		case "maxBody":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("maxBody"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MaxBody = data
 		}
 	}
 

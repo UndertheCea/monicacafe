@@ -95,6 +95,10 @@ type CoffeeFilter struct {
 	// MaxAcidity keeps coffees whose acidity is at most this; a coffee
 	// without an acidity never matches.
 	MaxAcidity *int
+	// MinSweetness keeps coffees at least this sweet; MinBody / MaxBody bound
+	// the body. A coffee without that scale never matches.
+	MinSweetness     *int
+	MinBody, MaxBody *int
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -155,6 +159,15 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	if f.MaxAcidity != nil {
 		add("c.acidity <= $%d", *f.MaxAcidity)
+	}
+	if f.MinSweetness != nil {
+		add("c.sweetness >= $%d", *f.MinSweetness)
+	}
+	if f.MinBody != nil {
+		add("c.body >= $%d", *f.MinBody)
+	}
+	if f.MaxBody != nil {
+		add("c.body <= $%d", *f.MaxBody)
 	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")

@@ -192,6 +192,39 @@ func TestStoreFilter(t *testing.T) {
 			t.Errorf("maxAcidity %d: got %+v, %v", a, f.MaxAcidity, err)
 		}
 	}
+	ip := func(v int) *int { return &v }
+	for _, tc := range []struct {
+		name      string
+		in        model.CoffeeFilter
+		wantField string // "" = valid
+	}{
+		{"sweet 4", model.CoffeeFilter{MinSweetness: ip(4)}, ""},
+		{"sweet 0", model.CoffeeFilter{MinSweetness: ip(0)}, "minSweetness"},
+		{"sweet 6", model.CoffeeFilter{MinSweetness: ip(6)}, "minSweetness"},
+		{"light body", model.CoffeeFilter{MaxBody: ip(2)}, ""},
+		{"full body", model.CoffeeFilter{MinBody: ip(4)}, ""},
+		{"body range", model.CoffeeFilter{MinBody: ip(2), MaxBody: ip(4)}, ""},
+		{"one body", model.CoffeeFilter{MinBody: ip(3), MaxBody: ip(3)}, ""},
+		{"min body 0", model.CoffeeFilter{MinBody: ip(0)}, "minBody"},
+		{"max body 6", model.CoffeeFilter{MaxBody: ip(6)}, "maxBody"},
+		{"body inverted", model.CoffeeFilter{MinBody: ip(4), MaxBody: ip(2)}, "minBody"},
+	} {
+		f, err := storeFilter(&tc.in)
+		if tc.wantField != "" {
+			if ae, ok := err.(*apiError); !ok || ae.field != tc.wantField {
+				t.Errorf("%s: got %v, want a bad-input error on %s", tc.name, err, tc.wantField)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("%s: %v", tc.name, err)
+			continue
+		}
+		same := func(a, b *int) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
+		if !same(f.MinSweetness, tc.in.MinSweetness) || !same(f.MinBody, tc.in.MinBody) || !same(f.MaxBody, tc.in.MaxBody) {
+			t.Errorf("%s: got sweet %v body %v–%v", tc.name, f.MinSweetness, f.MinBody, f.MaxBody)
+		}
+	}
 }
 
 func TestSearchTerms(t *testing.T) {

@@ -1,7 +1,7 @@
 // URL ⇄ API mapping for /coffees options that aren't plain filters. No
 // imports, so `npm test` can load it directly.
 
-export type CoffeeSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC" | "MOST_DISCUSSED" | "MOST_SAVED";
+export type CoffeeSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC" | "MOST_DISCUSSED" | "MOST_SAVED" | "SHOP_ORDER";
 
 export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
 export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
@@ -181,61 +181,4 @@ export function clearFiltersHref(q: string | undefined, sort: SortParam): string
   if (sort) params.set("sort", sort);
   const qs = params.toString();
   return qs ? `/coffees?${qs}` : "/coffees";
-}
-
-/**
- * A shop page URL (page 1) for a keyword search, roast and sort. Blank and
- * default values are left out, so clearing everything gives /shops/<slug>.
- */
-export function shopCoffeesHref(
-  slug: string,
-  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; highGrown?: boolean; sort?: SortParam } & CupChoices,
-): string {
-  const params = new URLSearchParams();
-  const q = p.q?.trim();
-  if (q) params.set("q", q);
-  if (p.roast) params.set("roast", p.roast);
-  if (p.brew) params.set("brew", brewParam(p.brew));
-  if (p.harvest) params.set("harvest", "recent");
-  if (p.lowAcid) params.set("acidity", "low");
-  if (p.sweet) params.set("sweet", "high");
-  if (p.body) params.set("body", p.body);
-  if (p.highGrown) params.set("altitude", "high");
-  if (p.sort) params.set("sort", p.sort);
-  const qs = params.toString();
-  return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;
-}
-
-/** The shop page's list options, as parsed from its URL. */
-export interface ShopListChoices extends CupChoices {
-  q?: string;
-  roast?: RoastLevel;
-  brew?: BrewMethod;
-  harvest?: boolean;
-  highGrown?: boolean;
-}
-
-/**
- * The API filter for a shop page's options, with blank ones left out and the
- * keys in a stable order (the page caches its loader on this as JSON).
- */
-export function shopCoffeeFilter(o: ShopListChoices, now: Date = new Date()): {
-  search?: string;
-  roastLevel?: RoastLevel;
-  brewMethod?: BrewMethod;
-  minHarvestYear?: number;
-  maxAcidity?: number;
-  minSweetness?: number;
-  minBody?: number;
-  maxBody?: number;
-  minAltitudeM?: number;
-} {
-  return {
-    ...(o.q ? { search: o.q } : {}),
-    ...(o.roast ? { roastLevel: o.roast } : {}),
-    ...(o.brew ? { brewMethod: o.brew } : {}),
-    ...(o.harvest ? { minHarvestYear: recentHarvestFrom(now) } : {}),
-    ...cupFilter(o),
-    ...(o.highGrown ? { minAltitudeM: HIGH_GROWN_MIN_M } : {}),
-  };
 }

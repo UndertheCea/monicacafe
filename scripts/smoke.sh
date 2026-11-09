@@ -340,12 +340,6 @@ if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" !=
 else
   echo "FAIL /coffees?altitude=high&body=light should list the Yirgacheffe and not the blend"; fail=1
 fi
-shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?sweet=high") || shop=""
-if [[ "$shop" == *'/coffees/00000000-0000-4000-8000-000000000202'* && "$shop" != *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
-  echo "ok   shop page ?sweet=high narrows the shop's coffees"
-else
-  echo "FAIL /shops/demo-roastery?sweet=high should list the Geisha and not the Yirgacheffe"; fail=1
-fi
 
 # Filter-option counts (#150, #151): the seed has a published Ethiopian coffee
 # and nothing from Rwanda, so /coffees offers Ethiopia (with its count) and
@@ -374,27 +368,37 @@ if [[ "$page" == *'href="/coffees?sweet=high"'* && "$page" == *'href="/coffees?r
 else
   echo "FAIL /coffees?roast=light&sweet=high should show a chip per filter and a Filters (2) toggle"; fail=1
 fi
-shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?roast=light&sweet=high") || shop=""
-if [[ "$shop" == *'href="/shops/demo-roastery?sweet=high"'* && "$shop" == *'href="/shops/demo-roastery?roast=light"'* ]]; then
-  echo "ok   shop page shows removable filter chips"
-else
-  echo "FAIL /shops/demo-roastery?roast=light&sweet=high should link each chip to the shop without that filter"; fail=1
-fi
 
-# Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
-# lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
-# the seeded coffee, and roast=DARK alone shows the "no matches" state.
+# Shop search (#75, #76): /shops?q=晨光 lists the seeded Dawn Roastery.
 if curl -s --max-time 15 "$BASE_URL/shops?q=%E6%99%A8%E5%85%89" | grep -q '/shops/demo-roastery'; then
   echo "ok   /shops?q= lists the match"
 else
   echo "FAIL /shops?q= should list /shops/demo-roastery"; fail=1
 fi
-in_shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2&roast=LIGHT") || in_shop=""
-dark=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?roast=DARK") || dark=""
-if [[ "$in_shop" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$dark" != *'/coffees/00000000-0000-4000-8000-0000000002'* ]]; then
-  echo "ok   shop page search + roast filter"
+# Shop pages have no buyer search, filters or sort (#160): old filter links
+# still return the full lineup, and there is no search box or sort select.
+dark=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?roast=DARK&q=zzz&sort=price_asc") || dark=""
+if [[ "$dark" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$dark" == *'/coffees/00000000-0000-4000-8000-000000000202'* \
+      && "$dark" != *'name="sort"'* && "$dark" != *'在這間店搜尋'* && "$dark" != *'Search this shop'* && "$dark" != *'name="roast"'* ]]; then
+  echo "ok   shop page ignores old filter params and shows no buyer controls"
 else
-  echo "FAIL shop page filter: search+LIGHT should list the 耶加雪菲 coffee, DARK should list none of the shop's"; fail=1
+  echo "FAIL /shops/demo-roastery?roast=DARK&q=zzz should list the whole lineup with no search / filter / sort form"; fail=1
+fi
+
+# Sold-out archive (#163): the seeded 古吉 (its only option has no stock) is
+# listed only after the archive heading; the in-stock 耶加雪菲 before it. (The
+# RSC payload at the end of the HTML repeats every link, so "after" can't be
+# checked for absence.)
+shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery") || shop=""
+heading='id="shop-archive"'
+before=${shop%%"$heading"*}
+after=${shop#*"$heading"}
+if [[ "$shop" == *"$heading"* && ( "$after" == *'已售完 · 封存'* || "$after" == *'Sold out · Archive'* ) \
+      && "$after" == *'/coffees/00000000-0000-4000-8000-000000000207'* && "$before" != *'/coffees/00000000-0000-4000-8000-000000000207'* \
+      && "$before" == *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
+  echo "ok   shop page lists the sold-out coffee under the archive heading"
+else
+  echo "FAIL /shops/demo-roastery should list coffee 207 only under 已售完 · 封存 and 201 above it"; fail=1
 fi
 
 # Most followed (#107): the seed gives 府城焙煎所 two followers, so it is the

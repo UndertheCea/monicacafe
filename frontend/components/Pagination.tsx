@@ -11,24 +11,28 @@ export function Pagination({
   page,
   pages,
   base,
+  hrefFor,
 }: {
   locale: Locale;
   sp: SearchParams;
   page: number;
   pages: number;
   base: string;
+  /** Builds a page's link instead of `pageHref(sp, page, base)` (pages with two paged lists). */
+  hrefFor?: (page: number) => string;
 }) {
+  const href = (p: number) => (hrefFor ? hrefFor(p) : pageHref(sp, p, base));
   if (pages <= 1) return null;
   return (
     <nav className="mt-8 flex items-center justify-center gap-4 text-sm" aria-label={t(locale, "page.nav")}>
       {page > 1 ? (
-        <Link href={pageHref(sp, page - 1, base)} className={btn}>
+        <Link href={href(page - 1)} className={btn}>
           {t(locale, "page.prev")}
         </Link>
       ) : null}
       <span className="text-neutral-500">{t(locale, "page.of", { page, pages })}</span>
       {page < pages ? (
-        <Link href={pageHref(sp, page + 1, base)} className={btn}>
+        <Link href={href(page + 1)} className={btn}>
           {t(locale, "page.next")}
         </Link>
       ) : null}

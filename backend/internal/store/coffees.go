@@ -85,8 +85,11 @@ type CoffeeFilter struct {
 	SearchTerms []string
 	MinPriceTWD *int64
 	MaxPriceTWD *int64
-	// InStock keeps only coffees with an available variant that has stock.
+	// InStock keeps only coffees with an available variant that has stock;
+	// SoldOut keeps only those without one (the shop page's archive, #163).
+	// Setting both matches nothing.
 	InStock bool
+	SoldOut bool
 	// BrewMethods keeps coffees whose brew_method is any of these (nil = all).
 	BrewMethods []string
 	// MinHarvestYear keeps coffees harvested in this year or later; a coffee
@@ -176,13 +179,19 @@ func (f CoffeeFilter) where() (string, []any) {
 		add("COALESCE(c.altitude_max_m, c.altitude_min_m) >= $%d", *f.MinAltitudeM)
 	}
 	if f.InStock {
-		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")
+		conds = append(conds, buyableCond)
+	}
+	if f.SoldOut {
+		conds = append(conds, "NOT "+buyableCond)
 	}
 	if len(conds) == 0 {
 		return "", args
 	}
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
+
+// buyableCond: the coffee has at least one available, in-stock variant.
+const buyableCond = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
 
 // searchCond matches one search term (a LIKE pattern, $N) against every text
 // a buyer might type: names in both languages, notes, provenance, the shop.
@@ -212,6 +221,9 @@ const (
 	SortPriceDesc     CoffeeSort = "PRICE_DESC"
 	SortMostDiscussed CoffeeSort = "MOST_DISCUSSED"
 	SortMostSaved     CoffeeSort = "MOST_SAVED"
+	// SortShopOrder is the seller's lineup (coffees.shop_position, #161);
+	// only meaningful within one shop.
+	SortShopOrder CoffeeSort = "SHOP_ORDER"
 )
 
 // Lowest price among a coffee's available, in-stock variants (what the card
@@ -237,6 +249,8 @@ func (s CoffeeSort) orderBy() (join, order string) {
 		return commentCountJoin, "cc.n DESC, " + tail
 	case SortMostSaved:
 		return saveCountJoin, "sc.n DESC, " + tail
+	case SortShopOrder:
+		return "", "c.shop_position, " + tail
 	default:
 		return "", tail
 	}
@@ -470,6 +484,38 @@ func (s *Store) SetCoffeePublished(ctx context.Context, id string, published boo
 	return scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (UPDATE coffees SET is_published = $2 WHERE id = $1 RETURNING *)
 		SELECT `+coffeeColumns+` FROM c`, id, published))
+}
+
+// ShopCoffeeIDsForUpdate returns every coffee of a shop (drafts included) in
+// its current lineup order and locks them for the rest of the transaction, so
+// a reorder can't race with another reorder. Call it inside InTx.
+func (s *Store) ShopCoffeeIDsForUpdate(ctx context.Context, shopID string) ([]string, error) {
+	rows, err := s.db.Query(ctx, `SELECT id FROM coffees WHERE shop_id = $1
+		ORDER BY shop_position, created_at DESC, id FOR UPDATE`, shopID)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, mapErr(err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, mapErr(rows.Err())
+}
+
+// SetShopPositions numbers the shop's coffees 1..n in the order of ids. The
+// caller checks that ids is exactly the shop's coffees (ShopCoffeeIDsForUpdate).
+// Positions don't touch updated_at (migration 014): reordering isn't an edit.
+func (s *Store) SetShopPositions(ctx context.Context, shopID string, ids []string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE coffees c SET shop_position = o.pos
+		FROM unnest($2::uuid[]) WITH ORDINALITY AS o(id, pos)
+		WHERE c.id = o.id AND c.shop_id = $1 AND c.shop_position IS DISTINCT FROM o.pos`, shopID, ids)
+	return mapErr(err)
 }
 
 // ─── Variants ─────────────────────────────────────────────────────────────────

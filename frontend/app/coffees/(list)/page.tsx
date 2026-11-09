@@ -54,10 +54,13 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
         <p className="mt-2 text-neutral-600">{t(locale, "coffees.subtitle")}</p>
       </header>
 
-      <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+      {/* Sidebar from md (768px): tablets and half-width windows keep the desktop layout (#165). */}
+      <div className="grid gap-8 md:grid-cols-[15rem_1fr] lg:grid-cols-[18rem_1fr]">
+        <aside className="md:sticky md:top-20 md:self-start">
           <FilterPanel
             summary={active > 0 ? t(locale, "filter.toggleCount", { n: active }) : t(locale, "filter.title")}
+            title={t(locale, "filter.title")}
+            closeLabel={t(locale, "filter.close")}
           >
             <FilterSidebar
               locale={locale}

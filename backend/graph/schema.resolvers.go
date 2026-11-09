@@ -469,6 +469,32 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	return toShop(sh), nil
 }
 
+// ReorderShopCoffees is the resolver for the reorderShopCoffees field.
+func (r *mutationResolver) ReorderShopCoffees(ctx context.Context, shopID string, coffeeIds []string) (*model.Shop, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sh, err := r.ownedShop(ctx, c, shopID)
+	if err != nil {
+		return nil, err
+	}
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		have, err := tx.ShopCoffeeIDsForUpdate(ctx, sh.ID)
+		if err != nil {
+			return err
+		}
+		if err := checkLineup(have, coffeeIds); err != nil {
+			return err
+		}
+		return tx.SetShopPositions(ctx, sh.ID, coffeeIds)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return toShop(sh), nil
+}
+
 // CreateCoffee is the resolver for the createCoffee field.
 func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error) {
 	c, err := requireViewer(ctx)
@@ -1356,9 +1382,12 @@ func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, filter *mod
 	c := viewer(ctx)
 	f.ShopID = &obj.ID
 	f.IncludeUnpublished = c != nil && (c.UserID == obj.OwnerID || isAdmin(c))
-	so, err := storeSort(sort)
-	if err != nil {
-		return nil, err
+	// A shop's page shows the seller's lineup unless another order is asked for (#161).
+	so := store.SortShopOrder
+	if sort != nil {
+		if so, err = storeSort(sort); err != nil {
+			return nil, err
+		}
 	}
 	l, o := page(limit, offset)
 	cs, total, err := r.Store.ListCoffees(ctx, f, so, l, o)

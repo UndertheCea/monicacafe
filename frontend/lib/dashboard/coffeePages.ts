@@ -29,3 +29,26 @@ export function withPublished<C extends { id: string; isPublished: boolean }>(
 ): List<C> {
   return { ...list, nodes: list.nodes.map((c) => (c.id === id ? { ...c, isPublished } : c)) };
 }
+
+/**
+ * The list with the item at `index` moved `delta` places (−1 = up, +1 = down),
+ * as a new array. A move past either end, or from an index outside the list,
+ * returns the list unchanged (same array), so callers can skip the request.
+ */
+export function moveItem<T>(list: readonly T[], index: number, delta: number): readonly T[] {
+  const to = index + delta;
+  if (!Number.isInteger(index) || !Number.isInteger(delta) || delta === 0) return list;
+  if (index < 0 || index >= list.length || to < 0 || to >= list.length) return list;
+  const out = [...list];
+  const [item] = out.splice(index, 1);
+  out.splice(to, 0, item);
+  return out;
+}
+
+/**
+ * Whether the seller can reorder from the dashboard: reorderShopCoffees needs
+ * every coffee's id, so all of them must be loaded, and one coffee has no order.
+ */
+export function canReorder(listed: number, total: number): boolean {
+  return total > 1 && listed >= total;
+}

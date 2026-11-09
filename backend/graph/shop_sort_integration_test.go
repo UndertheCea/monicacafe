@@ -43,7 +43,8 @@ func TestShopCoffeesSort(t *testing.T) {
 		limit int
 		want  string
 	}{
-		{nil, 10, "SoldOut,Pricey,Cheap,Mid"},
+		{nil, 10, "Mid,Cheap,Pricey,SoldOut"}, // SHOP_ORDER: new coffees join at the end (#161)
+		{"SHOP_ORDER", 10, "Mid,Cheap,Pricey,SoldOut"},
 		{"NEWEST", 10, "SoldOut,Pricey,Cheap,Mid"},
 		{"PRICE_ASC", 10, "Cheap,Mid,Pricey,SoldOut"},
 		{"PRICE_DESC", 10, "Pricey,Mid,Cheap,SoldOut"},

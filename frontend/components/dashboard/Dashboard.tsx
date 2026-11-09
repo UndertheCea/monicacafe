@@ -4,9 +4,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { fromPrice } from "@/lib/api";
-import { appendCoffeePage, hasMoreCoffees, withPublished } from "@/lib/dashboard/coffeePages";
+import { appendCoffeePage, canReorder, hasMoreCoffees, moveItem, withPublished } from "@/lib/dashboard/coffeePages";
 import { COMMENT_LIST_PAGE } from "@/lib/comments";
-import { MY_SHOP, MY_SHOP_COFFEES, MY_SHOP_COMMENTS, PUBLISH_COFFEE, UNPUBLISH_COFFEE, type DashboardShop } from "@/lib/dashboard/queries";
+import {
+  MY_SHOP,
+  MY_SHOP_COFFEES,
+  MY_SHOP_COMMENTS,
+  PUBLISH_COFFEE,
+  REORDER_SHOP_COFFEES,
+  UNPUBLISH_COFFEE,
+  type DashboardShop,
+} from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
@@ -32,6 +40,8 @@ export function Dashboard({ locale }: { locale: Locale }) {
   const [rowError, setRowError] = useState<{ id: string; key: MessageKey } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [more, setMore] = useState<"idle" | "loading" | "error">("idle");
+  const [ordering, setOrdering] = useState(false);
+  const [orderError, setOrderError] = useState(false);
 
   const fetchComments = useCallback(
     async (offset: number) => {
@@ -96,6 +106,25 @@ export function Dashboard({ locale }: { locale: Locale }) {
     }
   }
 
+  // Optimistic: the row moves at once; the whole lineup is saved and the old
+  // order comes back if the request fails (#162).
+  async function move(index: number, delta: number) {
+    const before = shop.coffees;
+    const nodes = moveItem(before.nodes, index, delta);
+    if (nodes === before.nodes) return;
+    setOrdering(true);
+    setOrderError(false);
+    setCoffees({ ...before, nodes: [...nodes] });
+    try {
+      await request(REORDER_SHOP_COFFEES, { shopId: shop.id, coffeeIds: nodes.map((c) => c.id) });
+    } catch {
+      setCoffees(before);
+      setOrderError(true);
+    } finally {
+      setOrdering(false);
+    }
+  }
+
   async function loadMore() {
     setMore("loading");
     try {
@@ -110,6 +139,10 @@ export function Dashboard({ locale }: { locale: Locale }) {
   }
 
   const followers = followerPart(shop.followerCount);
+  const reorderable = canReorder(shop.coffees.nodes.length, shop.coffees.total);
+  const lastIndex = shop.coffees.nodes.length - 1;
+  const moveBtn =
+    "flex h-8 w-8 items-center justify-center rounded-full border border-neutral-300 text-sm text-ink hover:border-neutral-500 disabled:opacity-30 disabled:hover:border-neutral-300";
   return (
     <div className="space-y-8">
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
@@ -152,16 +185,52 @@ export function Dashboard({ locale }: { locale: Locale }) {
           </Link>
         </div>
 
+        {shop.coffees.total > 1 && (
+          <p className="mt-2 text-sm text-neutral-500">
+            {t(locale, "dash.orderNote")}
+            {!reorderable && ` ${t(locale, "dash.orderLoadAll")}`}
+          </p>
+        )}
+        {orderError && (
+          <div className="mt-2" role="alert">
+            <FormError>{t(locale, "dash.error.reorder")}</FormError>
+          </div>
+        )}
+
         {shop.coffees.nodes.length === 0 ? (
           <div className="mt-4">
             <Notice>{t(locale, "dash.noCoffees")}</Notice>
           </div>
         ) : (
           <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
-            {shop.coffees.nodes.map((c) => {
+            {shop.coffees.nodes.map((c, i) => {
               const price = fromPrice(c);
               return (
                 <li key={c.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                  {reorderable && (
+                    <div className="flex shrink-0 gap-1 sm:flex-col">
+                      <button
+                        type="button"
+                        className={moveBtn}
+                        disabled={ordering || i === 0}
+                        onClick={() => void move(i, -1)}
+                        aria-label={t(locale, "dash.moveUp", { name: c.name })}
+                        title={t(locale, "dash.moveUp", { name: c.name })}
+                      >
+                        <span aria-hidden="true">↑</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={moveBtn}
+                        disabled={ordering || i === lastIndex}
+                        onClick={() => void move(i, 1)}
+                        aria-label={t(locale, "dash.moveDown", { name: c.name })}
+                        title={t(locale, "dash.moveDown", { name: c.name })}
+                      >
+                        <span aria-hidden="true">↓</span>
+                      </button>
+                    </div>
+                  )}
                   <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-neutral-200 sm:block">
                     {c.imageUrls[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element

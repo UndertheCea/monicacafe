@@ -1,5 +1,5 @@
 -- Moni Cafe — local development seed (NOT a migration; never run in production).
--- Three demo sellers/shops (台北, 台中, 台南), six coffees with variants, one comment.
+-- Three demo sellers/shops (台北, 台中, 台南), seven coffees with variants (one sold out), one comment.
 -- Idempotent: fixed UUIDs + ON CONFLICT DO NOTHING.
 --
 --   psql "$DATABASE_URL" -f scripts/seed_dev.sql
@@ -171,3 +171,23 @@ COMMIT;
 -- ?body=full (the blend 5).
 UPDATE coffees SET altitude_min_m = 1000, altitude_max_m = 1400
 WHERE id = '00000000-0000-4000-8000-000000000206';
+
+-- Sold-out archive (#163): a published 晨光 coffee whose only option has no
+-- stock, so the shop page shows it under 已售完 · 封存 on a fresh install. It
+-- has no provenance, brew method, harvest or cup profile, so none of the
+-- filter smoke checks above see it. Listed last season, so it isn't the newest
+-- coffee on /coffees.
+INSERT INTO coffees (id, shop_id, name, slug, description, origin_country_id, variety_id,
+                     processing_method_id, roast_level, flavor_notes, is_published, created_at)
+SELECT '00000000-0000-4000-8000-000000000207'::uuid, '00000000-0000-4000-8000-000000000101',
+       '古吉 罕貝拉 日曬', 'demo-guji-hambela',
+       '去年的季節批次，已售完。Last season''s lot, sold out.',
+       (SELECT id FROM origin_countries   WHERE name_en = 'Ethiopia'),
+       (SELECT id FROM coffee_varieties   WHERE name    = 'Heirloom'),
+       (SELECT id FROM processing_methods WHERE name_en = 'Natural'),
+       'LIGHT'::roast_level, '{藍莓,草莓,紅酒}'::text[], true, now() - interval '200 days'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO variants (id, coffee_id, grind, weight_g, price_twd, stock) VALUES
+  ('00000000-0000-4000-8000-000000000311', '00000000-0000-4000-8000-000000000207', 'WHOLE_BEAN', 200, 520, 0)
+ON CONFLICT DO NOTHING;

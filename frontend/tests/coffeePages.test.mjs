@@ -37,3 +37,37 @@ test("withPublished flips only the given coffee", () => {
   });
   assert.deepEqual(withPublished(list, "zzz", true), list);
 });
+
+test("moveItem moves one place up or down and ignores moves off either end", async () => {
+  const { moveItem } = await import("../lib/dashboard/coffeePages.ts");
+  const list = ["a", "b", "c", "d"];
+  const cases = [
+    [0, 1, ["b", "a", "c", "d"]],
+    [3, -1, ["a", "b", "d", "c"]],
+    [1, -1, ["b", "a", "c", "d"]],
+    [2, 1, ["a", "b", "d", "c"]],
+    [0, 3, ["b", "c", "d", "a"]],
+    [0, -1, list],
+    [3, 1, list],
+    [5, -1, list],
+    [-1, 1, list],
+    [1, 0, list],
+    [1.5, 1, list],
+  ];
+  for (const [i, d, want] of cases) assert.deepEqual(moveItem(list, i, d), want, `${i}${d >= 0 ? "+" : ""}${d}`);
+  assert.equal(moveItem(list, 0, -1), list, "no-op returns the same array");
+  assert.deepEqual(list, ["a", "b", "c", "d"], "input untouched");
+  assert.deepEqual(moveItem([], 0, 1), []);
+});
+
+test("canReorder needs every coffee loaded and more than one", async () => {
+  const { canReorder } = await import("../lib/dashboard/coffeePages.ts");
+  const cases = [
+    [0, 0, false],
+    [1, 1, false],
+    [2, 2, true],
+    [50, 51, false],
+    [51, 51, true],
+  ];
+  for (const [listed, total, want] of cases) assert.equal(canReorder(listed, total), want, `${listed}/${total}`);
+});

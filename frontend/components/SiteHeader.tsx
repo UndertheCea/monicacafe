@@ -10,7 +10,7 @@ export function SiteHeader({ locale }: { locale: Locale }) {
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-        <Wordmark sub={t(locale, "brand.tagline")} />
+        <Wordmark />
         <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm font-medium text-neutral-700">
           <Link href="/coffees" className="hover:text-ink hover:underline underline-offset-4">
             {t(locale, "nav.coffees")}

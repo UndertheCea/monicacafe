@@ -10,6 +10,7 @@ import {
 import {
   BODY_PARAMS,
   FULL_BODY_MIN,
+  HIGH_GROWN_MIN_M,
   LIGHT_BODY_MAX,
   SEARCH_MAX_CHARS,
   SORT_PARAMS,
@@ -231,6 +232,17 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
           className="h-4 w-4 accent-ink"
         />
         {t(locale, "filter.sweet")}
+      </label>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+        <input
+          type="checkbox"
+          name="altitude"
+          value="high"
+          defaultChecked={filter.minAltitudeM !== undefined}
+          className="h-4 w-4 accent-ink"
+        />
+        {t(locale, "filter.highGrown", { m: HIGH_GROWN_MIN_M.toLocaleString("en-US") })}
       </label>
 
       <label className="block">

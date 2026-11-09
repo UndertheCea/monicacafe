@@ -1,6 +1,7 @@
 import {
   BODY_PARAMS,
   BREW_METHODS,
+  HIGH_GROWN_MIN_M,
   ROAST_LEVELS,
   SEARCH_MAX_CHARS,
   SORT_PARAMS,
@@ -18,7 +19,7 @@ const fieldCls =
   "rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
 /**
- * Search, roast, brew method, recent harvest, cup profile (low acidity, sweet, body) and sort for one shop's coffees: a plain GET form
+ * Search, roast, brew method, recent harvest, cup profile (low acidity, sweet, body), high-grown and sort for one shop's coffees: a plain GET form
  * (works without JavaScript); submitting keeps them all and resets to page 1.
  */
 export function ShopCoffeesForm({
@@ -32,6 +33,7 @@ export function ShopCoffeesForm({
   lowAcid,
   sweet,
   body,
+  highGrown,
 }: {
   locale: Locale;
   action: string;
@@ -43,6 +45,7 @@ export function ShopCoffeesForm({
   lowAcid?: boolean;
   sweet?: boolean;
   body?: BodyParam;
+  highGrown?: boolean;
 }) {
   return (
     <SortForm
@@ -86,6 +89,12 @@ export function ShopCoffeesForm({
       <label className="flex cursor-pointer items-center gap-2">
         <input type="checkbox" name="sweet" value="high" defaultChecked={sweet} className="h-4 w-4 accent-ink" />
         <span className="text-neutral-700">{t(locale, "filter.sweet")}</span>
+      </label>
+      <label className="flex cursor-pointer items-center gap-2">
+        <input type="checkbox" name="altitude" value="high" defaultChecked={highGrown} className="h-4 w-4 accent-ink" />
+        <span className="text-neutral-700">
+          {t(locale, "filter.highGrown", { m: HIGH_GROWN_MIN_M.toLocaleString("en-US") })}
+        </span>
       </label>
       <label className="flex items-center gap-2">
         <span className="text-neutral-500">{t(locale, "filter.body")}</span>

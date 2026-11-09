@@ -46,6 +46,8 @@ export interface CoffeeFilter {
   /** Only coffees whose body (1–5) is within these bounds. */
   minBody?: number;
   maxBody?: number;
+  /** Only coffees grown (at the top of their range) at or above this many metres. */
+  minAltitudeM?: number;
 }
 
 export interface CoffeeCardData {

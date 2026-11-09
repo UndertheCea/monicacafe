@@ -69,6 +69,18 @@ export function parseBodyParam(v: string | string[] | undefined): BodyParam | un
 export const LIGHT_BODY_MAX = 2;
 export const FULL_BODY_MIN = 4;
 
+/** `?altitude=high` (any case) → true: only high-grown coffees; anything else → every coffee. */
+export function parseAltitudeParam(v: string | string[] | undefined): boolean {
+  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "high";
+}
+
+/**
+ * The growing altitude in metres "high-grown" starts at (CoffeeFilter.minAltitudeM,
+ * judged by the top of a coffee's range): the line roasters usually print for
+ * hard-bean, high-grown lots.
+ */
+export const HIGH_GROWN_MIN_M = 1500;
+
 /** The URL's cup-profile choices (see the parsers above). */
 export interface CupChoices {
   lowAcid?: boolean;
@@ -156,7 +168,7 @@ export function searchHref(q: string | undefined): string {
  */
 export function shopCoffeesHref(
   slug: string,
-  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; sort?: SortParam } & CupChoices,
+  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; highGrown?: boolean; sort?: SortParam } & CupChoices,
 ): string {
   const params = new URLSearchParams();
   const q = p.q?.trim();
@@ -167,6 +179,7 @@ export function shopCoffeesHref(
   if (p.lowAcid) params.set("acidity", "low");
   if (p.sweet) params.set("sweet", "high");
   if (p.body) params.set("body", p.body);
+  if (p.highGrown) params.set("altitude", "high");
   if (p.sort) params.set("sort", p.sort);
   const qs = params.toString();
   return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;

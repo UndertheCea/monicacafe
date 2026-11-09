@@ -6,7 +6,9 @@ import { cache } from "react";
 import { SHOP, type CoffeeFilter } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import {
+  HIGH_GROWN_MIN_M,
   cupFilter,
+  parseAltitudeParam,
   parseBrewParam,
   parseHarvestParam,
   parseAcidityParam,
@@ -64,6 +66,7 @@ function listOptions(sp: SearchParams) {
     lowAcid: parseAcidityParam(sp.acidity),
     sweet: parseSweetParam(sp.sweet),
     body: parseBodyParam(sp.body),
+    highGrown: parseAltitudeParam(sp.altitude),
   };
 }
 
@@ -75,6 +78,7 @@ function shopFilter(o: ReturnType<typeof listOptions>): CoffeeFilter {
     ...(o.brew ? { brewMethod: o.brew } : {}),
     ...(o.harvest ? { minHarvestYear: recentHarvestFrom() } : {}),
     ...cupFilter(o),
+    ...(o.highGrown ? { minAltitudeM: HIGH_GROWN_MIN_M } : {}),
   };
 }
 
@@ -115,7 +119,7 @@ export default async function ShopPage({
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   const opts = listOptions(sp);
-  const { page, sort, q, roast, brew, harvest, lowAcid, sweet, body } = opts;
+  const { page, sort, q, roast, brew, harvest, lowAcid, sweet, body, highGrown } = opts;
   const filter = shopFilter(opts);
   const filtering = Object.keys(filter).length > 0;
 
@@ -177,6 +181,7 @@ export default async function ShopPage({
                 lowAcid={lowAcid}
                 sweet={sweet}
                 body={body}
+                highGrown={highGrown}
                 action={`/shops/${shop.slug}`}
               />
             )}

@@ -7,7 +7,16 @@ import {
   type OriginCountry,
   type ProcessingMethod,
 } from "@/lib/api";
-import { SEARCH_MAX_CHARS, SORT_PARAMS, brewParam, recentHarvestFrom, type SortParam } from "@/lib/coffeeQuery";
+import {
+  BODY_PARAMS,
+  FULL_BODY_MIN,
+  LIGHT_BODY_MAX,
+  SEARCH_MAX_CHARS,
+  SORT_PARAMS,
+  brewParam,
+  recentHarvestFrom,
+  type SortParam,
+} from "@/lib/coffeeQuery";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 
 interface Props {
@@ -211,6 +220,35 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
           className="h-4 w-4 accent-ink"
         />
         {t(locale, "filter.lowAcidity")}
+      </label>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+        <input
+          type="checkbox"
+          name="sweet"
+          value="high"
+          defaultChecked={filter.minSweetness !== undefined}
+          className="h-4 w-4 accent-ink"
+        />
+        {t(locale, "filter.sweet")}
+      </label>
+
+      <label className="block">
+        <span className={labelCls}>{t(locale, "filter.body")}</span>
+        <select
+          name="body"
+          defaultValue={
+            filter.maxBody === LIGHT_BODY_MAX ? "light" : filter.minBody === FULL_BODY_MIN ? "full" : ""
+          }
+          className={fieldCls}
+        >
+          <option value="">{t(locale, "filter.any")}</option>
+          {BODY_PARAMS.map((b) => (
+            <option key={b} value={b}>
+              {t(locale, b === "light" ? "filter.bodyLight" : "filter.bodyFull")}
+            </option>
+          ))}
+        </select>
       </label>
 
       <div className="flex gap-2">

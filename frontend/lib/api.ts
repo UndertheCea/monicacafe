@@ -41,6 +41,11 @@ export interface CoffeeFilter {
   minHarvestYear?: number;
   /** Only coffees whose acidity (1–5) is this or lower. */
   maxAcidity?: number;
+  /** Only coffees whose sweetness (1–5) is this or higher. */
+  minSweetness?: number;
+  /** Only coffees whose body (1–5) is within these bounds. */
+  minBody?: number;
+  maxBody?: number;
 }
 
 export interface CoffeeCardData {

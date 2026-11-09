@@ -47,6 +47,48 @@ export function parseAcidityParam(v: string | string[] | undefined): boolean {
  */
 export const LOW_ACIDITY_MAX = 2;
 
+/** `?sweet=high` (any case) → true: only sweet coffees; anything else → every coffee. */
+export function parseSweetParam(v: string | string[] | undefined): boolean {
+  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "high";
+}
+
+/** The lowest sweetness (1–5) "sweet" covers: 4 and 5, the top two steps. */
+export const SWEET_MIN = 4;
+
+/** `?body=` values: light (1–2 of 5) or full (4–5 of 5). */
+export type BodyParam = "light" | "full";
+export const BODY_PARAMS: BodyParam[] = ["light", "full"];
+
+/** Parse `?body=` (light / full, any case); anything else → undefined (every coffee). */
+export function parseBodyParam(v: string | string[] | undefined): BodyParam | undefined {
+  const s = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() ?? "";
+  return (BODY_PARAMS as string[]).includes(s) ? (s as BodyParam) : undefined;
+}
+
+/** Light body = 1–2, full body = 4–5: the outer two steps at each end, like acidity and sweetness. */
+export const LIGHT_BODY_MAX = 2;
+export const FULL_BODY_MIN = 4;
+
+/** The URL's cup-profile choices (see the parsers above). */
+export interface CupChoices {
+  lowAcid?: boolean;
+  sweet?: boolean;
+  body?: BodyParam;
+}
+
+/**
+ * The CoffeeFilter fields for the cup-profile choices; keys that don't apply
+ * are left out so the GraphQL variables stay minimal.
+ */
+export function cupFilter(c: CupChoices): { maxAcidity?: number; minSweetness?: number; minBody?: number; maxBody?: number } {
+  return {
+    ...(c.lowAcid ? { maxAcidity: LOW_ACIDITY_MAX } : {}),
+    ...(c.sweet ? { minSweetness: SWEET_MIN } : {}),
+    ...(c.body === "light" ? { maxBody: LIGHT_BODY_MAX } : {}),
+    ...(c.body === "full" ? { minBody: FULL_BODY_MIN } : {}),
+  };
+}
+
 /**
  * The earliest crop year "recent harvest" covers: last year in Taiwan (UTC+8,
  * no DST), so this year's and last year's crops. Green coffee ships for a year
@@ -114,7 +156,7 @@ export function searchHref(q: string | undefined): string {
  */
 export function shopCoffeesHref(
   slug: string,
-  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; lowAcid?: boolean; sort?: SortParam },
+  p: { q?: string; roast?: RoastLevel; brew?: BrewMethod; harvest?: boolean; sort?: SortParam } & CupChoices,
 ): string {
   const params = new URLSearchParams();
   const q = p.q?.trim();
@@ -123,6 +165,8 @@ export function shopCoffeesHref(
   if (p.brew) params.set("brew", brewParam(p.brew));
   if (p.harvest) params.set("harvest", "recent");
   if (p.lowAcid) params.set("acidity", "low");
+  if (p.sweet) params.set("sweet", "high");
+  if (p.body) params.set("body", p.body);
   if (p.sort) params.set("sort", p.sort);
   const qs = params.toString();
   return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;

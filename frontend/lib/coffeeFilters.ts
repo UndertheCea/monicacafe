@@ -1,20 +1,5 @@
 import type { CoffeeFilter } from "./api";
-import {
-  HIGH_GROWN_MIN_M,
-  cupFilter,
-  parseAcidityParam,
-  parseAltitudeParam,
-  parseBodyParam,
-  parseBrewParam,
-  parseHarvestParam,
-  parseInStockParam,
-  parseRoastParam,
-  parseSearchParam,
-  parseSortParam,
-  parseSweetParam,
-  recentHarvestFrom,
-  type SortParam,
-} from "./coffeeQuery";
+import { parseInStockParam, parseSearchParam, parseSortParam, type SortParam } from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -30,26 +15,22 @@ function wholeNTD(v: string | undefined): number | undefined {
   return Number(v);
 }
 
-/** Parse `/coffees?q=…&origin=…&roast=…&brew=…&harvest=recent&acidity=low&sweet=high&body=full&altitude=high&sort=…&page=2` into a CoffeeFilter, sort + page. */
+/**
+ * Parse `/coffees?q=…&origin=…&variety=…&process=…&min=…&max=…&instock=1&sort=…&page=2`
+ * into a CoffeeFilter, sort + page. The roast, brew, flavour, harvest and
+ * cup-profile params the page once had (`?roast`, `?brew`, `?flavor`,
+ * `?harvest`, `?acidity`, `?sweet`, `?body`, `?altitude`) are ignored, so old
+ * links show the unfiltered list (owner, #166).
+ */
 export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sort: SortParam; page: number } {
   const filter: CoffeeFilter = {
     originCountryId: one(sp.origin),
     varietyId: one(sp.variety),
     processingMethodId: one(sp.process),
-    roastLevel: parseRoastParam(sp.roast),
-    brewMethod: parseBrewParam(sp.brew),
-    flavorNote: one(sp.flavor),
     search: parseSearchParam(sp.q),
     minPriceTwd: wholeNTD(one(sp.min)),
     maxPriceTwd: wholeNTD(one(sp.max)),
     inStock: parseInStockParam(sp.instock) || undefined,
-    minHarvestYear: parseHarvestParam(sp.harvest) ? recentHarvestFrom() : undefined,
-    ...cupFilter({
-      lowAcid: parseAcidityParam(sp.acidity),
-      sweet: parseSweetParam(sp.sweet),
-      body: parseBodyParam(sp.body),
-    }),
-    minAltitudeM: parseAltitudeParam(sp.altitude) ? HIGH_GROWN_MIN_M : undefined,
   };
   // Drop undefined keys so the GraphQL variables stay minimal.
   for (const k of Object.keys(filter) as (keyof CoffeeFilter)[]) {

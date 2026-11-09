@@ -40,10 +40,10 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
 | Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
-| Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, cards, `?brew=` on /coffees + shop pages, similar coffees | Done (#122–#127) |
-| Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, `?harvest=recent` on /coffees + shop pages, keyword search | Done (#129–#134) |
-| Cup profile (酸度 / 甜度 / 醇厚度, 1–5): API + `maxAcidity` filter, dashboard form, coffee page scales + JSON-LD, `?acidity=low` on /coffees + shop pages, similar coffees | Done (#136–#141) |
-| Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API; `?sweet=high`, `?body=light\|full`, `?altitude=high` on /coffees + shop pages; "Clear filters" on an empty /coffees | Done (#143–#148) |
+| Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, similar coffees (no longer a /coffees filter or on cards, #167) | Done (#122–#127) |
+| Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, keyword search | Done (#129–#134) |
+| Cup profile (酸度 / 甜度 / 醇厚度, 1–5): API + `maxAcidity` filter, dashboard form, coffee page scales + JSON-LD | Done (#136–#141) |
+| Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API only (site dropped them, #167); "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
@@ -172,22 +172,20 @@ Open questions for the owner (answer by commenting on the issue):
   owners can't follow themselves, so the count means other people (#102).
 - **Provenance as plain columns, altitude in metres, set as a pair** — producer / region are free text (≤ 100) rather than
   curated lists (farms are too many); altitude min alone = one height; updates replace both ends so max ≥ min holds (#116).
-- **Brew method: one value per coffee, omni = both** — how roasters label bags; a filter or espresso search also lists
-  omni roasts, and in "similar" a shared brew method only reorders coffees that already qualify (#122, #123, #127).
-- **Harvest year: one year per coffee, no future crops; "recent" = this and last year** — matches the bag label; green
-  coffee ships for a year or more after harvest, so last year's crop is often the current one (#129, #133).
-- **Cup profile: three 1–5 scales set as a group; "low acidity" = 1–2** — matches how bags and menus print 酸度 / 甜度 /
-  醇厚度; a group avoids GraphQL's null-vs-absent ambiguity per field (#136, #140).
-- **Taste and altitude filters use the outer steps: sweet = 4–5, light / full body = 1–2 / 4–5; high-grown = 1,500 m+ by
-  the top of the range** — mirrors "low acidity"; one checkbox or select each keeps the sidebar short (#145, #146).
+- **Brew method, harvest year and cup profile are listing details, not /coffees filters** — one brew method per coffee
+  (omni = both), one harvest year (no future crops), three 1–5 scales set as a group, as bags print them (#122, #129,
+  #136). They show on the coffee page and in JSON-LD. The API keeps every filter (`brewMethod`, `minHarvestYear`,
+  `maxAcidity`, `minSweetness`, `minBody` / `maxBody`, `minAltitudeM`, `roastLevel`, `flavorNote`), but the site no longer
+  offers them: the owner reversed #127 / #133 / #140 / #145 / #146 on #166 because each shop rates these by its own
+  standard. For the same reason "similar" no longer compares acidity; a shared brew method still reorders (#167).
 - **Filter options = values with published coffees, counted catalogue-wide; chips are plain links** — hidden, not greyed,
   and the selected one always stays; counts ignore the other filters (no per-combination facet queries); the phone
   toggle is CSS-only (checkbox + label) so nothing depends on hydration (#151–#153).
 - **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
   colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).
-- **/coffees filters trimmed to origin / variety / process / price / in stock (owner, #166)**: each shop rates cup
-  profile, roast and brew by its own standard, so filtering across shops on them misleads. The API keeps every filter,
-  and cards drop the brew tag. The work is #167. Keyword search stays unless the owner says otherwise.
+- **/coffees filters = origin / variety / process / price / in stock (owner, #166; built #167)**: each shop rates cup
+  profile, roast and brew by its own standard, so filtering across shops on them misleads. Old links with the removed
+  params show the unfiltered list; cards show only the roast. Keyword search and sort stay.
 - **Reference roasters' lists come over the network (owner, #168 (a))**: the environment's allow-list gets
   lab19coffee.com, seycoffee.com, pomacoffee.com and onyxcoffeelab.com. Until sessions can reach them, #170–#173 stay
   blocked.

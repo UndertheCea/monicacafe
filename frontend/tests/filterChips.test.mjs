@@ -25,54 +25,30 @@ test("filterChips: one chip per filter, each link removes only it", () => {
     origin: "o1",
     variety: "v1",
     process: "p1",
-    roast: "light",
-    brew: "filter",
-    flavor: "jasmine",
     min: "300",
     max: "900",
     instock: "1",
-    harvest: "recent",
-    acidity: "low",
-    sweet: "high",
-    altitude: "high",
-    body: "full",
   };
   const f = {
     search: "geisha",
     originCountryId: "o1",
     varietyId: "v1",
     processingMethodId: "p1",
-    roastLevel: "LIGHT",
-    brewMethod: "FILTER",
-    flavorNote: "jasmine",
     minPriceTwd: 300,
     maxPriceTwd: 900,
     inStock: true,
-    minHarvestYear: 2025,
-    maxAcidity: 2,
-    minSweetness: 4,
-    minAltitudeM: 1500,
-    minBody: 4,
   };
   const chips = filterChips(f, sp, "/coffees");
   assert.deepEqual(
     chips.map((c) => c.kind),
-    ["origin", "variety", "process", "roast", "brew", "flavor", "price", "instock", "harvest", "acidity", "sweet", "altitude", "body"],
+    ["origin", "variety", "process", "price", "instock"],
   );
   const removes = {
     origin: ["origin"],
     variety: ["variety"],
     process: ["process"],
-    roast: ["roast"],
-    brew: ["brew"],
-    flavor: ["flavor"],
     price: ["min", "max"],
     instock: ["instock"],
-    harvest: ["harvest"],
-    acidity: ["acidity"],
-    sweet: ["sweet"],
-    altitude: ["altitude"],
-    body: ["body"],
   };
   for (const c of chips) {
     const u = new URL(c.href, "http://x");
@@ -85,9 +61,6 @@ test("filterChips: one chip per filter, each link removes only it", () => {
       assert.equal(u.searchParams.has(k), !removes[c.kind].includes(k), `${c.kind} → ${k}`);
     }
   }
-  const body = chips.find((c) => c.kind === "body");
-  assert.equal(body.value, "full");
-  assert.equal(chips.find((c) => c.kind === "harvest").year, 2025);
 });
 
 test("filterChips: nothing active → no chips; search and sort aren't chips", () => {
@@ -95,16 +68,20 @@ test("filterChips: nothing active → no chips; search and sort aren't chips", (
   assert.deepEqual(filterChips({ search: "x" }, { q: "x", sort: "saved" }, "/coffees"), []);
 });
 
-test("filterChips: light body, a price floor only, and a shop base", () => {
-  const chips = filterChips({ maxBody: 2, minPriceTwd: 500 }, { body: "light", min: "500" }, "/shops/demo-roastery");
+test("filterChips: API-only filters (roast, cup profile, …) never make chips (#166)", () => {
+  const f = { roastLevel: "LIGHT", brewMethod: "FILTER", flavorNote: "x", minHarvestYear: 2025, maxAcidity: 2, minSweetness: 4, minBody: 4, maxBody: 2, minAltitudeM: 1500 };
+  assert.deepEqual(filterChips(f, {}, "/coffees"), []);
+});
+
+test("filterChips: a price floor only, and another base", () => {
+  const chips = filterChips({ minPriceTwd: 500, inStock: true }, { min: "500", instock: "1" }, "/shops/demo-roastery");
   assert.deepEqual(
     chips.map((c) => [c.kind, c.href]),
     [
-      ["price", "/shops/demo-roastery?body=light"],
-      ["body", "/shops/demo-roastery?min=500"],
+      ["price", "/shops/demo-roastery?instock=1"],
+      ["instock", "/shops/demo-roastery?min=500"],
     ],
   );
-  assert.equal(chips[1].value, "light");
 });
 
 test("priceChipLabel picks range, floor or ceiling", () => {
@@ -114,14 +91,13 @@ test("priceChipLabel picks range, floor or ceiling", () => {
   assert.deepEqual(priceChipLabel(0, undefined), { key: "chip.priceMin", vars: { min: 0 } });
 });
 
-test("activeFilterCount counts filters, not search or sort; price and body once", () => {
+test("activeFilterCount counts filters, not search or sort; price once", () => {
   const cases = [
     [{}, 0],
     [{ search: "kenya" }, 0],
-    [{ roastLevel: "DARK" }, 1],
+    [{ roastLevel: "DARK" }, 0],
     [{ minPriceTwd: 100, maxPriceTwd: 500 }, 1],
-    [{ minBody: 4 }, 1],
-    [{ originCountryId: "o", inStock: true, maxAcidity: 2, minAltitudeM: 1500 }, 4],
+    [{ originCountryId: "o", varietyId: "v", processingMethodId: "p", inStock: true, maxAcidity: 2 }, 4],
     [{ inStock: false }, 0],
   ];
   for (const [f, want] of cases) assert.equal(activeFilterCount(f), want, JSON.stringify(f));

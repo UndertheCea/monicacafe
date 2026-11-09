@@ -10,107 +10,6 @@ export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DA
 export type BrewMethod = "FILTER" | "ESPRESSO" | "OMNI";
 export const BREW_METHODS: BrewMethod[] = ["FILTER", "ESPRESSO", "OMNI"];
 
-/** Parse `?roast=` (case-insensitive); anything unknown → undefined (all roasts). */
-export function parseRoastParam(v: string | string[] | undefined): RoastLevel | undefined {
-  const s = (Array.isArray(v) ? v[0] : v)?.trim().toUpperCase() ?? "";
-  return (ROAST_LEVELS as string[]).includes(s) ? (s as RoastLevel) : undefined;
-}
-
-/**
- * Parse `?brew=` (filter / espresso / omni, any case); anything unknown →
- * undefined (every coffee). The API also returns omni roasts for filter and
- * espresso.
- */
-export function parseBrewParam(v: string | string[] | undefined): BrewMethod | undefined {
-  const s = (Array.isArray(v) ? v[0] : v)?.trim().toUpperCase() ?? "";
-  return (BREW_METHODS as string[]).includes(s) ? (s as BrewMethod) : undefined;
-}
-
-/** The `?brew=` value for a brew method (lowercase reads better in a URL). */
-export function brewParam(m: BrewMethod): string {
-  return m.toLowerCase();
-}
-
-/** `?harvest=recent` (any case) → true: only recent crops; anything else → every coffee. */
-export function parseHarvestParam(v: string | string[] | undefined): boolean {
-  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "recent";
-}
-
-/** `?acidity=low` (any case) → true: only low-acid coffees; anything else → every coffee. */
-export function parseAcidityParam(v: string | string[] | undefined): boolean {
-  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "low";
-}
-
-/**
- * The highest acidity (1–5) "low acidity" covers: 1 and 2, the bottom two
- * steps of the scale sellers pick from (CoffeeFilter.maxAcidity).
- */
-export const LOW_ACIDITY_MAX = 2;
-
-/** `?sweet=high` (any case) → true: only sweet coffees; anything else → every coffee. */
-export function parseSweetParam(v: string | string[] | undefined): boolean {
-  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "high";
-}
-
-/** The lowest sweetness (1–5) "sweet" covers: 4 and 5, the top two steps. */
-export const SWEET_MIN = 4;
-
-/** `?body=` values: light (1–2 of 5) or full (4–5 of 5). */
-export type BodyParam = "light" | "full";
-export const BODY_PARAMS: BodyParam[] = ["light", "full"];
-
-/** Parse `?body=` (light / full, any case); anything else → undefined (every coffee). */
-export function parseBodyParam(v: string | string[] | undefined): BodyParam | undefined {
-  const s = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() ?? "";
-  return (BODY_PARAMS as string[]).includes(s) ? (s as BodyParam) : undefined;
-}
-
-/** Light body = 1–2, full body = 4–5: the outer two steps at each end, like acidity and sweetness. */
-export const LIGHT_BODY_MAX = 2;
-export const FULL_BODY_MIN = 4;
-
-/** `?altitude=high` (any case) → true: only high-grown coffees; anything else → every coffee. */
-export function parseAltitudeParam(v: string | string[] | undefined): boolean {
-  return (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase() === "high";
-}
-
-/**
- * The growing altitude in metres "high-grown" starts at (CoffeeFilter.minAltitudeM,
- * judged by the top of a coffee's range): the line roasters usually print for
- * hard-bean, high-grown lots.
- */
-export const HIGH_GROWN_MIN_M = 1500;
-
-/** The URL's cup-profile choices (see the parsers above). */
-export interface CupChoices {
-  lowAcid?: boolean;
-  sweet?: boolean;
-  body?: BodyParam;
-}
-
-/**
- * The CoffeeFilter fields for the cup-profile choices; keys that don't apply
- * are left out so the GraphQL variables stay minimal.
- */
-export function cupFilter(c: CupChoices): { maxAcidity?: number; minSweetness?: number; minBody?: number; maxBody?: number } {
-  return {
-    ...(c.lowAcid ? { maxAcidity: LOW_ACIDITY_MAX } : {}),
-    ...(c.sweet ? { minSweetness: SWEET_MIN } : {}),
-    ...(c.body === "light" ? { maxBody: LIGHT_BODY_MAX } : {}),
-    ...(c.body === "full" ? { minBody: FULL_BODY_MIN } : {}),
-  };
-}
-
-/**
- * The earliest crop year "recent harvest" covers: last year in Taiwan (UTC+8,
- * no DST), so this year's and last year's crops. Green coffee ships for a year
- * or more after harvest, so last year's crop is still the current one for many
- * origins. (lib/dashboard/validate.ts computes the Taipei year the same way.)
- */
-export function recentHarvestFrom(now: Date = new Date()): number {
-  return new Date(now.getTime() + 8 * 60 * 60 * 1000).getUTCFullYear() - 1;
-}
-
 /** `?sort=` values in the order the dropdown lists them ("" = newest, the default). */
 export const SORT_PARAMS = ["", "price_asc", "price_desc", "discussed", "saved"] as const;
 export type SortParam = (typeof SORT_PARAMS)[number];
@@ -164,7 +63,7 @@ export function searchHref(q: string | undefined): string {
 
 /**
  * True when a parsed /coffees filter narrows the list by more than the
- * keyword search (origin, roast, price, in stock, cup profile, …).
+ * keyword search (origin, variety, process, price, in stock).
  */
 export function hasFiltersBesidesSearch(filter: object): boolean {
   return Object.entries(filter).some(([k, v]) => k !== "search" && v !== undefined);

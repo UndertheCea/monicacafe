@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { HIGH_GROWN_MIN_M } from "@/lib/coffeeQuery";
 import { priceChipLabel, type FilterChip } from "@/lib/filterChips";
 import { t, type Locale } from "@/lib/i18n/dict";
 
@@ -16,10 +15,6 @@ const FIELD = {
   origin: "filter.origin",
   variety: "filter.variety",
   process: "filter.process",
-  roast: "filter.roast",
-  brew: "filter.brew",
-  flavor: "filter.flavor",
-  body: "filter.body",
 } as const;
 
 /** The visible text of one chip. */
@@ -33,28 +28,12 @@ export function chipLabel(locale: Locale, c: FilterChip, names?: Map<string, str
       const name = names?.get(c.id);
       return name ? labelled(c.kind, name) : t(locale, FIELD[c.kind]);
     }
-    case "roast":
-      return labelled("roast", t(locale, `roast.${c.value}`));
-    case "brew":
-      return labelled("brew", t(locale, `brew.${c.value}`));
-    case "flavor":
-      return labelled("flavor", c.value);
-    case "body":
-      return labelled("body", t(locale, c.value === "light" ? "filter.bodyLight" : "filter.bodyFull"));
     case "price": {
       const { key, vars } = priceChipLabel(c.min, c.max);
       return t(locale, key, vars);
     }
-    case "harvest":
-      return t(locale, "filter.recentHarvest", { year: c.year });
     case "instock":
       return t(locale, "filter.inStock");
-    case "acidity":
-      return t(locale, "filter.lowAcidity");
-    case "sweet":
-      return t(locale, "filter.sweet");
-    case "altitude":
-      return t(locale, "filter.highGrown", { m: HIGH_GROWN_MIN_M.toLocaleString("en-US") });
   }
 }
 

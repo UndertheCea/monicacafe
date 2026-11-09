@@ -12,12 +12,6 @@ export function knownBrewMethod(m: string | null | undefined): BrewMethod | null
   return m && METHODS.includes(m) ? (m as BrewMethod) : null;
 }
 
-/** Short label key for cards ("手沖" / "Filter"). */
-export function brewShortKey(m: string | null | undefined): `brew.${BrewMethod}` | null {
-  const k = knownBrewMethod(m);
-  return k ? `brew.${k}` : null;
-}
-
 /** Label key for the coffee page and forms: omni spells out that it suits both. */
 export function brewLongKey(m: string | null | undefined): "brew.FILTER" | "brew.ESPRESSO" | "brew.OMNI_LONG" | null {
   const k = knownBrewMethod(m);

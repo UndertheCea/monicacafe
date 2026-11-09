@@ -20,6 +20,20 @@ models:
     model: github.com/99designs/gqlgen/graphql.Time
   TWD:
     model: github.com/underthecea/monicacafe/backend/internal/platform/money.TWD
+  # coffeeCount is resolved per request (one grouped query), not cached with the
+  # reference rows themselves.
+  OriginCountry:
+    fields:
+      coffeeCount:
+        resolver: true
+  CoffeeVariety:
+    fields:
+      coffeeCount:
+        resolver: true
+  ProcessingMethod:
+    fields:
+      coffeeCount:
+        resolver: true
 
 autobind:
   - github.com/underthecea/monicacafe/backend/graph/model

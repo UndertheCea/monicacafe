@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/vikstrous/dataloadgen"
@@ -26,6 +27,10 @@ type Loaders struct {
 	FollowerCountByShop *dataloadgen.Loader[string, int]
 	// FollowedByShop answers Shop.isFollowed for the request's viewer.
 	FollowedByShop *dataloadgen.Loader[string, bool]
+	// RefCounts answers coffeeCount on origin countries, varieties and
+	// processing methods: one grouped query per request, however many options
+	// are listed.
+	RefCounts func(context.Context) (*store.ReferenceCoffeeCounts, error)
 }
 
 type loadersKey struct{}
@@ -55,6 +60,22 @@ func NewLoaders(st *store.Store) *Loaders {
 		SavedByCoffee:        dataloadgen.NewLoader(viewerFlagLoader(st.SavedCoffeeIDs), dataloadgen.WithWait(loaderWait)),
 		FollowerCountByShop:  dataloadgen.NewLoader(countLoader(st.FollowerCountsByShopIDs), dataloadgen.WithWait(loaderWait)),
 		FollowedByShop:       dataloadgen.NewLoader(viewerFlagLoader(st.FollowedShopIDs), dataloadgen.WithWait(loaderWait)),
+		RefCounts:            onceLoader(st.PublishedCoffeeCountsByReference),
+	}
+}
+
+// onceLoader runs load at most once per request (the Loaders are request
+// scoped) and hands every caller the same result. The first caller's context
+// runs the query.
+func onceLoader[T any](load func(context.Context) (T, error)) func(context.Context) (T, error) {
+	var (
+		once sync.Once
+		val  T
+		err  error
+	)
+	return func(ctx context.Context) (T, error) {
+		once.Do(func() { val, err = load(ctx) })
+		return val, err
 	}
 }
 

@@ -68,6 +68,25 @@ export interface CoffeeCardData {
   variants: { priceTwd: number; isAvailable: boolean }[];
 }
 
+/** A reference value with how many published coffees use it (for the /coffees sidebar). */
+export type Counted<T> = T & { coffeeCount: number };
+
+/**
+ * The /coffees sidebar's options, with counts so values with no coffees can be
+ * hidden. The dashboard forms use FILTER_OPTIONS: a seller may pick any origin.
+ */
+export const BROWSE_FILTER_OPTIONS = typed<{
+  originCountries: Counted<OriginCountry>[];
+  coffeeVarieties: Counted<CoffeeVariety>[];
+  processingMethods: Counted<ProcessingMethod>[];
+}>(/* GraphQL */ `
+  query BrowseFilterOptions {
+    originCountries { id nameEn nameZh region coffeeCount }
+    coffeeVarieties { id name coffeeCount }
+    processingMethods { id nameEn nameZh coffeeCount }
+  }
+`);
+
 export const FILTER_OPTIONS = typed<{
   originCountries: OriginCountry[];
   coffeeVarieties: CoffeeVariety[];

@@ -55,3 +55,53 @@ func (s *Store) ProcessingMethods(ctx context.Context) ([]*ProcessingMethod, err
 	}
 	return out, mapErr(rows.Err())
 }
+
+// ReferenceCoffeeCounts is how many published coffees use each origin country,
+// variety and processing method. Keys absent from a map have no published
+// coffees. One grouped scan of coffees, so the filter dropdowns can label or
+// hide values without a query per option.
+type ReferenceCoffeeCounts struct {
+	Origins   map[string]int
+	Varieties map[string]int
+	Methods   map[string]int
+}
+
+// PublishedCoffeeCountsByReference counts published coffees per origin,
+// variety and processing method (drafts never count).
+func (s *Store) PublishedCoffeeCountsByReference(ctx context.Context) (*ReferenceCoffeeCounts, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT origin_country_id::text, variety_id::text, processing_method_id::text, count(*)
+		FROM coffees
+		WHERE is_published
+		GROUP BY GROUPING SETS ((origin_country_id), (variety_id), (processing_method_id))`)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := &ReferenceCoffeeCounts{Origins: map[string]int{}, Varieties: map[string]int{}, Methods: map[string]int{}}
+	for rows.Next() {
+		var (
+			origin, variety, method *string
+			n                       int
+		)
+		if err := rows.Scan(&origin, &variety, &method, &n); err != nil {
+			return nil, mapErr(err)
+		}
+		addReferenceCount(out, origin, variety, method, n)
+	}
+	return out, mapErr(rows.Err())
+}
+
+// addReferenceCount files one GROUPING SETS row: exactly one of the three ids
+// is set (the set it was grouped by); a row with none is the "no variety"
+// group, which no dropdown option matches.
+func addReferenceCount(c *ReferenceCoffeeCounts, origin, variety, method *string, n int) {
+	switch {
+	case origin != nil:
+		c.Origins[*origin] += n
+	case variety != nil:
+		c.Varieties[*variety] += n
+	case method != nil:
+		c.Methods[*method] += n
+	}
+}

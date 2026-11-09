@@ -56,6 +56,8 @@ type CoffeeVariety struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
 	Description *string `json:"description,omitempty"`
+	// Published coffees of this variety (drafts never count).
+	CoffeeCount int `json:"coffeeCount"`
 }
 
 type CommentConnection struct {
@@ -121,6 +123,8 @@ type OriginCountry struct {
 	NameEn string `json:"nameEn"`
 	NameZh string `json:"nameZh"`
 	Region string `json:"region"`
+	// Published coffees from this country (drafts never count).
+	CoffeeCount int `json:"coffeeCount"`
 }
 
 type ProcessingMethod struct {
@@ -128,6 +132,8 @@ type ProcessingMethod struct {
 	NameEn      string  `json:"nameEn"`
 	NameZh      string  `json:"nameZh"`
 	Description *string `json:"description,omitempty"`
+	// Published coffees with this process (drafts never count).
+	CoffeeCount int `json:"coffeeCount"`
 }
 
 type Query struct {

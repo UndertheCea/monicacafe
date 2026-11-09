@@ -6,8 +6,6 @@ import { cache } from "react";
 import { SHOP, type CoffeeFilter } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import {
-  HIGH_GROWN_MIN_M,
-  cupFilter,
   parseAltitudeParam,
   parseBrewParam,
   parseHarvestParam,
@@ -17,17 +15,19 @@ import {
   parseSearchParam,
   parseSortParam,
   parseSweetParam,
-  recentHarvestFrom,
+  shopCoffeeFilter,
   shopCoffeesHref,
   sortForApi,
   type SortParam,
 } from "@/lib/coffeeQuery";
+import { filterChips } from "@/lib/filterChips";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
+import { FilterChips } from "@/components/coffees/FilterChips";
 import { FollowButton } from "@/components/shops/FollowButton";
 import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
@@ -72,14 +72,7 @@ function listOptions(sp: SearchParams) {
 
 /** The API filter for the shop page's options (blank ones left out). */
 function shopFilter(o: ReturnType<typeof listOptions>): CoffeeFilter {
-  return {
-    ...(o.q ? { search: o.q } : {}),
-    ...(o.roast ? { roastLevel: o.roast } : {}),
-    ...(o.brew ? { brewMethod: o.brew } : {}),
-    ...(o.harvest ? { minHarvestYear: recentHarvestFrom() } : {}),
-    ...cupFilter(o),
-    ...(o.highGrown ? { minAltitudeM: HIGH_GROWN_MIN_M } : {}),
-  };
+  return shopCoffeeFilter(o);
 }
 
 export async function generateMetadata({
@@ -191,6 +184,12 @@ export default async function ShopPage({
               {t(locale, "shops.coffeeResults", { q })}
             </p>
           )}
+
+          <FilterChips
+            locale={locale}
+            chips={filterChips(filter, sp, `/shops/${shop.slug}`)}
+            clearHref={shopCoffeesHref(shop.slug, { q, sort })}
+          />
 
           {shop.coffees.nodes.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">

@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
-import { COFFEES, FILTER_OPTIONS } from "@/lib/api";
+import { BROWSE_FILTER_OPTIONS, COFFEES } from "@/lib/api";
 import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
+import { activeFilterCount, filterChips } from "@/lib/filterChips";
 import { query } from "@/lib/graphql";
-import { t } from "@/lib/i18n/dict";
+import { pick, t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
+import { FilterChips } from "@/components/coffees/FilterChips";
+import { FilterPanel } from "@/components/coffees/FilterPanel";
 import { FilterSidebar } from "@/components/coffees/FilterSidebar";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
@@ -24,7 +27,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   let data;
   try {
     const [options, list] = await Promise.all([
-      query(FILTER_OPTIONS),
+      query(BROWSE_FILTER_OPTIONS),
       query(COFFEES, { filter, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     ]);
     data = { options, list: list.coffees };
@@ -36,6 +39,13 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const q = filter.search;
   const filtered = hasFiltersBesidesSearch(filter);
+  const chips = filterChips(filter, sp, "/coffees");
+  const active = activeFilterCount(filter);
+  const names = new Map<string, string>([
+    ...options.originCountries.map((o) => [o.id, pick(locale, o.nameZh, o.nameEn)] as const),
+    ...options.coffeeVarieties.map((v) => [v.id, v.name] as const),
+    ...options.processingMethods.map((m) => [m.id, pick(locale, m.nameZh, m.nameEn)] as const),
+  ]);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -46,19 +56,24 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
       <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <FilterSidebar
-            locale={locale}
-            filter={filter}
-            sort={sort}
-            origins={options.originCountries}
-            varieties={options.coffeeVarieties}
-            methods={options.processingMethods}
-          />
+          <FilterPanel
+            summary={active > 0 ? t(locale, "filter.toggleCount", { n: active }) : t(locale, "filter.title")}
+          >
+            <FilterSidebar
+              locale={locale}
+              filter={filter}
+              sort={sort}
+              origins={options.originCountries}
+              varieties={options.coffeeVarieties}
+              methods={options.processingMethods}
+            />
+          </FilterPanel>
         </aside>
 
         <section aria-live="polite">
           {q && <h2 className="mb-1 text-lg font-semibold text-ink">{t(locale, "coffees.results", { q })}</h2>}
           <p className="mb-4 text-sm text-neutral-500">{t(locale, "coffees.count", { n: list.total })}</p>
+          <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
           {list.nodes.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">

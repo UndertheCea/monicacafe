@@ -347,6 +347,40 @@ else
   echo "FAIL /shops/demo-roastery?sweet=high should list the Geisha and not the Yirgacheffe"; fail=1
 fi
 
+# Filter-option counts (#150, #151): the seed has a published Ethiopian coffee
+# and nothing from Rwanda, so /coffees offers Ethiopia (with its count) and
+# leaves Rwanda out of the origin select.
+body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
+  -d '{"query":"{ originCountries { nameEn coffeeCount } coffeeVarieties { coffeeCount } processingMethods { coffeeCount } }"}') || body=""
+if [[ "$body" != *'"errors"'* && "$body" =~ \"nameEn\":\"Ethiopia\",\"coffeeCount\":[1-9] && "$body" == *'"nameEn":"Rwanda","coffeeCount":0'* ]]; then
+  echo "ok   graphql coffeeCount on origins / varieties / processes"
+else
+  echo "FAIL coffeeCount: Ethiopia should be ≥ 1 and Rwanda 0, got ${body:0:300}"; fail=1
+fi
+page=$(curl -s --max-time 15 "$BASE_URL/coffees") || page=""
+if [[ "$page" == *'Ethiopia（'* || "$page" == *'Ethiopia ('* ]] && [[ "$page" != *'Rwanda'* ]]; then
+  echo "ok   /coffees origin select lists only origins with coffees, with counts"
+else
+  echo "FAIL /coffees origin select should list Ethiopia with a count and leave out Rwanda"; fail=1
+fi
+
+# Active-filter chips + phone toggle (#152–#154): each chip links to the list
+# without its filter; the toggle counts the active filters.
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?roast=light&sweet=high") || page=""
+if [[ "$page" == *'href="/coffees?sweet=high"'* && "$page" == *'href="/coffees?roast=light"'* \
+      && ( "$page" == *'移除篩選'* || "$page" == *'Remove filter'* ) \
+      && ( "$page" == *'篩選（2）'* || "$page" == *'Filters (2)'* ) ]]; then
+  echo "ok   /coffees shows removable filter chips and \"Filters (2)\""
+else
+  echo "FAIL /coffees?roast=light&sweet=high should show a chip per filter and a Filters (2) toggle"; fail=1
+fi
+shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery?roast=light&sweet=high") || shop=""
+if [[ "$shop" == *'href="/shops/demo-roastery?sweet=high"'* && "$shop" == *'href="/shops/demo-roastery?roast=light"'* ]]; then
+  echo "ok   shop page shows removable filter chips"
+else
+  echo "FAIL /shops/demo-roastery?roast=light&sweet=high should link each chip to the shop without that filter"; fail=1
+fi
+
 # Shop search (#75, #76) and in-shop search + roast (#77, #78): /shops?q=晨光
 # lists the seeded Dawn Roastery; its page with q=耶加雪菲&roast=LIGHT lists
 # the seeded coffee, and roast=DARK alone shows the "no matches" state.

@@ -115,6 +115,15 @@ func (r *coffeeResolver) SaveCount(ctx context.Context, obj *model.Coffee) (int,
 	return r.loadersFor(ctx).SaveCountByCoffee.Load(ctx, obj.ID)
 }
 
+// CoffeeCount is the resolver for the coffeeCount field.
+func (r *coffeeVarietyResolver) CoffeeCount(ctx context.Context, obj *model.CoffeeVariety) (int, error) {
+	c, err := r.loadersFor(ctx).RefCounts(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return c.Varieties[obj.ID], nil
+}
+
 // User is the resolver for the user field.
 func (r *commentResolver) User(ctx context.Context, obj *model.Comment) (*model.User, error) {
 	u, err := r.loadersFor(ctx).UserByID.Load(ctx, obj.UserID)
@@ -1160,6 +1169,24 @@ func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.
 	return toShop(sh), nil
 }
 
+// CoffeeCount is the resolver for the coffeeCount field.
+func (r *originCountryResolver) CoffeeCount(ctx context.Context, obj *model.OriginCountry) (int, error) {
+	c, err := r.loadersFor(ctx).RefCounts(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return c.Origins[obj.ID], nil
+}
+
+// CoffeeCount is the resolver for the coffeeCount field.
+func (r *processingMethodResolver) CoffeeCount(ctx context.Context, obj *model.ProcessingMethod) (int, error) {
+	c, err := r.loadersFor(ctx).RefCounts(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return c.Methods[obj.ID], nil
+}
+
 // Me is the resolver for the me field.
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	c := viewer(ctx)
@@ -1447,11 +1474,22 @@ func (r *userResolver) FollowedShops(ctx context.Context, obj *model.User, limit
 // Coffee returns generated.CoffeeResolver implementation.
 func (r *Resolver) Coffee() generated.CoffeeResolver { return &coffeeResolver{r} }
 
+// CoffeeVariety returns generated.CoffeeVarietyResolver implementation.
+func (r *Resolver) CoffeeVariety() generated.CoffeeVarietyResolver { return &coffeeVarietyResolver{r} }
+
 // Comment returns generated.CommentResolver implementation.
 func (r *Resolver) Comment() generated.CommentResolver { return &commentResolver{r} }
 
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
+
+// OriginCountry returns generated.OriginCountryResolver implementation.
+func (r *Resolver) OriginCountry() generated.OriginCountryResolver { return &originCountryResolver{r} }
+
+// ProcessingMethod returns generated.ProcessingMethodResolver implementation.
+func (r *Resolver) ProcessingMethod() generated.ProcessingMethodResolver {
+	return &processingMethodResolver{r}
+}
 
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
@@ -1463,8 +1501,11 @@ func (r *Resolver) Shop() generated.ShopResolver { return &shopResolver{r} }
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
 type coffeeResolver struct{ *Resolver }
+type coffeeVarietyResolver struct{ *Resolver }
 type commentResolver struct{ *Resolver }
 type mutationResolver struct{ *Resolver }
+type originCountryResolver struct{ *Resolver }
+type processingMethodResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
 type shopResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }

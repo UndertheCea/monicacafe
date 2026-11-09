@@ -15,6 +15,67 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 27 — 2026-11-09 — Seller-curated shop pages, sold-out archive, wordmark, /coffees filter drawer
+PR: #TBD
+
+Owner answers since Session 26: #166 (filters on /coffees: keep origin / variety / process / price / in stock; drop
+the brew method from cards; the work is #167) and #168 ((a): allow the four reference roasters' domains in the
+environment's network settings). Both were recorded in the brief and closed. The domains still returned
+`CONNECT tunnel failed, response 403` from this session's proxy, so #170–#173 stay `blocked` (commented on #168).
+Took the six lowest-numbered p1 slices (#160–#165), which build on each other: shop page → order API → dashboard
+order → archive. They build on the safe defaults of #158 and #159.
+
+### Shipped (one line per slice: area — what — key files)
+- #160 frontend — shop page has no buyer search / filters / sort / chips; old `?q`, `?roast`, `?sort` … links show the
+  whole lineup; `ShopCoffeesForm`, `shopCoffeesHref`, `shopCoffeeFilter` and their tests and strings removed; smoke
+  swaps the shop-filter checks for "old params ignored, no form" (`app/shops/[slug]/page.tsx`)
+- #161 backend — migration 014 `coffees.shop_position` (backfilled newest first; a BEFORE INSERT trigger appends new,
+  duplicated and seeded coffees; the `updated_at` trigger skips position-only updates so sitemap lastmod doesn't
+  move); `Mutation.reorderShopCoffees(shopId, coffeeIds)` (owner / admin, exact set incl. drafts, one transaction with
+  rows locked); `CoffeeSort.SHOP_ORDER`, the default for `Shop.coffees` (`store/coffees.go`, `graph/helpers.go`
+  `checkLineup`, `graph/shop_order_integration_test.go`)
+- #162 frontend — dashboard rows get ↑ / ↓ buttons (labelled with the coffee name), optimistic with rollback and an
+  error line; a note says this is the buyers' order; reordering needs every coffee loaded (`moveItem`, `canReorder`
+  in `lib/dashboard/coffeePages.ts`)
+- #163 cross-cutting — `CoffeeFilter.inStock: false` = only sold out (store `SoldOut`); shop page shows the lineup
+  (`?page`) and "已售完 · 封存 / Sold out · Archive" (`?archive`, own pagination, `#archive` anchor, greyscale, hidden
+  when empty); seed adds a sold-out 晨光 coffee (207, dated last season); smoke checks it sits under the archive
+  heading (`lib/shopQuery.ts` `parseShopPagePages` / `shopPageHref`, `Pagination` `hrefFor`)
+- #164 frontend — header wordmark without the tagline (#159 default (a)); "moni cafe" on one line, both words the same
+  size; `sub` prop and the unused `brand.tagline` string removed (`components/Wordmark.tsx`, `tests/brand.test.mjs`)
+- #165 frontend — /coffees sidebar from `md` (15rem, 18rem from `lg`); below `md` the "Filters (N)" button opens a
+  shared `components/Drawer.tsx` (modal `<dialog>`, 85vw / max 22rem, black/40 backdrop, Esc / backdrop / close
+  button, scroll lock, closes when widened to md); no-JS keeps the CSS toggle (`components/coffees/FilterPanel.tsx`,
+  `lib/drawer.ts`)
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16
+  (migrations 001–014 + seed). New: `TestCheckLineup`, `SHOP_ORDER` in `TestStoreSort` / `TestCoffeeSortOrderBy`,
+  sold-out cases in `TestCoffeeFilterWhere` / storeFilter, `TestReorderShopCoffees` (auth, validation, draft
+  visibility, `updatedAt` unchanged, create + duplicate append), `TestShopArchiveFilter`; `TestShopCoffeesSort`'s
+  default case now expects shop order.
+- Frontend: tsc, lint, `npm test` (178 pass), `npm run build`. `check_brief.sh` passes.
+- Smoke against Go API :4000 + `next start` :3000 on a fresh DB: 53 ok; only the two `/media/` checks fail (no nginx /
+  SeaweedFS locally; Docker isn't available here). CI's compose job covers those.
+- Playwright (Chromium): the drawer at 390 px (opens at 332 px wide, Esc / backdrop / close button close it, focus goes
+  back to the button, scroll lock is set and restored, Apply submits); no toggle at 820 / 960 / 1280 (sidebar). Dashboard
+  reorder by mouse and keyboard persists across a reload. Shop page at 390 / 1280 shows the archive greyed out under
+  its heading. Screenshots looked at, not attached.
+- **Not verified:** the no-JS fallback of the /coffees toggle. Without JS, /coffees renders nothing because of #156
+  (the loading boundary), so it can't be seen until that's fixed. On phones the header still wraps to two rows (91 px).
+  #175 (navigation drawer) replaces that row.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Built on the safe defaults of #158 (manual order, new coffees at the end, archive by stock, /coffees unchanged) and
+  #159 (a) (no tagline). Both questions stay open for the owner.
+- Shop positions aren't unique: the reorder rewrites them all at once, and ties (only from concurrent inserts) fall
+  back to newest first. Reordering leaves `updated_at` alone.
+- `Query.coffees` accepts `SHOP_ORDER` too, but across shops it only interleaves positions. The site uses it only on
+  shop pages.
+- The dashboard reorder needs every coffee loaded (50 per page). Sellers with more than 50 click "load more" first.
+- Next p1 work: #167 (remove the dropped /coffees filters and the brew tag on cards) and #175 (navigation drawer,
+  reusing `Drawer`). Then p2: #156, #169, #174.
+
 ## Session 26 — 2026-11-09 — Filter options with coffees, active-filter chips, phone filter toggle
 PR: #157
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs once, on first start of an empty Postgres volume (mounted into
 # /docker-entrypoint-initdb.d by docker-compose.yml). Applies every
-# migration in order, then the dev seed unless SEED_DEMO_DATA=false.
+# migration in order, then the dev seed unless SEED_DEMO_DATA=false, then the
+# reference shops (dev only, #169) when SEED_REFERENCE_SHOPS=true.
 #
 # To re-run from scratch: docker compose down -v && docker compose up
 set -eu
@@ -20,4 +21,9 @@ if [ "${SEED_DEMO_DATA:-true}" = "true" ]; then
   psql_run /monicacafe/scripts/seed_dev.sql
 else
   echo "initdb: SEED_DEMO_DATA=false — skipping demo seed"
+fi
+
+if [ "${SEED_REFERENCE_SHOPS:-false}" = "true" ]; then
+  echo "initdb: loading reference shops (dev only)"
+  psql_run /monicacafe/scripts/seed_reference.sql
 fi

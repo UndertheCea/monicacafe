@@ -50,6 +50,20 @@ jobs:
             echo "→ $f"
             psql -v ON_ERROR_STOP=1 -h localhost -U monica -d monicacafe -f "$f"
           done
+      # Reference shops (#169): load the (dev-only) seed, run its self-test
+      # (fixture coffees: matching, skips, the gap view), then remove it all and
+      # check nothing is left before the integration tests use the database.
+      - name: Reference-shop seed, self-test and removal
+        working-directory: .
+        run: |
+          db="postgres://monica:monica_secret@localhost:5432/monicacafe"
+          psql -v ON_ERROR_STOP=1 "$db" -f scripts/seed_reference.sql
+          DATABASE_URL="$db" ./scripts/reference_gaps.sh --strict
+          psql -v ON_ERROR_STOP=1 "$db" -f scripts/reference_selftest.sql
+          DATABASE_URL="$db" ./scripts/reference_gaps.sh
+          psql -v ON_ERROR_STOP=1 "$db" -f scripts/remove_reference_shops.sql
+          left=$(psql "$db" -XAtc "SELECT (SELECT count(*) FROM users WHERE email LIKE 'reference+%') + (SELECT count(*) FROM shops WHERE slug LIKE 'ref-%') + (to_regclass('reference_catalogue') IS NOT NULL)::int")
+          test "$left" = "0" || { echo "remove_reference_shops.sql left $left things behind"; exit 1; }
       # Same image + script as docker-compose.yml, so the upload integration
       # test PUTs a real file with a presigned URL and reads it back anonymously.
       - name: Start SeaweedFS (S3) + create the image bucket
@@ -109,9 +123,12 @@ jobs:
       - name: Build and start every service
         run: |
           cp .env.example .env
+          sed -i "s/^SEED_REFERENCE_SHOPS=.*/SEED_REFERENCE_SHOPS=true/" .env  # dev-only reference shops (#169)
           docker compose up --build -d --wait --wait-timeout 300
       - name: Smoke test via http://localhost
         run: ./scripts/smoke.sh
+      - name: Reference-shop gap report
+        run: ./scripts/reference_gaps.sh
       - name: Service status and logs (on failure)
         if: failure()
         run: |

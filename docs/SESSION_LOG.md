@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 27 — 2026-11-09 — Seller-curated shop pages, sold-out archive, wordmark, /coffees filter drawer
-PR: #TBD
+PR: #178
 
 Owner answers since Session 26: #166 (filters on /coffees: keep origin / variety / process / price / in stock; drop
 the brew method from cards; the work is #167) and #168 ((a): allow the four reference roasters' domains in the

@@ -41,8 +41,11 @@ type Config struct {
 
 type ResolverRoot interface {
 	Coffee() CoffeeResolver
+	CoffeeVariety() CoffeeVarietyResolver
 	Comment() CommentResolver
 	Mutation() MutationResolver
+	OriginCountry() OriginCountryResolver
+	ProcessingMethod() ProcessingMethodResolver
 	Query() QueryResolver
 	Shop() ShopResolver
 	User() UserResolver
@@ -96,6 +99,7 @@ type ComplexityRoot struct {
 	}
 
 	CoffeeVariety struct {
+		CoffeeCount func(childComplexity int) int
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Name        func(childComplexity int) int
@@ -154,13 +158,15 @@ type ComplexityRoot struct {
 	}
 
 	OriginCountry struct {
-		ID     func(childComplexity int) int
-		NameEn func(childComplexity int) int
-		NameZh func(childComplexity int) int
-		Region func(childComplexity int) int
+		CoffeeCount func(childComplexity int) int
+		ID          func(childComplexity int) int
+		NameEn      func(childComplexity int) int
+		NameZh      func(childComplexity int) int
+		Region      func(childComplexity int) int
 	}
 
 	ProcessingMethod struct {
+		CoffeeCount func(childComplexity int) int
 		Description func(childComplexity int) int
 		ID          func(childComplexity int) int
 		NameEn      func(childComplexity int) int
@@ -255,6 +261,9 @@ type CoffeeResolver interface {
 	IsSaved(ctx context.Context, obj *model.Coffee) (bool, error)
 	SaveCount(ctx context.Context, obj *model.Coffee) (int, error)
 }
+type CoffeeVarietyResolver interface {
+	CoffeeCount(ctx context.Context, obj *model.CoffeeVariety) (int, error)
+}
 type CommentResolver interface {
 	User(ctx context.Context, obj *model.Comment) (*model.User, error)
 
@@ -288,6 +297,12 @@ type MutationResolver interface {
 	UnsaveCoffee(ctx context.Context, id string) (*model.Coffee, error)
 	FollowShop(ctx context.Context, id string) (*model.Shop, error)
 	UnfollowShop(ctx context.Context, id string) (*model.Shop, error)
+}
+type OriginCountryResolver interface {
+	CoffeeCount(ctx context.Context, obj *model.OriginCountry) (int, error)
+}
+type ProcessingMethodResolver interface {
+	CoffeeCount(ctx context.Context, obj *model.ProcessingMethod) (int, error)
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
@@ -584,6 +599,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.CoffeeConnection.Total(childComplexity), true
+
+	case "CoffeeVariety.coffeeCount":
+		if e.complexity.CoffeeVariety.CoffeeCount == nil {
+			break
+		}
+
+		return e.complexity.CoffeeVariety.CoffeeCount(childComplexity), true
 
 	case "CoffeeVariety.description":
 		if e.complexity.CoffeeVariety.Description == nil {
@@ -1016,6 +1038,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.UpdateVariant(childComplexity, args["id"].(string), args["input"].(model.UpdateVariantInput)), true
 
+	case "OriginCountry.coffeeCount":
+		if e.complexity.OriginCountry.CoffeeCount == nil {
+			break
+		}
+
+		return e.complexity.OriginCountry.CoffeeCount(childComplexity), true
+
 	case "OriginCountry.id":
 		if e.complexity.OriginCountry.ID == nil {
 			break
@@ -1043,6 +1072,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.OriginCountry.Region(childComplexity), true
+
+	case "ProcessingMethod.coffeeCount":
+		if e.complexity.ProcessingMethod.CoffeeCount == nil {
+			break
+		}
+
+		return e.complexity.ProcessingMethod.CoffeeCount(childComplexity), true
 
 	case "ProcessingMethod.description":
 		if e.complexity.ProcessingMethod.Description == nil {
@@ -1941,12 +1977,16 @@ type OriginCountry {
   nameEn: String!
   nameZh: String!
   region: String!
+  "Published coffees from this country (drafts never count)."
+  coffeeCount: Int!
 }
 
 type CoffeeVariety {
   id: ID!
   name: String!
   description: String
+  "Published coffees of this variety (drafts never count)."
+  coffeeCount: Int!
 }
 
 type ProcessingMethod {
@@ -1954,6 +1994,8 @@ type ProcessingMethod {
   nameEn: String!
   nameZh: String!
   description: String
+  "Published coffees with this process (drafts never count)."
+  coffeeCount: Int!
 }
 
 # ─── Comments ─────────────────────────────────────────────────────────────────
@@ -4353,6 +4395,8 @@ func (ec *executionContext) fieldContext_Coffee_originCountry(_ context.Context,
 				return ec.fieldContext_OriginCountry_nameZh(ctx, field)
 			case "region":
 				return ec.fieldContext_OriginCountry_region(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_OriginCountry_coffeeCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type OriginCountry", field.Name)
 		},
@@ -4402,6 +4446,8 @@ func (ec *executionContext) fieldContext_Coffee_variety(_ context.Context, field
 				return ec.fieldContext_CoffeeVariety_name(ctx, field)
 			case "description":
 				return ec.fieldContext_CoffeeVariety_description(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_CoffeeVariety_coffeeCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CoffeeVariety", field.Name)
 		},
@@ -4456,6 +4502,8 @@ func (ec *executionContext) fieldContext_Coffee_processingMethod(_ context.Conte
 				return ec.fieldContext_ProcessingMethod_nameZh(ctx, field)
 			case "description":
 				return ec.fieldContext_ProcessingMethod_description(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_ProcessingMethod_coffeeCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ProcessingMethod", field.Name)
 		},
@@ -5750,6 +5798,50 @@ func (ec *executionContext) fieldContext_CoffeeVariety_description(_ context.Con
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CoffeeVariety_coffeeCount(ctx context.Context, field graphql.CollectedField, obj *model.CoffeeVariety) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_CoffeeVariety_coffeeCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.CoffeeVariety().CoffeeCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_CoffeeVariety_coffeeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CoffeeVariety",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -8745,6 +8837,50 @@ func (ec *executionContext) fieldContext_OriginCountry_region(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _OriginCountry_coffeeCount(ctx context.Context, field graphql.CollectedField, obj *model.OriginCountry) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_OriginCountry_coffeeCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.OriginCountry().CoffeeCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_OriginCountry_coffeeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "OriginCountry",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ProcessingMethod_id(ctx context.Context, field graphql.CollectedField, obj *model.ProcessingMethod) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ProcessingMethod_id(ctx, field)
 	if err != nil {
@@ -8913,6 +9049,50 @@ func (ec *executionContext) fieldContext_ProcessingMethod_description(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProcessingMethod_coffeeCount(ctx context.Context, field graphql.CollectedField, obj *model.ProcessingMethod) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ProcessingMethod_coffeeCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.ProcessingMethod().CoffeeCount(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ProcessingMethod_coffeeCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProcessingMethod",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9580,6 +9760,8 @@ func (ec *executionContext) fieldContext_Query_originCountries(_ context.Context
 				return ec.fieldContext_OriginCountry_nameZh(ctx, field)
 			case "region":
 				return ec.fieldContext_OriginCountry_region(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_OriginCountry_coffeeCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type OriginCountry", field.Name)
 		},
@@ -9632,6 +9814,8 @@ func (ec *executionContext) fieldContext_Query_coffeeVarieties(_ context.Context
 				return ec.fieldContext_CoffeeVariety_name(ctx, field)
 			case "description":
 				return ec.fieldContext_CoffeeVariety_description(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_CoffeeVariety_coffeeCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type CoffeeVariety", field.Name)
 		},
@@ -9686,6 +9870,8 @@ func (ec *executionContext) fieldContext_Query_processingMethods(_ context.Conte
 				return ec.fieldContext_ProcessingMethod_nameZh(ctx, field)
 			case "description":
 				return ec.fieldContext_ProcessingMethod_description(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_ProcessingMethod_coffeeCount(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ProcessingMethod", field.Name)
 		},
@@ -15170,15 +15356,51 @@ func (ec *executionContext) _CoffeeVariety(ctx context.Context, sel ast.Selectio
 		case "id":
 			out.Values[i] = ec._CoffeeVariety_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._CoffeeVariety_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._CoffeeVariety_description(ctx, field, obj)
+		case "coffeeCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._CoffeeVariety_coffeeCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15664,23 +15886,59 @@ func (ec *executionContext) _OriginCountry(ctx context.Context, sel ast.Selectio
 		case "id":
 			out.Values[i] = ec._OriginCountry_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "nameEn":
 			out.Values[i] = ec._OriginCountry_nameEn(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "nameZh":
 			out.Values[i] = ec._OriginCountry_nameZh(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "region":
 			out.Values[i] = ec._OriginCountry_region(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "coffeeCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._OriginCountry_coffeeCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -15718,20 +15976,56 @@ func (ec *executionContext) _ProcessingMethod(ctx context.Context, sel ast.Selec
 		case "id":
 			out.Values[i] = ec._ProcessingMethod_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "nameEn":
 			out.Values[i] = ec._ProcessingMethod_nameEn(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "nameZh":
 			out.Values[i] = ec._ProcessingMethod_nameZh(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "description":
 			out.Values[i] = ec._ProcessingMethod_description(ctx, field, obj)
+		case "coffeeCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ProcessingMethod_coffeeCount(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

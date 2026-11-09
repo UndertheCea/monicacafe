@@ -329,12 +329,16 @@ type OriginCountry {
   nameEn: String!
   nameZh: String!
   region: String!
+  "Published coffees from this country (drafts never count)."
+  coffeeCount: Int!
 }
 
 type CoffeeVariety {
   id: ID!
   name: String!
   description: String
+  "Published coffees of this variety (drafts never count)."
+  coffeeCount: Int!
 }
 
 type ProcessingMethod {
@@ -342,6 +346,8 @@ type ProcessingMethod {
   nameEn: String!
   nameZh: String!
   description: String
+  "Published coffees with this process (drafts never count)."
+  coffeeCount: Int!
 }
 
 # ─── Comments ─────────────────────────────────────────────────────────────────

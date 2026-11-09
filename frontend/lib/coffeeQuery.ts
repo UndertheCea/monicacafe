@@ -33,6 +33,18 @@ export function sortForApi(p: SortParam): CoffeeSort {
   return TO_API[p];
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `?origin=` / `?variety=` / `?process=`: an id is kept only when it looks
+ * like a UUID (the API rejects anything else with BAD_USER_INPUT, which would
+ * turn a truncated link into the error page, #179). Junk → undefined (no filter).
+ */
+export function parseIdParam(v: string | string[] | undefined): string | undefined {
+  const s = (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
+  return UUID_RE.test(s) ? s.toLowerCase() : undefined;
+}
+
 /** `?instock=1` (the sidebar checkbox) → true; anything else → no restriction. */
 export function parseInStockParam(v: string | string[] | undefined): boolean {
   const s = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase();

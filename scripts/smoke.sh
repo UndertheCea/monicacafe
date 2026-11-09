@@ -344,6 +344,14 @@ else
   echo "FAIL /coffees with old roast / brew / cup-profile params should list everything, without those fields or a brew tag"; fail=1
 fi
 
+# A malformed id (#179): a truncated or hand-edited link shows the list, not the error page.
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?origin=not-a-uuid&variety=x&process=123") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'無法載入資料'* && "$page" != *'Couldn'* ]]; then
+  echo "ok   /coffees ignores malformed origin / variety / process ids"
+else
+  echo "FAIL /coffees?origin=not-a-uuid should list the coffees, not the error state"; fail=1
+fi
+
 # Filter-option counts (#150, #151): the seed has a published Ethiopian coffee
 # and nothing from Rwanda, so /coffees offers Ethiopia (with its count) and
 # leaves Rwanda out of the origin select.

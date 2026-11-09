@@ -111,3 +111,22 @@ test("/coffees reads and offers only origin / variety / process / price / in sto
     assert.ok(sidebar.includes(`name="${p}"`), `the sidebar lacks ${p}`);
   }
 });
+
+test("parseIdParam keeps only UUIDs (lowercased); junk means no filter (#179)", async () => {
+  const { parseIdParam } = await import("../lib/coffeeQuery.ts");
+  const id = "00000000-0000-4000-8000-000000000201";
+  const cases = [
+    [id, id],
+    [` ${id} `, id],
+    ["0A1B2C3D-4E5F-4A6B-8C7D-9E0F1A2B3C4D", "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"],
+    [[id, "x"], id],
+    [["x", id], undefined],
+    ["not-a-uuid", undefined],
+    [id.slice(0, 20), undefined],
+    [`${id}x`, undefined],
+    ["0a1b2c3d4e5f4a6b8c7d9e0f1a2b3c4d", undefined],
+    ["", undefined],
+    [undefined, undefined],
+  ];
+  for (const [input, want] of cases) assert.equal(parseIdParam(input), want, JSON.stringify(input));
+});

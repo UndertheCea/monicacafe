@@ -45,3 +45,13 @@
     @apply text-[0.6875rem] font-medium uppercase tracking-[0.18em];
   }
 }
+
+/* Side drawer (components/Drawer.tsx): slides in from the left. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}

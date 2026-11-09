@@ -45,9 +45,9 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
   const counted = (name: string, n: number) => t(locale, "filter.optionCount", { name, n });
 
   return (
-    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
-      {/* On phones the FilterPanel toggle already says "Filters". */}
-      <h2 className="hidden text-base font-bold text-ink lg:block">{t(locale, "filter.title")}</h2>
+    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200 group-open:p-0 group-open:shadow-none group-open:ring-0">
+      {/* Below md the drawer (or the no-JS toggle) already says "Filters". */}
+      <h2 className="hidden text-base font-bold text-ink md:block">{t(locale, "filter.title")}</h2>
 
       <label className="block">
         <span className={labelCls}>{t(locale, "filter.search")}</span>

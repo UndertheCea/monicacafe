@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 26 — 2026-11-09 — Filter options with coffees, active-filter chips, phone filter toggle
-PR: #PRNUM
+PR: #157
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
 the six below were filed from gaps in browsing: the /coffees sidebar listed every curated origin, variety and

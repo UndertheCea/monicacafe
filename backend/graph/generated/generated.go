@@ -128,33 +128,34 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddComment        func(childComplexity int, input model.AddCommentInput) int
-		AddVariant        func(childComplexity int, coffeeID string, input model.VariantInput) int
-		ChangePassword    func(childComplexity int, input model.ChangePasswordInput) int
-		CreateCoffee      func(childComplexity int, input model.CreateCoffeeInput) int
-		CreateImageUpload func(childComplexity int, input model.ImageUploadInput) int
-		CreateShop        func(childComplexity int, input model.CreateShopInput) int
-		DeleteAccount     func(childComplexity int, password string) int
-		DeleteCoffee      func(childComplexity int, id string) int
-		DeleteComment     func(childComplexity int, id string) int
-		DeleteVariant     func(childComplexity int, id string) int
-		DuplicateCoffee   func(childComplexity int, id string, name *string) int
-		FollowShop        func(childComplexity int, id string) int
-		Login             func(childComplexity int, input model.LoginInput) int
-		Logout            func(childComplexity int, refreshToken *string) int
-		LogoutEverywhere  func(childComplexity int) int
-		PublishCoffee     func(childComplexity int, id string) int
-		RefreshToken      func(childComplexity int, token string) int
-		Register          func(childComplexity int, input model.RegisterInput) int
-		SaveCoffee        func(childComplexity int, id string) int
-		UnfollowShop      func(childComplexity int, id string) int
-		UnpublishCoffee   func(childComplexity int, id string) int
-		UnsaveCoffee      func(childComplexity int, id string) int
-		UpdateCoffee      func(childComplexity int, id string, input model.UpdateCoffeeInput) int
-		UpdateComment     func(childComplexity int, id string, body string) int
-		UpdateProfile     func(childComplexity int, input model.UpdateProfileInput) int
-		UpdateShop        func(childComplexity int, id string, input model.UpdateShopInput) int
-		UpdateVariant     func(childComplexity int, id string, input model.UpdateVariantInput) int
+		AddComment         func(childComplexity int, input model.AddCommentInput) int
+		AddVariant         func(childComplexity int, coffeeID string, input model.VariantInput) int
+		ChangePassword     func(childComplexity int, input model.ChangePasswordInput) int
+		CreateCoffee       func(childComplexity int, input model.CreateCoffeeInput) int
+		CreateImageUpload  func(childComplexity int, input model.ImageUploadInput) int
+		CreateShop         func(childComplexity int, input model.CreateShopInput) int
+		DeleteAccount      func(childComplexity int, password string) int
+		DeleteCoffee       func(childComplexity int, id string) int
+		DeleteComment      func(childComplexity int, id string) int
+		DeleteVariant      func(childComplexity int, id string) int
+		DuplicateCoffee    func(childComplexity int, id string, name *string) int
+		FollowShop         func(childComplexity int, id string) int
+		Login              func(childComplexity int, input model.LoginInput) int
+		Logout             func(childComplexity int, refreshToken *string) int
+		LogoutEverywhere   func(childComplexity int) int
+		PublishCoffee      func(childComplexity int, id string) int
+		RefreshToken       func(childComplexity int, token string) int
+		Register           func(childComplexity int, input model.RegisterInput) int
+		ReorderShopCoffees func(childComplexity int, shopID string, coffeeIds []string) int
+		SaveCoffee         func(childComplexity int, id string) int
+		UnfollowShop       func(childComplexity int, id string) int
+		UnpublishCoffee    func(childComplexity int, id string) int
+		UnsaveCoffee       func(childComplexity int, id string) int
+		UpdateCoffee       func(childComplexity int, id string, input model.UpdateCoffeeInput) int
+		UpdateComment      func(childComplexity int, id string, body string) int
+		UpdateProfile      func(childComplexity int, input model.UpdateProfileInput) int
+		UpdateShop         func(childComplexity int, id string, input model.UpdateShopInput) int
+		UpdateVariant      func(childComplexity int, id string, input model.UpdateVariantInput) int
 	}
 
 	OriginCountry struct {
@@ -280,6 +281,7 @@ type MutationResolver interface {
 	DeleteAccount(ctx context.Context, password string) (bool, error)
 	CreateShop(ctx context.Context, input model.CreateShopInput) (*model.Shop, error)
 	UpdateShop(ctx context.Context, id string, input model.UpdateShopInput) (*model.Shop, error)
+	ReorderShopCoffees(ctx context.Context, shopID string, coffeeIds []string) (*model.Shop, error)
 	CreateCoffee(ctx context.Context, input model.CreateCoffeeInput) (*model.Coffee, error)
 	UpdateCoffee(ctx context.Context, id string, input model.UpdateCoffeeInput) (*model.Coffee, error)
 	PublishCoffee(ctx context.Context, id string) (*model.Coffee, error)
@@ -929,6 +931,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.Register(childComplexity, args["input"].(model.RegisterInput)), true
+
+	case "Mutation.reorderShopCoffees":
+		if e.complexity.Mutation.ReorderShopCoffees == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_reorderShopCoffees_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.ReorderShopCoffees(childComplexity, args["shopId"].(string), args["coffeeIds"].([]string)), true
 
 	case "Mutation.saveCoffee":
 		if e.complexity.Mutation.SaveCoffee == nil {
@@ -1708,6 +1722,11 @@ type Mutation {
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
   updateShop(id: ID!, input: UpdateShopInput!): Shop!
+  # Sets the order of the shop's coffees on its page (Shop.coffees with
+  # SHOP_ORDER). coffeeIds must list every coffee of the shop, drafts
+  # included, each once; anything else is BAD_USER_INPUT (field coffeeIds).
+  # Owner or admin only. New and duplicated coffees join at the end.
+  reorderShopCoffees(shopId: ID!, coffeeIds: [ID!]!): Shop!
 
   # Coffee listings (seller)
   createCoffee(input: CreateCoffeeInput!): Coffee!
@@ -1799,9 +1818,9 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  # sort defaults to NEWEST (same orders as Query.coffees). filter is validated
-  # like Query.coffees' and narrows this shop's coffees; the owner (and admins)
-  # also get drafts.
+  # sort defaults to SHOP_ORDER, the seller's lineup (other orders as in
+  # Query.coffees). filter is validated like Query.coffees' and narrows this
+  # shop's coffees; the owner (and admins) also get drafts.
   coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
@@ -1896,12 +1915,15 @@ type Coffee {
 # Price sorts use each coffee's lowest available, in-stock variant price;
 # sold-out coffees come last either way. MOST_DISCUSSED counts comments,
 # MOST_SAVED counts saves (Coffee.saveCount). Ties go newest first.
+# SHOP_ORDER is the seller's lineup (reorderShopCoffees); it's the default for
+# Shop.coffees and only meaningful within one shop.
 enum CoffeeSort {
   NEWEST
   PRICE_ASC
   PRICE_DESC
   MOST_DISCUSSED
   MOST_SAVED
+  SHOP_ORDER
 }
 
 type CoffeeConnection {
@@ -2794,6 +2816,57 @@ func (ec *executionContext) field_Mutation_register_argsInput(
 	}
 
 	var zeroVal model.RegisterInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_reorderShopCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_reorderShopCoffees_argsShopID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["shopId"] = arg0
+	arg1, err := ec.field_Mutation_reorderShopCoffees_argsCoffeeIds(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["coffeeIds"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_reorderShopCoffees_argsShopID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["shopId"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("shopId"))
+	if tmp, ok := rawArgs["shopId"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_reorderShopCoffees_argsCoffeeIds(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	if _, ok := rawArgs["coffeeIds"]; !ok {
+		var zeroVal []string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("coffeeIds"))
+	if tmp, ok := rawArgs["coffeeIds"]; ok {
+		return ec.unmarshalNID2ᚕstringᚄ(ctx, tmp)
+	}
+
+	var zeroVal []string
 	return zeroVal, nil
 }
 
@@ -7168,6 +7241,95 @@ func (ec *executionContext) fieldContext_Mutation_updateShop(ctx context.Context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_updateShop_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_reorderShopCoffees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_reorderShopCoffees(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ReorderShopCoffees(rctx, fc.Args["shopId"].(string), fc.Args["coffeeIds"].([]string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Shop)
+	fc.Result = res
+	return ec.marshalNShop2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_reorderShopCoffees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Shop_id(ctx, field)
+			case "slug":
+				return ec.fieldContext_Shop_slug(ctx, field)
+			case "name":
+				return ec.fieldContext_Shop_name(ctx, field)
+			case "description":
+				return ec.fieldContext_Shop_description(ctx, field)
+			case "logoUrl":
+				return ec.fieldContext_Shop_logoUrl(ctx, field)
+			case "bannerUrl":
+				return ec.fieldContext_Shop_bannerUrl(ctx, field)
+			case "city":
+				return ec.fieldContext_Shop_city(ctx, field)
+			case "lat":
+				return ec.fieldContext_Shop_lat(ctx, field)
+			case "lng":
+				return ec.fieldContext_Shop_lng(ctx, field)
+			case "coffees":
+				return ec.fieldContext_Shop_coffees(ctx, field)
+			case "coffeeCount":
+				return ec.fieldContext_Shop_coffeeCount(ctx, field)
+			case "recentComments":
+				return ec.fieldContext_Shop_recentComments(ctx, field)
+			case "isFollowed":
+				return ec.fieldContext_Shop_isFollowed(ctx, field)
+			case "followerCount":
+				return ec.fieldContext_Shop_followerCount(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Shop_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Shop_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Shop", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_reorderShopCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -15736,6 +15898,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "reorderShopCoffees":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_reorderShopCoffees(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createCoffee":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createCoffee(ctx, field)
@@ -17634,6 +17803,36 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) unmarshalNID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalNImageKind2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageKind(ctx context.Context, v any) (model.ImageKind, error) {

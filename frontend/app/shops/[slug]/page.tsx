@@ -20,7 +20,8 @@ type Params = Promise<{ slug: string }>;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// The shop page is the seller's storefront, not a search page (#158, #160):
+// The shop page is the seller's storefront, not a search page (#158, #160),
+// in the seller's lineup order (Shop.coffees defaults to SHOP_ORDER, #161):
 // no buyer search, filters or sort. Old links with ?q / ?roast / ?sort … just
 // show the full lineup; only ?page is read.
 const loadShop = cache(async (slug: string, page: number) =>

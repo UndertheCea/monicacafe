@@ -288,6 +288,7 @@ const (
 	CoffeeSortPriceDesc     CoffeeSort = "PRICE_DESC"
 	CoffeeSortMostDiscussed CoffeeSort = "MOST_DISCUSSED"
 	CoffeeSortMostSaved     CoffeeSort = "MOST_SAVED"
+	CoffeeSortShopOrder     CoffeeSort = "SHOP_ORDER"
 )
 
 var AllCoffeeSort = []CoffeeSort{
@@ -296,11 +297,12 @@ var AllCoffeeSort = []CoffeeSort{
 	CoffeeSortPriceDesc,
 	CoffeeSortMostDiscussed,
 	CoffeeSortMostSaved,
+	CoffeeSortShopOrder,
 }
 
 func (e CoffeeSort) IsValid() bool {
 	switch e {
-	case CoffeeSortNewest, CoffeeSortPriceAsc, CoffeeSortPriceDesc, CoffeeSortMostDiscussed, CoffeeSortMostSaved:
+	case CoffeeSortNewest, CoffeeSortPriceAsc, CoffeeSortPriceDesc, CoffeeSortMostDiscussed, CoffeeSortMostSaved, CoffeeSortShopOrder:
 		return true
 	}
 	return false

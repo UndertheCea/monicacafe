@@ -212,6 +212,9 @@ const (
 	SortPriceDesc     CoffeeSort = "PRICE_DESC"
 	SortMostDiscussed CoffeeSort = "MOST_DISCUSSED"
 	SortMostSaved     CoffeeSort = "MOST_SAVED"
+	// SortShopOrder is the seller's lineup (coffees.shop_position, #161);
+	// only meaningful within one shop.
+	SortShopOrder CoffeeSort = "SHOP_ORDER"
 )
 
 // Lowest price among a coffee's available, in-stock variants (what the card
@@ -237,6 +240,8 @@ func (s CoffeeSort) orderBy() (join, order string) {
 		return commentCountJoin, "cc.n DESC, " + tail
 	case SortMostSaved:
 		return saveCountJoin, "sc.n DESC, " + tail
+	case SortShopOrder:
+		return "", "c.shop_position, " + tail
 	default:
 		return "", tail
 	}
@@ -470,6 +475,38 @@ func (s *Store) SetCoffeePublished(ctx context.Context, id string, published boo
 	return scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (UPDATE coffees SET is_published = $2 WHERE id = $1 RETURNING *)
 		SELECT `+coffeeColumns+` FROM c`, id, published))
+}
+
+// ShopCoffeeIDsForUpdate returns every coffee of a shop (drafts included) in
+// its current lineup order and locks them for the rest of the transaction, so
+// a reorder can't race with another reorder. Call it inside InTx.
+func (s *Store) ShopCoffeeIDsForUpdate(ctx context.Context, shopID string) ([]string, error) {
+	rows, err := s.db.Query(ctx, `SELECT id FROM coffees WHERE shop_id = $1
+		ORDER BY shop_position, created_at DESC, id FOR UPDATE`, shopID)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, mapErr(err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, mapErr(rows.Err())
+}
+
+// SetShopPositions numbers the shop's coffees 1..n in the order of ids. The
+// caller checks that ids is exactly the shop's coffees (ShopCoffeeIDsForUpdate).
+// Positions don't touch updated_at (migration 014): reordering isn't an edit.
+func (s *Store) SetShopPositions(ctx context.Context, shopID string, ids []string) error {
+	_, err := s.db.Exec(ctx, `
+		UPDATE coffees c SET shop_position = o.pos
+		FROM unnest($2::uuid[]) WITH ORDINALITY AS o(id, pos)
+		WHERE c.id = o.id AND c.shop_id = $1 AND c.shop_position IS DISTINCT FROM o.pos`, shopID, ids)
+	return mapErr(err)
 }
 
 // ─── Variants ─────────────────────────────────────────────────────────────────

@@ -60,6 +60,11 @@ type Mutation {
   # Shop management (seller)
   createShop(input: CreateShopInput!): Shop!
   updateShop(id: ID!, input: UpdateShopInput!): Shop!
+  # Sets the order of the shop's coffees on its page (Shop.coffees with
+  # SHOP_ORDER). coffeeIds must list every coffee of the shop, drafts
+  # included, each once; anything else is BAD_USER_INPUT (field coffeeIds).
+  # Owner or admin only. New and duplicated coffees join at the end.
+  reorderShopCoffees(shopId: ID!, coffeeIds: [ID!]!): Shop!
 
   # Coffee listings (seller)
   createCoffee(input: CreateCoffeeInput!): Coffee!
@@ -151,9 +156,9 @@ type Shop {
   city: String!
   lat: Float
   lng: Float
-  # sort defaults to NEWEST (same orders as Query.coffees). filter is validated
-  # like Query.coffees' and narrows this shop's coffees; the owner (and admins)
-  # also get drafts.
+  # sort defaults to SHOP_ORDER, the seller's lineup (other orders as in
+  # Query.coffees). filter is validated like Query.coffees' and narrows this
+  # shop's coffees; the owner (and admins) also get drafts.
   coffees(filter: CoffeeFilter, sort: CoffeeSort, limit: Int, offset: Int): CoffeeConnection!
   # Published coffees only (drafts are never counted, even for the owner).
   coffeeCount: Int!
@@ -248,12 +253,15 @@ type Coffee {
 # Price sorts use each coffee's lowest available, in-stock variant price;
 # sold-out coffees come last either way. MOST_DISCUSSED counts comments,
 # MOST_SAVED counts saves (Coffee.saveCount). Ties go newest first.
+# SHOP_ORDER is the seller's lineup (reorderShopCoffees); it's the default for
+# Shop.coffees and only meaningful within one shop.
 enum CoffeeSort {
   NEWEST
   PRICE_ASC
   PRICE_DESC
   MOST_DISCUSSED
   MOST_SAVED
+  SHOP_ORDER
 }
 
 type CoffeeConnection {

@@ -703,8 +703,30 @@ func storeSort(s *model.CoffeeSort) (store.CoffeeSort, error) {
 		return store.SortMostDiscussed, nil
 	case model.CoffeeSortMostSaved:
 		return store.SortMostSaved, nil
+	case model.CoffeeSortShopOrder:
+		return store.SortShopOrder, nil
 	}
 	return store.SortNewest, errBadInput("sort", "invalid sort")
+}
+
+// checkLineup reports whether want (a reorder request) is exactly the shop's
+// coffees in have: same IDs, each once, nothing missing or extra.
+func checkLineup(have, want []string) error {
+	if len(want) != len(have) {
+		return errBadInput("coffeeIds", "list every coffee of the shop exactly once")
+	}
+	owned := make(map[string]bool, len(have))
+	for _, id := range have {
+		owned[id] = true
+	}
+	seen := make(map[string]bool, len(want))
+	for _, id := range want {
+		if !owned[id] || seen[id] {
+			return errBadInput("coffeeIds", "list every coffee of the shop exactly once")
+		}
+		seen[id] = true
+	}
+	return nil
 }
 
 // storeShopSort maps the public shop sort to the store's whitelisted order.

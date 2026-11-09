@@ -17,6 +17,7 @@ func TestCoffeeSortOrderBy(t *testing.T) {
 		{SortPriceDesc, "min(v.price_twd)", "fp.p DESC NULLS LAST, c.created_at DESC, c.id"},
 		{SortMostDiscussed, "count(*)", "cc.n DESC, c.created_at DESC, c.id"},
 		{SortMostSaved, "saved_coffees", "sc.n DESC, c.created_at DESC, c.id"},
+		{SortShopOrder, "", "c.shop_position, c.created_at DESC, c.id"},
 	}
 	for _, tc := range cases {
 		t.Run(string(tc.sort), func(t *testing.T) {

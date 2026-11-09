@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -279,6 +280,7 @@ func TestStoreSort(t *testing.T) {
 		{s(model.CoffeeSortPriceDesc), store.SortPriceDesc, false},
 		{s(model.CoffeeSortMostDiscussed), store.SortMostDiscussed, false},
 		{s(model.CoffeeSortMostSaved), store.SortMostSaved, false},
+		{s(model.CoffeeSortShopOrder), store.SortShopOrder, false},
 		{s("CHEAPEST"), store.SortNewest, true},
 	}
 	for _, tc := range tests {
@@ -286,6 +288,38 @@ func TestStoreSort(t *testing.T) {
 		if got != tc.want || (err != nil) != tc.wantErr {
 			t.Errorf("storeSort(%v) = %q, %v; want %q, err=%v", tc.in, got, err, tc.want, tc.wantErr)
 		}
+	}
+}
+
+func TestCheckLineup(t *testing.T) {
+	have := []string{"a", "b", "c"}
+	tests := []struct {
+		name string
+		want []string
+		ok   bool
+	}{
+		{"same order", []string{"a", "b", "c"}, true},
+		{"reordered", []string{"c", "a", "b"}, true},
+		{"missing one", []string{"a", "b"}, false},
+		{"extra one", []string{"a", "b", "c", "d"}, false},
+		{"foreign id", []string{"a", "b", "x"}, false},
+		{"duplicate", []string{"a", "a", "b"}, false},
+		{"empty", []string{}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkLineup(have, tc.want)
+			if (err == nil) != tc.ok {
+				t.Fatalf("checkLineup(%v) = %v, want ok=%v", tc.want, err, tc.ok)
+			}
+			var ae *apiError
+			if err != nil && (!errors.As(err, &ae) || ae.code != CodeBadInput || ae.field != "coffeeIds") {
+				t.Errorf("err = %#v, want BAD_USER_INPUT on coffeeIds", err)
+			}
+		})
+	}
+	if err := checkLineup(nil, []string{}); err != nil {
+		t.Errorf("empty shop, empty list: %v", err)
 	}
 }
 

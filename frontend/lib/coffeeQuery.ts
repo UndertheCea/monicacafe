@@ -205,3 +205,37 @@ export function shopCoffeesHref(
   const qs = params.toString();
   return `/shops/${encodeURIComponent(slug)}${qs ? `?${qs}` : ""}`;
 }
+
+/** The shop page's list options, as parsed from its URL. */
+export interface ShopListChoices extends CupChoices {
+  q?: string;
+  roast?: RoastLevel;
+  brew?: BrewMethod;
+  harvest?: boolean;
+  highGrown?: boolean;
+}
+
+/**
+ * The API filter for a shop page's options, with blank ones left out and the
+ * keys in a stable order (the page caches its loader on this as JSON).
+ */
+export function shopCoffeeFilter(o: ShopListChoices, now: Date = new Date()): {
+  search?: string;
+  roastLevel?: RoastLevel;
+  brewMethod?: BrewMethod;
+  minHarvestYear?: number;
+  maxAcidity?: number;
+  minSweetness?: number;
+  minBody?: number;
+  maxBody?: number;
+  minAltitudeM?: number;
+} {
+  return {
+    ...(o.q ? { search: o.q } : {}),
+    ...(o.roast ? { roastLevel: o.roast } : {}),
+    ...(o.brew ? { brewMethod: o.brew } : {}),
+    ...(o.harvest ? { minHarvestYear: recentHarvestFrom(now) } : {}),
+    ...cupFilter(o),
+    ...(o.highGrown ? { minAltitudeM: HIGH_GROWN_MIN_M } : {}),
+  };
+}

@@ -10,8 +10,9 @@ import (
 
 // TestSimilarCoffees pins Coffee.similar: other shops only, published only,
 // a shared roast alone doesn't count, in-stock first, then score (the same
-// brew method and an acidity within one step each add one but never qualify a
-// coffee alone), then newest. Requires TEST_DATABASE_URL.
+// brew method adds one but never qualifies a coffee alone), then newest.
+// Acidity doesn't count: each shop rates it by its own standard (#166, #167).
+// Requires TEST_DATABASE_URL.
 func TestSimilarCoffees(t *testing.T) {
 	url, pool := newTestServer(t)
 	run := fmt.Sprintf("%d", time.Now().UnixNano())
@@ -77,9 +78,9 @@ func TestSimilarCoffees(t *testing.T) {
 	mk(sellerB, "b5-sold-out", o1, p1, "LIGHT", nil, 0, true)                         // 6, but sold out
 	mk(sellerB, "b6-draft", o1, p1, "LIGHT", []string{note}, 5, false)
 	mk(sellerB, "b7-roast-brew", o2, p2, "LIGHT", nil, 5, true, filter)                                                // 1 (+1 brew): still left out
-	mk(sellerB, "b9-origin-espresso", o1, p2, "DARK", nil, 5, true, map[string]any{"brewMethod": "ESPRESSO"}, acid(5)) // 3, a different brew method, acidity far off
-	mk(sellerB, "b10-origin-acid", o1, p2, "DARK", nil, 5, true, acid(3))                                              // 3 (+1 acidity within 1), newest
-	mk(sellerB, "b11-roast-acid", o2, p2, "LIGHT", nil, 5, true, acid(2))                                              // 1 (+1 acidity): still left out
+	mk(sellerB, "b9-origin-espresso", o1, p2, "DARK", nil, 5, true, map[string]any{"brewMethod": "ESPRESSO"}, acid(5)) // 3, a different brew method
+	mk(sellerB, "b10-origin-acid", o1, p2, "DARK", nil, 5, true, acid(3))                                              // 3, newest; a close acidity adds nothing
+	mk(sellerB, "b11-roast-acid", o2, p2, "LIGHT", nil, 5, true, acid(2))                                              // 1, same acidity: still left out
 
 	similar := func(limit int) []string {
 		var out struct {
@@ -98,10 +99,10 @@ func TestSimilarCoffees(t *testing.T) {
 		}
 		return names
 	}
-	if got, want := strings.Join(similar(12), ","), "b1-best,b10-origin-acid,b8-origin-brew,b9-origin-espresso,b4-process-note,b2-origin,b5-sold-out"; got != want {
+	if got, want := strings.Join(similar(12), ","), "b1-best,b8-origin-brew,b10-origin-acid,b9-origin-espresso,b4-process-note,b2-origin,b5-sold-out"; got != want {
 		t.Fatalf("similar = %s, want %s", got, want)
 	}
-	if got, want := strings.Join(similar(2), ","), "b1-best,b10-origin-acid"; got != want {
+	if got, want := strings.Join(similar(2), ","), "b1-best,b8-origin-brew"; got != want {
 		t.Fatalf("similar(limit 2) = %s, want %s", got, want)
 	}
 }

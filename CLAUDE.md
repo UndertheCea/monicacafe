@@ -81,6 +81,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `frontend/proxy.ts` | Next 16 proxy (was middleware): per-request nonce'd Content-Security-Policy |
 | `frontend/tests/*.test.mjs` | `npm test` (Node's built-in runner) |
 | `scripts/smoke.sh` | Hits every demo route, sitemap, the auth cookie flow, GraphQL and an image upload after `docker compose up` (CI job `stack`) |
+| `scripts/seed_reference.sql` | Dev-only reference shops (`SEED_REFERENCE_SHOPS=true`); `reference_gaps.sh` reports values our dropdowns lack, `remove_reference_shops.sql` deletes them |
 | `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |

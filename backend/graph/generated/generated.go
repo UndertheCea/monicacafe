@@ -2170,6 +2170,12 @@ input UpdateVariantInput {
   isAvailable: Boolean
 }
 
+# The site's /coffees page uses only originCountryId, varietyId,
+# processingMethodId, search, minPriceTwd / maxPriceTwd and inStock (owner,
+# #166): each shop rates roast, brew method, harvest, cup profile and altitude
+# by its own standard. roastLevel, flavorNote, brewMethod, minHarvestYear,
+# maxAcidity, minSweetness, minBody / maxBody and minAltitudeM stay for API
+# clients, but the site doesn't use them.
 input CoffeeFilter {
   originCountryId: ID
   varietyId: ID

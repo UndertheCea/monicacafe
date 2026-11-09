@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { pageHref, type SearchParams } from "@/lib/coffeeFilters";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { LinkPending } from "./LinkPending";
 
 const btn = "rounded-full border border-neutral-300 px-4 py-2 hover:border-neutral-500";
 
@@ -28,12 +29,14 @@ export function Pagination({
       {page > 1 ? (
         <Link href={href(page - 1)} className={btn}>
           {t(locale, "page.prev")}
+          <LinkPending />
         </Link>
       ) : null}
       <span className="text-neutral-500">{t(locale, "page.of", { page, pages })}</span>
       {page < pages ? (
         <Link href={href(page + 1)} className={btn}>
           {t(locale, "page.next")}
+          <LinkPending />
         </Link>
       ) : null}
     </nav>

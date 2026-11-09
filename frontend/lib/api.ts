@@ -24,6 +24,10 @@ export interface ProcessingMethod {
   nameZh: string;
 }
 
+/**
+ * The API's coffee filter. /coffees sets only origin / variety / process /
+ * search / price / in stock (owner, #166); the rest stay for API clients.
+ */
 export interface CoffeeFilter {
   originCountryId?: string;
   varietyId?: string;
@@ -55,7 +59,6 @@ export interface CoffeeCardData {
   slug: string;
   name: string;
   roastLevel: RoastLevel;
-  brewMethod: BrewMethod | null;
   flavorNotes: string[];
   producer: string;
   region: string;
@@ -101,7 +104,7 @@ export const FILTER_OPTIONS = typed<{
 
 /** Fields every CoffeeCard needs (keep in sync with CoffeeCardData). */
 const CARD_FIELDS = `
-  id slug name roastLevel brewMethod flavorNotes producer region imageUrls commentCount
+  id slug name roastLevel flavorNotes producer region imageUrls commentCount
   shop { slug name city }
   originCountry { nameEn nameZh }
   processingMethod { nameEn nameZh }

@@ -1,7 +1,7 @@
 // Brew method labels (lib/brew.ts) and the JSON-LD property. Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { brewLongKey, brewShortKey, knownBrewMethod } from "../lib/brew.ts";
+import { brewLongKey, knownBrewMethod } from "../lib/brew.ts";
 import { t } from "../lib/i18n/dict.ts";
 import { coffeeJsonLd } from "../lib/seo.ts";
 
@@ -10,19 +10,16 @@ test("knownBrewMethod keeps only the API's values", () => {
   for (const m of [null, undefined, "", "filter", "COLD_BREW"]) assert.equal(knownBrewMethod(m), null, String(m));
 });
 
-test("brew label keys: short on cards, omni spelled out on the page", () => {
+test("brew label keys: omni spelled out on the page", () => {
   const cases = [
-    ["FILTER", "brew.FILTER", "brew.FILTER"],
-    ["ESPRESSO", "brew.ESPRESSO", "brew.ESPRESSO"],
-    ["OMNI", "brew.OMNI", "brew.OMNI_LONG"],
-    [null, null, null],
-    ["SIPHON", null, null],
+    ["FILTER", "brew.FILTER"],
+    ["ESPRESSO", "brew.ESPRESSO"],
+    ["OMNI", "brew.OMNI_LONG"],
+    [null, null],
+    ["SIPHON", null],
   ];
-  for (const [m, short, long] of cases) {
-    assert.equal(brewShortKey(m), short, String(m));
-    assert.equal(brewLongKey(m), long, String(m));
-  }
-  assert.equal(t("zh-TW", brewShortKey("FILTER")), "手沖");
+  for (const [m, long] of cases) assert.equal(brewLongKey(m), long, String(m));
+  assert.equal(t("zh-TW", brewLongKey("FILTER")), "手沖");
   assert.equal(t("en", brewLongKey("OMNI")), "Omni (filter and espresso)");
 });
 

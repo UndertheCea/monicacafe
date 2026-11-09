@@ -20,10 +20,32 @@ check_status() { # path expected
   if [[ "$code" == "$2" ]]; then echo "ok   $2 $1"; else echo "FAIL $1 → $code (want $2)"; fail=1; fi
 }
 
-for path in / /coffees /shops /map /login /register /account /dashboard /dashboard/coffees/new; do
+for path in / /coffees /shops /map /menu /login /register /account /dashboard /dashboard/coffees/new; do
   check_status "$BASE_URL$path" 200
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
+
+# No-JavaScript rendering (#156): list pages arrive complete, not streamed into
+# hidden placeholders behind a loading skeleton.
+for path in /coffees /shops; do
+  page=$(curl -s --max-time 15 "$BASE_URL$path") || page=""
+  if [[ -n "$page" && "$page" != *'<div hidden id="S:'* && "$page" == *'<article'* ]]; then
+    echo "ok   $path renders its list without JavaScript"
+  else
+    echo "FAIL $path should render its list in the HTML, not in a hidden streamed placeholder"; fail=1
+  fi
+done
+
+# Navigation drawer (#175): the server-rendered header's menu button is a link
+# to /menu (the no-JavaScript fallback), which lists the drawer's links.
+home=$(curl -s --max-time 15 "$BASE_URL/") || home=""
+menu=$(curl -s --max-time 15 "$BASE_URL/menu") || menu=""
+if [[ "$home" == *'href="/menu"'* && "$menu" == *'href="/register"'* && "$menu" == *'href="/map"'* \
+      && "$menu" == *'noindex'* ]]; then
+  echo "ok   header menu link → /menu with the drawer's links (noindex)"
+else
+  echo "FAIL the header should link to /menu, and /menu should list the menu (and be noindex)"; fail=1
+fi
 
 # Site icons (#114): served as images, not the 404 page; the home page links them.
 icon_check() { # path content-type-prefix
@@ -258,12 +280,6 @@ if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-0000
 else
   echo "ok   graphql brew method filter"
 fi
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?brew=espresso") || page=""
-if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000206'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
-  echo "ok   /coffees?brew=espresso lists only espresso / omni roasts"
-else
-  echo "FAIL /coffees?brew=espresso should list the blend and not the Yirgacheffe"; fail=1
-fi
 
 # Harvest year (#129–#134): the seed dates crops relative to this year, so
 # minHarvestYear = last year lists the Yirgacheffe (201, last year's crop) and
@@ -277,12 +293,6 @@ if [[ "$body" == *'"errors"'* || "$body" != *"\"id\":\"00000000-0000-4000-8000-0
 else
   echo "ok   graphql harvest year filter"
 fi
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?harvest=recent") || page=""
-if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000203'* ]]; then
-  echo "ok   /coffees?harvest=recent lists only recent crops"
-else
-  echo "FAIL /coffees?harvest=recent should list the Yirgacheffe and not the older Huila"; fail=1
-fi
 
 # Cup profile (#136–#141): maxAcidity 2 lists the seeded low-acid Huila (203)
 # and blend (206), not the bright Yirgacheffe (201) or the unset Antigua (205).
@@ -294,12 +304,6 @@ if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-0000
   echo "FAIL acidity filter: expected low-acid coffees only, got: ${body:0:300}"; fail=1
 else
   echo "ok   graphql acidity filter"
-fi
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?acidity=low") || page=""
-if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000206'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
-  echo "ok   /coffees?acidity=low lists only low-acid coffees"
-else
-  echo "FAIL /coffees?acidity=low should list the blend and not the Yirgacheffe"; fail=1
 fi
 page=$(curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201") || page=""
 if [[ "$page" == *'Acidity 4 of 5'* || "$page" == *'酸度 4 / 5'* ]]; then
@@ -327,18 +331,34 @@ if [[ "$body" == *'"errors"'* \
 else
   echo "ok   graphql sweet / body / altitude filters"
 fi
-# Scoped to the seeded Dawn Roastery by keyword: its sweet coffees are medium-bodied.
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?q=dawn&sweet=high&body=full") || page=""
-if [[ "$page" == *'Clear filters'* || "$page" == *'清除篩選'* ]] && [[ "$page" != *'/coffees/00000000-0000-4000-8000-0000000002'* ]]; then
-  echo "ok   /coffees?q=dawn&sweet=high&body=full is empty and offers Clear filters"
+# /coffees no longer offers these filters (owner, #166, #167): old links show the
+# unfiltered list, the sidebar has no such fields, and cards don't show the
+# brew method (the coffee page still does).
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?brew=espresso&harvest=recent&acidity=low&sweet=high&body=light&altitude=high&roast=dark&flavor=zzz") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" == *'/coffees/00000000-0000-4000-8000-000000000206'* \
+      && "$page" != *'name="brew"'* && "$page" != *'name="roast"'* && "$page" != *'name="acidity"'* && "$page" != *'name="body"'* \
+      && "$page" != *'name="harvest"'* && "$page" != *'name="sweet"'* && "$page" != *'name="altitude"'* && "$page" != *'name="flavor"'* \
+      && "$page" != *' · 手沖'* && "$page" != *' · Filter<'* ]]; then
+  echo "ok   /coffees ignores the removed filters and cards drop the brew method"
 else
-  echo "FAIL /coffees?q=dawn&sweet=high&body=full should be empty with a Clear filters link"; fail=1
+  echo "FAIL /coffees with old roast / brew / cup-profile params should list everything, without those fields or a brew tag"; fail=1
 fi
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?altitude=high&body=light") || page=""
-if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'/coffees/00000000-0000-4000-8000-000000000206'* ]]; then
-  echo "ok   /coffees?altitude=high&body=light lists the Yirgacheffe only"
+
+# A malformed id (#179): a truncated or hand-edited link shows the list, not the error page.
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?origin=not-a-uuid&variety=x&process=123") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'無法載入資料'* && "$page" != *'Couldn'* ]]; then
+  echo "ok   /coffees ignores malformed origin / variety / process ids"
 else
-  echo "FAIL /coffees?altitude=high&body=light should list the Yirgacheffe and not the blend"; fail=1
+  echo "FAIL /coffees?origin=not-a-uuid should list the coffees, not the error state"; fail=1
+fi
+
+# A backwards price range (#180) is read the right way round, not an error.
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?min=900&max=100") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'無法載入資料'* && "$page" != *'Couldn'* \
+      && "$page" == *'name="min"'*'value="100"'* ]]; then
+  echo "ok   /coffees?min=900&max=100 lists NT\$100–900"
+else
+  echo "FAIL /coffees?min=900&max=100 should list coffees priced 100–900, not the error state"; fail=1
 fi
 
 # Filter-option counts (#150, #151): the seed has a published Ethiopian coffee
@@ -360,13 +380,13 @@ fi
 
 # Active-filter chips + phone toggle (#152–#154): each chip links to the list
 # without its filter; the toggle counts the active filters.
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?roast=light&sweet=high") || page=""
-if [[ "$page" == *'href="/coffees?sweet=high"'* && "$page" == *'href="/coffees?roast=light"'* \
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?min=300&instock=1") || page=""
+if [[ "$page" == *'href="/coffees?instock=1"'* && "$page" == *'href="/coffees?min=300"'* \
       && ( "$page" == *'移除篩選'* || "$page" == *'Remove filter'* ) \
       && ( "$page" == *'篩選（2）'* || "$page" == *'Filters (2)'* ) ]]; then
   echo "ok   /coffees shows removable filter chips and \"Filters (2)\""
 else
-  echo "FAIL /coffees?roast=light&sweet=high should show a chip per filter and a Filters (2) toggle"; fail=1
+  echo "FAIL /coffees?min=300&instock=1 should show a chip per filter and a Filters (2) toggle"; fail=1
 fi
 
 # Shop search (#75, #76): /shops?q=晨光 lists the seeded Dawn Roastery.

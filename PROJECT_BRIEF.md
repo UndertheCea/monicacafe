@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-09 (after Session 27)
+Last updated: 2026-11-09 (after Session 28)
 
 ---
 
@@ -40,13 +40,13 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
 | Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
-| Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, cards, `?brew=` on /coffees + shop pages, similar coffees | Done (#122–#127) |
-| Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, `?harvest=recent` on /coffees + shop pages, keyword search | Done (#129–#134) |
-| Cup profile (酸度 / 甜度 / 醇厚度, 1–5): API + `maxAcidity` filter, dashboard form, coffee page scales + JSON-LD, `?acidity=low` on /coffees + shop pages, similar coffees | Done (#136–#141) |
-| Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API; `?sweet=high`, `?body=light\|full`, `?altitude=high` on /coffees + shop pages; "Clear filters" on an empty /coffees | Done (#143–#148) |
+| Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, similar coffees (no longer a /coffees filter or on cards, #167) | Done (#122–#127) |
+| Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, keyword search | Done (#129–#134) |
+| Cup profile (酸度 / 甜度 / 醇厚度, 1–5): API + `maxAcidity` filter, dashboard form, coffee page scales + JSON-LD | Done (#136–#141) |
+| Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API only (site dropped them, #167); "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
-| Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
+| Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Skip-to-content link, one `main` landmark per page | Done (#85) |
@@ -67,26 +67,27 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Postgres pool cap + statement timeout from env | Done (#52) |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
 | nginx: gzip for text responses, no server version | Done (#64) |
+| Header below `lg`: menu button → navigation drawer (shared `Drawer`), search icon panel, `/menu` no-JS fallback | Done (#175) |
+| Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line, no tagline, #164), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 27**: shop pages are curated by the seller. Buyer search, filters and sort are gone (#160). There's a
-seller-defined order (`shop_position`, `reorderShopCoffees`, `SHOP_ORDER` default, #161) with ↑ / ↓ in the dashboard
-(#162). Sold-out coffees move to a greyed "已售完 · 封存" archive (`inStock: false`, #163). The wordmark has no tagline
-and reads "moni cafe" at one size (#164). /coffees keeps its sidebar from 768 px, with a shared `Drawer` below that
-(#165). Verified with race tests on PostgreSQL, smoke (except `/media/`) and Playwright at 390–1280 px.
+**Session 28**: /coffees filters on origin, variety, process, price and in stock only (#167, owner #166). Cards show just the
+roast, and "similar" ignores acidity. Below `lg` the header is one row: a menu button opens a navigation drawer, with
+`/menu` as the no-JS fallback (#175). /coffees and /shops render without JavaScript, because their loading boundaries
+are gone (#156). There's dev-only reference-shop scaffolding with a gap report (#169). Junk ids and backwards price
+ranges no longer show the error page (#179, #180). Verified with race tests, smoke (except `/media/`) and Playwright.
 
 ## Current focus
 
-1. **#167** (p1): carry out the owner's answer on #166. /coffees keeps search, sort, origin, variety, process, price
-   and in stock. Cards lose the brew tag. The API filters stay. Rewrite the related Decisions below.
-2. **#175** (p1): navigation drawer below `lg`. Reuse `components/Drawer.tsx`. The phone header still wraps to two rows.
-3. p2: **#156** (list pages invisible without JS; this also hides #165's no-JS fallback), **#169** → **#174**
-   (reference-shop scaffolding, then missing origins / varieties / processes). #170–#173 need the roaster domains
-   reachable (see #168: the proxy still answers 403).
-4. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12. Production: set `TRUSTED_PROXIES` to the real proxies
+1. **#181** (p2): at least one flavour note is required (API + forms). **#182** (p2): dashboard forms group the
+   essentials first and fold the rest. Both build on #176's safe default; adjust them if the owner answers differently.
+2. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
+   reachable (#168: the proxy still answers 403). The frame is ready: add rows to `scripts/seed_reference.sql`, then
+   run `./scripts/reference_gaps.sh`.
+3. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12. Production: set `TRUSTED_PROXIES` to the real proxies
    only, and keep `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
 Open questions for the owner (answer by commenting on the issue):
@@ -102,8 +103,8 @@ Open questions for the owner (answer by commenting on the issue):
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
 | #159 | Header tagline | dropped from the header (built) | yes |
-| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped | yes |
-| #177 | Nav drawer widths | below `lg` only | yes |
+| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped (#181, #182) | yes |
+| #177 | Nav drawer widths | below `lg` only (built, #175) | yes |
 
 ## Decisions (why it looks like this)
 
@@ -140,8 +141,9 @@ Open questions for the owner (answer by commenting on the issue):
   images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.
 - **Next.js 16 after Stage 1** — owner's answer on #11; done in Session 10 (#35).
-- **Loading skeletons only on list pages** — a loading boundary above a detail page streams the response, so
-  `notFound()` can't set a 404; list pages sit in `(list)` route groups instead.
+- **No loading boundaries (#156)** — a `loading.tsx` makes Next stream the page into hidden placeholders that only an
+  inline script reveals, so without JavaScript /coffees and /shops showed a skeleton forever. Header and pagination links
+  show a pending dot (`useLinkStatus`) instead; a test keeps `loading.*` out of `app/`.
 - **Comment pages by offset, not cursor** — simple; "load more" dedupes by id, so a new comment can't show twice.
   The dashboard coffee list pages the same way (#49).
 - **Price sort = cheapest available, in-stock variant; sold-out last** — matches the "from NT$…" on cards (#44).
@@ -172,27 +174,31 @@ Open questions for the owner (answer by commenting on the issue):
   owners can't follow themselves, so the count means other people (#102).
 - **Provenance as plain columns, altitude in metres, set as a pair** — producer / region are free text (≤ 100) rather than
   curated lists (farms are too many); altitude min alone = one height; updates replace both ends so max ≥ min holds (#116).
-- **Brew method: one value per coffee, omni = both** — how roasters label bags; a filter or espresso search also lists
-  omni roasts, and in "similar" a shared brew method only reorders coffees that already qualify (#122, #123, #127).
-- **Harvest year: one year per coffee, no future crops; "recent" = this and last year** — matches the bag label; green
-  coffee ships for a year or more after harvest, so last year's crop is often the current one (#129, #133).
-- **Cup profile: three 1–5 scales set as a group; "low acidity" = 1–2** — matches how bags and menus print 酸度 / 甜度 /
-  醇厚度; a group avoids GraphQL's null-vs-absent ambiguity per field (#136, #140).
-- **Taste and altitude filters use the outer steps: sweet = 4–5, light / full body = 1–2 / 4–5; high-grown = 1,500 m+ by
-  the top of the range** — mirrors "low acidity"; one checkbox or select each keeps the sidebar short (#145, #146).
+- **Brew method, harvest year and cup profile are listing details, not /coffees filters** — one brew method per coffee
+  (omni = both), one harvest year (no future crops), three 1–5 scales set as a group, as bags print them (#122, #129,
+  #136). They show on the coffee page and in JSON-LD. The API keeps every filter (`brewMethod`, `minHarvestYear`,
+  `maxAcidity`, `minSweetness`, `minBody` / `maxBody`, `minAltitudeM`, `roastLevel`, `flavorNote`), but the site no longer
+  offers them: the owner reversed #127 / #133 / #140 / #145 / #146 on #166 because each shop rates these by its own
+  standard. For the same reason "similar" no longer compares acidity; a shared brew method still reorders (#167).
 - **Filter options = values with published coffees, counted catalogue-wide; chips are plain links** — hidden, not greyed,
   and the selected one always stays; counts ignore the other filters (no per-combination facet queries); the phone
   toggle is CSS-only (checkbox + label) so nothing depends on hydration (#151–#153).
 - **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
   colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).
-- **/coffees filters trimmed to origin / variety / process / price / in stock (owner, #166)**: each shop rates cup
-  profile, roast and brew by its own standard, so filtering across shops on them misleads. The API keeps every filter,
-  and cards drop the brew tag. The work is #167. Keyword search stays unless the owner says otherwise.
+- **/coffees filters = origin / variety / process / price / in stock (owner, #166; built #167)**: each shop rates cup
+  profile, roast and brew by its own standard, so filtering across shops on them misleads. Old links with the removed
+  params show the unfiltered list; cards show only the roast. Keyword search and sort stay.
 - **Reference roasters' lists come over the network (owner, #168 (a))**: the environment's allow-list gets
   lab19coffee.com, seycoffee.com, pomacoffee.com and onyxcoffeelab.com. Until sessions can reach them, #170–#173 stay
   blocked.
 - **Shop pages are the seller's storefront (#158 defaults)**: no buyer controls. The order is the seller's
   (`shop_position`, new coffees at the end, not unique, rewritten as a whole). Sold out = no available option with
   stock, shown in an archive below, and nothing changes on /coffees. Reordering doesn't touch `updated_at` (#160–#163).
+- **Reference shops are dev-only seed data, one account each (#169)**: `shops.owner_id` is unique, so each reference shop has
+  its own `reference+<slug>@monicacafe.local` account that can't log in. Raw values are matched to our tables (names in
+  English or Chinese, or an alias). An unmatched origin or process skips the coffee, and the gap report lists every miss.
+  No prices or photos are copied, so the coffees read as sold out.
+- **Navigation drawer below `lg` only (#177 default, #175)**: the full header row fits from 1024 px. The drawer's menu
+  comes from `lib/navMenu.ts`. Without JS the button is a link to `/menu`.
 - **One `Drawer` (modal `<dialog>`) for side panels**: the browser gives focus trapping, Esc and an inert page. A closed
   dialog is shown inline by CSS where the content is a sidebar, so the same markup serves both (#165).

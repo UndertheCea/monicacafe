@@ -1,0 +1,51 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
+import { t, type Locale } from "@/lib/i18n/dict";
+import { HeaderSearch, HeaderSearchForm } from "./HeaderSearch";
+
+/**
+ * Below lg (#175): a search icon in the header that unfolds the header search
+ * in a full-width panel under it. A native <details>, so it opens without
+ * JavaScript too; with it, the field is focused on open and the panel closes
+ * after a search or a navigation.
+ */
+export function SearchToggle({ locale }: { locale: Locale }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDetailsElement>(null);
+  const pathname = usePathname();
+  const [shownFor, setShownFor] = useState(pathname);
+  if (shownFor !== pathname) {
+    setShownFor(pathname);
+    setOpen(false);
+  }
+
+  return (
+    <details
+      ref={ref}
+      open={open}
+      onToggle={(e) => {
+        const isOpen = e.currentTarget.open;
+        setOpen(isOpen);
+        if (isOpen) e.currentTarget.querySelector("input")?.focus();
+      }}
+      className="lg:hidden"
+    >
+      <summary
+        aria-label={t(locale, "nav.searchOpen")}
+        className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full border border-neutral-300 text-ink hover:border-ink [&::-webkit-details-marker]:hidden"
+      >
+        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+          <circle cx="8.5" cy="8.5" r="5.25" />
+          <path d="M12.5 12.5 17 17" strokeLinecap="round" />
+        </svg>
+      </summary>
+      <div className="absolute inset-x-0 top-full border-b border-neutral-200 bg-white px-4 py-3">
+        <Suspense fallback={<HeaderSearchForm locale={locale} variant="panel" />}>
+          <HeaderSearch locale={locale} variant="panel" onDone={() => setOpen(false)} />
+        </Suspense>
+      </div>
+    </details>
+  );
+}

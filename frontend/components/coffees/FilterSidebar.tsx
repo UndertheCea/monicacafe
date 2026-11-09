@@ -4,6 +4,7 @@ import {
   ROAST_LEVELS,
   type CoffeeFilter,
   type CoffeeVariety,
+  type Counted,
   type OriginCountry,
   type ProcessingMethod,
 } from "@/lib/api";
@@ -18,15 +19,16 @@ import {
   recentHarvestFrom,
   type SortParam,
 } from "@/lib/coffeeQuery";
+import { groupByRegion, optionsWithCoffees } from "@/lib/filterOptions";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 
 interface Props {
   locale: Locale;
   filter: CoffeeFilter;
   sort: SortParam;
-  origins: OriginCountry[];
-  varieties: CoffeeVariety[];
-  methods: ProcessingMethod[];
+  origins: Counted<OriginCountry>[];
+  varieties: Counted<CoffeeVariety>[];
+  methods: Counted<ProcessingMethod>[];
 }
 
 const fieldCls =
@@ -35,9 +37,12 @@ const labelCls = "block text-xs font-semibold uppercase tracking-wide text-neutr
 
 // Plain GET form: works without JavaScript and keeps filters in the URL.
 export function FilterSidebar({ locale, filter, sort, origins, varieties, methods }: Props) {
-  // Group origins by region for an <optgroup> per continent.
-  const regions = new Map<string, OriginCountry[]>();
-  for (const o of origins) regions.set(o.region, [...(regions.get(o.region) ?? []), o]);
+  // Only values with published coffees (plus whatever the URL selects), with
+  // their counts; origins in an <optgroup> per continent.
+  const regions = groupByRegion(optionsWithCoffees(origins, filter.originCountryId));
+  const shownVarieties = optionsWithCoffees(varieties, filter.varietyId);
+  const shownMethods = optionsWithCoffees(methods, filter.processingMethodId);
+  const counted = (name: string, n: number) => t(locale, "filter.optionCount", { name, n });
 
   return (
     <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
@@ -70,11 +75,11 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         <span className={labelCls}>{t(locale, "filter.origin")}</span>
         <select name="origin" defaultValue={filter.originCountryId ?? ""} className={fieldCls}>
           <option value="">{t(locale, "filter.any")}</option>
-          {[...regions].map(([region, list]) => (
+          {regions.map(([region, list]) => (
             <optgroup key={region} label={region}>
               {list.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {pick(locale, `${o.nameZh} ${o.nameEn}`, o.nameEn)}
+                  {counted(pick(locale, `${o.nameZh} ${o.nameEn}`, o.nameEn), o.coffeeCount)}
                 </option>
               ))}
             </optgroup>
@@ -86,9 +91,9 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         <span className={labelCls}>{t(locale, "filter.variety")}</span>
         <select name="variety" defaultValue={filter.varietyId ?? ""} className={fieldCls}>
           <option value="">{t(locale, "filter.any")}</option>
-          {varieties.map((v) => (
+          {shownVarieties.map((v) => (
             <option key={v.id} value={v.id}>
-              {v.name}
+              {counted(v.name, v.coffeeCount)}
             </option>
           ))}
         </select>
@@ -98,9 +103,9 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         <span className={labelCls}>{t(locale, "filter.process")}</span>
         <select name="process" defaultValue={filter.processingMethodId ?? ""} className={fieldCls}>
           <option value="">{t(locale, "filter.any")}</option>
-          {methods.map((m) => (
+          {shownMethods.map((m) => (
             <option key={m.id} value={m.id}>
-              {pick(locale, `${m.nameZh} ${m.nameEn}`, m.nameEn)}
+              {counted(pick(locale, `${m.nameZh} ${m.nameEn}`, m.nameEn), m.coffeeCount)}
             </option>
           ))}
         </select>

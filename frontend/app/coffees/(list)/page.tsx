@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { COFFEES, FILTER_OPTIONS } from "@/lib/api";
+import { BROWSE_FILTER_OPTIONS, COFFEES } from "@/lib/api";
 import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
@@ -24,7 +24,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   let data;
   try {
     const [options, list] = await Promise.all([
-      query(FILTER_OPTIONS),
+      query(BROWSE_FILTER_OPTIONS),
       query(COFFEES, { filter, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     ]);
     data = { options, list: list.coffees };

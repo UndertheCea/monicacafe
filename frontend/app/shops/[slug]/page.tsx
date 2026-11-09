@@ -3,33 +3,15 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { SHOP, type CoffeeFilter } from "@/lib/api";
+import { SHOP } from "@/lib/api";
 import { PAGE_SIZE, parsePage, type SearchParams } from "@/lib/coffeeFilters";
-import {
-  parseAltitudeParam,
-  parseBrewParam,
-  parseHarvestParam,
-  parseAcidityParam,
-  parseBodyParam,
-  parseRoastParam,
-  parseSearchParam,
-  parseSortParam,
-  parseSweetParam,
-  shopCoffeeFilter,
-  shopCoffeesHref,
-  sortForApi,
-  type SortParam,
-} from "@/lib/coffeeQuery";
-import { filterChips } from "@/lib/filterChips";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
-import { FilterChips } from "@/components/coffees/FilterChips";
 import { FollowButton } from "@/components/shops/FollowButton";
-import { ShopCoffeesForm } from "@/components/shops/ShopSortForm";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
@@ -38,42 +20,20 @@ type Params = Promise<{ slug: string }>;
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Primitive arguments only: cache() matches calls by argument identity, so the
-// filter travels as JSON (shopFilter builds it with a stable key order).
-const loadShop = cache(async (slug: string, page: number, sort: SortParam, filterJson: string) =>
+// The shop page is the seller's storefront, not a search page (#158, #160):
+// no buyer search, filters or sort. Old links with ?q / ?roast / ?sort … just
+// show the full lineup; only ?page is read.
+const loadShop = cache(async (slug: string, page: number) =>
   SLUG_RE.test(slug)
     ? (
         await query(SHOP, {
           slug,
-          filter: JSON.parse(filterJson) as CoffeeFilter,
-          sort: sortForApi(sort),
           limit: PAGE_SIZE,
           offset: (page - 1) * PAGE_SIZE,
         })
       ).shop
     : null,
 );
-
-/** The shop page's list options from the URL (same parsing as /coffees). */
-function listOptions(sp: SearchParams) {
-  return {
-    page: parsePage(sp),
-    sort: parseSortParam(sp.sort),
-    q: parseSearchParam(sp.q),
-    roast: parseRoastParam(sp.roast),
-    brew: parseBrewParam(sp.brew),
-    harvest: parseHarvestParam(sp.harvest),
-    lowAcid: parseAcidityParam(sp.acidity),
-    sweet: parseSweetParam(sp.sweet),
-    body: parseBodyParam(sp.body),
-    highGrown: parseAltitudeParam(sp.altitude),
-  };
-}
-
-/** The API filter for the shop page's options (blank ones left out). */
-function shopFilter(o: ReturnType<typeof listOptions>): CoffeeFilter {
-  return shopCoffeeFilter(o);
-}
 
 export async function generateMetadata({
   params,
@@ -84,14 +44,14 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
   try {
-    const opts = listOptions(sp);
-    const shop = await loadShop(slug, opts.page, opts.sort, JSON.stringify(shopFilter(opts)));
+    const page = parsePage(sp);
+    const shop = await loadShop(slug, page);
     if (!shop) return { title: t(locale, "shops.notFound") };
     return {
       title: shop.name,
       ...shareMetadata({
         base: siteBase(process.env.SITE_URL),
-        path: `/shops/${shop.slug}${opts.page > 1 ? `?page=${opts.page}` : ""}`,
+        path: `/shops/${shop.slug}${page > 1 ? `?page=${page}` : ""}`,
         title: shop.name,
         description: shop.description,
         images: [shop.bannerUrl, shop.logoUrl],
@@ -111,14 +71,11 @@ export default async function ShopPage({
   searchParams: Promise<SearchParams>;
 }) {
   const [{ slug }, sp, locale] = await Promise.all([params, searchParams, getLocale()]);
-  const opts = listOptions(sp);
-  const { page, sort, q, roast, brew, harvest, lowAcid, sweet, body, highGrown } = opts;
-  const filter = shopFilter(opts);
-  const filtering = Object.keys(filter).length > 0;
+  const page = parsePage(sp);
 
   let shop;
   try {
-    shop = await loadShop(slug, page, sort, JSON.stringify(filter));
+    shop = await loadShop(slug, page);
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
@@ -126,8 +83,7 @@ export default async function ShopPage({
 
   const pages = Math.max(1, Math.ceil(shop.coffees.total / PAGE_SIZE));
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-  // A filtered list isn't the shop's catalogue, so it's left out there.
-  const jsonLd = shopJsonLd(shop, filtering ? [] : shop.coffees.nodes, siteBase(process.env.SITE_URL));
+  const jsonLd = shopJsonLd(shop, shop.coffees.nodes, siteBase(process.env.SITE_URL));
 
   return (
     <div>
@@ -156,52 +112,16 @@ export default async function ShopPage({
         )}
 
         <section className="mt-10 pb-12" aria-labelledby="shop-coffees">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-baseline gap-3">
-              <h2 id="shop-coffees" className="text-xl font-bold text-ink">
-                {t(locale, "shops.coffees")}
-              </h2>
-              <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
-            </div>
-            {(shop.coffeeCount > 1 || filtering) && (
-              <ShopCoffeesForm
-                locale={locale}
-                sort={sort}
-                q={q}
-                roast={roast}
-                brew={brew}
-                harvest={harvest}
-                lowAcid={lowAcid}
-                sweet={sweet}
-                body={body}
-                highGrown={highGrown}
-                action={`/shops/${shop.slug}`}
-              />
-            )}
+          <div className="mb-4 flex flex-wrap items-baseline gap-3">
+            <h2 id="shop-coffees" className="text-xl font-bold text-ink">
+              {t(locale, "shops.coffees")}
+            </h2>
+            <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
           </div>
-          {q && (
-            <p className="mb-4 text-sm font-semibold text-ink" aria-live="polite">
-              {t(locale, "shops.coffeeResults", { q })}
-            </p>
-          )}
-
-          <FilterChips
-            locale={locale}
-            chips={filterChips(filter, sp, `/shops/${shop.slug}`)}
-            clearHref={shopCoffeesHref(shop.slug, { q, sort })}
-          />
 
           {shop.coffees.nodes.length === 0 ? (
             <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
-              <p>{filtering ? t(locale, "shops.noMatches") : t(locale, "shops.noCoffees")}</p>
-              {filtering && (
-                <Link
-                  href={shopCoffeesHref(shop.slug, { sort })}
-                  className="mt-4 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
-                >
-                  {t(locale, "shops.clearFilters")}
-                </Link>
-              )}
+              <p>{t(locale, "shops.noCoffees")}</p>
             </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -211,7 +131,7 @@ export default async function ShopPage({
             </div>
           )}
 
-          <Pagination locale={locale} sp={sp} page={page} pages={pages} base={`/shops/${shop.slug}`} />
+          <Pagination locale={locale} sp={{}} page={page} pages={pages} base={`/shops/${shop.slug}`} />
 
           <Link href="/shops" className="mt-8 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
             {t(locale, "shops.back")}

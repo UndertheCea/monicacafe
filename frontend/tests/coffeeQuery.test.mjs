@@ -22,7 +22,6 @@ import {
   parseSortParam,
   recentHarvestFrom,
   searchHref,
-  shopCoffeesHref,
   sortForApi,
 } from "../lib/coffeeQuery.ts";
 
@@ -97,26 +96,6 @@ test("parseRoastParam accepts the four roasts, any case", () => {
     ["light;", undefined],
   ];
   for (const [input, want] of cases) assert.equal(parseRoastParam(input), want, JSON.stringify(input));
-});
-
-test("shopCoffeesHref keeps search, roast and sort; drops defaults", () => {
-  const cases = [
-    [{}, "/shops/beans"],
-    [{ q: "  ", sort: "" }, "/shops/beans"],
-    [{ roast: "LIGHT" }, "/shops/beans?roast=LIGHT"],
-    [{ q: "花香 berry", roast: "DARK", sort: "price_asc" }, "/shops/beans?q=%E8%8A%B1%E9%A6%99+berry&roast=DARK&sort=price_asc"],
-    [{ sort: "discussed" }, "/shops/beans?sort=discussed"],
-    [{ roast: "LIGHT", brew: "ESPRESSO" }, "/shops/beans?roast=LIGHT&brew=espresso"],
-    [{ harvest: true, sort: "saved" }, "/shops/beans?harvest=recent&sort=saved"],
-    [{ harvest: false }, "/shops/beans"],
-    [{ lowAcid: true, harvest: true }, "/shops/beans?harvest=recent&acidity=low"],
-    [{ lowAcid: false }, "/shops/beans"],
-    [{ sweet: true, body: "full" }, "/shops/beans?sweet=high&body=full"],
-    [{ highGrown: true, body: "light" }, "/shops/beans?body=light&altitude=high"],
-    [{ highGrown: false }, "/shops/beans"],
-    [{ lowAcid: true, sweet: false, body: "light", sort: "price_asc" }, "/shops/beans?acidity=low&body=light&sort=price_asc"],
-  ];
-  for (const [input, want] of cases) assert.equal(shopCoffeesHref("beans", input), want, JSON.stringify(input));
 });
 
 test("parseBrewParam accepts filter / espresso / omni, any case; brewParam is lowercase", () => {

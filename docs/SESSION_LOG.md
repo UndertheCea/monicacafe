@@ -15,6 +15,50 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 26 — 2026-11-09 — Filter options with coffees, active-filter chips, phone filter toggle
+PR: #PRNUM
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no owner answers on any question), so
+the six below were filed from gaps in browsing: the /coffees sidebar listed every curated origin, variety and
+process (most with no coffees, so picking one gave an empty page), and on phones the ~15-control form sat above
+the results with nothing showing which filters were narrowing the list.
+
+### Shipped (one line per slice: area — what — key files)
+- #150 backend — `coffeeCount: Int!` on `OriginCountry`, `CoffeeVariety`, `ProcessingMethod` (published coffees only):
+  one `GROUPING SETS` query per request via a new `onceLoader` on the request-scoped Loaders; resolvers forced in
+  `gqlgen.yml` (`store.PublishedCoffeeCountsByReference`, `graph/loaders.go`)
+- #151 frontend — /coffees sidebar uses `BROWSE_FILTER_OPTIONS` (with counts) and lists only values with coffees plus
+  whatever the URL selects, as "Ethiopia (3)"; empty region optgroups go; dashboard forms keep the full lists
+  (`lib/filterOptions.ts`)
+- #152 frontend — removable chips above /coffees results, one per active filter (price = one chip), each a plain link
+  without that filter (page reset, search + sort kept); "Clear all" for 2+ (`lib/filterChips.ts`,
+  `components/coffees/FilterChips.tsx`)
+- #153 frontend — below `lg` the filter form folds behind a "Filters (N)" toggle (visually hidden checkbox + label,
+  pure CSS); N = `activeFilterCount()` (`components/coffees/FilterPanel.tsx`)
+- #154 frontend — the same chips on shop pages; the page's filter builder moved to `shopCoffeeFilter()` in
+  `lib/coffeeQuery.ts` so it's tested
+- #155 cross-cutting — smoke: `coffeeCount` (Ethiopia ≥ 1, Rwanda 0), Rwanda absent from the /coffees origin select,
+  chips + "Filters (2)" on /coffees, chips on a shop page
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16
+  (migrations + seed). New: `TestAddReferenceCount`, `TestOnceLoader` (concurrent callers, shared error),
+  `TestReferenceCoffeeCount` (published vs draft, a coffee without variety, anon + owner).
+- Frontend: tsc, lint, `npm test` (172; new `filterOptions.test.mjs`, `filterChips.test.mjs`), `next build`;
+  `docker compose config`, `check_brief.sh`.
+- API binary + `next start` on a fresh seeded DB: `scripts/smoke.sh` all ok incl. the four new checks, except
+  `/media/` (no nginx / SeaweedFS here). Playwright: desktop sidebar + chips, iPhone 13 collapsed / opened toggle,
+  shop page chips. Not run: `docker compose up` (no Docker daemon; CI's stack job covers it).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Options with no published coffees are hidden rather than greyed out; the selected one always stays. Counts are
+  catalogue-wide, not narrowed by the other active filters (true facets would need a query per filter combination).
+- The phone toggle is a checkbox + label, not `<details>`: Chromium kept a closed `<details>`' content at zero height
+  on desktop even with `::details-content { content-visibility: visible }`, and this needs no JavaScript.
+- Found, not fixed: /coffees doesn't render without JavaScript, because its `(list)` loading boundary streams the
+  results inside a hidden Suspense placeholder. Pre-existing; filed as #156.
+- No new owner questions.
+
 ## Session 25 — 2026-11-09 — Sweet, body and high-grown filters
 PR: #149
 

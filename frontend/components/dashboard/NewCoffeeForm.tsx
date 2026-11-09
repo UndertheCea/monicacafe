@@ -10,12 +10,15 @@ import {
   LIMITS,
   apiDetailsProblem,
   coffeeDetailsProblem,
+  filledOptionalCount,
+  isOptionalProblem,
   parseAltitude,
   parseHarvestYear,
   cupProfileFromForm,
   parseFlavorNotes,
   parseWhole,
   variantProblems,
+  type OptionalDetails,
   type VariantDraft,
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
@@ -23,6 +26,7 @@ import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
 import { CupProfileFields } from "./CupProfileFields";
 import { FlavorNotesField } from "./FlavorNotesField";
+import { MoreDetails } from "./MoreDetails";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -31,6 +35,24 @@ export const GRINDS: GrindOption[] = ["WHOLE_BEAN", "COARSE", "MEDIUM", "FINE", 
 
 type Options = Awaited<ReturnType<typeof loadOptions>>;
 const loadOptions = () => query(FILTER_OPTIONS);
+
+/** The folded optional fields as the new-coffee form holds them (named inputs). */
+function optionalFromForm(fd: FormData): OptionalDetails {
+  const get = (k: string) => String(fd.get(k) ?? "");
+  return {
+    description: get("description"),
+    varietyId: get("variety") || null,
+    producer: get("producer"),
+    region: get("region"),
+    altitudeMin: get("altitudeMin"),
+    altitudeMax: get("altitudeMax"),
+    brewMethod: get("brew") || null,
+    harvestYear: get("harvestYear"),
+    acidity: get("acidity"),
+    sweetness: get("sweetness"),
+    body: get("body"),
+  };
+}
 
 const emptyRow = (): VariantDraft => ({ grind: "WHOLE_BEAN", weightG: "200", priceTwd: "", stock: "0" });
 
@@ -42,6 +64,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   const [rows, setRows] = useState<VariantDraft[]>([emptyRow()]);
   const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [filled, setFilled] = useState(0);
 
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
@@ -94,6 +118,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       ROAST_LEVELS,
     );
     if (detailsProblem) {
+      if (isOptionalProblem(detailsProblem)) setMoreOpen(true);
       return setError({ key: detailsErrorKey(detailsProblem), vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
     }
     const altitude = parseAltitude(altitudeMin, altitudeMax);
@@ -133,13 +158,15 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       router.push("/dashboard");
     } catch (err) {
       const e2 = toApiError(err);
-      const key =
+      const detailsField =
         e2.code === "BAD_USER_INPUT" && [
           "flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear",
           "cupProfile", "acidity", "sweetness", "body",
-        ].includes(e2.field ?? "")
-          ? detailsErrorKey(apiDetailsProblem(e2.field, notes.length))
-          : "cf.error.generic";
+        ].includes(e2.field ?? "");
+      const problem = detailsField ? apiDetailsProblem(e2.field, notes.length) : null;
+      // producer / region live in the fold too, though they map to "required".
+      if (isOptionalProblem(problem) || e2.field === "producer" || e2.field === "region") setMoreOpen(true);
+      const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);
     }
@@ -161,10 +188,19 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   );
 
   return (
-    <form onSubmit={onSubmit} noValidate className="space-y-6">
+    <form
+      onSubmit={onSubmit}
+      onChange={(e) => setFilled(filledOptionalCount(optionalFromForm(new FormData(e.currentTarget))))}
+      noValidate
+      className="space-y-6"
+    >
       {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
 
       <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <h2 className="text-lg font-bold text-ink">{t(locale, "cf.essentials")}</h2>
+          <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
+        </div>
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.name")} *
           <input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className={inputCls} />
@@ -179,16 +215,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           "cf.process",
           opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
         )}
-        {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })), false)}
         {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })))}
-        {select("brew", "cf.brew", brewOptions(locale), false)}
         <FlavorNotesField locale={locale} error={error?.key} />
-        <ProvenanceFields locale={locale} />
-        <CupProfileFields locale={locale} />
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.description")}
-          <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
-        </label>
       </section>
 
       <section className="rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
@@ -247,6 +275,17 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           {t(locale, "cf.addRow")}
         </button>
       </section>
+
+      <MoreDetails locale={locale} filled={filled} open={moreOpen} onOpenChange={setMoreOpen}>
+        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+          {t(locale, "cf.description")}
+          <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
+        </label>
+        {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })), false)}
+        {select("brew", "cf.brew", brewOptions(locale), false)}
+        <ProvenanceFields locale={locale} />
+        <CupProfileFields locale={locale} />
+      </MoreDetails>
 
       <div className="flex items-center gap-4">
         <button

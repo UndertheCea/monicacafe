@@ -179,6 +179,36 @@ export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly str
   return null;
 }
 
+/** The fields folded under "More details (optional)" on the coffee forms (#182). */
+export type OptionalDetails = Pick<
+  CoffeeDetails,
+  | "description" | "varietyId" | "producer" | "region" | "altitudeMin" | "altitudeMax"
+  | "brewMethod" | "harvestYear" | "acidity" | "sweetness" | "body"
+>;
+
+/**
+ * How many optional details are filled in, for the "More details" summary.
+ * The altitude pair counts once, and so do the three cup scales.
+ */
+export function filledOptionalCount(d: OptionalDetails): number {
+  const blank = (s: string | null) => !s || !s.trim();
+  return [
+    !blank(d.description),
+    !blank(d.varietyId),
+    !blank(d.producer),
+    !blank(d.region),
+    !blank(d.altitudeMin) || !blank(d.altitudeMax),
+    !blank(d.brewMethod),
+    !blank(d.harvestYear),
+    cupProfileFromForm(d) !== null,
+  ].filter(Boolean).length;
+}
+
+/** Problems whose fields live under "More details", so the fold opens to show them. */
+export function isOptionalProblem(p: CoffeeDetailsProblem | null): boolean {
+  return p === "altitude" || p === "harvest" || p === "cup";
+}
+
 /**
  * Which details problem a BAD_USER_INPUT error's `field` points at. `notesSent`
  * is how many flavour notes the request carried: none means the API refused an

@@ -842,6 +842,12 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 	if out.MinBody != nil && out.MaxBody != nil && *out.MinBody > *out.MaxBody {
 		return out, errBadInput("minBody", "minBody must not exceed maxBody")
 	}
+	if f.MinAltitudeM != nil {
+		if m := *f.MinAltitudeM; m < 0 || m > maxAltitudeM {
+			return out, errBadInput("minAltitudeM", fmt.Sprintf("minAltitudeM must be 0–%d", maxAltitudeM))
+		}
+		out.MinAltitudeM = f.MinAltitudeM
+	}
 	if out.MinPriceTWD != nil && out.MaxPriceTWD != nil && *out.MinPriceTWD > *out.MaxPriceTWD {
 		return out, errBadInput("minPriceTwd", "minPriceTwd must not exceed maxPriceTwd")
 	}

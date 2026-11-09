@@ -49,6 +49,7 @@ type CoffeeFilter struct {
 	MinSweetness       *int        `json:"minSweetness,omitempty"`
 	MinBody            *int        `json:"minBody,omitempty"`
 	MaxBody            *int        `json:"maxBody,omitempty"`
+	MinAltitudeM       *int        `json:"minAltitudeM,omitempty"`
 }
 
 type CoffeeVariety struct {

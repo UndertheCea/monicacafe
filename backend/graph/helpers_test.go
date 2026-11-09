@@ -208,6 +208,11 @@ func TestStoreFilter(t *testing.T) {
 		{"min body 0", model.CoffeeFilter{MinBody: ip(0)}, "minBody"},
 		{"max body 6", model.CoffeeFilter{MaxBody: ip(6)}, "maxBody"},
 		{"body inverted", model.CoffeeFilter{MinBody: ip(4), MaxBody: ip(2)}, "minBody"},
+		{"altitude 0", model.CoffeeFilter{MinAltitudeM: ip(0)}, ""},
+		{"altitude 1500", model.CoffeeFilter{MinAltitudeM: ip(1500)}, ""},
+		{"altitude 6000", model.CoffeeFilter{MinAltitudeM: ip(6000)}, ""},
+		{"altitude -1", model.CoffeeFilter{MinAltitudeM: ip(-1)}, "minAltitudeM"},
+		{"altitude 6001", model.CoffeeFilter{MinAltitudeM: ip(6001)}, "minAltitudeM"},
 	} {
 		f, err := storeFilter(&tc.in)
 		if tc.wantField != "" {
@@ -221,7 +226,8 @@ func TestStoreFilter(t *testing.T) {
 			continue
 		}
 		same := func(a, b *int) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
-		if !same(f.MinSweetness, tc.in.MinSweetness) || !same(f.MinBody, tc.in.MinBody) || !same(f.MaxBody, tc.in.MaxBody) {
+		if !same(f.MinSweetness, tc.in.MinSweetness) || !same(f.MinBody, tc.in.MinBody) || !same(f.MaxBody, tc.in.MaxBody) ||
+			!same(f.MinAltitudeM, tc.in.MinAltitudeM) {
 			t.Errorf("%s: got sweet %v body %v–%v", tc.name, f.MinSweetness, f.MinBody, f.MaxBody)
 		}
 	}

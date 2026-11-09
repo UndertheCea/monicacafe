@@ -99,6 +99,9 @@ type CoffeeFilter struct {
 	// the body. A coffee without that scale never matches.
 	MinSweetness     *int
 	MinBody, MaxBody *int
+	// MinAltitudeM keeps coffees whose top growing altitude (the max, or the
+	// single height) is at least this; a coffee without one never matches.
+	MinAltitudeM *int
 	// IncludeUnpublished also returns drafts; only set for the owning seller.
 	IncludeUnpublished bool
 }
@@ -168,6 +171,9 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	if f.MaxBody != nil {
 		add("c.body <= $%d", *f.MaxBody)
+	}
+	if f.MinAltitudeM != nil {
+		add("COALESCE(c.altitude_max_m, c.altitude_min_m) >= $%d", *f.MinAltitudeM)
 	}
 	if f.InStock {
 		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")

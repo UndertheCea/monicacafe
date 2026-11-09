@@ -2136,6 +2136,10 @@ input CoffeeFilter {
   # not exceed maxBody). Coffees without that scale never match.
   minBody: Int
   maxBody: Int
+  # Only coffees grown at or above this altitude in metres (0–6000), judged
+  # by the top of the coffee's range (or its single height). Coffees without
+  # an altitude never match.
+  minAltitudeM: Int
 }
 
 input AddCommentInput {
@@ -13779,7 +13783,7 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear", "maxAcidity", "minSweetness", "minBody", "maxBody"}
+	fieldsInOrder := [...]string{"originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNote", "search", "minPriceTwd", "maxPriceTwd", "inStock", "brewMethod", "minHarvestYear", "maxAcidity", "minSweetness", "minBody", "maxBody", "minAltitudeM"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13891,6 +13895,13 @@ func (ec *executionContext) unmarshalInputCoffeeFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.MaxBody = data
+		case "minAltitudeM":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("minAltitudeM"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.MinAltitudeM = data
 		}
 	}
 

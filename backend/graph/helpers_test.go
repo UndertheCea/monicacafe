@@ -119,6 +119,38 @@ func TestCleanFlavorNotes(t *testing.T) {
 	}
 }
 
+func TestRequireFlavorNotes(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		in    []string
+		given bool
+		want  int  // notes kept
+		bad   bool // BAD_USER_INPUT on flavorNotes
+	}{
+		{"update leaves notes alone", nil, false, 0, false},
+		{"one note", []string{"Jasmine"}, true, 1, false},
+		{"trimmed and de-duplicated", []string{" 柑橘 ", "柑橘", "Peach"}, true, 2, false},
+		{"missing on create", nil, true, 0, true},
+		{"empty list", []string{}, true, 0, true},
+		{"blank after trimming", []string{"  ", ""}, true, 0, true},
+		{"too long still rejected", []string{strings.Repeat("x", maxFlavorNoteLen+1)}, true, 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := requireFlavorNotes(tc.in, tc.given)
+			if tc.bad {
+				var ae *apiError
+				if !errors.As(err, &ae) || ae.code != CodeBadInput || ae.field != "flavorNotes" {
+					t.Fatalf("want BAD_USER_INPUT on flavorNotes, got %v", err)
+				}
+				return
+			}
+			if err != nil || len(got) != tc.want {
+				t.Fatalf("got %v %v, want %d notes", got, err, tc.want)
+			}
+		})
+	}
+}
+
 func TestValidateVariants(t *testing.T) {
 	ok := []*model.VariantInput{
 		{Grind: model.GrindOptionWholeBean, WeightG: 200, PriceTwd: 450, Stock: 3},

@@ -550,6 +550,23 @@ func cleanFlavorNotes(notes []string) ([]string, error) {
 	return out, nil
 }
 
+// requireFlavorNotes is cleanFlavorNotes for a list that must end up with at
+// least one note (#181): always on create, and on update whenever the list is
+// given. nil (an update that leaves the notes alone) stays nil.
+func requireFlavorNotes(notes []string, given bool) ([]string, error) {
+	if !given {
+		return nil, nil
+	}
+	out, err := cleanFlavorNotes(notes)
+	if err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, errBadInput("flavorNotes", "add at least one flavor note")
+	}
+	return out, nil
+}
+
 const (
 	maxVariants = 10
 	maxWeightG  = 10_000

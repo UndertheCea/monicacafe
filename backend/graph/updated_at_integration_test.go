@@ -48,7 +48,7 @@ func TestUpdatedAt(t *testing.T) {
 	}
 	seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id updatedAt variants { id } } }`,
 		map[string]any{"in": map[string]any{
-			"name": "Updated At", "description": "", "roastLevel": "LIGHT",
+			"name": "Updated At", "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
 		}}, &created)

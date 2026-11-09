@@ -5,6 +5,8 @@ import {
   apiDetailsProblem,
   coffeeDetailsPatch,
   coffeeDetailsProblem,
+  filledOptionalCount,
+  isOptionalProblem,
   inTaiwan,
   normaliseShopSlug,
   parseAltitude,
@@ -157,6 +159,9 @@ test("coffeeDetailsProblem", () => {
     [{ flavorNotes: Array.from({ length: 11 }, (_, i) => `n${i}`) }, "notes"],
     [{ flavorNotes: ["香".repeat(31)] }, "notes"],
     [{ flavorNotes: ["香".repeat(30)] }, null],
+    [{ flavorNotes: [] }, "notesRequired"], // #181: at least one note
+    [{ flavorNotes: ["柑橘"] }, null],
+    [{ name: "" , flavorNotes: [] }, "required"], // the required basics are reported first
     [{ producer: "莊".repeat(100) }, null],
     [{ region: "區".repeat(101) }, "required"],
     [{ altitudeMin: "", altitudeMax: "" }, null],
@@ -312,6 +317,9 @@ test("parseAltitude mirrors validateAltitude", () => {
 
 test("apiDetailsProblem maps the API's field to a form message", () => {
   assert.equal(apiDetailsProblem("flavorNotes"), "notes");
+  assert.equal(apiDetailsProblem("flavorNotes", 3), "notes");
+  assert.equal(apiDetailsProblem("flavorNotes", 0), "notesRequired");
+  assert.equal(apiDetailsProblem("altitudeMinM", 0), "altitude");
   assert.equal(apiDetailsProblem("altitudeMinM"), "altitude");
   assert.equal(apiDetailsProblem("altitudeMaxM"), "altitude");
   assert.equal(apiDetailsProblem("clearAltitude"), "altitude");
@@ -319,4 +327,35 @@ test("apiDetailsProblem maps the API's field to a form message", () => {
   assert.equal(apiDetailsProblem("clearHarvestYear"), "harvest");
   assert.equal(apiDetailsProblem("producer"), "required");
   assert.equal(apiDetailsProblem(undefined), "required");
+});
+
+test("filledOptionalCount counts the folded details (#182)", () => {
+  const none = {
+    description: "", varietyId: null, producer: "", region: "", altitudeMin: "", altitudeMax: "",
+    brewMethod: null, harvestYear: "", acidity: "", sweetness: "", body: "",
+  };
+  const cases = [
+    [{}, 0],
+    [{ description: "   " }, 0], // blank text isn't filled
+    [{ description: "Floral" }, 1],
+    [{ varietyId: "v1" }, 1],
+    [{ producer: "Kochere", region: "Gedeo" }, 2],
+    [{ altitudeMin: "1800" }, 1],
+    [{ altitudeMin: "1800", altitudeMax: "2100" }, 1], // the pair counts once
+    [{ altitudeMax: "2100" }, 1], // invalid alone, but the seller did type it
+    [{ brewMethod: "FILTER" }, 1],
+    [{ harvestYear: "2025" }, 1],
+    [{ acidity: "4", body: "2" }, 1], // the cup profile counts once
+    [{ acidity: "9" }, 0], // not a 1–5 value: no profile
+    [baseCoffee, 7], // everything but the region
+    [{ ...baseCoffee, region: "Gedeo" }, 8],
+  ];
+  for (const [patch, want] of cases) {
+    assert.equal(filledOptionalCount({ ...none, ...patch }), want, JSON.stringify(patch));
+  }
+});
+
+test("isOptionalProblem: only problems inside the fold open it", () => {
+  for (const p of ["altitude", "harvest", "cup"]) assert.equal(isOptionalProblem(p), true, p);
+  for (const p of ["required", "notes", "notesRequired", null]) assert.equal(isOptionalProblem(p), false, String(p));
 });

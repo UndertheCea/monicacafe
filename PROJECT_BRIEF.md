@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-09 (after Session 28)
+Last updated: 2026-11-09 (after Session 29)
 
 ---
 
@@ -67,6 +67,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Postgres pool cap + statement timeout from env | Done (#52) |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
 | nginx: gzip for text responses, no server version | Done (#64) |
+| Coffee forms: ≥ 1 flavour note required (API + forms, #181); Essentials first, optional details folded under a counted `<details>` (#182) | Done |
 | Header below `lg`: menu button → navigation drawer (shared `Drawer`), search icon panel, `/menu` no-JS fallback | Done (#175) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line, no tagline, #164), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
@@ -74,21 +75,20 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 28**: /coffees filters on origin, variety, process, price and in stock only (#167, owner #166). Cards show just the
-roast, and "similar" ignores acidity. Below `lg` the header is one row: a menu button opens a navigation drawer, with
-`/menu` as the no-JS fallback (#175). /coffees and /shops render without JavaScript, because their loading boundaries
-are gone (#156). There's dev-only reference-shop scaffolding with a gap report (#169). Junk ids and backwards price
-ranges no longer show the error page (#179, #180). Verified with race tests, smoke (except `/media/`) and Playwright.
+**Session 29**: a coffee now needs at least one flavour note, on create and whenever an edit sends notes (#181); coffees
+saved before keep working. Both dashboard coffee forms show the essentials first and fold the optional details under
+"更多細節（已填 N 項）", which opens on a problem inside it (#182). Both follow #176's safe default. Verified with race
+tests on Postgres 16 and Playwright at 390 / 1280 px; smoke left to CI (Docker Hub rate limit).
 
 ## Current focus
 
-1. **#181** (p2): at least one flavour note is required (API + forms). **#182** (p2): dashboard forms group the
-   essentials first and fold the rest. Both build on #176's safe default; adjust them if the owner answers differently.
-2. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
-   reachable (#168: the proxy still answers 403). The frame is ready: add rows to `scripts/seed_reference.sql`, then
-   run `./scripts/reference_gaps.sh`.
-3. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12. Production: set `TRUSTED_PROXIES` to the real proxies
-   only, and keep `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
+1. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
+   reachable (#168: still no connection from sessions). The frame is ready: add rows to `scripts/seed_reference.sql`,
+   then run `./scripts/reference_gaps.sh`.
+2. No other `stage-1` slices are open. If the owner answers #176 differently (e.g. variety required, blends), adjust
+   #181 / #182's rules. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12.
+3. Production: set `TRUSTED_PROXIES` to the real proxies only, and keep `DB_MAX_CONNS` × API instances below
+   Postgres' `max_connections`.
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -103,7 +103,7 @@ Open questions for the owner (answer by commenting on the issue):
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
 | #159 | Header tagline | dropped from the header (built) | yes |
-| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped (#181, #182) | yes |
+| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped (built, #181, #182) | yes |
 | #177 | Nav drawer widths | below `lg` only (built, #175) | yes |
 
 ## Decisions (why it looks like this)
@@ -202,3 +202,5 @@ Open questions for the owner (answer by commenting on the issue):
   comes from `lib/navMenu.ts`. Without JS the button is a link to `/menu`.
 - **One `Drawer` (modal `<dialog>`) for side panels**: the browser gives focus trapping, Esc and an inert page. A closed
   dialog is shown inline by CSS where the content is a sidebar, so the same markup serves both (#165).
+- **Flavour notes required, other details optional and folded (#176 default; #181, #182)**: the rule applies to new
+  coffees and to edits that send notes, never to stored data. The fold is a native `<details>` so it works without JS.

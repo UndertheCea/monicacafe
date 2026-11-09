@@ -37,7 +37,7 @@ func TestCoffeeHarvestYear(t *testing.T) {
 	}
 	base := func(extra map[string]any) map[string]any {
 		in := map[string]any{
-			"name": "Ethiopia Guji", "description": "", "roastLevel": "LIGHT",
+			"name": "Ethiopia Guji", "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 520, "stock": 3}},
 		}

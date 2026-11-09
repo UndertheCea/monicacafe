@@ -15,6 +15,41 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 29 — 2026-11-09 — Flavour notes required, coffee forms grouped into Essentials + More details
+PR: #184
+
+No owner answers on any open question. The reference roasters' domains still don't connect from the session, so
+#170–#173 stay `blocked` and #174 waits on them; #21 waits on #9. That left two pickable slices (#181, #182), both
+building on #176's safe default. No real gaps turned up that justified new slices, so this session ships two.
+
+### Shipped (one line per slice: area — what — key files)
+- #181 cross-cutting — `createCoffee` always, and `updateCoffee` whenever `flavorNotes` is given, refuse an empty or
+  all-blank list (`BAD_USER_INPUT`, `field: "flavorNotes"`) via `requireFlavorNotes` (`graph/helpers.go`, table test);
+  `flavor_required_integration_test.go` covers omitted / null / empty / blank, and a legacy note-less coffee that
+  still edits (without notes) and publishes. Every integration test that created coffees without notes now sends
+  one. Frontend: `coffeeDetailsProblem` returns `notesRequired`, `apiDetailsProblem(field, notesSent)` tells it
+  apart from too-many / too-long; shared `FlavorNotesField` marks 風味描述 * and shows the message inline
+  (`aria-invalid`).
+- #182 frontend — both coffee forms show Essentials (name, origin, process, roast, notes; plus options on the new
+  form) and fold description, variety, brew method, provenance, harvest year and cup profile into `MoreDetails`
+  (native `<details>`, summary "更多細節（已填 N 項）" from `filledOptionalCount`). It opens on an altitude / harvest /
+  cup / producer / region problem, and on the edit form when the coffee already has optional details. The unused
+  `cf.details` key is gone (the edit form's heading is `cf.essentials`).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` against a local Postgres **16** (Docker
+  Hub answered 429 for `postgres:17`), migrations + seed applied; all 7 demo coffees have notes.
+- Frontend: tsc, lint, `npm test` (180), `npm run build`; `docker compose config`; `check_brief.sh`.
+- Playwright (API on :4000, `next start` on :3000) at 390 px and 1280 px: empty notes → inline zh message +
+  `aria-invalid`; summary counts typed optional fields while folded; an altitude error opens the fold; a coffee
+  saves and its edit page opens the fold with "已填 1 項". Screenshots checked: black and white only.
+- **Not run:** `docker compose up` + `scripts/smoke.sh` (image pulls rate-limited); CI's `stack` job covers it.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- The dashboard edit form asks for a flavour note before saving any change, even on a coffee saved before #181
+  (the API itself still accepts edits that leave notes alone). The demo seed has no such coffees.
+- #176 stays open (its defaults are built: points 1, 3, 4, 5; point 2, blends, is deferred to a later slice).
+
 ## Session 28 — 2026-11-09 — /coffees filters trimmed, navigation drawer, no-JS list pages, reference-shop scaffolding
 PR: #183
 

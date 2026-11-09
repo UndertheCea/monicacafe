@@ -39,7 +39,7 @@ func TestVariantManagement(t *testing.T) {
 	}
 	seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id variants { id } } }`,
 		map[string]any{"in": map[string]any{
-			"name": "Variant Test", "description": "", "roastLevel": "MEDIUM",
+			"name": "Variant Test", "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 450, "stock": 5}},
 		}}, &created)

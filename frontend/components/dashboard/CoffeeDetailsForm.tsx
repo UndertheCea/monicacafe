@@ -9,6 +9,8 @@ import {
   coffeeDetailsPatch,
   apiDetailsProblem,
   coffeeDetailsProblem,
+  filledOptionalCount,
+  isOptionalProblem,
   parseFlavorNotes,
   type CoffeeDetails,
   type CoffeeDetailsProblem,
@@ -17,6 +19,8 @@ import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { CupProfileFields } from "./CupProfileFields";
+import { FlavorNotesField } from "./FlavorNotesField";
+import { MoreDetails } from "./MoreDetails";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, Notice, inputCls } from "./ui";
 
@@ -56,6 +60,7 @@ export function brewOptions(locale: Locale) {
 
 /** The message for a coffee-details problem (local check or the API's field). */
 export function detailsErrorKey(problem: CoffeeDetailsProblem): MessageKey {
+  if (problem === "notesRequired") return "cf.error.notesRequired";
   if (problem === "notes") return "cf.error.notes";
   if (problem === "altitude") return "cf.error.altitude";
   if (problem === "harvest") return "cf.error.harvest";
@@ -80,6 +85,8 @@ export function CoffeeDetailsForm({
   const [draft, setDraft] = useState({ ...saved, notes: saved.flavorNotes.join(", ") });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; key: MessageKey } | null>(null);
+  // Folded unless the coffee already has optional details (#182).
+  const [moreOpen, setMoreOpen] = useState(() => filledOptionalCount(saved) > 0);
 
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
@@ -99,7 +106,10 @@ export function CoffeeDetailsForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const problem = coffeeDetailsProblem(next, ROAST_LEVELS);
-    if (problem) return setMsg({ ok: false, key: detailsErrorKey(problem) });
+    if (problem) {
+      if (isOptionalProblem(problem)) setMoreOpen(true);
+      return setMsg({ ok: false, key: detailsErrorKey(problem) });
+    }
     if (!dirty) return;
     setBusy(true);
     setMsg(null);
@@ -111,13 +121,15 @@ export function CoffeeDetailsForm({
       setMsg({ ok: true, key: "cf.saved" });
     } catch (err) {
       const { code, field } = toApiError(err);
+      const problem = code === "BAD_USER_INPUT" ? apiDetailsProblem(field, next.flavorNotes.length) : null;
+      if (isOptionalProblem(problem) || field === "producer" || field === "region") setMoreOpen(true);
       setMsg({
         ok: false,
         key:
           code === "FORBIDDEN"
             ? "cf.notYours"
-            : code === "BAD_USER_INPUT"
-              ? detailsErrorKey(apiDetailsProblem(field))
+            : problem
+              ? detailsErrorKey(problem)
               : "cf.error.generic",
       });
     } finally {
@@ -148,7 +160,8 @@ export function CoffeeDetailsForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
-      <h3 className="font-bold text-ink">{t(locale, "cf.details")}</h3>
+      <h3 className="font-bold text-ink">{t(locale, "cf.essentials")}</h3>
+      <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.name")} *
@@ -173,33 +186,25 @@ export function CoffeeDetailsForm({
           opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
         )}
         {select(
-          "cf.variety",
-          draft.varietyId ?? "",
-          (v) => set({ varietyId: v || null }),
-          opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })),
-          false,
-        )}
-        {select(
           "cf.roast",
           draft.roastLevel,
           (v) => set({ roastLevel: v as typeof draft.roastLevel }),
           ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })),
         )}
-        {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.flavorNotes")}
-          <input
-            value={draft.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-            placeholder={t(locale, "filter.flavorPlaceholder")}
-            className={inputCls}
-          />
-          <span className="mt-1 block text-xs font-normal text-neutral-500">
-            {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
-          </span>
-        </label>
-        <ProvenanceFields locale={locale} values={draft} onChange={set} />
-        <CupProfileFields locale={locale} values={draft} onChange={set} />
+        <FlavorNotesField
+          locale={locale}
+          value={draft.notes}
+          onChange={(notes) => set({ notes })}
+          error={msg && !msg.ok ? msg.key : null}
+        />
+      </div>
+      <MoreDetails
+        locale={locale}
+        filled={filledOptionalCount(next)}
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        className="mt-4"
+      >
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea
@@ -210,7 +215,17 @@ export function CoffeeDetailsForm({
             className={inputCls}
           />
         </label>
-      </div>
+        {select(
+          "cf.variety",
+          draft.varietyId ?? "",
+          (v) => set({ varietyId: v || null }),
+          opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })),
+          false,
+        )}
+        {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
+        <ProvenanceFields locale={locale} values={draft} onChange={set} />
+        <CupProfileFields locale={locale} values={draft} onChange={set} />
+      </MoreDetails>
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <button
           type="submit"

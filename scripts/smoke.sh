@@ -352,6 +352,15 @@ else
   echo "FAIL /coffees?origin=not-a-uuid should list the coffees, not the error state"; fail=1
 fi
 
+# A backwards price range (#180) is read the right way round, not an error.
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?min=900&max=100") || page=""
+if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'無法載入資料'* && "$page" != *'Couldn'* \
+      && "$page" == *'name="min"'*'value="100"'* ]]; then
+  echo "ok   /coffees?min=900&max=100 lists NT\$100–900"
+else
+  echo "FAIL /coffees?min=900&max=100 should list coffees priced 100–900, not the error state"; fail=1
+fi
+
 # Filter-option counts (#150, #151): the seed has a published Ethiopian coffee
 # and nothing from Rwanda, so /coffees offers Ethiopia (with its count) and
 # leaves Rwanda out of the origin select.

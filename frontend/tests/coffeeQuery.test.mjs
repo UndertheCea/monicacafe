@@ -130,3 +130,17 @@ test("parseIdParam keeps only UUIDs (lowercased); junk means no filter (#179)", 
   ];
   for (const [input, want] of cases) assert.equal(parseIdParam(input), want, JSON.stringify(input));
 });
+
+test("priceRange reads a backwards range the right way round (#180)", async () => {
+  const { priceRange } = await import("../lib/coffeeQuery.ts");
+  const cases = [
+    [[300, 900], { minPriceTwd: 300, maxPriceTwd: 900 }],
+    [[900, 100], { minPriceTwd: 100, maxPriceTwd: 900 }],
+    [[500, 500], { minPriceTwd: 500, maxPriceTwd: 500 }],
+    [[0, 0], { minPriceTwd: 0, maxPriceTwd: 0 }],
+    [[900, undefined], { minPriceTwd: 900 }],
+    [[undefined, 100], { maxPriceTwd: 100 }],
+    [[undefined, undefined], {}],
+  ];
+  for (const [[min, max], want] of cases) assert.deepEqual(priceRange(min, max), want, `${min}–${max}`);
+});

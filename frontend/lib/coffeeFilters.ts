@@ -1,5 +1,5 @@
 import type { CoffeeFilter } from "./api";
-import { parseIdParam, parseInStockParam, parseSearchParam, parseSortParam, type SortParam } from "./coffeeQuery";
+import { parseIdParam, parseInStockParam, parseSearchParam, parseSortParam, priceRange, type SortParam } from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -28,8 +28,7 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sor
     varietyId: parseIdParam(sp.variety),
     processingMethodId: parseIdParam(sp.process),
     search: parseSearchParam(sp.q),
-    minPriceTwd: wholeNTD(one(sp.min)),
-    maxPriceTwd: wholeNTD(one(sp.max)),
+    ...priceRange(wholeNTD(one(sp.min)), wholeNTD(one(sp.max))),
     inStock: parseInStockParam(sp.instock) || undefined,
   };
   // Drop undefined keys so the GraphQL variables stay minimal.

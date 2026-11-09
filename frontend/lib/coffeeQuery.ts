@@ -45,6 +45,19 @@ export function parseIdParam(v: string | string[] | undefined): string | undefin
   return UUID_RE.test(s) ? s.toLowerCase() : undefined;
 }
 
+/**
+ * The price filter from `?min=` / `?max=` (already parsed to whole NT$). A
+ * range typed backwards (900 – 100) is read the right way round, because the
+ * API rejects min > max and the page would show its error state (#180).
+ */
+export function priceRange(min: number | undefined, max: number | undefined): { minPriceTwd?: number; maxPriceTwd?: number } {
+  if (min !== undefined && max !== undefined && min > max) [min, max] = [max, min];
+  return {
+    ...(min !== undefined ? { minPriceTwd: min } : {}),
+    ...(max !== undefined ? { maxPriceTwd: max } : {}),
+  };
+}
+
 /** `?instock=1` (the sidebar checkbox) → true; anything else → no restriction. */
 export function parseInStockParam(v: string | string[] | undefined): boolean {
   const s = (Array.isArray(v) ? v[0] : v)?.trim().toLowerCase();

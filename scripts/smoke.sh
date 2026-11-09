@@ -20,10 +20,21 @@ check_status() { # path expected
   if [[ "$code" == "$2" ]]; then echo "ok   $2 $1"; else echo "FAIL $1 → $code (want $2)"; fail=1; fi
 }
 
-for path in / /coffees /shops /map /login /register /account /dashboard /dashboard/coffees/new; do
+for path in / /coffees /shops /map /menu /login /register /account /dashboard /dashboard/coffees/new; do
   check_status "$BASE_URL$path" 200
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
+
+# Navigation drawer (#175): the server-rendered header's menu button is a link
+# to /menu (the no-JavaScript fallback), which lists the drawer's links.
+home=$(curl -s --max-time 15 "$BASE_URL/") || home=""
+menu=$(curl -s --max-time 15 "$BASE_URL/menu") || menu=""
+if [[ "$home" == *'href="/menu"'* && "$menu" == *'href="/register"'* && "$menu" == *'href="/map"'* \
+      && "$menu" == *'noindex'* ]]; then
+  echo "ok   header menu link → /menu with the drawer's links (noindex)"
+else
+  echo "FAIL the header should link to /menu, and /menu should list the menu (and be noindex)"; fail=1
+fi
 
 # Site icons (#114): served as images, not the 404 page; the home page links them.
 icon_check() { # path content-type-prefix

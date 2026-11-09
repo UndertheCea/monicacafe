@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 25 — 2026-11-09 — Sweet, body and high-grown filters
-PR: #TBD
+PR: #149
 
 No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no new owner answers on any question), so
 the six below were filed from gaps next to last session's work: the cup profile (#136) stored sweetness and body

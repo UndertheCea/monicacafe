@@ -163,3 +163,11 @@ INSERT INTO shop_follows (user_id, shop_id) VALUES
 ON CONFLICT DO NOTHING;
 
 COMMIT;
+
+-- Sweet / body / high-grown filters (#143–#147): the espresso blend's Brazil
+-- and Colombia lots grow at 1,000–1,400 m, so ?altitude=high (1,500 m+) has a
+-- coffee with an altitude to leave out. The seeded cup profiles above already
+-- give ?sweet=high (Geisha 5, Huila 4), ?body=light (Yirgacheffe 2) and
+-- ?body=full (the blend 5).
+UPDATE coffees SET altitude_min_m = 1000, altitude_max_m = 1400
+WHERE id = '00000000-0000-4000-8000-000000000206';

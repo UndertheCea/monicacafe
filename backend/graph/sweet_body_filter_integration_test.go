@@ -42,7 +42,7 @@ func TestCoffeesSweetnessBodyFilter(t *testing.T) {
 		{"DraftS5B5", map[string]any{"sweetness": 5, "body": 5}, false},
 	} {
 		in := map[string]any{
-			"name": c.name, "description": "", "roastLevel": "MEDIUM",
+			"name": c.name, "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
 		}

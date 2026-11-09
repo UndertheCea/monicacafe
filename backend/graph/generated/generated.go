@@ -2097,6 +2097,7 @@ input CreateCoffeeInput {
   varietyId: ID
   processingMethodId: ID!
   roastLevel: RoastLevel!
+  # At least one non-blank note (#181); ≤ 10 notes, ≤ 30 characters each.
   flavorNotes: [String!]
   # ≤ 100 characters each; blank = not given.
   producer: String
@@ -2118,6 +2119,7 @@ input UpdateCoffeeInput {
   varietyId: ID
   processingMethodId: ID
   roastLevel: RoastLevel
+  # Omit to keep the notes; a given list needs at least one non-blank note.
   flavorNotes: [String!]
   # true removes the variety (it's optional). Can't be combined with varietyId.
   clearVariety: Boolean

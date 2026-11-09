@@ -32,7 +32,7 @@ func TestSavedCoffees(t *testing.T) {
 		var co struct{ CreateCoffee struct{ ID string } }
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
 			map[string]any{"in": map[string]any{
-				"name": name, "description": "", "roastLevel": "LIGHT",
+				"name": name, "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 450, "stock": 5}},
 			}}, &co)

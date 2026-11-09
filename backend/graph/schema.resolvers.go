@@ -523,7 +523,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err := r.validateRefs(ctx, &input.OriginCountryID, input.VarietyID, &input.ProcessingMethodID); err != nil {
 		return nil, err
 	}
-	notes, err := cleanFlavorNotes(input.FlavorNotes)
+	notes, err := requireFlavorNotes(input.FlavorNotes, true)
 	if err != nil {
 		return nil, err
 	}
@@ -619,7 +619,7 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		}
 		p.ClearVariety = true
 	}
-	if p.FlavorNotes, err = cleanFlavorNotes(input.FlavorNotes); err != nil {
+	if p.FlavorNotes, err = requireFlavorNotes(input.FlavorNotes, input.FlavorNotes != nil); err != nil {
 		return nil, err
 	}
 	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {

@@ -17,6 +17,7 @@ import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { CupProfileFields } from "./CupProfileFields";
+import { FlavorNotesField } from "./FlavorNotesField";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, Notice, inputCls } from "./ui";
 
@@ -56,6 +57,7 @@ export function brewOptions(locale: Locale) {
 
 /** The message for a coffee-details problem (local check or the API's field). */
 export function detailsErrorKey(problem: CoffeeDetailsProblem): MessageKey {
+  if (problem === "notesRequired") return "cf.error.notesRequired";
   if (problem === "notes") return "cf.error.notes";
   if (problem === "altitude") return "cf.error.altitude";
   if (problem === "harvest") return "cf.error.harvest";
@@ -117,7 +119,7 @@ export function CoffeeDetailsForm({
           code === "FORBIDDEN"
             ? "cf.notYours"
             : code === "BAD_USER_INPUT"
-              ? detailsErrorKey(apiDetailsProblem(field))
+              ? detailsErrorKey(apiDetailsProblem(field, next.flavorNotes.length))
               : "cf.error.generic",
       });
     } finally {
@@ -186,18 +188,12 @@ export function CoffeeDetailsForm({
           ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })),
         )}
         {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.flavorNotes")}
-          <input
-            value={draft.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-            placeholder={t(locale, "filter.flavorPlaceholder")}
-            className={inputCls}
-          />
-          <span className="mt-1 block text-xs font-normal text-neutral-500">
-            {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
-          </span>
-        </label>
+        <FlavorNotesField
+          locale={locale}
+          value={draft.notes}
+          onChange={(notes) => set({ notes })}
+          error={msg && !msg.ok ? msg.key : null}
+        />
         <ProvenanceFields locale={locale} values={draft} onChange={set} />
         <CupProfileFields locale={locale} values={draft} onChange={set} />
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">

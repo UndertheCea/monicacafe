@@ -46,7 +46,7 @@ func TestCoffeeSearch(t *testing.T) {
 	alpha := create("耶加雪菲 Alpha "+tok, "", []string{"Jasmine", "柑橘"}, true, "孔加合作社", "Gedeo")
 	seller.mustDo(`mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
 		map[string]any{"id": alpha, "in": map[string]any{"harvestYear": 2024}}, nil)
-	create("Beta "+tok, "100% washed", nil, true, "Finca El Injerto", "Huehuetenango")
+	create("Beta "+tok, "100% washed", []string{"Cocoa"}, true, "Finca El Injerto", "Huehuetenango")
 	create("耶加雪菲 Draft "+tok, "", []string{"Jasmine"}, false, "孔加合作社", "Gedeo")
 
 	const q = `query($f: CoffeeFilter) { coffees(filter: $f, limit: 50) { total nodes { name } } }`

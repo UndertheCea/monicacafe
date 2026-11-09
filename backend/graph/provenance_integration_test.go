@@ -32,7 +32,7 @@ func TestCoffeeProvenance(t *testing.T) {
 	const fields = `id producer region altitudeMinM altitudeMaxM`
 	base := func(extra map[string]any) map[string]any {
 		in := map[string]any{
-			"name": "Guatemala Huehuetenango", "description": "", "roastLevel": "LIGHT",
+			"name": "Guatemala Huehuetenango", "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 520, "stock": 3}},
 		}

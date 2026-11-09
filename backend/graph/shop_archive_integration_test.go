@@ -51,7 +51,7 @@ func TestShopArchiveFilter(t *testing.T) {
 		}
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id variants { id } } }`,
 			map[string]any{"in": map[string]any{
-				"name": co.name, "description": "", "roastLevel": "MEDIUM",
+				"name": co.name, "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": vs,
 			}}, &out)

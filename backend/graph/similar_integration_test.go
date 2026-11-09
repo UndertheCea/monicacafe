@@ -47,7 +47,12 @@ func TestSimilarCoffees(t *testing.T) {
 
 	// A unique note keeps seeded coffees out of the flavour-note part of the score.
 	note := "note-" + run
+	solo := 0
 	mk := func(s *gqlClient, name, origin, process, roast string, notes []string, stock int, publish bool, extra ...map[string]any) string {
+		if notes == nil { // a note is required (#181); one only this coffee has adds nothing to the score
+			solo++
+			notes = []string{fmt.Sprintf("solo-%s-%d", run[len(run)-8:], solo)}
+		}
 		in := map[string]any{
 			"name": name, "description": "", "roastLevel": roast, "flavorNotes": notes,
 			"originCountryId": origin, "processingMethodId": process,

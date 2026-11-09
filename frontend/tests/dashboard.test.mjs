@@ -157,6 +157,9 @@ test("coffeeDetailsProblem", () => {
     [{ flavorNotes: Array.from({ length: 11 }, (_, i) => `n${i}`) }, "notes"],
     [{ flavorNotes: ["香".repeat(31)] }, "notes"],
     [{ flavorNotes: ["香".repeat(30)] }, null],
+    [{ flavorNotes: [] }, "notesRequired"], // #181: at least one note
+    [{ flavorNotes: ["柑橘"] }, null],
+    [{ name: "" , flavorNotes: [] }, "required"], // the required basics are reported first
     [{ producer: "莊".repeat(100) }, null],
     [{ region: "區".repeat(101) }, "required"],
     [{ altitudeMin: "", altitudeMax: "" }, null],
@@ -312,6 +315,9 @@ test("parseAltitude mirrors validateAltitude", () => {
 
 test("apiDetailsProblem maps the API's field to a form message", () => {
   assert.equal(apiDetailsProblem("flavorNotes"), "notes");
+  assert.equal(apiDetailsProblem("flavorNotes", 3), "notes");
+  assert.equal(apiDetailsProblem("flavorNotes", 0), "notesRequired");
+  assert.equal(apiDetailsProblem("altitudeMinM", 0), "altitude");
   assert.equal(apiDetailsProblem("altitudeMinM"), "altitude");
   assert.equal(apiDetailsProblem("altitudeMaxM"), "altitude");
   assert.equal(apiDetailsProblem("clearAltitude"), "altitude");

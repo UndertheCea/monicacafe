@@ -22,6 +22,7 @@ import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
 import { CupProfileFields } from "./CupProfileFields";
+import { FlavorNotesField } from "./FlavorNotesField";
 import { ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -137,7 +138,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           "flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear",
           "cupProfile", "acidity", "sweetness", "body",
         ].includes(e2.field ?? "")
-          ? detailsErrorKey(apiDetailsProblem(e2.field))
+          ? detailsErrorKey(apiDetailsProblem(e2.field, notes.length))
           : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);
@@ -181,13 +182,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })), false)}
         {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })))}
         {select("brew", "cf.brew", brewOptions(locale), false)}
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.flavorNotes")}
-          <input name="notes" placeholder={t(locale, "filter.flavorPlaceholder")} className={inputCls} />
-          <span className="mt-1 block text-xs font-normal text-neutral-500">
-            {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
-          </span>
-        </label>
+        <FlavorNotesField locale={locale} error={error?.key} />
         <ProvenanceFields locale={locale} />
         <CupProfileFields locale={locale} />
         <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">

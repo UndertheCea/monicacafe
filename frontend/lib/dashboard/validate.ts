@@ -115,7 +115,8 @@ export interface CoffeeDetails {
   body: string;
 }
 
-export type CoffeeDetailsProblem = "required" | "notes" | "altitude" | "harvest" | "cup";
+/** "notesRequired": no flavour note at all (#181); "notes": too many or too long. */
+export type CoffeeDetailsProblem = "required" | "notesRequired" | "notes" | "altitude" | "harvest" | "cup";
 
 /** The calendar year in Taiwan (UTC+8, no DST): what the API compares crop years with. */
 export function taipeiYear(now: Date = new Date()): number {
@@ -171,15 +172,20 @@ export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly str
   if (!name || !d.originCountryId || !d.processingMethodId || !roastLevels.includes(d.roastLevel)) return "required";
   if (runes(name) > LIMITS.coffeeName || runes(d.description.trim()) > LIMITS.coffeeDescription) return "required";
   if (runes(d.producer.trim()) > LIMITS.provenance || runes(d.region.trim()) > LIMITS.provenance) return "required";
+  if (d.flavorNotes.length === 0) return "notesRequired";
   if (d.flavorNotes.length > LIMITS.flavorNotes || d.flavorNotes.some((n) => runes(n) > LIMITS.flavorNote)) return "notes";
   if (parseAltitude(d.altitudeMin, d.altitudeMax) === "invalid") return "altitude";
   if (parseHarvestYear(d.harvestYear) === "invalid") return "harvest";
   return null;
 }
 
-/** Which details problem a BAD_USER_INPUT error's `field` points at. */
-export function apiDetailsProblem(field: string | undefined): CoffeeDetailsProblem {
-  if (field === "flavorNotes") return "notes";
+/**
+ * Which details problem a BAD_USER_INPUT error's `field` points at. `notesSent`
+ * is how many flavour notes the request carried: none means the API refused an
+ * empty list (#181) rather than too many or too long.
+ */
+export function apiDetailsProblem(field: string | undefined, notesSent?: number): CoffeeDetailsProblem {
+  if (field === "flavorNotes") return notesSent === 0 ? "notesRequired" : "notes";
   // brewMethod / clearBrewMethod can only fail on a stale or tampered form.
   if (field === "altitudeMinM" || field === "altitudeMaxM" || field === "clearAltitude") return "altitude";
   if (field === "harvestYear" || field === "clearHarvestYear") return "harvest";

@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-08 (after Session 24)
+Last updated: 2026-11-09 (after Session 25)
 
 ---
 
@@ -43,6 +43,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, cards, `?brew=` on /coffees + shop pages, similar coffees | Done (#122–#127) |
 | Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, `?harvest=recent` on /coffees + shop pages, keyword search | Done (#129–#134) |
 | Cup profile (酸度 / 甜度 / 醇厚度, 1–5): API + `maxAcidity` filter, dashboard form, coffee page scales + JSON-LD, `?acidity=low` on /coffees + shop pages, similar coffees | Done (#136–#141) |
+| Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API; `?sweet=high`, `?body=light\|full`, `?altitude=high` on /coffees + shop pages; "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug] (+search, roast, sort), /map | Done |
 | Branded zh/en 404 + error boundary, list skeletons, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
@@ -69,19 +70,18 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 24** — cup profile: a coffee can carry acidity / sweetness / body on 1–5 scales — migration 013 + API set as a
-group (#136), a `CoffeeFilter.maxAcidity` (#137), the dashboard forms (#138), black-and-white scales on the coffee page,
-preview and JSON-LD (#139), a "Low acidity" filter (`?acidity=low` = 1–2) on /coffees and shop pages (#140), and the
-seed, smoke and a small "similar coffees" bonus (#141). Verified with race tests on PostgreSQL, smoke + Playwright.
+**Session 25** — filters on what the catalogue already stores: the API takes `minSweetness`, `minBody` / `maxBody` (#143)
+and `minAltitudeM`, judged by the top of the range (#144); /coffees and shop pages gain "Sweet (4–5)", a light / full
+body select (#145) and "High-grown (1,500 m+)" (#146); an empty /coffees offers "Clear filters" (#148); seed + smoke
+cover them (#147). Verified with race tests on PostgreSQL, smoke (minus `/media/`) + Playwright screenshots.
 
 ## Current focus
 
 **No pickable slices remain.** Stage 1 is complete and Stage 2 (cart, orders, ECPay) is blocked on the owner's answers
 to #9 (cart storage) and #12 (commission + payouts); #50 (a /shops city filter) and #93 (seller account closure) also
-wait on the owner. Next sessions: take any new owner feedback first, otherwise file real gaps (e.g. sweetness / body
-filters, or an altitude filter on /coffees). Production
-readiness: set `TRUSTED_PROXIES` to the real proxies only, and size `DB_MAX_CONNS` × API instances below Postgres'
-`max_connections`.
+wait on the owner. Next sessions: take any new owner feedback first, otherwise file real gaps (e.g. a "N filters
+active" summary on mobile, where the sidebar sits above the results). Production readiness: set `TRUSTED_PROXIES` to
+the real proxies only, and size `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -168,5 +168,7 @@ Open questions for the owner (answer by commenting on the issue):
   coffee ships for a year or more after harvest, so last year's crop is often the current one (#129, #133).
 - **Cup profile: three 1–5 scales set as a group; "low acidity" = 1–2** — matches how bags and menus print 酸度 / 甜度 /
   醇厚度; a group avoids GraphQL's null-vs-absent ambiguity per field (#136, #140).
+- **Taste and altitude filters use the outer steps: sweet = 4–5, light / full body = 1–2 / 4–5; high-grown = 1,500 m+ by
+  the top of the range** — mirrors "low acidity"; one checkbox or select each keeps the sidebar short (#145, #146).
 - **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
   colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).

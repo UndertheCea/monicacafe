@@ -15,6 +15,49 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 25 — 2026-11-09 — Sweet, body and high-grown filters
+PR: #TBD
+
+No slices were pickable at the start (Stage 2 still blocked on #9 / #12; no new owner answers on any question), so
+the six below were filed from gaps next to last session's work: the cup profile (#136) stored sweetness and body
+but only acidity could be filtered, altitude (#116) was shown everywhere but never filterable, and an empty
+/coffees result only offered "clear search" even when a filter emptied it.
+
+### Shipped (one line per slice: area — what — key files)
+- #143 backend — `CoffeeFilter.minSweetness`, `minBody`, `maxBody` (1–5) on `Query.coffees` and `Shop.coffees`; unset
+  scales never match; `minBody > maxBody` is BAD_USER_INPUT on `minBody`; the cup checks (incl. `maxAcidity`) share one
+  loop in `storeFilter` (`graph/helpers.go`, `store.CoffeeFilter.where`)
+- #144 backend — `CoffeeFilter.minAltitudeM` (0–6000): `COALESCE(altitude_max_m, altitude_min_m) >= $n`, i.e. judged by
+  the top of the range or the single height; no altitude never matches
+- #145 frontend — "Sweet (sweetness 4–5)" checkbox (`?sweet=high`) and a body select (`?body=light|full` → ≤ 2 / ≥ 4) in
+  the /coffees sidebar and the shop page's filters; `cupFilter()` maps all cup choices for both pages; the shop page now
+  hands its cached loader one JSON filter key instead of a growing positional list (`lib/coffeeQuery.ts`,
+  `app/shops/[slug]/page.tsx`, `FilterSidebar.tsx`, `ShopSortForm.tsx`)
+- #146 frontend — "High-grown (1,500 m+)" checkbox, `?altitude=high` → `minAltitudeM: 1500` (`HIGH_GROWN_MIN_M`), on
+  both pages; `shopCoffeesHref` keeps it
+- #148 frontend — empty /coffees result offers "Clear filters" (keeps search + sort) whenever a non-search filter is set,
+  next to "Clear search" (`hasFiltersBesidesSearch`, `clearFiltersHref`). Shop pages already had "Clear search and filters"
+- #147 cross-cutting — seed: the espresso blend grows at 1,000–1,400 m so ?altitude=high has something to exclude; smoke
+  checks the four GraphQL filters against seeded ids, /coffees?altitude=high&body=light, an empty
+  /coffees?q=dawn&sweet=high&body=full with "Clear filters", and /shops/demo-roastery?sweet=high
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16
+  (migrations 001–013 + seed). New: `TestStoreFilter` sweetness / body / altitude cases, two `where()` cases,
+  `TestCoffeesSweetnessBodyFilter` and `TestCoffeesAltitudeFilter` (Query + Shop, anon + owner with drafts, bad input).
+- Frontend: tsc, lint, `npm test` (163; new parser / `cupFilter` / clear-filters cases in `coffeeQuery.test.mjs`),
+  `next build`; `docker compose config`, `check_brief.sh`.
+- API binary + `next start` on a fresh DB: `scripts/smoke.sh` all ok (incl. the four new checks) except the two `/media/`
+  checks (no SeaweedFS / nginx here). Playwright screenshots: sidebar with all new filters checked (desktop), shop page
+  filters + "no matches" state, mobile empty state with both clear links. Not run: `docker compose up` (no Docker daemon
+  here; CI's stack job covers it).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- "Sweet" = sweetness 4–5, "light body" = 1–2, "full body" = 4–5: the outer two steps, mirroring "low acidity" = 1–2.
+- "High-grown" = 1,500 m+, judged by the top of the coffee's altitude range (a 1,200–1,800 m lot counts). One
+  checkbox rather than a numeric field keeps the sidebar short; the API takes any height for later UI.
+- No new owner questions.
+
 ## Session 24 — 2026-11-08 — Cup profile (酸度 / 甜度 / 醇厚度)
 PR: #142
 

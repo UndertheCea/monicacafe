@@ -3,12 +3,13 @@ import { BROWSE_FILTER_OPTIONS, COFFEES } from "@/lib/api";
 import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
-import { filterChips } from "@/lib/filterChips";
+import { activeFilterCount, filterChips } from "@/lib/filterChips";
 import { query } from "@/lib/graphql";
 import { pick, t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FilterChips } from "@/components/coffees/FilterChips";
+import { FilterPanel } from "@/components/coffees/FilterPanel";
 import { FilterSidebar } from "@/components/coffees/FilterSidebar";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
@@ -39,6 +40,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const q = filter.search;
   const filtered = hasFiltersBesidesSearch(filter);
   const chips = filterChips(filter, sp, "/coffees");
+  const active = activeFilterCount(filter);
   const names = new Map<string, string>([
     ...options.originCountries.map((o) => [o.id, pick(locale, o.nameZh, o.nameEn)] as const),
     ...options.coffeeVarieties.map((v) => [v.id, v.name] as const),
@@ -54,14 +56,18 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
       <div className="grid gap-8 lg:grid-cols-[18rem_1fr]">
         <aside className="lg:sticky lg:top-20 lg:self-start">
-          <FilterSidebar
-            locale={locale}
-            filter={filter}
-            sort={sort}
-            origins={options.originCountries}
-            varieties={options.coffeeVarieties}
-            methods={options.processingMethods}
-          />
+          <FilterPanel
+            summary={active > 0 ? t(locale, "filter.toggleCount", { n: active }) : t(locale, "filter.title")}
+          >
+            <FilterSidebar
+              locale={locale}
+              filter={filter}
+              sort={sort}
+              origins={options.originCountries}
+              varieties={options.coffeeVarieties}
+              methods={options.processingMethods}
+            />
+          </FilterPanel>
         </aside>
 
         <section aria-live="polite">

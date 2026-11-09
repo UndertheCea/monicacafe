@@ -46,7 +46,8 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
 
   return (
     <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200">
-      <h2 className="text-base font-bold text-ink">{t(locale, "filter.title")}</h2>
+      {/* On phones the FilterPanel toggle already says "Filters". */}
+      <h2 className="hidden text-base font-bold text-ink lg:block">{t(locale, "filter.title")}</h2>
 
       <label className="block">
         <span className={labelCls}>{t(locale, "filter.search")}</span>

@@ -83,3 +83,11 @@ export function priceChipLabel(min?: number, max?: number): { key: "chip.priceRa
   if (min !== undefined) return { key: "chip.priceMin", vars: { min } };
   return { key: "chip.priceMax", vars: { max: max ?? 0 } };
 }
+
+/**
+ * How many filters narrow the list (search and sort don't count): the number
+ * of chips, so the phone toggle's "Filters (N)" matches what the chips show.
+ */
+export function activeFilterCount(f: ChipFilter): number {
+  return filterChips(f, {}, "/").length;
+}

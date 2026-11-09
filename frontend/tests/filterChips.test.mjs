@@ -1,7 +1,7 @@
 // Active-filter chips (lib/filterChips.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { filterChips, hrefWithout, priceChipLabel } from "../lib/filterChips.ts";
+import { activeFilterCount, filterChips, hrefWithout, priceChipLabel } from "../lib/filterChips.ts";
 
 test("hrefWithout drops the named params and page, keeps the rest", () => {
   const cases = [
@@ -112,4 +112,17 @@ test("priceChipLabel picks range, floor or ceiling", () => {
   assert.deepEqual(priceChipLabel(300, undefined), { key: "chip.priceMin", vars: { min: 300 } });
   assert.deepEqual(priceChipLabel(undefined, 900), { key: "chip.priceMax", vars: { max: 900 } });
   assert.deepEqual(priceChipLabel(0, undefined), { key: "chip.priceMin", vars: { min: 0 } });
+});
+
+test("activeFilterCount counts filters, not search or sort; price and body once", () => {
+  const cases = [
+    [{}, 0],
+    [{ search: "kenya" }, 0],
+    [{ roastLevel: "DARK" }, 1],
+    [{ minPriceTwd: 100, maxPriceTwd: 500 }, 1],
+    [{ minBody: 4 }, 1],
+    [{ originCountryId: "o", inStock: true, maxAcidity: 2, minAltitudeM: 1500 }, 4],
+    [{ inStock: false }, 0],
+  ];
+  for (const [f, want] of cases) assert.equal(activeFilterCount(f), want, JSON.stringify(f));
 });

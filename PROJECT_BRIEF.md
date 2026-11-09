@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-09 (after Session 27)
+Last updated: 2026-11-09 (after Session 28)
 
 ---
 
@@ -67,26 +67,27 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Postgres pool cap + statement timeout from env | Done (#52) |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
 | nginx: gzip for text responses, no server version | Done (#64) |
+| Header below `lg`: menu button → navigation drawer (shared `Drawer`), search icon panel, `/menu` no-JS fallback | Done (#175) |
+| Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line, no tagline, #164), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 27**: shop pages are curated by the seller. Buyer search, filters and sort are gone (#160). There's a
-seller-defined order (`shop_position`, `reorderShopCoffees`, `SHOP_ORDER` default, #161) with ↑ / ↓ in the dashboard
-(#162). Sold-out coffees move to a greyed "已售完 · 封存" archive (`inStock: false`, #163). The wordmark has no tagline
-and reads "moni cafe" at one size (#164). /coffees keeps its sidebar from 768 px, with a shared `Drawer` below that
-(#165). Verified with race tests on PostgreSQL, smoke (except `/media/`) and Playwright at 390–1280 px.
+**Session 28**: /coffees filters on origin, variety, process, price and in stock only (#167, owner #166). Cards show just the
+roast, and "similar" ignores acidity. Below `lg` the header is one row: a menu button opens a navigation drawer, with
+`/menu` as the no-JS fallback (#175). /coffees and /shops render without JavaScript, because their loading boundaries
+are gone (#156). There's dev-only reference-shop scaffolding with a gap report (#169). Junk ids and backwards price
+ranges no longer show the error page (#179, #180). Verified with race tests, smoke (except `/media/`) and Playwright.
 
 ## Current focus
 
-1. **#167** (p1): carry out the owner's answer on #166. /coffees keeps search, sort, origin, variety, process, price
-   and in stock. Cards lose the brew tag. The API filters stay. Rewrite the related Decisions below.
-2. **#175** (p1): navigation drawer below `lg`. Reuse `components/Drawer.tsx`. The phone header still wraps to two rows.
-3. p2: **#156** (list pages invisible without JS; this also hides #165's no-JS fallback), **#169** → **#174**
-   (reference-shop scaffolding, then missing origins / varieties / processes). #170–#173 need the roaster domains
-   reachable (see #168: the proxy still answers 403).
-4. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12. Production: set `TRUSTED_PROXIES` to the real proxies
+1. **#181** (p2): at least one flavour note is required (API + forms). **#182** (p2): dashboard forms group the
+   essentials first and fold the rest. Both build on #176's safe default; adjust them if the owner answers differently.
+2. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
+   reachable (#168: the proxy still answers 403). The frame is ready: add rows to `scripts/seed_reference.sql`, then
+   run `./scripts/reference_gaps.sh`.
+3. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12. Production: set `TRUSTED_PROXIES` to the real proxies
    only, and keep `DB_MAX_CONNS` × API instances below Postgres' `max_connections`.
 
 Open questions for the owner (answer by commenting on the issue):
@@ -102,8 +103,8 @@ Open questions for the owner (answer by commenting on the issue):
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
 | #159 | Header tagline | dropped from the header (built) | yes |
-| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped | yes |
-| #177 | Nav drawer widths | below `lg` only | yes |
+| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped (#181, #182) | yes |
+| #177 | Nav drawer widths | below `lg` only (built, #175) | yes |
 
 ## Decisions (why it looks like this)
 
@@ -193,5 +194,11 @@ Open questions for the owner (answer by commenting on the issue):
 - **Shop pages are the seller's storefront (#158 defaults)**: no buyer controls. The order is the seller's
   (`shop_position`, new coffees at the end, not unique, rewritten as a whole). Sold out = no available option with
   stock, shown in an archive below, and nothing changes on /coffees. Reordering doesn't touch `updated_at` (#160–#163).
+- **Reference shops are dev-only seed data, one account each (#169)**: `shops.owner_id` is unique, so each reference shop has
+  its own `reference+<slug>@monicacafe.local` account that can't log in. Raw values are matched to our tables (names in
+  English or Chinese, or an alias). An unmatched origin or process skips the coffee, and the gap report lists every miss.
+  No prices or photos are copied, so the coffees read as sold out.
+- **Navigation drawer below `lg` only (#177 default, #175)**: the full header row fits from 1024 px. The drawer's menu
+  comes from `lib/navMenu.ts`. Without JS the button is a link to `/menu`.
 - **One `Drawer` (modal `<dialog>`) for side panels**: the browser gives focus trapping, Esc and an inert page. A closed
   dialog is shown inline by CSS where the content is a sidebar, so the same markup serves both (#165).

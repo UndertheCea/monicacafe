@@ -15,6 +15,63 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 28 — 2026-11-09 — /coffees filters trimmed, navigation drawer, no-JS list pages, reference-shop scaffolding
+PR: #183
+
+No new owner answers since Session 27 (all open questions were last updated before it). The reference roasters'
+domains still answer `CONNECT tunnel failed, response 403`, so #170–#173 stay `blocked` and #174 (depends on them)
+waits. Took the two p1 slices (#167, #175) and the two unblocked p2 slices (#156, #169). Probing /coffees with
+junk URLs found two error-page bugs, opened and fixed as #179 and #180.
+
+### Shipped (one line per slice: area — what — key files)
+- #167 cross-cutting — /coffees keeps search, sort, origin, variety, process, price and in stock; roast / brew /
+  flavour / harvest / cup-profile / altitude fields, parsers, chip kinds, constants and strings removed, old params
+  ignored; cards show only the roast; `CARD_FIELDS` drops `brewMethod`; `SimilarCoffees` no longer adds a point for
+  a close acidity; schema comment on `CoffeeFilter`; smoke page checks replaced (`FilterSidebar.tsx`,
+  `FilterChips.tsx`, `lib/coffeeQuery.ts`, `lib/coffeeFilters.ts`, `lib/filterChips.ts`, `internal/store/coffees.go`)
+- #175 frontend — below `lg` the header is one row (menu button, wordmark, search icon); the menu opens the shared
+  `Drawer` (now 85vw / max 24rem, 24rem from `sm`) with a two-level menu from `lib/navMenu.ts` (signed out / buyer /
+  seller / admin) and the language switch; no-JS fallback `/menu` (noindex); search icon is a `<details>` panel
+  (`components/NavDrawer.tsx`, `NavMenuList.tsx`, `SearchToggle.tsx`, `SiteHeader.tsx`, `app/menu/page.tsx`)
+- #156 frontend — the `(list)` route groups and their `loading.tsx` / `ListSkeleton` are gone, so /coffees and /shops
+  are complete HTML without JavaScript; header and pagination links show a pending dot (`useLinkStatus`,
+  `components/LinkPending.tsx`); a test keeps `loading.*` out of `app/`
+- #169 cross-cutting — `scripts/seed_reference.sql` (staging tables, aliases, matching functions, `reference_load()`,
+  `reference_gaps` view; applied by `initdb.sh` when `SEED_REFERENCE_SHOPS=true`), `reference_gaps.sh` (`--strict`),
+  `remove_reference_shops.sql`, `reference_selftest.sql`; CI backend job seeds / self-tests / removes, stack job runs
+  with the flag on and prints the gap report
+- #179 frontend — malformed `?origin` / `?variety` / `?process` ids are dropped instead of erroring (`parseIdParam`)
+- #180 frontend — a backwards price range is swapped instead of erroring (`priceRange`)
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16
+  (migrations 001–014 + seed). `TestSimilarCoffees` now expects the close-acidity coffee below the same-brew one.
+- Frontend: tsc, lint, `npm test` (178 pass), `npm run build`. `check_brief.sh` and `docker compose config` pass.
+- Reference seed on a scratch database: loads with an empty catalogue, re-runs cleanly, the self-test passes
+  (3 of 5 fixtures inserted, 3 gap rows, `--strict` exits 1), and removal leaves the 7 demo coffees and 3 shops.
+- Smoke against Go API :4000 + `next start` :3000 on a fresh DB: everything passes except the two `/media/` checks (no
+  nginx / SeaweedFS; Docker isn't available here). CI's compose job covers those and runs the stack with
+  `SEED_REFERENCE_SHOPS=true` for the first time.
+- Playwright (Chromium): drawer at 390 px (332 px wide) and 820 px (384 px): opens, `aria-expanded`, scroll lock, Esc /
+  backdrop / link close it, focus returns to the button; search icon focuses the field and closes after a search;
+  no menu button at 1280 px. Signed in: Saved / Following / Settings / Log out, and logging out from the drawer
+  switches it back to Log in / Register. JS off: header links to /menu, /coffees and /shops show their content, the
+  /coffees phone filter toggle unfolds the form. Screenshots looked at, not attached to the PR (no image upload
+  from this environment).
+- **Not verified:** the seller "Seller dashboard" entry in a real session (covered by the `navMenu` unit test only);
+  the CI stack's initdb with the reference flag (runs for the first time in this PR's CI).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- #169: `shops.owner_id` is unique, so each reference shop has its own `reference+<slug>@monicacafe.local` account
+  (disabled password) rather than one shared user (commented on #169). Reference coffees have no options (no prices
+  copied), so they read as sold out. Once #170–#173 add rows, newest-first lists put them ahead of the demo coffees,
+  and smoke checks that expect demo coffees on /coffees page 1 may need narrowing.
+- #175 built on #177's safe default (drawer below `lg` only); the question stays open. The drawer shows "Seller
+  dashboard" only to accounts with a shop; "Open a shop" stays in the lg+ account menu and on /account.
+- #156: no loading skeletons anywhere now; the brief's decision is rewritten.
+- Next: #181 (≥ 1 flavour note required) and #182 (dashboard form "Essentials" / "More details"), opened from #176's
+  safe default. #174 and #170–#173 wait on network access to the roasters' sites (#168).
+
 ## Session 27 — 2026-11-09 — Seller-curated shop pages, sold-out archive, wordmark, /coffees filter drawer
 PR: #178
 

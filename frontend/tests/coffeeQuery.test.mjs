@@ -12,6 +12,8 @@ import {
   parseSweetParam,
   parseBodyParam,
   cupFilter,
+  hasFiltersBesidesSearch,
+  clearFiltersHref,
   parseAltitudeParam,
   HIGH_GROWN_MIN_M,
   parseInStockParam,
@@ -218,4 +220,28 @@ test("parseAltitudeParam accepts only high, any case; high-grown starts at 1,500
   ];
   for (const [input, want] of cases) assert.equal(parseAltitudeParam(input), want, JSON.stringify(input));
   assert.equal(HIGH_GROWN_MIN_M, 1500);
+});
+
+test("hasFiltersBesidesSearch ignores the keyword search and unset keys", () => {
+  const cases = [
+    [{}, false],
+    [{ search: "geisha" }, false],
+    [{ search: "geisha", roastLevel: undefined }, false],
+    [{ roastLevel: "LIGHT" }, true],
+    [{ search: "x", inStock: true }, true],
+    [{ minAltitudeM: 1500 }, true],
+    [{ maxBody: 2 }, true],
+  ];
+  for (const [input, want] of cases) assert.equal(hasFiltersBesidesSearch(input), want, JSON.stringify(input));
+});
+
+test("clearFiltersHref keeps only the search and sort", () => {
+  const cases = [
+    [[undefined, ""], "/coffees"],
+    [["  ", ""], "/coffees"],
+    [["耶加雪菲", ""], "/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2"],
+    [[undefined, "price_asc"], "/coffees?sort=price_asc"],
+    [["kenya", "saved"], "/coffees?q=kenya&sort=saved"],
+  ];
+  for (const [[q, sort], want] of cases) assert.equal(clearFiltersHref(q, sort), want, JSON.stringify([q, sort]));
 });

@@ -163,6 +163,27 @@ export function searchHref(q: string | undefined): string {
 }
 
 /**
+ * True when a parsed /coffees filter narrows the list by more than the
+ * keyword search (origin, roast, price, in stock, cup profile, …).
+ */
+export function hasFiltersBesidesSearch(filter: object): boolean {
+  return Object.entries(filter).some(([k, v]) => k !== "search" && v !== undefined);
+}
+
+/**
+ * "Clear filters" on /coffees: page 1 with only the keyword search and the
+ * sort kept, so the buyer sees everything that matches their words.
+ */
+export function clearFiltersHref(q: string | undefined, sort: SortParam): string {
+  const params = new URLSearchParams();
+  const s = q?.trim();
+  if (s) params.set("q", s);
+  if (sort) params.set("sort", sort);
+  const qs = params.toString();
+  return qs ? `/coffees?${qs}` : "/coffees";
+}
+
+/**
  * A shop page URL (page 1) for a keyword search, roast and sort. Blank and
  * default values are left out, so clearing everything gives /shops/<slug>.
  */

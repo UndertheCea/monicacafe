@@ -828,7 +828,10 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		v := int64(*f.MaxPriceTwd)
 		out.MaxPriceTWD = &v
 	}
-	out.InStock = f.InStock != nil && *f.InStock
+	if f.InStock != nil {
+		// true: buyable now; false: sold out (the shop page's archive, #163).
+		out.InStock, out.SoldOut = *f.InStock, !*f.InStock
+	}
 	if f.BrewMethod != nil {
 		if !f.BrewMethod.IsValid() {
 			return out, errBadInput("brewMethod", "invalid brew method")

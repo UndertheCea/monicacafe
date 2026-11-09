@@ -153,12 +153,17 @@ func TestStoreFilter(t *testing.T) {
 		t.Fatalf("unexpected filter %+v %v", f, err)
 	}
 	for _, tc := range []struct {
-		in   *bool
-		want bool
-	}{{nil, false}, {boolPtr(false), false}, {boolPtr(true), true}} {
+		name             string
+		in               *bool
+		inStock, soldOut bool
+	}{
+		{"null: everything", nil, false, false},
+		{"false: only sold out", boolPtr(false), false, true},
+		{"true: only in stock", boolPtr(true), true, false},
+	} {
 		f, err := storeFilter(&model.CoffeeFilter{InStock: tc.in})
-		if err != nil || f.InStock != tc.want {
-			t.Errorf("inStock %v: got %v, %v", tc.in, f.InStock, err)
+		if err != nil || f.InStock != tc.inStock || f.SoldOut != tc.soldOut {
+			t.Errorf("inStock %s: got InStock=%v SoldOut=%v, %v", tc.name, f.InStock, f.SoldOut, err)
 		}
 	}
 	for _, tc := range []struct {

@@ -85,8 +85,11 @@ type CoffeeFilter struct {
 	SearchTerms []string
 	MinPriceTWD *int64
 	MaxPriceTWD *int64
-	// InStock keeps only coffees with an available variant that has stock.
+	// InStock keeps only coffees with an available variant that has stock;
+	// SoldOut keeps only those without one (the shop page's archive, #163).
+	// Setting both matches nothing.
 	InStock bool
+	SoldOut bool
 	// BrewMethods keeps coffees whose brew_method is any of these (nil = all).
 	BrewMethods []string
 	// MinHarvestYear keeps coffees harvested in this year or later; a coffee
@@ -176,13 +179,19 @@ func (f CoffeeFilter) where() (string, []any) {
 		add("COALESCE(c.altitude_max_m, c.altitude_min_m) >= $%d", *f.MinAltitudeM)
 	}
 	if f.InStock {
-		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)")
+		conds = append(conds, buyableCond)
+	}
+	if f.SoldOut {
+		conds = append(conds, "NOT "+buyableCond)
 	}
 	if len(conds) == 0 {
 		return "", args
 	}
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
+
+// buyableCond: the coffee has at least one available, in-stock variant.
+const buyableCond = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
 
 // searchCond matches one search term (a LIKE pattern, $N) against every text
 // a buyer might type: names in both languages, notes, provenance, the shop.

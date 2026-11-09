@@ -522,6 +522,8 @@ input CoffeeFilter {
   minPriceTwd: Int
   maxPriceTwd: Int
   # true: only coffees with at least one available, in-stock variant.
+  # false: only coffees without one (sold out; the shop page's archive).
+  # null: both.
   inStock: Boolean
   # FILTER or ESPRESSO also match OMNI coffees (they suit both); OMNI matches
   # only OMNI. Coffees without a brew method never match.

@@ -270,14 +270,29 @@ export const SHOPS = typed<
   }
 `);
 
+/**
+ * A shop page: the current lineup (coffees with something to buy) and the
+ * archive (sold out), each a page in the seller's order (#161, #163).
+ */
 export const SHOP = typed<
-  { shop: (ShopDetail & { coffees: { total: number; nodes: CoffeeCardData[] } }) | null },
-  { slug: string; filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number }
+  {
+    shop:
+      | (ShopDetail & {
+          coffees: { total: number; nodes: CoffeeCardData[] };
+          archive: { total: number; nodes: CoffeeCardData[] };
+        })
+      | null;
+  },
+  { slug: string; limit: number; offset: number; archiveOffset: number }
 >(/* GraphQL */ `
-  query Shop($slug: String!, $filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int) {
+  query Shop($slug: String!, $limit: Int!, $offset: Int!, $archiveOffset: Int!) {
     shop(slug: $slug) {
       ${SHOP_FIELDS} lat lng
-      coffees(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
+      coffees(filter: { inStock: true }, sort: SHOP_ORDER, limit: $limit, offset: $offset) {
+        total
+        nodes { ${CARD_FIELDS} }
+      }
+      archive: coffees(filter: { inStock: false }, sort: SHOP_ORDER, limit: $limit, offset: $archiveOffset) {
         total
         nodes { ${CARD_FIELDS} }
       }

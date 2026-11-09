@@ -385,6 +385,22 @@ else
   echo "FAIL /shops/demo-roastery?roast=DARK&q=zzz should list the whole lineup with no search / filter / sort form"; fail=1
 fi
 
+# Sold-out archive (#163): the seeded 古吉 (its only option has no stock) is
+# listed only after the archive heading; the in-stock 耶加雪菲 before it. (The
+# RSC payload at the end of the HTML repeats every link, so "after" can't be
+# checked for absence.)
+shop=$(curl -s --max-time 15 "$BASE_URL/shops/demo-roastery") || shop=""
+heading='id="shop-archive"'
+before=${shop%%"$heading"*}
+after=${shop#*"$heading"}
+if [[ "$shop" == *"$heading"* && ( "$after" == *'已售完 · 封存'* || "$after" == *'Sold out · Archive'* ) \
+      && "$after" == *'/coffees/00000000-0000-4000-8000-000000000207'* && "$before" != *'/coffees/00000000-0000-4000-8000-000000000207'* \
+      && "$before" == *'/coffees/00000000-0000-4000-8000-000000000201'* ]]; then
+  echo "ok   shop page lists the sold-out coffee under the archive heading"
+else
+  echo "FAIL /shops/demo-roastery should list coffee 207 only under 已售完 · 封存 and 201 above it"; fail=1
+fi
+
 # Most followed (#107): the seed gives 府城焙煎所 two followers, so it is the
 # first shop link on /shops?sort=followers and its card shows the count.
 followed=$(curl -s --max-time 15 "$BASE_URL/shops?sort=followers") || followed=""

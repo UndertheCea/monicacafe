@@ -50,6 +50,8 @@ func TestCoffeeFilterWhere(t *testing.T) {
 		{"published only by default", CoffeeFilter{}, " WHERE c.is_published", 0},
 		{"drafts included, nothing else", CoffeeFilter{IncludeUnpublished: true}, "", 0},
 		{"in stock", CoffeeFilter{InStock: true}, " WHERE c.is_published AND " + stock, 0},
+		{"sold out", CoffeeFilter{SoldOut: true}, " WHERE c.is_published AND NOT " + stock, 0},
+		{"shop + sold out, drafts", CoffeeFilter{ShopID: &id, SoldOut: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND NOT " + stock, 1},
 		{"brew methods", CoffeeFilter{BrewMethods: []string{"FILTER", "OMNI"}}, " WHERE c.is_published AND c.brew_method = ANY($1)", 1},
 		{"harvest year", CoffeeFilter{MinHarvestYear: &year}, " WHERE c.is_published AND c.harvest_year >= $1", 1},
 		{"max acidity", CoffeeFilter{MaxAcidity: &acid}, " WHERE c.is_published AND c.acidity <= $1", 1},

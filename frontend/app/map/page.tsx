@@ -4,12 +4,25 @@ import { SHOPS_FOR_MAP, groupByCity, hasCoords } from "@/lib/api";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { shareMetadata } from "@/lib/seo";
+import { siteBase } from "@/lib/sitemap";
 import { ErrorState } from "@/components/ErrorState";
 import { ShopMap } from "@/components/map/ShopMap";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: t(locale, "map.title"), description: t(locale, "map.subtitle") };
+  const title = t(locale, "map.title");
+  return {
+    title,
+    ...shareMetadata({
+      base: siteBase(process.env.SITE_URL),
+      path: "/map",
+      title,
+      description: t(locale, "map.subtitle"),
+      images: [],
+      locale,
+    }),
+  };
 }
 
 export default async function MapPage() {

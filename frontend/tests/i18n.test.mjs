@@ -3,6 +3,8 @@
 // TypeScript already enforces that both locales have the same keys; these
 // tests catch what the types can't: empty strings and mismatched {placeholders}.
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { DICTS, LOCALES, localeFromLang, pick, t } from "../lib/i18n/dict.ts";
 
@@ -53,4 +55,25 @@ test("localeFromLang reads <html lang> and falls back to zh-TW", () => {
     ["fr", "zh-TW"],
   ];
   for (const [lang, want] of cases) assert.equal(localeFromLang(lang), want, String(lang));
+});
+
+// A string nothing shows is a string nobody keeps correct (#196). Keys are looked up either as a
+// quoted literal or through a template such as `roast.${level}`, whose prefix covers its family.
+test("every dictionary key is referenced in app/, components/ or lib/", () => {
+  const root = new URL("..", import.meta.url).pathname;
+  const walk = (dir) =>
+    readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
+    );
+  const src = ["app", "components", "lib"]
+    .flatMap(walk)
+    .filter((f) => f !== join("lib", "i18n", "dict.ts"))
+    .map((f) => readFileSync(join(root, f), "utf8"))
+    .join("\n");
+  const prefixes = [...new Set([...src.matchAll(/`([A-Za-z0-9_.]+\.)\$\{/g)].map((m) => m[1]))];
+  assert.ok(prefixes.includes("roast."), "template lookups are detected");
+  const unused = Object.keys(DICTS["zh-TW"]).filter(
+    (k) => !src.includes(`"${k}"`) && !prefixes.some((p) => k.startsWith(p)),
+  );
+  assert.deepEqual(unused, []);
 });

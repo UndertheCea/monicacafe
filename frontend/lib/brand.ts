@@ -12,8 +12,11 @@ export const WORDMARK = {
   sub: "cafe",
 } as const;
 
-/** The browser-tab title for a page: "Coffee name | Moni Cafe", or the brand + tagline on the home page. */
-export function pageTitle(title: string | undefined, tagline: string): string {
+/**
+ * The browser-tab title for a page: "Coffee name | Moni Cafe", or the brand alone on the home page.
+ * No tagline anywhere (owner, #159): people should know the brand is called Moni Cafe.
+ */
+export function pageTitle(title?: string): string {
   const trimmed = title?.trim();
-  return trimmed ? `${trimmed} | ${BRAND_NAME}` : `${BRAND_NAME} — ${tagline}`;
+  return trimmed ? `${trimmed} | ${BRAND_NAME}` : BRAND_NAME;
 }

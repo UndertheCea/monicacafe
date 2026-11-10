@@ -15,6 +15,42 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 31 — 2026-11-10 — Five owner answers recorded, tagline gone, share cards on listings
+PR: #198
+
+No PR was open at the start. The owner had answered five questions; each is recorded in the brief and closed:
+#159 (a) "never display 台灣精品咖啡市集, people should know the brand is called moni cafe"; #9 (a) cart in Postgres;
+#10 keep OSM for the demo; #42 (c) author and admin only; #50 (b) no city filter. `blocked` is off #21.
+
+No existing slice was pickable: #170–#173 need the roasters' sites, which still answer `403` through the proxy
+(lab19coffee.com, seycoffee.com, pomacoffee.com, onyxcoffeelab.com), #174 depends on them, and #21 is Stage 2. So I
+opened three slices for real gaps and shipped those, rather than ten.
+
+### Shipped (one line per slice: area — what — key files)
+- #194 frontend — the home tab title is "Moni Cafe" (was "Moni Cafe — 台灣精品咖啡市集"). `pageTitle` takes no tagline,
+  and a test keeps the phrase out of `app/`, `components/` and `lib/` (`lib/brand.ts`, `app/layout.tsx`).
+- #195 frontend — home, /coffees, /shops and /map get Open Graph / Twitter tags and a canonical through
+  `shareMetadata`. New pure helpers `listingCanonicalPath` (keeps only `page`) and `listingRobots` (`?q=` →
+  `noindex, follow`) in `lib/seo.ts`. The home description follows the locale instead of the layout's mixed string.
+- #196 cross-cutting — `shops.allCities` removed; `VariantManager` shows "最多 10 種規格" where the add form was at the
+  limit (the string existed but nothing used it); `tests/i18n.test.mjs` fails on a dictionary key nothing references.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend (unchanged): gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on a local PostgreSQL **16**
+  (migrations 001–016 + seed).
+- Frontend: tsc, lint, `npm test` (179), `npm run build`. `docker compose config --quiet` and `check_brief.sh`.
+- Against the API on :4000 and `next start` on :3000: `curl` of `/`, `/coffees`, `/shops`, `/map` in both locales
+  showed the expected title, description, canonical, `og:*` and robots tags (e.g. `/coffees?q=geisha&page=2&sort=…` →
+  canonical `/coffees?page=2`, `noindex, follow`).
+- Playwright: signed in as a seller whose coffee has 10 options; the note renders and the add form is gone.
+- Not run: `docker compose up` + `smoke.sh` (no Docker Hub pulls here). The CI `stack` job runs it.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- New question **#197**: may Stage 2 (the cart, #21) start while #170–#174 wait for network access? Default (a) keeps
+  the stage rule. Until it is answered, or the four domains are reachable, there is little left to build.
+- The home hero's small label "台灣烘豆師 · 精品咖啡" stays: it isn't the tagline the owner ruled out, and #186 kept it.
+- A `?q=` page is `noindex` and also carries a canonical to the unfiltered listing; crawlers honour the `noindex`.
+
 ## Session 30 — 2026-11-10 — Header at every width, the owner's #176 answer built
 PR: #193
 

@@ -1,11 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { HOME } from "@/lib/api";
+import { BRAND_NAME } from "@/lib/brand";
 import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { shareMetadata } from "@/lib/seo";
+import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FollowingFeed } from "@/components/coffees/FollowingFeed";
 import { ShopCard } from "@/components/shops/ShopCard";
+
+// The tab title stays the root layout's "Moni Cafe"; the share card and description follow the reader's
+// language instead of the layout's mixed-language fallback (#195).
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return shareMetadata({
+    base: siteBase(process.env.SITE_URL),
+    path: "/",
+    title: BRAND_NAME,
+    description: t(locale, "home.lead"),
+    images: [],
+    locale,
+  });
+}
 
 const POPULAR_COUNT = 4;
 const FEATURED_SHOPS = 3;

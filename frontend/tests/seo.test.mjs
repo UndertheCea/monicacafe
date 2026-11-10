@@ -1,7 +1,17 @@
 // Share-card metadata helpers (lib/seo.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { absoluteUrl, coffeeJsonLd, serializeJsonLd, shareDescription, shareMetadata, shopJsonLd } from "../lib/seo.ts";
+import { readFileSync } from "node:fs";
+import {
+  absoluteUrl,
+  coffeeJsonLd,
+  listingCanonicalPath,
+  listingRobots,
+  serializeJsonLd,
+  shareDescription,
+  shareMetadata,
+  shopJsonLd,
+} from "../lib/seo.ts";
 
 const base = "https://moni.cafe";
 
@@ -148,4 +158,37 @@ test("shopJsonLd leaves out what the shop doesn't have", () => {
 test("shopJsonLd output stays inside its script element", () => {
   const out = serializeJsonLd(shopJsonLd({ ...shop, name: "</script><script>alert(1)</script>" }, [], base));
   assert.ok(!out.includes("<"), out);
+});
+
+test("listingCanonicalPath keeps only the page number (#195)", () => {
+  const cases = [
+    ["/coffees", 1, "/coffees"],
+    ["/coffees", 2, "/coffees?page=2"],
+    ["/shops", 13, "/shops?page=13"],
+    ["/shops", 0, "/shops"],
+    ["/shops", -3, "/shops"],
+    ["/coffees", Number.NaN, "/coffees"],
+    ["/coffees", 2.5, "/coffees"],
+    ["/coffees", Infinity, "/coffees"],
+  ];
+  for (const [base, page, want] of cases) assert.equal(listingCanonicalPath(base, page), want, `${base} ${page}`);
+});
+
+test("listingRobots: keyword-search results are noindex, follow; plain listings are left alone (#195)", () => {
+  for (const q of [undefined, null, "", "   "]) assert.equal(listingRobots(q), undefined, JSON.stringify(q));
+  assert.deepEqual(listingRobots("geisha"), { index: false, follow: true });
+});
+
+test("home and listing pages build their share card with shareMetadata (#195)", () => {
+  const root = new URL("..", import.meta.url).pathname;
+  for (const f of ["app/page.tsx", "app/coffees/page.tsx", "app/shops/page.tsx", "app/map/page.tsx"]) {
+    const src = readFileSync(root + f, "utf8");
+    assert.match(src, /export async function generateMetadata/, f);
+    assert.match(src, /shareMetadata\(/, f);
+  }
+  for (const f of ["app/coffees/page.tsx", "app/shops/page.tsx"]) {
+    const src = readFileSync(root + f, "utf8");
+    assert.match(src, /listingCanonicalPath\(/, f);
+    assert.match(src, /robots: listingRobots\(/, f);
+  }
 });

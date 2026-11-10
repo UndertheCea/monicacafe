@@ -4,7 +4,7 @@ import { WORDMARK } from "@/lib/brand";
 /**
  * The "moni cafe" wordmark (#110, #164): a heavy, italic, lowercase grotesque in the spirit of a painted
  * café sign, with "moni" and "cafe" on one line at the same size, so the header stays one row tall on
- * phones. No tagline (owner, #159): the tagline lives in the home page title and description only.
+ * phones. No tagline here or anywhere else (owner, #159).
  * Live text (not an image) so it stays crisp; the link's accessible name is "Moni Cafe" and the
  * letters themselves are hidden from screen readers so the name isn't read twice.
  */

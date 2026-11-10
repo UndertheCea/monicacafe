@@ -42,9 +42,29 @@ test("safeNext", () => {
     ["/\\evil.example", "/"],
     ["javascript:alert(1)", "/"],
     ["/api/auth/logout", "/"],
+    // Browsers drop tabs / newlines and read "\\" as "/": these all resolve to //evil.com (#208).
+    ["/\t/evil.com", "/"],
+    ["/\n/evil.com", "/"],
+    ["/\r/evil.com", "/"],
+    [decodeURIComponent("/%09/evil.com"), "/"],
+    ["/\\evil.com", "/"],
+    ["/x\\..\\..\\evil.com", "/"],
+    ["/\u0000/evil.com", "/"],
+    // The parsed path is returned, so dot segments can't hide /api or a second slash.
+    ["/x/../api/auth/logout", "/"],
+    ["/x/..//evil.com", "/"],
+    ["/api", "/"],
+    ["/apiary", "/apiary"],
+    ["/ok?x=1#y", "/ok?x=1#y"],
+    ["/coffees/../shops", "/shops"],
+    ["/shops/山田珈琲", "/shops/%E5%B1%B1%E7%94%B0%E7%8F%88%E7%90%B2"],
   ];
   for (const [input, want] of cases) assert.equal(safeNext(input), want, String(input));
   assert.equal(safeNext("nope", "/dashboard"), "/dashboard");
+  // Whatever comes back must stay on our origin when a browser resolves it.
+  for (const [input] of cases) {
+    assert.equal(new URL(safeNext(input), "https://moni.example").origin, "https://moni.example", String(input));
+  }
 });
 
 test("validateCredentials", () => {

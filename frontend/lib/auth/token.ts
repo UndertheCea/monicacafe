@@ -38,13 +38,28 @@ export function refreshDelayMs(expiresAt: number, now: number): number {
 }
 
 /**
- * Sanitise a post-login redirect target: same-origin absolute paths only, so
- * `?next=` can't send people to another site.
+ * Sanitise a post-login redirect target: a path on this site only, so
+ * `?next=` can't send people to another site. Browsers strip tabs and
+ * newlines from URLs and treat "\\" like "/", so "/\t/evil.com" would
+ * otherwise resolve to "//evil.com", another origin (#208). Control characters
+ * and backslashes are refused outright, the value must resolve to our own
+ * origin, and the parsed path (not the raw input) is returned.
  */
 export function safeNext(next: string | null | undefined, fallback = "/"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  if (next.startsWith("/api/")) return fallback;
-  return next;
+  if (!next || !next.startsWith("/")) return fallback;
+  if (/[\u0000-\u001f\u007f\\]/.test(next)) return fallback;
+  const base = "http://x";
+  let url: URL;
+  try {
+    url = new URL(next, base);
+  } catch {
+    return fallback;
+  }
+  if (url.origin !== base) return fallback;
+  const path = url.pathname;
+  if (!path.startsWith("/") || path.startsWith("//")) return fallback;
+  if (path === "/api" || path.startsWith("/api/")) return fallback;
+  return path + url.search + url.hash;
 }
 
 /**

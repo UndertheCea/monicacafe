@@ -5,6 +5,8 @@ import { parsePage, type SearchParams } from "@/lib/coffeeFilters";
 import { query } from "@/lib/graphql";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { listingCanonicalPath, listingRobots, shareMetadata } from "@/lib/seo";
+import { siteBase } from "@/lib/sitemap";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopCard } from "@/components/shops/ShopCard";
@@ -14,9 +16,21 @@ import { parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuer
 
 const SHOPS_PAGE_SIZE = 12;
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
-  return { title: t(locale, "shops.title"), description: t(locale, "shops.subtitle") };
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
+  const [sp, locale] = await Promise.all([searchParams, getLocale()]);
+  const title = t(locale, "shops.title");
+  return {
+    title,
+    ...shareMetadata({
+      base: siteBase(process.env.SITE_URL),
+      path: listingCanonicalPath("/shops", parsePage(sp)),
+      title,
+      description: t(locale, "shops.subtitle"),
+      images: [],
+      locale,
+    }),
+    robots: listingRobots(parseSearchParam(sp.q)),
+  };
 }
 
 export default async function ShopsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {

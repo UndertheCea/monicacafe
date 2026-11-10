@@ -1,4 +1,4 @@
-// Share-card (Open Graph / Twitter) and canonical metadata for detail pages.
+// Share-card (Open Graph / Twitter) and canonical metadata for the public pages.
 // Pure, no imports, so `npm test` can load it; pages pass the result to Next's
 // generateMetadata.
 
@@ -61,6 +61,20 @@ export function shareMetadata(i: ShareInput) {
       ...(image ? { images: [image] } : {}),
     },
   };
+}
+
+/**
+ * Canonical path of a listing page (/coffees, /shops): filters, sort and search are dropped so every
+ * combination points at one URL; only the page number is kept (page 1 = the bare path) (#195).
+ */
+export function listingCanonicalPath(base: string, page: number): string {
+  const n = Number.isSafeInteger(page) && page > 1 ? page : 1;
+  return n > 1 ? `${base}?page=${n}` : base;
+}
+
+/** Keyword-search results aren't worth indexing, but their links are: `noindex, follow` when `q` is set. */
+export function listingRobots(q: string | null | undefined): { index: false; follow: true } | undefined {
+  return q && q.trim() ? { index: false, follow: true } : undefined;
 }
 
 // ---------------------------------------------------------------------------

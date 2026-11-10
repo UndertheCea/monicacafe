@@ -7,6 +7,8 @@ import { activeFilterCount, filterChips } from "@/lib/filterChips";
 import { query } from "@/lib/graphql";
 import { pick, t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { listingCanonicalPath, listingRobots, shareMetadata } from "@/lib/seo";
+import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FilterChips } from "@/components/coffees/FilterChips";
 import { FilterPanel } from "@/components/coffees/FilterPanel";
@@ -14,9 +16,22 @@ import { FilterSidebar } from "@/components/coffees/FilterSidebar";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getLocale();
-  return { title: t(locale, "coffees.title"), description: t(locale, "coffees.subtitle") };
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
+  const [sp, locale] = await Promise.all([searchParams, getLocale()]);
+  const { filter, page } = parseCoffeeSearch(sp);
+  const title = t(locale, "coffees.title");
+  return {
+    title,
+    ...shareMetadata({
+      base: siteBase(process.env.SITE_URL),
+      path: listingCanonicalPath("/coffees", page),
+      title,
+      description: t(locale, "coffees.subtitle"),
+      images: [],
+      locale,
+    }),
+    robots: listingRobots(filter.search),
+  };
 }
 
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {

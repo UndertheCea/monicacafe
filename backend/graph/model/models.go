@@ -43,7 +43,7 @@ type Coffee struct {
 	OriginCountryID    string      `json:"-"`
 	VarietyID          *string     `json:"-"`
 	ProcessingMethodID string      `json:"-"`
-	RoastLevel         RoastLevel  `json:"roastLevel"`
+	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes"`
 	Producer           string      `json:"producer"`
 	Region             string      `json:"region"`
@@ -51,9 +51,6 @@ type Coffee struct {
 	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
 	HarvestYear        *int        `json:"harvestYear,omitempty"`
-	Acidity            *int        `json:"acidity,omitempty"`
-	Sweetness          *int        `json:"sweetness,omitempty"`
-	Body               *int        `json:"body,omitempty"`
 	ImageUrls          []string    `json:"imageUrls"`
 	IsPublished        bool        `json:"isPublished"`
 	CreatedAt          time.Time   `json:"createdAt"`

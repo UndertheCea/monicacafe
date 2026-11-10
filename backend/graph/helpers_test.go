@@ -3,7 +3,6 @@ package graph
 import (
 	"errors"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -214,38 +213,12 @@ func TestStoreFilter(t *testing.T) {
 			t.Errorf("minHarvestYear %d: got %+v, %v", y, f.MinHarvestYear, err)
 		}
 	}
-	for _, tc := range []struct {
-		acidity int
-		ok      bool
-	}{{0, false}, {1, true}, {2, true}, {5, true}, {6, false}, {-1, false}} {
-		a := tc.acidity
-		f, err := storeFilter(&model.CoffeeFilter{MaxAcidity: &a})
-		if !tc.ok {
-			if ae, ok := err.(*apiError); !ok || ae.field != "maxAcidity" {
-				t.Errorf("maxAcidity %d: got %v, want a bad-input error", a, err)
-			}
-			continue
-		}
-		if err != nil || f.MaxAcidity == nil || *f.MaxAcidity != a {
-			t.Errorf("maxAcidity %d: got %+v, %v", a, f.MaxAcidity, err)
-		}
-	}
 	ip := func(v int) *int { return &v }
 	for _, tc := range []struct {
 		name      string
 		in        model.CoffeeFilter
 		wantField string // "" = valid
 	}{
-		{"sweet 4", model.CoffeeFilter{MinSweetness: ip(4)}, ""},
-		{"sweet 0", model.CoffeeFilter{MinSweetness: ip(0)}, "minSweetness"},
-		{"sweet 6", model.CoffeeFilter{MinSweetness: ip(6)}, "minSweetness"},
-		{"light body", model.CoffeeFilter{MaxBody: ip(2)}, ""},
-		{"full body", model.CoffeeFilter{MinBody: ip(4)}, ""},
-		{"body range", model.CoffeeFilter{MinBody: ip(2), MaxBody: ip(4)}, ""},
-		{"one body", model.CoffeeFilter{MinBody: ip(3), MaxBody: ip(3)}, ""},
-		{"min body 0", model.CoffeeFilter{MinBody: ip(0)}, "minBody"},
-		{"max body 6", model.CoffeeFilter{MaxBody: ip(6)}, "maxBody"},
-		{"body inverted", model.CoffeeFilter{MinBody: ip(4), MaxBody: ip(2)}, "minBody"},
 		{"altitude 0", model.CoffeeFilter{MinAltitudeM: ip(0)}, ""},
 		{"altitude 1500", model.CoffeeFilter{MinAltitudeM: ip(1500)}, ""},
 		{"altitude 6000", model.CoffeeFilter{MinAltitudeM: ip(6000)}, ""},
@@ -264,9 +237,8 @@ func TestStoreFilter(t *testing.T) {
 			continue
 		}
 		same := func(a, b *int) bool { return (a == nil && b == nil) || (a != nil && b != nil && *a == *b) }
-		if !same(f.MinSweetness, tc.in.MinSweetness) || !same(f.MinBody, tc.in.MinBody) || !same(f.MaxBody, tc.in.MaxBody) ||
-			!same(f.MinAltitudeM, tc.in.MinAltitudeM) {
-			t.Errorf("%s: got sweet %v body %v–%v", tc.name, f.MinSweetness, f.MinBody, f.MaxBody)
+		if !same(f.MinAltitudeM, tc.in.MinAltitudeM) {
+			t.Errorf("%s: got altitude %v", tc.name, f.MinAltitudeM)
 		}
 	}
 }
@@ -605,6 +577,75 @@ func TestCleanProvenance(t *testing.T) {
 	}
 }
 
+func TestRequireCoffeeEssentials(t *testing.T) {
+	v, alt, blank := "variety-id", 1500, " "
+	for _, tt := range []struct {
+		name             string
+		variety          *string
+		producer, region string
+		altitude         *int
+		field            string // "" = ok
+	}{
+		{"all given", &v, "Kochere", "Gedeo", &alt, ""},
+		{"no variety", nil, "Kochere", "Gedeo", &alt, "varietyId"},
+		{"blank variety", &blank, "Kochere", "Gedeo", &alt, "varietyId"},
+		{"no producer", &v, "", "Gedeo", &alt, "producer"},
+		{"no region", &v, "Kochere", "", &alt, "region"},
+		{"no altitude", &v, "Kochere", "Gedeo", nil, "altitudeMinM"},
+		{"nothing: variety first", nil, "", "", nil, "varietyId"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := requireCoffeeEssentials(tt.variety, tt.producer, tt.region, tt.altitude)
+			if tt.field == "" {
+				if err != nil {
+					t.Fatalf("got %v, want ok", err)
+				}
+				return
+			}
+			if ae, ok := err.(*apiError); !ok || ae.field != tt.field {
+				t.Fatalf("got %v, want a bad-input error on %s", err, tt.field)
+			}
+		})
+	}
+}
+
+func TestRoastLevelParam(t *testing.T) {
+	r := func(v string) *model.RoastLevel { x := model.RoastLevel(v); return &x }
+	for _, tt := range []struct {
+		name string
+		in   *model.RoastLevel
+		want string // "nil" = not given
+		fail bool
+	}{
+		{"not given", nil, "nil", false},
+		{"extra light", r("EXTRA_LIGHT"), "EXTRA_LIGHT", false},
+		{"light", r("LIGHT"), "LIGHT", false},
+		{"dark", r("DARK"), "DARK", false},
+		{"lower case", r("light"), "", true},
+		{"unknown", r("BLONDE"), "", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := roastLevelParam(tt.in)
+			if tt.fail {
+				if ae, ok := err.(*apiError); !ok || ae.field != "roastLevel" {
+					t.Fatalf("got %v, want a bad-input error on roastLevel", err)
+				}
+				return
+			}
+			s := "nil"
+			if got != nil {
+				s = *got
+			}
+			if err != nil || s != tt.want {
+				t.Fatalf("got (%s, %v), want %s", s, err, tt.want)
+			}
+			if back := toRoastLevel(got); (back == nil) != (tt.in == nil) || (back != nil && *back != *tt.in) {
+				t.Fatalf("round trip: got %v, want %v", back, tt.in)
+			}
+		})
+	}
+}
+
 func TestBrewMethodParam(t *testing.T) {
 	m := func(v string) *model.BrewMethod { b := model.BrewMethod(v); return &b }
 	for _, tt := range []struct {
@@ -703,46 +744,6 @@ func TestValidateHarvestYear(t *testing.T) {
 			}
 			if ae, ok := err.(*apiError); !ok || ae.field != "harvestYear" {
 				t.Fatalf("got %v, want a bad-input error on harvestYear", err)
-			}
-		})
-	}
-}
-
-func TestCupProfileParam(t *testing.T) {
-	n := func(v int) *int { return &v }
-	for _, tt := range []struct {
-		name  string
-		in    *model.CupProfileInput
-		field string // "" = ok
-		want  [3]string
-	}{
-		{"not given", nil, "", [3]string{"nil", "nil", "nil"}},
-		{"all three", &model.CupProfileInput{Acidity: n(2), Sweetness: n(4), Body: n(5)}, "", [3]string{"2", "4", "5"}},
-		{"acidity only", &model.CupProfileInput{Acidity: n(1)}, "", [3]string{"1", "nil", "nil"}},
-		{"empty", &model.CupProfileInput{}, "cupProfile", [3]string{}},
-		{"acidity zero", &model.CupProfileInput{Acidity: n(0)}, "acidity", [3]string{}},
-		{"sweetness six", &model.CupProfileInput{Acidity: n(3), Sweetness: n(6)}, "sweetness", [3]string{}},
-		{"body negative", &model.CupProfileInput{Body: n(-1)}, "body", [3]string{}},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := cupProfileParam(tt.in)
-			if tt.field != "" {
-				if ae, ok := err.(*apiError); !ok || ae.field != tt.field {
-					t.Fatalf("got %v, want a bad-input error on %s", err, tt.field)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("got %v, want ok", err)
-			}
-			str := func(p *int) string {
-				if p == nil {
-					return "nil"
-				}
-				return strconv.Itoa(*p)
-			}
-			if g := [3]string{str(got.Acidity), str(got.Sweetness), str(got.Body)}; g != tt.want {
-				t.Fatalf("got %v, want %v", g, tt.want)
 			}
 		})
 	}

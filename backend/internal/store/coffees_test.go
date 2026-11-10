@@ -64,7 +64,7 @@ func TestListCoffeesSort(t *testing.T) {
 		} {
 			co, err := tx.CreateCoffee(ctx, store.CreateCoffeeParams{
 				ShopID: sh.ID, Name: c.name, Slug: c.name + "-" + suffix, OriginCountryID: origins[0].ID,
-				ProcessingMethodID: methods[0].ID, RoastLevel: "LIGHT",
+				ProcessingMethodID: methods[0].ID, RoastLevel: lightRoast,
 			})
 			if err != nil {
 				return err

@@ -517,8 +517,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
-	if !input.RoastLevel.IsValid() {
-		return nil, errBadInput("roastLevel", "invalid roast level")
+	roast, err := roastLevelParam(input.RoastLevel)
+	if err != nil {
+		return nil, err
 	}
 	if err := r.validateRefs(ctx, &input.OriginCountryID, input.VarietyID, &input.ProcessingMethodID); err != nil {
 		return nil, err
@@ -534,15 +535,14 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
 		return nil, err
 	}
+	if err := requireCoffeeEssentials(input.VarietyID, producer, region, input.AltitudeMinM); err != nil {
+		return nil, err
+	}
 	brew, err := brewMethodParam(input.BrewMethod)
 	if err != nil {
 		return nil, err
 	}
 	if err := validateHarvestYear("harvestYear", input.HarvestYear, time.Now()); err != nil {
-		return nil, err
-	}
-	cup, err := cupProfileParam(input.CupProfile)
-	if err != nil {
 		return nil, err
 	}
 	variants, err := validateVariants(input.Variants)
@@ -562,10 +562,10 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 			co, err = tx.CreateCoffee(ctx, store.CreateCoffeeParams{
 				ShopID: sh.ID, Name: name, Slug: base + "-" + suffix, Description: desc,
 				OriginCountryID: input.OriginCountryID, VarietyID: input.VarietyID,
-				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
+				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: roast,
 				FlavorNotes: notes, Producer: producer, Region: region,
 				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM, BrewMethod: brew,
-				HarvestYear: input.HarvestYear, CupProfile: cup,
+				HarvestYear: input.HarvestYear,
 			})
 			if err != nil {
 				return err
@@ -602,41 +602,32 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Description, err = cleanOptText("description", input.Description, 0, 5000); err != nil {
 		return nil, err
 	}
-	if input.RoastLevel != nil {
-		if !input.RoastLevel.IsValid() {
-			return nil, errBadInput("roastLevel", "invalid roast level")
+	if input.ClearRoastLevel != nil && *input.ClearRoastLevel {
+		if input.RoastLevel != nil {
+			return nil, errBadInput("clearRoastLevel", "clearRoastLevel can't be combined with roastLevel")
 		}
-		rl := string(*input.RoastLevel)
-		p.RoastLevel = &rl
+		p.ClearRoastLevel = true
+	} else if p.RoastLevel, err = roastLevelParam(input.RoastLevel); err != nil {
+		return nil, err
 	}
 	if err := r.validateRefs(ctx, input.OriginCountryID, input.VarietyID, input.ProcessingMethodID); err != nil {
 		return nil, err
 	}
 	p.OriginCountryID, p.VarietyID, p.ProcessingMethodID = input.OriginCountryID, input.VarietyID, input.ProcessingMethodID
-	if input.ClearVariety != nil && *input.ClearVariety {
-		if input.VarietyID != nil {
-			return nil, errBadInput("clearVariety", "clearVariety can't be combined with varietyId")
-		}
-		p.ClearVariety = true
-	}
 	if p.FlavorNotes, err = requireFlavorNotes(input.FlavorNotes, input.FlavorNotes != nil); err != nil {
 		return nil, err
 	}
 	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
 		return nil, err
 	}
-	if p.Producer, err = cleanOptText("producer", input.Producer, 0, maxProvenanceText); err != nil {
+	// Required since #176: they can be changed, never blanked.
+	if p.Producer, err = cleanOptText("producer", input.Producer, 1, maxProvenanceText); err != nil {
 		return nil, err
 	}
-	if p.Region, err = cleanOptText("region", input.Region, 0, maxProvenanceText); err != nil {
+	if p.Region, err = cleanOptText("region", input.Region, 1, maxProvenanceText); err != nil {
 		return nil, err
 	}
-	if input.ClearAltitude != nil && *input.ClearAltitude {
-		if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
-			return nil, errBadInput("clearAltitude", "clearAltitude can't be combined with an altitude")
-		}
-		p.SetAltitude = true
-	} else if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
+	if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
 		if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
 			return nil, err
 		}
@@ -663,17 +654,6 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 			return nil, err
 		}
 		p.SetHarvestYear, p.HarvestYear = true, input.HarvestYear
-	}
-	if input.ClearCupProfile != nil && *input.ClearCupProfile {
-		if input.CupProfile != nil {
-			return nil, errBadInput("clearCupProfile", "clearCupProfile can't be combined with cupProfile")
-		}
-		p.SetCupProfile = true
-	} else if input.CupProfile != nil {
-		if p.CupProfile, err = cupProfileParam(input.CupProfile); err != nil {
-			return nil, err
-		}
-		p.SetCupProfile = true
 	}
 
 	co, err := r.Store.UpdateCoffee(ctx, id, p)

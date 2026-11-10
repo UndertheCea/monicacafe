@@ -18,10 +18,9 @@ import {
 import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { CupProfileFields } from "./CupProfileFields";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
-import { ProvenanceFields } from "./ProvenanceFields";
+import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
 import { FormError, Notice, inputCls } from "./ui";
 
 type Options = Awaited<ReturnType<typeof loadOptions>>;
@@ -29,8 +28,7 @@ const loadOptions = () => query(FILTER_OPTIONS);
 
 type DetailFields =
   | "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes"
-  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod" | "harvestYear"
-  | "acidity" | "sweetness" | "body";
+  | "producer" | "region" | "altitudeMinM" | "altitudeMaxM" | "brewMethod" | "harvestYear";
 
 export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails {
   return {
@@ -39,7 +37,7 @@ export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails 
     originCountryId: c.originCountry.id,
     processingMethodId: c.processingMethod.id,
     varietyId: c.variety?.id ?? null,
-    roastLevel: c.roastLevel,
+    roastLevel: c.roastLevel ?? "",
     flavorNotes: c.flavorNotes,
     producer: c.producer,
     region: c.region,
@@ -47,9 +45,6 @@ export function detailsOf(c: Pick<EditableCoffee, DetailFields>): CoffeeDetails 
     altitudeMax: c.altitudeMaxM === null ? "" : String(c.altitudeMaxM),
     brewMethod: c.brewMethod ?? null,
     harvestYear: c.harvestYear == null ? "" : String(c.harvestYear),
-    acidity: c.acidity == null ? "" : String(c.acidity),
-    sweetness: c.sweetness == null ? "" : String(c.sweetness),
-    body: c.body == null ? "" : String(c.body),
   };
 }
 
@@ -62,9 +57,11 @@ export function brewOptions(locale: Locale) {
 export function detailsErrorKey(problem: CoffeeDetailsProblem): MessageKey {
   if (problem === "notesRequired") return "cf.error.notesRequired";
   if (problem === "notes") return "cf.error.notes";
+  if (problem === "variety") return "cf.error.variety";
+  if (problem === "producer") return "cf.error.producer";
+  if (problem === "region") return "cf.error.region";
   if (problem === "altitude") return "cf.error.altitude";
   if (problem === "harvest") return "cf.error.harvest";
-  if (problem === "cup") return "cf.error.cup";
   return "cf.error.required";
 }
 
@@ -122,7 +119,7 @@ export function CoffeeDetailsForm({
     } catch (err) {
       const { code, field } = toApiError(err);
       const problem = code === "BAD_USER_INPUT" ? apiDetailsProblem(field, next.flavorNotes.length) : null;
-      if (isOptionalProblem(problem) || field === "producer" || field === "region") setMoreOpen(true);
+      if (isOptionalProblem(problem)) setMoreOpen(true);
       setMsg({
         ok: false,
         key:
@@ -186,11 +183,20 @@ export function CoffeeDetailsForm({
           opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
         )}
         {select(
+          "cf.variety",
+          draft.varietyId ?? "",
+          (v) => set({ varietyId: v || null }),
+          opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })),
+        )}
+        {select(
           "cf.roast",
           draft.roastLevel,
-          (v) => set({ roastLevel: v as typeof draft.roastLevel }),
+          (v) => set({ roastLevel: v }),
           ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })),
+          false,
         )}
+        <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
+        <ProvenanceFields locale={locale} values={draft} onChange={set} />
         <FlavorNotesField
           locale={locale}
           value={draft.notes}
@@ -215,16 +221,8 @@ export function CoffeeDetailsForm({
             className={inputCls}
           />
         </label>
-        {select(
-          "cf.variety",
-          draft.varietyId ?? "",
-          (v) => set({ varietyId: v || null }),
-          opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })),
-          false,
-        )}
         {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
-        <ProvenanceFields locale={locale} values={draft} onChange={set} />
-        <CupProfileFields locale={locale} values={draft} onChange={set} />
+        <HarvestYearField locale={locale} values={draft} onChange={set} />
       </MoreDetails>
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <button

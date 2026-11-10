@@ -277,7 +277,7 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatal("reference data not seeded")
 	}
 
-	coffeeIn := map[string]any{
+	coffeeIn := withEssentials(t, map[string]any{
 		"name": "衣索比亞 耶加雪菲 Kochere", "description": "Floral and bright.",
 		"originCountryId": refs.OriginCountries[0].ID, "varietyId": refs.CoffeeVarieties[0].ID,
 		"processingMethodId": refs.ProcessingMethods[0].ID, "roastLevel": "LIGHT",
@@ -286,7 +286,7 @@ func TestMarketplaceFlow(t *testing.T) {
 			{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 520, "stock": 12},
 			{"grind": "WHOLE_BEAN", "weightG": 500, "priceTwd": 1150, "stock": 0},
 		},
-	}
+	})
 	buyer.expectCode(graph.CodeForbidden, `mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
 		map[string]any{"in": coffeeIn})
 	bad := map[string]any{}
@@ -340,19 +340,21 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatalf("update not applied: %+v", upd)
 	}
 
-	// clearVariety removes the optional variety; combining it with varietyId is rejected.
-	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!, $v: ID!) { updateCoffee(id: $id, input: {varietyId: $v, clearVariety: true}) { id } }`,
-		map[string]any{"id": co.ID, "v": refs.CoffeeVarieties[0].ID})
-	var cleared struct {
+	// The variety is required since #176: it can be changed, and there is no
+	// clearVariety any more.
+	seller.expectCode("GRAPHQL_VALIDATION_FAILED", `mutation($id: ID!) { updateCoffee(id: $id, input: {clearVariety: true}) { id } }`,
+		map[string]any{"id": co.ID})
+	var changed struct {
 		UpdateCoffee struct {
 			Name    string
 			Variety *struct{ ID string }
 		}
 	}
-	seller.mustDo(`mutation($id: ID!) { updateCoffee(id: $id, input: {clearVariety: true}) { name variety { id } } }`,
-		map[string]any{"id": co.ID}, &cleared)
-	if cleared.UpdateCoffee.Variety != nil || cleared.UpdateCoffee.Name != "Kochere G1" {
-		t.Fatalf("clearVariety not applied (or clobbered other fields): %+v", cleared)
+	other := refs.CoffeeVarieties[len(refs.CoffeeVarieties)-1].ID
+	seller.mustDo(`mutation($id: ID!, $v: ID!) { updateCoffee(id: $id, input: {varietyId: $v}) { name variety { id } } }`,
+		map[string]any{"id": co.ID, "v": other}, &changed)
+	if changed.UpdateCoffee.Variety == nil || changed.UpdateCoffee.Variety.ID != other || changed.UpdateCoffee.Name != "Kochere G1" {
+		t.Fatalf("variety change not applied (or clobbered other fields): %+v", changed)
 	}
 
 	// ── Browse & filter ─────────────────────────────────────────────────────
@@ -479,4 +481,35 @@ func TestMarketplaceFlow(t *testing.T) {
 	seller.mustDo(`mutation { logout }`, nil, nil)
 	anon.expectCode(graph.CodeUnauthenticated, `mutation($t: String!) { refreshToken(token: $t) { accessToken } }`,
 		map[string]any{"t": sellerAuth.RefreshToken})
+}
+
+// testVarietyID is a variety id for test coffees: a variety is required on
+// create since #176 (owner). Heirloom is in migration 001's reference data.
+func testVarietyID(t *testing.T) string {
+	t.Helper()
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer pool.Close()
+	var id string
+	if err := pool.QueryRow(context.Background(), `SELECT id FROM coffee_varieties WHERE name = 'Heirloom'`).Scan(&id); err != nil {
+		t.Fatalf("heirloom variety: %v", err)
+	}
+	return id
+}
+
+// essentials are the details every new coffee needs since #176, for test
+// inputs that don't test them: merge with withEssentials.
+func withEssentials(t *testing.T, in map[string]any) map[string]any {
+	t.Helper()
+	for k, v := range map[string]any{
+		"varietyId": testVarietyID(t), "producer": "Test Farm", "region": "Test Region", "altitudeMinM": 1500,
+	} {
+		if _, set := in[k]; !set {
+			in[k] = v
+		}
+	}
+	return in
 }

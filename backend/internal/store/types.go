@@ -38,7 +38,7 @@ type Coffee struct {
 	OriginCountryID    string
 	VarietyID          *string
 	ProcessingMethodID string
-	RoastLevel         string // LIGHT | MEDIUM | MEDIUM_DARK | DARK
+	RoastLevel         *string // EXTRA_LIGHT | LIGHT | MEDIUM | MEDIUM_DARK | DARK; nil = not given (#176)
 	FlavorNotes        []string
 	ImageURLs          []string
 	IsPublished        bool
@@ -54,8 +54,6 @@ type Coffee struct {
 	BrewMethod *string
 	// HarvestYear (migration 012): the crop year; nil = not given.
 	HarvestYear *int
-	// Cup profile (migration 013): 1–5 each; nil = not given.
-	Acidity, Sweetness, Body *int
 }
 
 // Variant is a purchasable size/grind of a coffee.

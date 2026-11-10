@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { brewLongKey } from "@/lib/brew";
 import { knownHarvestYear } from "@/lib/harvest";
-import { CupProfile } from "./CupProfile";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
 import { originLine, provenanceFacts } from "@/lib/provenance";
@@ -29,8 +28,8 @@ export function CoffeeDetailView({
   const facts: [string, string][] = [
     [t(locale, "coffee.origin"), pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)],
     [t(locale, "coffee.process"), pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)],
-    [t(locale, "coffee.roast"), t(locale, `roast.${coffee.roastLevel}`)],
   ];
+  if (coffee.roastLevel) facts.push([t(locale, "coffee.roast"), t(locale, `roast.${coffee.roastLevel}`)]);
   const brew = brewLongKey(coffee.brewMethod);
   if (brew) facts.push([t(locale, "coffee.brew"), t(locale, brew)]);
   if (coffee.variety) facts.splice(1, 0, [t(locale, "coffee.variety"), coffee.variety.name]);
@@ -86,7 +85,6 @@ export function CoffeeDetailView({
           ))}
         </dl>
 
-        <CupProfile coffee={coffee} locale={locale} />
 
         {coffee.flavorNotes.length > 0 && (
           <div className="mt-6">

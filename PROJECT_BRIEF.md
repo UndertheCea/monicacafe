@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-09 (after Session 29)
+Last updated: 2026-11-10 (after Session 30)
 
 ---
 
@@ -42,8 +42,8 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
 | Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, similar coffees (no longer a /coffees filter or on cards, #167) | Done (#122–#127) |
 | Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, keyword search | Done (#129–#134) |
-| Cup profile (酸度 / 甜度 / 醇厚度, 1–5): API + `maxAcidity` filter, dashboard form, coffee page scales + JSON-LD | Done (#136–#141) |
-| Sweet / body / high-grown filters: `minSweetness`, `minBody` / `maxBody`, `minAltitudeM` in the API only (site dropped them, #167); "Clear filters" on an empty /coffees | Done (#143–#148) |
+| Cup profile (酸度 / 甜度 / 醇厚度) | Removed on the owner's answer to #176: columns, API, filters, forms, page (#189) |
+| High-grown filter `minAltitudeM` in the API only (site dropped it, #167; sweet / body went with the cup profile, #189); "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
 | Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
@@ -67,26 +67,26 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Postgres pool cap + statement timeout from env | Done (#52) |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
 | nginx: gzip for text responses, no server version | Done (#64) |
-| Coffee forms: ≥ 1 flavour note required (API + forms, #181); Essentials first, optional details folded under a counted `<details>` (#182) | Done |
-| Header below `lg`: menu button → navigation drawer (shared `Drawer`), search icon panel, `/menu` no-JS fallback | Done (#175) |
+| Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
+| Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line, no tagline, #164), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 29**: a coffee now needs at least one flavour note, on create and whenever an edit sends notes (#181); coffees
-saved before keep working. Both dashboard coffee forms show the essentials first and fold the optional details under
-"更多細節（已填 N 項）", which opens on a problem inside it (#182). Both follow #176's safe default. Verified with race
-tests on Postgres 16 and Playwright at 390 / 1280 px; smoke left to CI (Docker Hub rate limit).
+**Session 30**: re-checked and merged PR #187 (home hero, #188). The header is now ☰ · wordmark · search at every width
+(#185, owner's #177 (b)). The owner answered #176, and four slices carry it out: the cup profile is gone (#189); roast
+level is optional with a new 極淺焙 (#190); variety, producer, region and altitude are required (#191); and the forms and
+pages follow (#192). Verified with race tests on Postgres 16, Playwright and screenshots. Smoke was left to CI.
 
 ## Current focus
 
 1. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
    reachable (#168: still no connection from sessions). The frame is ready: add rows to `scripts/seed_reference.sql`,
    then run `./scripts/reference_gaps.sh`.
-2. No other `stage-1` slices are open. If the owner answers #176 differently (e.g. variety required, blends), adjust
-   #181 / #182's rules. Stage 2 (cart, orders, ECPay) stays blocked on #9 and #12.
+2. No other `stage-1` slices are open. Blends as first-class coffees (#176 point 2) wait for an owner ask. Stage 2
+   (cart, orders, ECPay) stays blocked on #9 and #12.
 3. Production: set `TRUSTED_PROXIES` to the real proxies only, and keep `DB_MAX_CONNS` × API instances below
    Postgres' `max_connections`.
 
@@ -103,7 +103,6 @@ Open questions for the owner (answer by commenting on the issue):
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
 | #159 | Header tagline | dropped from the header (built) | yes |
-| #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped (built, #181, #182) | yes |
 
 ## Decisions (why it looks like this)
 
@@ -173,12 +172,11 @@ Open questions for the owner (answer by commenting on the issue):
   owners can't follow themselves, so the count means other people (#102).
 - **Provenance as plain columns, altitude in metres, set as a pair** — producer / region are free text (≤ 100) rather than
   curated lists (farms are too many); altitude min alone = one height; updates replace both ends so max ≥ min holds (#116).
-- **Brew method, harvest year and cup profile are listing details, not /coffees filters** — one brew method per coffee
-  (omni = both), one harvest year (no future crops), three 1–5 scales set as a group, as bags print them (#122, #129,
-  #136). They show on the coffee page and in JSON-LD. The API keeps every filter (`brewMethod`, `minHarvestYear`,
-  `maxAcidity`, `minSweetness`, `minBody` / `maxBody`, `minAltitudeM`, `roastLevel`, `flavorNote`), but the site no longer
-  offers them: the owner reversed #127 / #133 / #140 / #145 / #146 on #166 because each shop rates these by its own
-  standard. For the same reason "similar" no longer compares acidity; a shared brew method still reorders (#167).
+- **Brew method and harvest year are listing details, not /coffees filters** — one brew method per coffee (omni = both),
+  one harvest year (no future crops) (#122, #129). They show on the coffee page and in JSON-LD. The API keeps
+  `brewMethod`, `minHarvestYear`, `minAltitudeM`, `roastLevel` and `flavorNote`, but the site doesn't offer them: the owner
+  reversed #127 / #133 / #145 / #146 on #166 because each shop rates these by its own standard. A shared brew method
+  still reorders "similar" (#167). The cup profile was removed outright (#176 → #189): sellers describe it in words.
 - **Filter options = values with published coffees, counted catalogue-wide; chips are plain links** — hidden, not greyed,
   and the selected one always stays; counts ignore the other filters (no per-combination facet queries); the phone
   toggle is CSS-only (checkbox + label) so nothing depends on hydration (#151–#153).
@@ -197,11 +195,14 @@ Open questions for the owner (answer by commenting on the issue):
   its own `reference+<slug>@monicacafe.local` account that can't log in. Raw values are matched to our tables (names in
   English or Chinese, or an alias). An unmatched origin or process skips the coffee, and the gap report lists every miss.
   No prices or photos are copied, so the coffees read as sold out.
-- **Navigation drawer below `lg` only (#177 default, #175)**: the full header row fits from 1024 px. The drawer's menu
-  comes from `lib/navMenu.ts`. Without JS the button is a link to `/menu`.
+- **Navigation drawer at every width (owner, #177 (b); built #185)**: the header is ☰ · wordmark (centred) · search on every
+  screen, like Lab19; a clean page matters more than one saved click on desktop. The drawer (`lib/navMenu.ts`) holds
+  everything, incl. "Open a shop" / "Seller dashboard"; login links carry `?next=`. Without JS the button links to `/menu`.
 - **One `Drawer` (modal `<dialog>`) for side panels**: the browser gives focus trapping, Esc and an inert page. A closed
   dialog is shown inline by CSS where the content is a sidebar, so the same markup serves both (#165).
-- **Flavour notes required, other details optional and folded (#176 default; #181, #182)**: the rule applies to new
-  coffees and to edits that send notes, never to stored data. The fold is a native `<details>` so it works without JS.
+- **Required coffee details (owner's answer on #176; #181, #189–#192)**: name, origin, process, variety (Heirloom /
+  Landrace for lots without a cultivar), producer, region, altitude and ≥ 1 flavour note. Roast is optional, with
+  `EXTRA_LIGHT` (極淺焙). Edits can change the required details but not clear them; stored coffees are never rewritten.
+  Description, brew method and harvest year fold under a native `<details>` (works without JS).
 - **Home hero = tagline + intro, no headline or buttons (owner, 2026-11-10, #186)**: the page should look clean. The way
   into the site is the header drawer, which the owner wants at every width (#177 (b), built in #185).

@@ -40,7 +40,7 @@ func seedShops(t *testing.T, ctx context.Context, tx *store.Store, suffix string
 		for j := range sp.published + sp.drafts {
 			co, err := tx.CreateCoffee(ctx, store.CreateCoffeeParams{
 				ShopID: sh.ID, Name: "c", Slug: fmt.Sprintf("c-%s-%d-%d", suffix, i, j), OriginCountryID: origins[0].ID,
-				ProcessingMethodID: methods[0].ID, RoastLevel: "LIGHT",
+				ProcessingMethodID: methods[0].ID, RoastLevel: lightRoast,
 			})
 			if err != nil {
 				t.Fatal(err)

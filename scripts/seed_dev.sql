@@ -85,7 +85,7 @@ FROM (VALUES
   ('00000000-0000-4000-8000-000000000206', '00000000-0000-4000-8000-000000000103',
    '府城特調 義式配方', 'demo-fucheng-espresso-blend',
    '巴西與哥倫比亞配方，奶香濃郁適合拿鐵。A Brazil–Colombia blend with a creamy body for lattes.',
-   'Brazil', NULL, 'Natural', 'DARK', '{黑巧克力,烤堅果,黑糖}')
+   'Brazil', 'Bourbon', 'Natural', 'DARK', '{黑巧克力,烤堅果,黑糖}')
 ) AS v(id, shop, name, slug, descr, origin, variety, process, roast, notes)
 ON CONFLICT DO NOTHING;
 
@@ -98,15 +98,18 @@ INSERT INTO variants (id, coffee_id, grind, weight_g, price_twd, stock) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Provenance (#116, #120): producer, region and growing altitude, so the coffee
--- page, cards and search show them on a fresh install. The blend has none.
+-- page, cards and search show them on a fresh install. Required for new
+-- coffees since #176, so every demo coffee has them and the dashboard edit form
+-- can save any of them (the blend's altitude is set below).
 UPDATE coffees AS c SET producer = v.producer, region = v.region,
        altitude_min_m = v.amin, altitude_max_m = v.amax
 FROM (VALUES
   ('00000000-0000-4000-8000-000000000201'::uuid, '孔加合作社 Konga Cooperative', 'Gedeo, Yirgacheffe', 1800, 2100),
   ('00000000-0000-4000-8000-000000000202'::uuid, '翡翠莊園 Hacienda La Esmeralda', 'Boquete, Chiriquí', 1600, 1800),
-  ('00000000-0000-4000-8000-000000000203'::uuid, '', 'Huila', 1700, NULL),
+  ('00000000-0000-4000-8000-000000000203'::uuid, '慧蘭小農 Huila smallholders', 'Huila', 1700, NULL),
   ('00000000-0000-4000-8000-000000000204'::uuid, 'Gatomboya 處理廠', 'Nyeri', 1700, 1900),
-  ('00000000-0000-4000-8000-000000000205'::uuid, '', 'Antigua', 1500, 1700)
+  ('00000000-0000-4000-8000-000000000205'::uuid, '安提瓜小農 Antigua smallholders', 'Antigua', 1500, 1700),
+  ('00000000-0000-4000-8000-000000000206'::uuid, '巴西與哥倫比亞小農 Brazil & Colombia smallholders', 'Cerrado Mineiro · Huila', NULL, NULL)
 ) AS v(id, producer, region, amin, amax)
 WHERE c.id = v.id;
 
@@ -135,19 +138,6 @@ FROM (VALUES
 ) AS v(id, years_ago)
 WHERE c.id = v.id;
 
--- Cup profile (#136, #141): acidity / sweetness / body 1–5, so the coffee page
--- and ?acidity=low show something. Low acid (≤ 2): the Huila and the espresso
--- blend. The Antigua stays unset.
-UPDATE coffees AS c SET acidity = v.acidity, sweetness = v.sweetness, body = v.body
-FROM (VALUES
-  ('00000000-0000-4000-8000-000000000201'::uuid, 4, 3, 2),
-  ('00000000-0000-4000-8000-000000000202'::uuid, 3, 5, 3),
-  ('00000000-0000-4000-8000-000000000203'::uuid, 2, 4, 3),
-  ('00000000-0000-4000-8000-000000000204'::uuid, 5, 3, 3),
-  ('00000000-0000-4000-8000-000000000206'::uuid, 1, 3, 5)
-) AS v(id, acidity, sweetness, body)
-WHERE c.id = v.id;
-
 -- One demo comment so the comment list renders on a fresh install.
 INSERT INTO comments (id, coffee_id, user_id, body) VALUES
   ('00000000-0000-4000-8000-000000000401', '00000000-0000-4000-8000-000000000201',
@@ -164,28 +154,28 @@ ON CONFLICT DO NOTHING;
 
 COMMIT;
 
--- Sweet / body / high-grown filters (#143–#147): the espresso blend's Brazil
--- and Colombia lots grow at 1,000–1,400 m, so ?altitude=high (1,500 m+) has a
--- coffee with an altitude to leave out. The seeded cup profiles above already
--- give ?sweet=high (Geisha 5, Huila 4), ?body=light (Yirgacheffe 2) and
--- ?body=full (the blend 5).
+-- High-grown filter (#147, API only): the espresso blend's Brazil and Colombia
+-- lots grow at 1,000–1,400 m, so minAltitudeM 1500 has a coffee with an
+-- altitude to leave out.
 UPDATE coffees SET altitude_min_m = 1000, altitude_max_m = 1400
 WHERE id = '00000000-0000-4000-8000-000000000206';
 
 -- Sold-out archive (#163): a published 晨光 coffee whose only option has no
 -- stock, so the shop page shows it under 已售完 · 封存 on a fresh install. It
--- has no provenance, brew method, harvest or cup profile, so none of the
--- filter smoke checks above see it. Listed last season, so it isn't the newest
+-- has no brew method or harvest year, so those filter smoke checks don't see
+-- it; it has the details every coffee needs since #176. Listed last season, so it isn't the newest
 -- coffee on /coffees.
 INSERT INTO coffees (id, shop_id, name, slug, description, origin_country_id, variety_id,
-                     processing_method_id, roast_level, flavor_notes, is_published, created_at)
+                     processing_method_id, roast_level, flavor_notes, is_published, created_at,
+                     producer, region, altitude_min_m, altitude_max_m)
 SELECT '00000000-0000-4000-8000-000000000207'::uuid, '00000000-0000-4000-8000-000000000101',
        '古吉 罕貝拉 日曬', 'demo-guji-hambela',
        '去年的季節批次，已售完。Last season''s lot, sold out.',
        (SELECT id FROM origin_countries   WHERE name_en = 'Ethiopia'),
        (SELECT id FROM coffee_varieties   WHERE name    = 'Heirloom'),
        (SELECT id FROM processing_methods WHERE name_en = 'Natural'),
-       'LIGHT'::roast_level, '{藍莓,草莓,紅酒}'::text[], true, now() - interval '200 days'
+       'LIGHT'::roast_level, '{藍莓,草莓,紅酒}'::text[], true, now() - interval '200 days',
+       '罕貝拉小農 Hambela smallholders', 'Guji', 1900, 2200
 ON CONFLICT DO NOTHING;
 
 INSERT INTO variants (id, coffee_id, grind, weight_g, price_twd, stock) VALUES

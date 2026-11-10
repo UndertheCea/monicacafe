@@ -14,7 +14,6 @@ import {
   isOptionalProblem,
   parseAltitude,
   parseHarvestYear,
-  cupProfileFromForm,
   parseFlavorNotes,
   parseWhole,
   variantProblems,
@@ -24,10 +23,9 @@ import {
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
-import { CupProfileFields } from "./CupProfileFields";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
-import { ProvenanceFields } from "./ProvenanceFields";
+import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
 
@@ -41,16 +39,8 @@ function optionalFromForm(fd: FormData): OptionalDetails {
   const get = (k: string) => String(fd.get(k) ?? "");
   return {
     description: get("description"),
-    varietyId: get("variety") || null,
-    producer: get("producer"),
-    region: get("region"),
-    altitudeMin: get("altitudeMin"),
-    altitudeMax: get("altitudeMax"),
     brewMethod: get("brew") || null,
     harvestYear: get("harvestYear"),
-    acidity: get("acidity"),
-    sweetness: get("sweetness"),
-    body: get("body"),
   };
 }
 
@@ -97,23 +87,20 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     const originCountryId = String(fd.get("origin") ?? "");
     const processingMethodId = String(fd.get("process") ?? "");
     const varietyId = String(fd.get("variety") ?? "") || null;
-    const roastLevel = String(fd.get("roast") ?? "") as RoastLevel;
+    const roast = String(fd.get("roast") ?? "");
     const notes = parseFlavorNotes(String(fd.get("notes") ?? ""));
     const producer = String(fd.get("producer") ?? "").trim();
     const region = String(fd.get("region") ?? "").trim();
     const altitudeMin = String(fd.get("altitudeMin") ?? "");
     const altitudeMax = String(fd.get("altitudeMax") ?? "");
     const harvestYear = String(fd.get("harvestYear") ?? "");
-    const acidity = String(fd.get("acidity") ?? "");
-    const sweetness = String(fd.get("sweetness") ?? "");
-    const body = String(fd.get("body") ?? "");
     const brew = String(fd.get("brew") ?? "");
     const brewMethod = (BREW_METHODS as string[]).includes(brew) ? (brew as BrewMethod) : null;
 
     const detailsProblem = coffeeDetailsProblem(
       {
-        name, description, originCountryId, processingMethodId, varietyId, roastLevel, flavorNotes: notes,
-        producer, region, altitudeMin, altitudeMax, brewMethod, harvestYear, acidity, sweetness, body,
+        name, description, originCountryId, processingMethodId, varietyId, roastLevel: roast, flavorNotes: notes,
+        producer, region, altitudeMin, altitudeMax, brewMethod, harvestYear,
       },
       ROAST_LEVELS,
     );
@@ -122,7 +109,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       return setError({ key: detailsErrorKey(detailsProblem), vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
     }
     const altitude = parseAltitude(altitudeMin, altitudeMax);
-    if (altitude === "invalid") return setError({ key: "cf.error.altitude" });
+    if (altitude === "invalid" || altitude.minM === null) return setError({ key: "cf.error.altitude" });
     if (rows.length === 0) return setError({ key: "cf.error.noVariants" });
     const firstProblem = problems.values().next();
     if (!firstProblem.done) return setError({ key: VARIANT_PROBLEM_KEY[firstProblem.value] });
@@ -137,7 +124,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           originCountryId,
           processingMethodId,
           varietyId,
-          roastLevel,
+          // coffeeDetailsProblem already refused anything but "" or a known level.
+          roastLevel: roast ? (roast as RoastLevel) : null,
           flavorNotes: notes,
           producer,
           region,
@@ -146,7 +134,6 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           brewMethod,
           // coffeeDetailsProblem already refused an invalid year.
           harvestYear: parseHarvestYear(harvestYear) as number | null,
-          cupProfile: cupProfileFromForm({ acidity, sweetness, body }),
           variants: rows.map((r) => ({
             grind: r.grind as GrindOption,
             weightG: parseWhole(r.weightG, 1, LIMITS.weightG)!,
@@ -160,12 +147,10 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       const e2 = toApiError(err);
       const detailsField =
         e2.code === "BAD_USER_INPUT" && [
-          "flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear",
-          "cupProfile", "acidity", "sweetness", "body",
+          "flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear", "varietyId",
         ].includes(e2.field ?? "");
       const problem = detailsField ? apiDetailsProblem(e2.field, notes.length) : null;
-      // producer / region live in the fold too, though they map to "required".
-      if (isOptionalProblem(problem) || e2.field === "producer" || e2.field === "region") setMoreOpen(true);
+      if (isOptionalProblem(problem)) setMoreOpen(true);
       const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);
@@ -177,7 +162,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       {t(locale, label)}
       {required && " *"}
       <select name={name} required={required} defaultValue="" className={inputCls}>
-        <option value="">{t(locale, "cf.choose")}</option>
+        <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
         {items.map((o) => (
           <option key={o.id} value={o.id}>
             {o.label}
@@ -215,7 +200,10 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           "cf.process",
           opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
         )}
-        {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })))}
+        {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })))}
+        {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })), false)}
+        <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
+        <ProvenanceFields locale={locale} />
         <FlavorNotesField locale={locale} error={error?.key} />
       </section>
 
@@ -281,10 +269,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           {t(locale, "cf.description")}
           <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
         </label>
-        {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })), false)}
         {select("brew", "cf.brew", brewOptions(locale), false)}
-        <ProvenanceFields locale={locale} />
-        <CupProfileFields locale={locale} />
+        <HarvestYearField locale={locale} />
       </MoreDetails>
 
       <div className="flex items-center gap-4">

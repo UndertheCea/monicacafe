@@ -57,11 +57,11 @@ func TestReferenceCoffeeCount(t *testing.T) {
 		publish    bool
 		hasVariety bool
 	}{{true, true}, {true, false}, {false, true}} {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": fmt.Sprintf("Ref %d", i), "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": origin, "processingMethodId": method,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-		}
+		})
 		if c.hasVariety {
 			in["varietyId"] = variety
 		}

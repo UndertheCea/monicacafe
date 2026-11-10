@@ -45,10 +45,6 @@ type CoffeeFilter struct {
 	InStock            *bool       `json:"inStock,omitempty"`
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
 	MinHarvestYear     *int        `json:"minHarvestYear,omitempty"`
-	MaxAcidity         *int        `json:"maxAcidity,omitempty"`
-	MinSweetness       *int        `json:"minSweetness,omitempty"`
-	MinBody            *int        `json:"minBody,omitempty"`
-	MaxBody            *int        `json:"maxBody,omitempty"`
 	MinAltitudeM       *int        `json:"minAltitudeM,omitempty"`
 }
 
@@ -66,21 +62,20 @@ type CommentConnection struct {
 }
 
 type CreateCoffeeInput struct {
-	Name               string           `json:"name"`
-	Description        string           `json:"description"`
-	OriginCountryID    string           `json:"originCountryId"`
-	VarietyID          *string          `json:"varietyId,omitempty"`
-	ProcessingMethodID string           `json:"processingMethodId"`
-	RoastLevel         RoastLevel       `json:"roastLevel"`
-	FlavorNotes        []string         `json:"flavorNotes,omitempty"`
-	Producer           *string          `json:"producer,omitempty"`
-	Region             *string          `json:"region,omitempty"`
-	AltitudeMinM       *int             `json:"altitudeMinM,omitempty"`
-	AltitudeMaxM       *int             `json:"altitudeMaxM,omitempty"`
-	BrewMethod         *BrewMethod      `json:"brewMethod,omitempty"`
-	HarvestYear        *int             `json:"harvestYear,omitempty"`
-	CupProfile         *CupProfileInput `json:"cupProfile,omitempty"`
-	Variants           []*VariantInput  `json:"variants"`
+	Name               string          `json:"name"`
+	Description        string          `json:"description"`
+	OriginCountryID    string          `json:"originCountryId"`
+	VarietyID          *string         `json:"varietyId,omitempty"`
+	ProcessingMethodID string          `json:"processingMethodId"`
+	RoastLevel         *RoastLevel     `json:"roastLevel,omitempty"`
+	FlavorNotes        []string        `json:"flavorNotes,omitempty"`
+	Producer           *string         `json:"producer,omitempty"`
+	Region             *string         `json:"region,omitempty"`
+	AltitudeMinM       *int            `json:"altitudeMinM,omitempty"`
+	AltitudeMaxM       *int            `json:"altitudeMaxM,omitempty"`
+	BrewMethod         *BrewMethod     `json:"brewMethod,omitempty"`
+	HarvestYear        *int            `json:"harvestYear,omitempty"`
+	Variants           []*VariantInput `json:"variants"`
 }
 
 type CreateShopInput struct {
@@ -88,12 +83,6 @@ type CreateShopInput struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	City        string `json:"city"`
-}
-
-type CupProfileInput struct {
-	Acidity   *int `json:"acidity,omitempty"`
-	Sweetness *int `json:"sweetness,omitempty"`
-	Body      *int `json:"body,omitempty"`
 }
 
 type ImageUpload struct {
@@ -160,26 +149,23 @@ type ShopPin struct {
 }
 
 type UpdateCoffeeInput struct {
-	Name               *string          `json:"name,omitempty"`
-	Description        *string          `json:"description,omitempty"`
-	OriginCountryID    *string          `json:"originCountryId,omitempty"`
-	VarietyID          *string          `json:"varietyId,omitempty"`
-	ProcessingMethodID *string          `json:"processingMethodId,omitempty"`
-	RoastLevel         *RoastLevel      `json:"roastLevel,omitempty"`
-	FlavorNotes        []string         `json:"flavorNotes,omitempty"`
-	ClearVariety       *bool            `json:"clearVariety,omitempty"`
-	Producer           *string          `json:"producer,omitempty"`
-	Region             *string          `json:"region,omitempty"`
-	AltitudeMinM       *int             `json:"altitudeMinM,omitempty"`
-	AltitudeMaxM       *int             `json:"altitudeMaxM,omitempty"`
-	ClearAltitude      *bool            `json:"clearAltitude,omitempty"`
-	BrewMethod         *BrewMethod      `json:"brewMethod,omitempty"`
-	ClearBrewMethod    *bool            `json:"clearBrewMethod,omitempty"`
-	HarvestYear        *int             `json:"harvestYear,omitempty"`
-	ClearHarvestYear   *bool            `json:"clearHarvestYear,omitempty"`
-	CupProfile         *CupProfileInput `json:"cupProfile,omitempty"`
-	ClearCupProfile    *bool            `json:"clearCupProfile,omitempty"`
-	ImageUrls          []string         `json:"imageUrls,omitempty"`
+	Name               *string     `json:"name,omitempty"`
+	Description        *string     `json:"description,omitempty"`
+	OriginCountryID    *string     `json:"originCountryId,omitempty"`
+	VarietyID          *string     `json:"varietyId,omitempty"`
+	ProcessingMethodID *string     `json:"processingMethodId,omitempty"`
+	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
+	ClearRoastLevel    *bool       `json:"clearRoastLevel,omitempty"`
+	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
+	Producer           *string     `json:"producer,omitempty"`
+	Region             *string     `json:"region,omitempty"`
+	AltitudeMinM       *int        `json:"altitudeMinM,omitempty"`
+	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
+	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
+	ClearBrewMethod    *bool       `json:"clearBrewMethod,omitempty"`
+	HarvestYear        *int        `json:"harvestYear,omitempty"`
+	ClearHarvestYear   *bool       `json:"clearHarvestYear,omitempty"`
+	ImageUrls          []string    `json:"imageUrls,omitempty"`
 }
 
 type UpdateProfileInput struct {
@@ -464,6 +450,7 @@ func (e ImageKind) MarshalJSON() ([]byte, error) {
 type RoastLevel string
 
 const (
+	RoastLevelExtraLight RoastLevel = "EXTRA_LIGHT"
 	RoastLevelLight      RoastLevel = "LIGHT"
 	RoastLevelMedium     RoastLevel = "MEDIUM"
 	RoastLevelMediumDark RoastLevel = "MEDIUM_DARK"
@@ -471,6 +458,7 @@ const (
 )
 
 var AllRoastLevel = []RoastLevel{
+	RoastLevelExtraLight,
 	RoastLevelLight,
 	RoastLevelMedium,
 	RoastLevelMediumDark,
@@ -479,7 +467,7 @@ var AllRoastLevel = []RoastLevel{
 
 func (e RoastLevel) IsValid() bool {
 	switch e {
-	case RoastLevelLight, RoastLevelMedium, RoastLevelMediumDark, RoastLevelDark:
+	case RoastLevelExtraLight, RoastLevelLight, RoastLevelMedium, RoastLevelMediumDark, RoastLevelDark:
 		return true
 	}
 	return false

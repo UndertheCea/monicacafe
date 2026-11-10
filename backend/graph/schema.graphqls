@@ -210,7 +210,8 @@ type Coffee {
   originCountry: OriginCountry!
   variety: CoffeeVariety
   processingMethod: ProcessingMethod!
-  roastLevel: RoastLevel!
+  # null when the seller didn't say (optional since #176).
+  roastLevel: RoastLevel
   flavorNotes: [String!]!
   # Provenance: the farm, estate, cooperative or washing station, and the
   # region inside the origin country. "" when not given.
@@ -224,11 +225,6 @@ type Coffee {
   brewMethod: BrewMethod
   # The crop (產季): the year its harvest ended; null when not given.
   harvestYear: Int
-  # Cup profile (酸度 / 甜度 / 醇厚度), each 1 (low) to 5 (high); null when not
-  # given. Set together through CupProfileInput.
-  acidity: Int
-  sweetness: Int
-  body: Int
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -278,7 +274,9 @@ type Variant {
   isAvailable: Boolean!
 }
 
+# EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176.
 enum RoastLevel {
+  EXTRA_LIGHT
   LIGHT
   MEDIUM
   MEDIUM_DARK
@@ -287,14 +285,6 @@ enum RoastLevel {
 
 # What a coffee is roasted for: filter (手沖, pour-over / batch brew),
 # espresso (義式) or omni (both). Independent of the roast level.
-# A coffee's cup profile, each 1 (low) to 5 (high) or null (not given). At
-# least one must be set; use clearCupProfile to remove the profile.
-input CupProfileInput {
-  acidity: Int
-  sweetness: Int
-  body: Int
-}
-
 enum BrewMethod {
   FILTER
   ESPRESSO
@@ -428,25 +418,31 @@ input UpdateShopInput {
   lng: Float
 }
 
+# Required (owner's answer on #176): name, origin, process, variety, at least
+# one flavour note, producer, region, altitude (at least the lowest) and an
+# option. Variety, producer, region and altitude are nullable here so a
+# missing one is BAD_USER_INPUT with its `field`, like the other checks.
 input CreateCoffeeInput {
   name: String!
   description: String!
   originCountryId: ID!
+  # Required; "Heirloom" and "Landrace" cover lots without a named cultivar.
   varietyId: ID
   processingMethodId: ID!
-  roastLevel: RoastLevel!
+  # Optional (owner, #176).
+  roastLevel: RoastLevel
   # At least one non-blank note (#181); ≤ 10 notes, ≤ 30 characters each.
   flavorNotes: [String!]
-  # ≤ 100 characters each; blank = not given.
+  # Required, 1–100 characters each.
   producer: String
   region: String
-  # Metres, 0–6000. altitudeMaxM needs altitudeMinM and must be ≥ it.
+  # Metres, 0–6000; altitudeMinM required. altitudeMaxM needs altitudeMinM
+  # and must be ≥ it (omitted = a single height).
   altitudeMinM: Int
   altitudeMaxM: Int
   brewMethod: BrewMethod
   # 2000 through the current year (Asia/Taipei).
   harvestYear: Int
-  cupProfile: CupProfileInput
   variants: [VariantInput!]!
 }
 
@@ -457,11 +453,13 @@ input UpdateCoffeeInput {
   varietyId: ID
   processingMethodId: ID
   roastLevel: RoastLevel
+  # true removes the roast level. Can't be combined with roastLevel.
+  clearRoastLevel: Boolean
   # Omit to keep the notes; a given list needs at least one non-blank note.
   flavorNotes: [String!]
-  # true removes the variety (it's optional). Can't be combined with varietyId.
-  clearVariety: Boolean
-  # ≤ 100 characters each; "" clears.
+  # Required details (#176) can be changed but not removed: there is no
+  # clearVariety / clearAltitude, and producer / region must be 1–100
+  # characters. Coffees saved before keep whatever they have.
   producer: String
   region: String
   # Set together: giving altitudeMinM replaces both (an omitted altitudeMaxM
@@ -469,8 +467,6 @@ input UpdateCoffeeInput {
   # alone is BAD_USER_INPUT.
   altitudeMinM: Int
   altitudeMaxM: Int
-  # true removes the altitude. Can't be combined with altitudeMinM / altitudeMaxM.
-  clearAltitude: Boolean
   brewMethod: BrewMethod
   # true removes the brew method. Can't be combined with brewMethod.
   clearBrewMethod: Boolean
@@ -478,10 +474,6 @@ input UpdateCoffeeInput {
   harvestYear: Int
   # true removes the harvest year. Can't be combined with harvestYear.
   clearHarvestYear: Boolean
-  # Replaces all three scales (an omitted one becomes null).
-  cupProfile: CupProfileInput
-  # true removes the cup profile. Can't be combined with cupProfile.
-  clearCupProfile: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]
@@ -512,10 +504,10 @@ input UpdateVariantInput {
 
 # The site's /coffees page uses only originCountryId, varietyId,
 # processingMethodId, search, minPriceTwd / maxPriceTwd and inStock (owner,
-# #166): each shop rates roast, brew method, harvest, cup profile and altitude
-# by its own standard. roastLevel, flavorNote, brewMethod, minHarvestYear,
-# maxAcidity, minSweetness, minBody / maxBody and minAltitudeM stay for API
-# clients, but the site doesn't use them.
+# #166): each shop rates roast, brew method, harvest and altitude by its own
+# standard. roastLevel, flavorNote, brewMethod, minHarvestYear and
+# minAltitudeM stay for API clients, but the site doesn't use them. (The cup
+# profile and its filters were removed on the owner's answer to #176.)
 input CoffeeFilter {
   originCountryId: ID
   varietyId: ID
@@ -539,15 +531,6 @@ input CoffeeFilter {
   # Only coffees harvested in this year or later (2000–2100). Coffees without
   # a harvest year never match.
   minHarvestYear: Int
-  # Only coffees whose acidity is this or lower (1–5). Coffees without an
-  # acidity never match.
-  maxAcidity: Int
-  # Only coffees whose sweetness is this or higher (1–5).
-  minSweetness: Int
-  # Only coffees whose body is within these bounds (1–5 each; minBody must
-  # not exceed maxBody). Coffees without that scale never match.
-  minBody: Int
-  maxBody: Int
   # Only coffees grown at or above this altitude in metres (0–6000), judged
   # by the top of the coffee's range (or its single height). Coffees without
   # an altitude never match.

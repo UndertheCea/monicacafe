@@ -2,7 +2,6 @@
 import type { BrewMethod, GrindOption, RoastLevel } from "../api";
 import { typed } from "../graphql";
 import { DASH_COFFEES_PAGE } from "./coffeePages";
-import type { CupProfile } from "@/lib/cupProfile";
 
 export interface DashboardVariant {
   id: string;
@@ -116,7 +115,7 @@ export const CREATE_COFFEE = typed<
       originCountryId: string;
       varietyId: string | null;
       processingMethodId: string;
-      roastLevel: RoastLevel;
+      roastLevel: RoastLevel | null;
       flavorNotes: string[];
       producer: string;
       region: string;
@@ -124,7 +123,6 @@ export const CREATE_COFFEE = typed<
       altitudeMaxM: number | null;
       brewMethod: BrewMethod | null;
       harvestYear: number | null;
-      cupProfile: CupProfile | null;
       variants: VariantInput[];
     };
   }
@@ -141,7 +139,7 @@ export interface EditableCoffee {
   originCountry: { id: string };
   processingMethod: { id: string };
   variety: { id: string } | null;
-  roastLevel: RoastLevel;
+  roastLevel: RoastLevel | null;
   flavorNotes: string[];
   producer: string;
   region: string;
@@ -149,9 +147,6 @@ export interface EditableCoffee {
   altitudeMaxM: number | null;
   brewMethod: BrewMethod | null;
   harvestYear: number | null;
-  acidity: number | null;
-  sweetness: number | null;
-  body: number | null;
   imageUrls: string[];
   isPublished: boolean;
   shop: { id: string };
@@ -160,7 +155,7 @@ export interface EditableCoffee {
 
 const EDITABLE_COFFEE_FIELDS = `id name description originCountry { id } processingMethod { id } variety { id }
   roastLevel flavorNotes producer region altitudeMinM altitudeMaxM brewMethod harvestYear
-  acidity sweetness body imageUrls isPublished shop { id }`;
+  imageUrls isPublished shop { id }`;
 
 export const EDIT_COFFEE = typed<{ coffee: EditableCoffee | null }, { id: string }>(/* GraphQL */ `
   query EditCoffee($id: ID!) {
@@ -173,26 +168,24 @@ export interface UpdateCoffeeInput {
   description?: string;
   originCountryId?: string;
   processingMethodId?: string;
+  /** Variety, producer, region and altitude can be changed, not removed (#176). */
   varietyId?: string;
-  clearVariety?: boolean;
+  /** clearRoastLevel removes it; the two can't be combined. */
   roastLevel?: string;
+  clearRoastLevel?: boolean;
   flavorNotes?: string[];
-  /** "" clears. */
+  /** 1–100 characters. */
   producer?: string;
   region?: string;
-  /** Set together (an omitted max = one height); clearAltitude removes both. */
+  /** Set together (an omitted max = one height). */
   altitudeMinM?: number;
   altitudeMaxM?: number;
-  clearAltitude?: boolean;
   /** clearBrewMethod removes it; the two can't be combined. */
   brewMethod?: string;
   clearBrewMethod?: boolean;
   /** clearHarvestYear removes it; the two can't be combined. */
   harvestYear?: number;
   clearHarvestYear?: boolean;
-  /** Replaces all three scales; clearCupProfile removes them. The two can't be combined. */
-  cupProfile?: CupProfile;
-  clearCupProfile?: boolean;
   /** Replaces the gallery (order kept; first is the cover). */
   imageUrls?: string[];
 }

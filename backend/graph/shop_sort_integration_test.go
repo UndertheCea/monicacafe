@@ -30,11 +30,11 @@ func TestShopCoffeesSort(t *testing.T) {
 	}{{"Mid", 500, 2}, {"Cheap", 300, 2}, {"Pricey", 900, 2}, {"SoldOut", 100, 0}} {
 		var out struct{ CreateCoffee struct{ ID string } }
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
-			map[string]any{"in": map[string]any{
+			map[string]any{"in": withEssentials(t, map[string]any{
 				"name": c.name, "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": c.price, "stock": c.stock}},
-			}}, &out)
+			})}, &out)
 		seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 	}
 

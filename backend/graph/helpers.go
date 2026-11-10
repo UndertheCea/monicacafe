@@ -141,17 +141,42 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 	return &model.Coffee{
 		ID: c.ID, ShopID: c.ShopID, Name: c.Name, Slug: c.Slug, Description: c.Description,
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
-		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: model.RoastLevel(c.RoastLevel),
+		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: toRoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
 		BrewMethod: toBrewMethod(c.BrewMethod), HarvestYear: c.HarvestYear,
-		Acidity: c.Acidity, Sweetness: c.Sweetness, Body: c.Body,
 	}
 }
 
 // toBrewMethod maps the stored brew method; nil or an unknown value (the
 // DB CHECK makes that impossible today) is "not given".
+// toRoastLevel maps a stored roast level to the enum; NULL (not given) and an
+// unknown stored value read as nil.
+func toRoastLevel(s *string) *model.RoastLevel {
+	if s == nil {
+		return nil
+	}
+	r := model.RoastLevel(*s)
+	if !r.IsValid() {
+		return nil
+	}
+	return &r
+}
+
+// roastLevelParam validates an optional roast level for the store; nil stays
+// nil (not given, #176).
+func roastLevelParam(r *model.RoastLevel) (*string, error) {
+	if r == nil {
+		return nil, nil
+	}
+	if !r.IsValid() {
+		return nil, errBadInput("roastLevel", "invalid roast level")
+	}
+	s := string(*r)
+	return &s, nil
+}
+
 func toBrewMethod(s *string) *model.BrewMethod {
 	if s == nil {
 		return nil
@@ -393,34 +418,25 @@ func validateHarvestYear(field string, year *int, now time.Time) error {
 	return nil
 }
 
-// Cup profile scales (migration 013's CHECK): 1 (low) to 5 (high).
-const (
-	minCupScale = 1
-	maxCupScale = 5
-)
-
-// cupProfileParam validates a CupProfileInput: each scale nil or 1–5, and at
-// least one set (removing the profile is clearCupProfile's job, so an empty
-// input is a mistake rather than a silent clear). nil input is "not given".
-func cupProfileParam(in *model.CupProfileInput) (store.CupProfile, error) {
-	if in == nil {
-		return store.CupProfile{}, nil
+// cleanProvenance trims the optional producer / region texts; nil stays "".
+// requireCoffeeEssentials checks the details a new coffee must have (owner's
+// answer on #176): a variety, a producer, a region and an altitude. Origin
+// and process are non-null in the schema and checked by validateRefs; the
+// flavour notes by requireFlavorNotes. producer / region are already cleaned.
+func requireCoffeeEssentials(varietyID *string, producer, region string, altitudeMinM *int) error {
+	switch {
+	case varietyID == nil || strings.TrimSpace(*varietyID) == "":
+		return errBadInput("varietyId", "choose a variety (Heirloom or Landrace when there's no named cultivar)")
+	case producer == "":
+		return errBadInput("producer", "add the producer (farm, estate, cooperative or washing station)")
+	case region == "":
+		return errBadInput("region", "add the region")
+	case altitudeMinM == nil:
+		return errBadInput("altitudeMinM", "add the altitude")
 	}
-	if in.Acidity == nil && in.Sweetness == nil && in.Body == nil {
-		return store.CupProfile{}, errBadInput("cupProfile", "set at least one of acidity, sweetness, body (or use clearCupProfile)")
-	}
-	for _, s := range []struct {
-		field string
-		v     *int
-	}{{"acidity", in.Acidity}, {"sweetness", in.Sweetness}, {"body", in.Body}} {
-		if s.v != nil && (*s.v < minCupScale || *s.v > maxCupScale) {
-			return store.CupProfile{}, errBadInput(s.field, fmt.Sprintf("%s must be %d–%d", s.field, minCupScale, maxCupScale))
-		}
-	}
-	return store.CupProfile{Acidity: in.Acidity, Sweetness: in.Sweetness, Body: in.Body}, nil
+	return nil
 }
 
-// cleanProvenance trims the optional producer / region texts; nil stays "".
 func cleanProvenance(producer, region *string) (string, string, error) {
 	var p, rg string
 	var err error
@@ -862,27 +878,6 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 			return out, errBadInput("minHarvestYear", fmt.Sprintf("minHarvestYear must be %d–%d", minHarvestYear, maxHarvestYear))
 		}
 		out.MinHarvestYear = f.MinHarvestYear
-	}
-	for _, sc := range []struct {
-		field string
-		in    *int
-		out   **int
-	}{
-		{"maxAcidity", f.MaxAcidity, &out.MaxAcidity},
-		{"minSweetness", f.MinSweetness, &out.MinSweetness},
-		{"minBody", f.MinBody, &out.MinBody},
-		{"maxBody", f.MaxBody, &out.MaxBody},
-	} {
-		if sc.in == nil {
-			continue
-		}
-		if v := *sc.in; v < minCupScale || v > maxCupScale {
-			return out, errBadInput(sc.field, fmt.Sprintf("%s must be %d–%d", sc.field, minCupScale, maxCupScale))
-		}
-		*sc.out = sc.in
-	}
-	if out.MinBody != nil && out.MaxBody != nil && *out.MinBody > *out.MaxBody {
-		return out, errBadInput("minBody", "minBody must not exceed maxBody")
 	}
 	if f.MinAltitudeM != nil {
 		if m := *f.MinAltitudeM; m < 0 || m > maxAltitudeM {

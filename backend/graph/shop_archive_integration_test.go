@@ -50,11 +50,11 @@ func TestShopArchiveFilter(t *testing.T) {
 			}
 		}
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id variants { id } } }`,
-			map[string]any{"in": map[string]any{
+			map[string]any{"in": withEssentials(t, map[string]any{
 				"name": co.name, "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": vs,
-			}}, &out)
+			})}, &out)
 		seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 		for i, o := range co.opts {
 			if !o.available {

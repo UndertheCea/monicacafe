@@ -15,6 +15,57 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 30 — 2026-11-10 — Header at every width, the owner's #176 answer built
+PR: #PRNUM
+
+Finished the open PR #187 first, as #188 asked: I read the full diff and checked that no `home.title*` / `home.cta*`
+references were left. The page has exactly one `h1`. tsc, lint, `npm test` and the build passed, and I took Playwright
+screenshots of `/` at 390 / 900 / 1280 px in zh-TW and English. CI was green on b998388, so I merged it. #177 is closed
+as answered (b). The owner had also answered #176 in a comment. Its decisions are recorded in the brief and #176 is
+closed, with four new slices (#189–#192) to carry it out.
+
+### Shipped (one line per slice: area — what — key files)
+- #188 frontend: re-check of the 2026-11-10 owner changes. PR #187 merged, #177 closed, and the brief's drawer
+  decision rewritten.
+- #185 frontend: header is ☰ · centred wordmark · search icon at every width. The inline nav, `AccountMenu`, the
+  `lg` auto-close and the header search's "row" variant are gone. The drawer gains "Open a shop", its login / register
+  links carry `?next=` (`authHref`), and its links show the pending dot (`SiteHeader`, `NavDrawer`, `SearchToggle`,
+  `NavMenuList`, `lib/navMenu.ts`).
+- #189 cross-cutting: cup profile removed. Migration 015 drops the columns. The schema, store, the four filters,
+  forms, coffee page, JSON-LD, strings, seed and smoke all lose it.
+- #190 backend: migration 016 adds `EXTRA_LIGHT` and makes `roast_level` nullable. `Coffee.roastLevel` is nullable
+  and optional on create, with a new `clearRoastLevel` (`roastLevelParam`, integration test).
+- #191 backend: `createCoffee` requires a variety, producer, region and altitude (`requireCoffeeEssentials`).
+  `clearVariety` / `clearAltitude` are removed, and a blank producer / region is refused on update. Tests cover
+  empty and unknown origin / process ids. Test coffees are built with `withEssentials`, and every seed coffee has
+  all the details.
+- #192 frontend: both forms put the required details in Essentials. Roast is optional and offers 極淺焙. More
+  details holds description, brew and harvest. Cards and the coffee page show no roast when it's unset
+  (`lib/dashboard/validate.ts`, `ProvenanceFields` / `HarvestYearField`).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, and `go test -race ./...` with `TEST_DATABASE_URL` on a local PostgreSQL **16**
+  (migrations 001–016 + seed applied fresh).
+- Frontend: tsc, lint, `npm test`, `npm run build`.
+- Playwright (API on :4000, `next start` on :3000):
+  - Header at 390 / 900 / 1280 px: ☰ · wordmark centred at 640 px of 1280 · search. The drawer is 384 px wide on
+    desktop, and Esc closes it. Search focuses its field and lands on `/coffees?q=`. Signed in as a buyer, the drawer
+    shows 開設店家.
+  - New-coffee form: the variety, producer and altitude errors show in order, and the coffee saves. In the edit form,
+    choosing 極淺焙 saved `EXTRA_LIGHT`.
+  - A shop page shows no roast pill for a NULL roast and 極淺焙 for `EXTRA_LIGHT`.
+  - Every screenshot I checked is black and white only.
+- Not run: `docker compose` + `smoke.sh` (no Docker Hub pulls here). The CI `stack` job runs it.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Owner's #176 answer as built: roast optional + extra light. Variety, producer, region and altitude are required,
+  and flavour notes stay required (#181). Cup profile deleted, with its data dropped in migration 015. Blends (#176
+  point 2) weren't answered and stay deferred.
+- Coffees saved before #176 can lack the new required details. The API accepts edits that don't touch them, but the
+  dashboard edit form asks for them before saving any change (like #181's notes). Every demo seed coffee has them.
+- The store keeps `UpdateCoffeeParams.ClearVariety` (unused by the API now) to avoid renumbering the SQL parameters.
+- Still blocked: #170–#174 (roaster sites unreachable from sessions, checked again).
+
 ## Session 29b — 2026-11-10 — Owner follow-ups: #177 answered, home hero trimmed
 PR: #187
 

@@ -28,8 +28,8 @@ const wordmarkFont = Inter_Tight({
 
 export const metadata: Metadata = {
   title: {
-    default: pageTitle(undefined, "台灣精品咖啡市集"),
-    template: pageTitle("%s", ""),
+    default: pageTitle(),
+    template: pageTitle("%s"),
   },
   description: "探索台灣烘豆師的精品咖啡 · Discover specialty coffee from Taiwan's roasters.",
   keywords: ["精品咖啡", "咖啡豆", "台灣烘豆", "specialty coffee", "Taiwan roasters"],

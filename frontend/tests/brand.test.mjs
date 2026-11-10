@@ -1,6 +1,6 @@
 // Brand name + wordmark (#110). Run with `npm test`.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { BRAND_NAME, WORDMARK, pageTitle } from "../lib/brand.ts";
@@ -13,15 +13,27 @@ test("the wordmark reads 'moni cafe' and its accessible name is 'Moni Cafe'", ()
   assert.equal(`${WORDMARK.main} ${WORDMARK.sub}`, BRAND_NAME.toLowerCase());
 });
 
-test("pageTitle: brand + tagline on the home page, 'X | Moni Cafe' elsewhere", () => {
+test("pageTitle: the brand alone on the home page, 'X | Moni Cafe' elsewhere", () => {
   const cases = [
-    [undefined, "台灣精品咖啡市集", "Moni Cafe — 台灣精品咖啡市集"],
-    ["", "tagline", "Moni Cafe — tagline"],
-    ["  ", "tagline", "Moni Cafe — tagline"],
-    ["Geisha", "tagline", "Geisha | Moni Cafe"],
-    ["%s", "", "%s | Moni Cafe"],
+    [undefined, "Moni Cafe"],
+    ["", "Moni Cafe"],
+    ["  ", "Moni Cafe"],
+    ["Geisha", "Geisha | Moni Cafe"],
+    ["%s", "%s | Moni Cafe"],
   ];
-  for (const [title, tagline, want] of cases) assert.equal(pageTitle(title, tagline), want, String(title));
+  for (const [title, want] of cases) assert.equal(pageTitle(title), want, String(title));
+});
+
+// Owner on #159: "never display 台灣精品咖啡市集; people should know the brand is called moni cafe".
+test("the marketplace tagline is displayed nowhere (#159, #194)", () => {
+  const banned = /台灣精品咖啡市集|台湾精品咖啡市集|specialty[- ]coffee marketplace/i;
+  const walk = (dir) =>
+    readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(join(dir, e.name)) : /\.(ts|tsx|css)$/.test(e.name) ? [join(dir, e.name)] : [],
+    );
+  for (const f of ["app", "components", "lib"].flatMap(walk)) {
+    assert.doesNotMatch(readFileSync(join(root, f), "utf8"), banned, f);
+  }
 });
 
 test("header and footer both render the wordmark; no shouty 'MONI CAFE' remains", () => {

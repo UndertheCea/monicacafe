@@ -3,6 +3,7 @@
 The current picture: goal, status, focus and the reasons behind it. **How** to work (rules, architecture,
 verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue and owner questions are
 **GitHub Issues** (labels `slice` and `question`). History is in [`docs/SESSION_LOG.md`](docs/SESSION_LOG.md).
+The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md) (review of 2026-11-10).
 
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).

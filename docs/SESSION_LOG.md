@@ -15,6 +15,24 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 29b — 2026-11-10 — Owner follow-ups: #177 answered, home hero trimmed
+PR: #187
+
+The owner answered #177 in the session, choosing (b): the navigation drawer at every width. I posted the answer on the
+issue from the owner's account and opened #185 (p1) to build it; the brief's decision is updated when #185 lands. The
+owner also asked for the home hero's "一杯咖啡，一段台灣的故事" headline and its two buttons to go (#186). The tagline,
+the intro paragraph, 熱門咖啡豆, 精選店家 and 為什麼選擇 stay.
+
+### Shipped (one line per slice: area — what — key files)
+- #186 frontend — the hero shows only the tagline and the intro. A visually hidden `h1` (`home.heading`) keeps one
+  heading per page. The unused `home.title*` / `home.cta*` strings are gone (`app/page.tsx`, `lib/i18n/dict.ts`).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- tsc, lint, `npm test`, `npm run build`. Playwright at 390 / 1280 px: one `h1`, black and white only.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- #185 is next: drawer at every width. The desktop header still shows the inline links until it lands.
+
 ## Session 29 — 2026-11-09 — Flavour notes required, coffee forms grouped into Essentials + More details
 PR: #184
 

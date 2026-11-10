@@ -104,7 +104,6 @@ Open questions for the owner (answer by commenting on the issue):
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
 | #159 | Header tagline | dropped from the header (built) | yes |
 | #176 | Which coffee fields are required | variety optional, ≥ 1 flavour note required, essentials grouped (built, #181, #182) | yes |
-| #177 | Nav drawer widths | below `lg` only (built, #175) | yes |
 
 ## Decisions (why it looks like this)
 
@@ -204,3 +203,5 @@ Open questions for the owner (answer by commenting on the issue):
   dialog is shown inline by CSS where the content is a sidebar, so the same markup serves both (#165).
 - **Flavour notes required, other details optional and folded (#176 default; #181, #182)**: the rule applies to new
   coffees and to edits that send notes, never to stored data. The fold is a native `<details>` so it works without JS.
+- **Home hero = tagline + intro, no headline or buttons (owner, 2026-11-10, #186)**: the page should look clean. The way
+  into the site is the header drawer, which the owner wants at every width (#177 (b), built in #185).

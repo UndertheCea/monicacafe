@@ -32,12 +32,12 @@ func TestCoffeeSearch(t *testing.T) {
 			producer, region = provenance[0], provenance[1]
 		}
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
-			map[string]any{"in": map[string]any{
+			map[string]any{"in": withEssentials(t, map[string]any{
 				"name": name, "description": desc, "roastLevel": "LIGHT", "flavorNotes": notes,
 				"producer": producer, "region": region,
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-			}}, &out)
+			})}, &out)
 		if publish {
 			seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 		}

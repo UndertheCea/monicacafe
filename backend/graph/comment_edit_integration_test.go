@@ -29,11 +29,11 @@ func TestUpdateComment(t *testing.T) {
 	anon.mustDo(`{ originCountries { id } processingMethods { id } }`, nil, &refs)
 	var co struct{ CreateCoffee struct{ ID string } }
 	seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
-		map[string]any{"in": map[string]any{
+		map[string]any{"in": withEssentials(t, map[string]any{
 			"name": "Edit Me", "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-		}}, &co)
+		})}, &co)
 	coffeeID := co.CreateCoffee.ID
 	seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": coffeeID}, nil)
 

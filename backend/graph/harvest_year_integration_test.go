@@ -36,11 +36,11 @@ func TestCoffeeHarvestYear(t *testing.T) {
 		return fmt.Sprint(*p)
 	}
 	base := func(extra map[string]any) map[string]any {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": "Ethiopia Guji", "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 520, "stock": 3}},
-		}
+		})
 		for k, v := range extra {
 			in[k] = v
 		}

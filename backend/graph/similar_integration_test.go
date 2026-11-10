@@ -52,11 +52,11 @@ func TestSimilarCoffees(t *testing.T) {
 			solo++
 			notes = []string{fmt.Sprintf("solo-%s-%d", run[len(run)-8:], solo)}
 		}
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": name, "description": "", "roastLevel": roast, "flavorNotes": notes,
 			"originCountryId": origin, "processingMethodId": process,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": stock}},
-		}
+		})
 		for _, e := range extra {
 			for k, v := range e {
 				in[k] = v

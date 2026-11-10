@@ -419,6 +419,24 @@ func validateHarvestYear(field string, year *int, now time.Time) error {
 }
 
 // cleanProvenance trims the optional producer / region texts; nil stays "".
+// requireCoffeeEssentials checks the details a new coffee must have (owner's
+// answer on #176): a variety, a producer, a region and an altitude. Origin
+// and process are non-null in the schema and checked by validateRefs; the
+// flavour notes by requireFlavorNotes. producer / region are already cleaned.
+func requireCoffeeEssentials(varietyID *string, producer, region string, altitudeMinM *int) error {
+	switch {
+	case varietyID == nil || strings.TrimSpace(*varietyID) == "":
+		return errBadInput("varietyId", "choose a variety (Heirloom or Landrace when there's no named cultivar)")
+	case producer == "":
+		return errBadInput("producer", "add the producer (farm, estate, cooperative or washing station)")
+	case region == "":
+		return errBadInput("region", "add the region")
+	case altitudeMinM == nil:
+		return errBadInput("altitudeMinM", "add the altitude")
+	}
+	return nil
+}
+
 func cleanProvenance(producer, region *string) (string, string, error) {
 	var p, rg string
 	var err error

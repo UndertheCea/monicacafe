@@ -35,11 +35,11 @@ func TestReorderShopCoffees(t *testing.T) {
 	create := func(c *gqlClient, name string) string {
 		var out struct{ CreateCoffee struct{ ID string } }
 		c.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
-			map[string]any{"in": map[string]any{
+			map[string]any{"in": withEssentials(t, map[string]any{
 				"name": name, "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 				"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 				"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-			}}, &out)
+			})}, &out)
 		return out.CreateCoffee.ID
 	}
 	a, b, d := create(seller, "A"), create(seller, "B"), create(seller, "D")

@@ -2055,20 +2055,26 @@ input UpdateShopInput {
   lng: Float
 }
 
+# Required (owner's answer on #176): name, origin, process, variety, at least
+# one flavour note, producer, region, altitude (at least the lowest) and an
+# option. Variety, producer, region and altitude are nullable here so a
+# missing one is BAD_USER_INPUT with its ` + "`" + `field` + "`" + `, like the other checks.
 input CreateCoffeeInput {
   name: String!
   description: String!
   originCountryId: ID!
+  # Required; "Heirloom" and "Landrace" cover lots without a named cultivar.
   varietyId: ID
   processingMethodId: ID!
   # Optional (owner, #176).
   roastLevel: RoastLevel
   # At least one non-blank note (#181); ≤ 10 notes, ≤ 30 characters each.
   flavorNotes: [String!]
-  # ≤ 100 characters each; blank = not given.
+  # Required, 1–100 characters each.
   producer: String
   region: String
-  # Metres, 0–6000. altitudeMaxM needs altitudeMinM and must be ≥ it.
+  # Metres, 0–6000; altitudeMinM required. altitudeMaxM needs altitudeMinM
+  # and must be ≥ it (omitted = a single height).
   altitudeMinM: Int
   altitudeMaxM: Int
   brewMethod: BrewMethod
@@ -2088,9 +2094,9 @@ input UpdateCoffeeInput {
   clearRoastLevel: Boolean
   # Omit to keep the notes; a given list needs at least one non-blank note.
   flavorNotes: [String!]
-  # true removes the variety (it's optional). Can't be combined with varietyId.
-  clearVariety: Boolean
-  # ≤ 100 characters each; "" clears.
+  # Required details (#176) can be changed but not removed: there is no
+  # clearVariety / clearAltitude, and producer / region must be 1–100
+  # characters. Coffees saved before keep whatever they have.
   producer: String
   region: String
   # Set together: giving altitudeMinM replaces both (an omitted altitudeMaxM
@@ -2098,8 +2104,6 @@ input UpdateCoffeeInput {
   # alone is BAD_USER_INPUT.
   altitudeMinM: Int
   altitudeMaxM: Int
-  # true removes the altitude. Can't be combined with altitudeMinM / altitudeMaxM.
-  clearAltitude: Boolean
   brewMethod: BrewMethod
   # true removes the brew method. Can't be combined with brewMethod.
   clearBrewMethod: Boolean
@@ -14290,7 +14294,7 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "clearRoastLevel", "flavorNotes", "clearVariety", "producer", "region", "altitudeMinM", "altitudeMaxM", "clearAltitude", "brewMethod", "clearBrewMethod", "harvestYear", "clearHarvestYear", "imageUrls"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "clearRoastLevel", "flavorNotes", "producer", "region", "altitudeMinM", "altitudeMaxM", "brewMethod", "clearBrewMethod", "harvestYear", "clearHarvestYear", "imageUrls"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14353,13 +14357,6 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.FlavorNotes = data
-		case "clearVariety":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearVariety"))
-			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ClearVariety = data
 		case "producer":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("producer"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
@@ -14388,13 +14385,6 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.AltitudeMaxM = data
-		case "clearAltitude":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearAltitude"))
-			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.ClearAltitude = data
 		case "brewMethod":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("brewMethod"))
 			data, err := ec.unmarshalOBrewMethod2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐBrewMethod(ctx, v)

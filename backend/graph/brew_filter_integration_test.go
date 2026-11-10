@@ -33,11 +33,11 @@ func TestCoffeesBrewMethodFilter(t *testing.T) {
 		{"F", "FILTER", true}, {"E", "ESPRESSO", true}, {"O", "OMNI", true}, {"N", "", true},
 		{"DraftE", "ESPRESSO", false},
 	} {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": c.name, "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-		}
+		})
 		if c.brew != "" {
 			in["brewMethod"] = c.brew
 		}

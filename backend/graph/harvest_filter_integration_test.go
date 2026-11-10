@@ -36,11 +36,11 @@ func TestCoffeesHarvestYearFilter(t *testing.T) {
 		{"Y2023", 2023, true}, {"Y2024", 2024, true}, {"Y2025", 2025, true}, {"N", 0, true},
 		{"Draft2025", 2025, false},
 	} {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": c.name, "description": "", "roastLevel": "MEDIUM", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-		}
+		})
 		if c.year != 0 {
 			in["harvestYear"] = c.year
 		}

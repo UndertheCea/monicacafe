@@ -535,6 +535,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
 		return nil, err
 	}
+	if err := requireCoffeeEssentials(input.VarietyID, producer, region, input.AltitudeMinM); err != nil {
+		return nil, err
+	}
 	brew, err := brewMethodParam(input.BrewMethod)
 	if err != nil {
 		return nil, err
@@ -611,30 +614,20 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	p.OriginCountryID, p.VarietyID, p.ProcessingMethodID = input.OriginCountryID, input.VarietyID, input.ProcessingMethodID
-	if input.ClearVariety != nil && *input.ClearVariety {
-		if input.VarietyID != nil {
-			return nil, errBadInput("clearVariety", "clearVariety can't be combined with varietyId")
-		}
-		p.ClearVariety = true
-	}
 	if p.FlavorNotes, err = requireFlavorNotes(input.FlavorNotes, input.FlavorNotes != nil); err != nil {
 		return nil, err
 	}
 	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
 		return nil, err
 	}
-	if p.Producer, err = cleanOptText("producer", input.Producer, 0, maxProvenanceText); err != nil {
+	// Required since #176: they can be changed, never blanked.
+	if p.Producer, err = cleanOptText("producer", input.Producer, 1, maxProvenanceText); err != nil {
 		return nil, err
 	}
-	if p.Region, err = cleanOptText("region", input.Region, 0, maxProvenanceText); err != nil {
+	if p.Region, err = cleanOptText("region", input.Region, 1, maxProvenanceText); err != nil {
 		return nil, err
 	}
-	if input.ClearAltitude != nil && *input.ClearAltitude {
-		if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
-			return nil, errBadInput("clearAltitude", "clearAltitude can't be combined with an altitude")
-		}
-		p.SetAltitude = true
-	} else if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
+	if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
 		if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
 			return nil, err
 		}

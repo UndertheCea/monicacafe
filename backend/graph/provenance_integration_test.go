@@ -31,11 +31,11 @@ func TestCoffeeProvenance(t *testing.T) {
 	}
 	const fields = `id producer region altitudeMinM altitudeMaxM`
 	base := func(extra map[string]any) map[string]any {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": "Guatemala Huehuetenango", "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 520, "stock": 3}},
-		}
+		})
 		for k, v := range extra {
 			in[k] = v
 		}
@@ -55,10 +55,29 @@ func TestCoffeeProvenance(t *testing.T) {
 		}
 	}
 
-	// Not given: blank text and null altitude.
-	var plain struct{ CreateCoffee prov }
-	seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { `+fields+` } }`, base(nil), &plain)
-	check("plain create", plain.CreateCoffee, "", "", "nil", "nil")
+	// Required since #176 (owner): each missing or blank one is refused.
+	for _, tt := range []struct {
+		name  string
+		extra map[string]any
+		field string
+	}{
+		{"no variety", map[string]any{"varietyId": nil}, "varietyId"},
+		{"no producer", map[string]any{"producer": nil}, "producer"},
+		{"blank producer", map[string]any{"producer": "   "}, "producer"},
+		{"no region", map[string]any{"region": nil}, "region"},
+		{"blank region", map[string]any{"region": ""}, "region"},
+		{"no altitude", map[string]any{"altitudeMinM": nil}, "altitudeMinM"},
+		{"empty origin", map[string]any{"originCountryId": ""}, "originCountryId"},
+		{"unknown origin", map[string]any{"originCountryId": "00000000-0000-4000-8000-00000000dead"}, "originCountryId"},
+		{"empty process", map[string]any{"processingMethodId": ""}, "processingMethodId"},
+		{"unknown process", map[string]any{"processingMethodId": "00000000-0000-4000-8000-00000000dead"}, "processingMethodId"},
+		{"empty variety", map[string]any{"varietyId": ""}, "varietyId"},
+	} {
+		r := seller.do(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`, base(tt.extra), nil)
+		if len(r.Errors) == 0 || r.Errors[0].Extensions["code"] != graph.CodeBadInput || r.Errors[0].Extensions["field"] != tt.field {
+			t.Fatalf("create %s: got %+v, want BAD_USER_INPUT on %s", tt.name, r.Errors, tt.field)
+		}
+	}
 
 	var created struct{ CreateCoffee prov }
 	seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { `+fields+` } }`,
@@ -72,7 +91,7 @@ func TestCoffeeProvenance(t *testing.T) {
 		field string
 	}{
 		{"max below min", map[string]any{"altitudeMinM": 2000, "altitudeMaxM": 1000}, "altitudeMaxM"},
-		{"max alone", map[string]any{"altitudeMaxM": 1000}, "altitudeMinM"},
+		{"max alone", map[string]any{"altitudeMinM": nil, "altitudeMaxM": 1000}, "altitudeMinM"},
 		{"too high", map[string]any{"altitudeMinM": 9000}, "altitudeMinM"},
 		{"long producer", map[string]any{"producer": strings.Repeat("x", 101)}, "producer"},
 	} {
@@ -106,7 +125,8 @@ func TestCoffeeProvenance(t *testing.T) {
 		in    map[string]any
 		field string
 	}{
-		{"clear with value", map[string]any{"clearAltitude": true, "altitudeMinM": 100}, "clearAltitude"},
+		{"blank producer", map[string]any{"producer": ""}, "producer"},
+		{"blank region", map[string]any{"region": "  "}, "region"},
 		{"max alone", map[string]any{"altitudeMaxM": 1000}, "altitudeMinM"},
 		{"max below min", map[string]any{"altitudeMinM": 1000, "altitudeMaxM": 900}, "altitudeMaxM"},
 		{"long region", map[string]any{"region": strings.Repeat("區", 101)}, "region"},
@@ -118,5 +138,10 @@ func TestCoffeeProvenance(t *testing.T) {
 		}
 	}
 
-	update("clear", map[string]any{"producer": "", "region": "  ", "clearAltitude": true}, "", "", "nil", "nil")
+	// There is no clearAltitude / clearVariety any more (#176).
+	for _, f := range []string{"clearAltitude", "clearVariety"} {
+		seller.expectCode("GRAPHQL_VALIDATION_FAILED", `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
+			map[string]any{"id": id, "in": map[string]any{f: true}})
+	}
+	update("unchanged after refusals", map[string]any{}, "Finca El Injerto", "La Libertad", "1600", "1800")
 }

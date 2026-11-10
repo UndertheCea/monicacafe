@@ -1,6 +1,7 @@
 package graph_test
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,7 +16,7 @@ import (
 // coffees without an altitude never match, out-of-range values are
 // BAD_USER_INPUT. Requires TEST_DATABASE_URL.
 func TestCoffeesAltitudeFilter(t *testing.T) {
-	url, _ := newTestServer(t)
+	url, pool := newTestServer(t)
 	run := fmt.Sprintf("%d", time.Now().UnixNano())
 	anon := &gqlClient{t: t, url: url}
 	seller, _ := register(t, url, "altfilter+"+run+"@example.com")
@@ -37,14 +38,14 @@ func TestCoffeesAltitudeFilter(t *testing.T) {
 		{"H1600", 1600, 0, true},         // single height
 		{"R1200-1800", 1200, 1800, true}, // range reaching high
 		{"R1000-1400", 1000, 1400, true},
-		{"N", 0, 0, true},
+		{"N", 0, 0, true}, // saved before #176 made the altitude required
 		{"Draft2000", 2000, 0, false},
 	} {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": c.name, "description": "", "roastLevel": "LIGHT", "flavorNotes": []string{"Citrus"},
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 450, "stock": 2}},
-		}
+		})
 		if c.min != 0 {
 			in["altitudeMinM"] = c.min
 		}
@@ -53,6 +54,13 @@ func TestCoffeesAltitudeFilter(t *testing.T) {
 		}
 		var out struct{ CreateCoffee struct{ ID string } }
 		seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`, map[string]any{"in": in}, &out)
+		if c.min == 0 {
+			// The API no longer creates a coffee without an altitude; older ones exist.
+			if _, err := pool.Exec(context.Background(),
+				`UPDATE coffees SET altitude_min_m = NULL, altitude_max_m = NULL WHERE id = $1`, out.CreateCoffee.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
 		if c.publish {
 			seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 		}

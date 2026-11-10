@@ -577,6 +577,38 @@ func TestCleanProvenance(t *testing.T) {
 	}
 }
 
+func TestRequireCoffeeEssentials(t *testing.T) {
+	v, alt, blank := "variety-id", 1500, " "
+	for _, tt := range []struct {
+		name             string
+		variety          *string
+		producer, region string
+		altitude         *int
+		field            string // "" = ok
+	}{
+		{"all given", &v, "Kochere", "Gedeo", &alt, ""},
+		{"no variety", nil, "Kochere", "Gedeo", &alt, "varietyId"},
+		{"blank variety", &blank, "Kochere", "Gedeo", &alt, "varietyId"},
+		{"no producer", &v, "", "Gedeo", &alt, "producer"},
+		{"no region", &v, "Kochere", "", &alt, "region"},
+		{"no altitude", &v, "Kochere", "Gedeo", nil, "altitudeMinM"},
+		{"nothing: variety first", nil, "", "", nil, "varietyId"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := requireCoffeeEssentials(tt.variety, tt.producer, tt.region, tt.altitude)
+			if tt.field == "" {
+				if err != nil {
+					t.Fatalf("got %v, want ok", err)
+				}
+				return
+			}
+			if ae, ok := err.(*apiError); !ok || ae.field != tt.field {
+				t.Fatalf("got %v, want a bad-input error on %s", err, tt.field)
+			}
+		})
+	}
+}
+
 func TestRoastLevelParam(t *testing.T) {
 	r := func(v string) *model.RoastLevel { x := model.RoastLevel(v); return &x }
 	for _, tt := range []struct {

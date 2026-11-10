@@ -34,11 +34,11 @@ func TestShopCoffeesFilter(t *testing.T) {
 		for _, co := range list {
 			var out struct{ CreateCoffee struct{ ID string } }
 			c.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
-				map[string]any{"in": map[string]any{
+				map[string]any{"in": withEssentials(t, map[string]any{
 					"name": co.name, "description": co.desc, "roastLevel": co.roast, "flavorNotes": []string{"Citrus"},
 					"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 					"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
-				}}, &out)
+				})}, &out)
 			if co.publish {
 				c.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": out.CreateCoffee.ID}, nil)
 			}

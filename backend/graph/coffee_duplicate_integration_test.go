@@ -31,7 +31,7 @@ func TestDuplicateCoffee(t *testing.T) {
 
 	var created struct{ CreateCoffee struct{ ID string } }
 	seller.mustDo(`mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`,
-		map[string]any{"in": map[string]any{
+		map[string]any{"in": withEssentials(t, map[string]any{
 			"name": "Kenya Nyeri AA", "description": "Blackcurrant.", "roastLevel": "LIGHT",
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"flavorNotes": []string{"黑醋栗", "番茄"},
@@ -39,7 +39,7 @@ func TestDuplicateCoffee(t *testing.T) {
 				{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 480, "stock": 4},
 				{"grind": "ESPRESSO", "weightG": 500, "priceTwd": 1100, "stock": 0},
 			},
-		}}, &created)
+		})}, &created)
 	src := created.CreateCoffee.ID
 	var vs struct {
 		Coffee struct{ Variants []struct{ ID string } }

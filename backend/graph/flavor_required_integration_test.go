@@ -28,11 +28,11 @@ func TestFlavorNotesRequired(t *testing.T) {
 	anon.mustDo(`{ originCountries { id } processingMethods { id } }`, nil, &refs)
 
 	base := func(notes any, omit bool) map[string]any {
-		in := map[string]any{
+		in := withEssentials(t, map[string]any{
 			"name": "Notes Test", "description": "", "roastLevel": "LIGHT",
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 480, "stock": 2}},
-		}
+		})
 		if !omit {
 			in["flavorNotes"] = notes
 		}

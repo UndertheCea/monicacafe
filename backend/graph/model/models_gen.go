@@ -157,12 +157,10 @@ type UpdateCoffeeInput struct {
 	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	ClearRoastLevel    *bool       `json:"clearRoastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
-	ClearVariety       *bool       `json:"clearVariety,omitempty"`
 	Producer           *string     `json:"producer,omitempty"`
 	Region             *string     `json:"region,omitempty"`
 	AltitudeMinM       *int        `json:"altitudeMinM,omitempty"`
 	AltitudeMaxM       *int        `json:"altitudeMaxM,omitempty"`
-	ClearAltitude      *bool       `json:"clearAltitude,omitempty"`
 	BrewMethod         *BrewMethod `json:"brewMethod,omitempty"`
 	ClearBrewMethod    *bool       `json:"clearBrewMethod,omitempty"`
 	HarvestYear        *int        `json:"harvestYear,omitempty"`

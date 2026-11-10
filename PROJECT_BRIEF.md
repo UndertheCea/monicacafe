@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-10 (after Session 30)
+Last updated: 2026-11-10 (after Session 31)
 
 ---
 
@@ -46,7 +46,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | High-grown filter `minAltitudeM` in the API only (site dropped it, #167; sweet / body went with the cup profile, #189); "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
 | Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
-| Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, Product + Store JSON-LD | Done (#92) |
+| Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, home and listings (search results `noindex`), Product + Store JSON-LD | Done (#92, #195) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Skip-to-content link, one `main` landmark per page | Done (#85) |
@@ -70,39 +70,37 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
-| Visual direction: white + black tokens, italic "moni cafe" wordmark (one line, no tagline, #164), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
+| Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
 
 ## Last session
 
-**Session 30**: re-checked and merged PR #187 (home hero, #188). The header is now ☰ · wordmark · search at every width
-(#185, owner's #177 (b)). The owner answered #176, and four slices carry it out: the cup profile is gone (#189); roast
-level is optional with a new 極淺焙 (#190); variety, producer, region and altitude are required (#191); and the forms and
-pages follow (#192). Verified with race tests on Postgres 16, Playwright and screenshots. Smoke was left to CI.
+**Session 31**: the owner answered five questions, now recorded below and closed: #159 (never show the tagline), #9 (cart
+in Postgres), #10 (keep OSM), #42 and #50 (no change). Three small slices shipped: the home tab title is just "Moni Cafe"
+(#194); home, /coffees, /shops and /map have share cards and canonical URLs (#195); the dictionary has no unused strings
+and the dashboard explains the 10-option limit (#196). The roasters' sites still return 403, so #170–#173 stay blocked;
+#197 asks whether Stage 2 may start anyway.
 
 ## Current focus
 
 1. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
-   reachable (#168: still no connection from sessions). The frame is ready: add rows to `scripts/seed_reference.sql`,
-   then run `./scripts/reference_gaps.sh`.
-2. No other `stage-1` slices are open. Blends as first-class coffees (#176 point 2) wait for an owner ask. Stage 2
-   (cart, orders, ECPay) stays blocked on #9 and #12.
-3. Production: set `TRUSTED_PROXIES` to the real proxies only, and keep `DB_MAX_CONNS` × API instances below
-   Postgres' `max_connections`.
+   reachable (#168: still 403 through the proxy on 2026-11-10). The frame is ready: add rows to
+   `scripts/seed_reference.sql`, then run `./scripts/reference_gaps.sh`.
+2. **Stage 2 waits on #197.** #9 is answered (Postgres), so #21 (cart) is no longer `blocked`, but every `stage-1` slice
+   must close first unless the owner says otherwise on #197. Orders and payouts also need #12.
+3. No other `stage-1` slices are open. Blends as first-class coffees (#176 point 2) wait for an owner ask.
+4. Production: set `TRUSTED_PROXIES` to the real proxies only, keep `DB_MAX_CONNS` × API instances below Postgres'
+   `max_connections`, and choose a map tile provider before launch (#10).
 
 Open questions for the owner (answer by commenting on the issue):
 
 | Issue | Question | Default | Safe? |
 |---|---|---|---|
 | #7 | Image storage | S3-compatible (SeaweedFS in dev) | yes |
-| #9 | Cart storage (Stage 2) | Postgres | **no**: blocks #21 |
-| #10 | Production map tiles | keep OSM for the demo | yes |
 | #12 | Commission + payouts (Stage 2) | none | **no** |
-| #42 | Sellers delete comments on their coffees? | no change (author / admin only) | yes |
-| #50 | City filter on /shops? | no (use /map) | yes |
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
-| #159 | Header tagline | dropped from the header (built) | yes |
+| #197 | Start Stage 2 while #170–#174 wait for network? | no, keep the stage rule | yes |
 
 ## Decisions (why it looks like this)
 
@@ -117,7 +115,7 @@ Open questions for the owner (answer by commenting on the issue):
 - **UUID keys** — safe to expose in URLs, no enumeration.
 - **Bilingual `t()` dictionary instead of an i18n library** — two locales; TypeScript enforces key parity and
   a test checks placeholders.
-- **Leaflet + OSM** — no API key for the demo (see #10 for production).
+- **Leaflet + OSM** — no API key for the demo. Owner on #10: keep OSM for the demo and decide before launch.
 - **Coordinates validated in three places** (GraphQL input, `toShopPin`, DB CHECK in migration 003) — defence in
   depth, because seeds and future admin tools write the table directly.
 - **Work queue in GitHub Issues, not a doc** — sessions claim slices with `in-progress`, so parallel or
@@ -153,9 +151,10 @@ Open questions for the owner (answer by commenting on the issue):
   than a draft (#69). `User.comments` is empty, not an error, for other viewers (#71).
 - **Logout ends one device; `logoutEverywhere` ends all** — the cookie's refresh token proves the session, so it
   works with an expired access token; revoked tokens leave the rotation chain so a late replay isn't "theft" (#73).
-- **Shop search covers name + description, not city** — a city filter is still the owner's call (#50) (#75).
+- **Shop search covers name + description, not city** — owner on #50: no city filter, /map shows where shops are (#75).
 - **Comment edits are author-only and leave no history** — admins can remove a comment but never rewrite someone's
-  words; an "edited" marker is shown instead of keeping old versions (#81).
+  words; an "edited" marker is shown instead of keeping old versions (#81). Sellers can't delete comments on their
+  coffees: author and admin only (owner, #42).
 - **Similar coffees = a SQL score over origin / process / roast / notes, other shops only** — cross-shop discovery
   without new infra; a shared roast alone isn't "similar" (#83).
 - **Saved coffees: public count, private list** — the list is self / admin only like "My comments"; drafts drop out of
@@ -204,5 +203,11 @@ Open questions for the owner (answer by commenting on the issue):
   Landrace for lots without a cultivar), producer, region, altitude and ≥ 1 flavour note. Roast is optional, with
   `EXTRA_LIGHT` (極淺焙). Edits can change the required details but not clear them; stored coffees are never rewritten.
   Description, brew method and harvest year fold under a native `<details>` (works without JS).
-- **Home hero = tagline + intro, no headline or buttons (owner, 2026-11-10, #186)**: the page should look clean. The way
+- **Home hero = a small label + intro, no headline or buttons (owner, 2026-11-10, #186)**: the page should look clean. The way
   into the site is the header drawer, which the owner wants at every width (#177 (b), built in #185).
+- **The brand is "Moni Cafe" and nothing else (owner, #159 (a))**: 台灣精品咖啡市集 is never displayed, not in the header
+  (#164) and not in the home tab title (#194); a test keeps the phrase out of the frontend.
+- **Cart lives in Postgres (owner, #9 (a))**: durable across logout and devices, one source of truth with orders. Redis
+  stays reserved for caching.
+- **Listing canonicals keep only `page` (#195)**: filters, sort and search all point at one URL per page, and `?q=` results
+  are `noindex, follow`, so crawlers don't index every combination.

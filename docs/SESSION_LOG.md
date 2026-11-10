@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 30 — 2026-11-10 — Header at every width, the owner's #176 answer built
-PR: #PRNUM
+PR: #193
 
 Finished the open PR #187 first, as #188 asked: I read the full diff and checked that no `home.title*` / `home.cta*`
 references were left. The page has exactly one `h1`. tsc, lint, `npm test` and the build passed, and I took Playwright

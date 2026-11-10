@@ -151,3 +151,6 @@ func TestShopCoordinateConstraints(t *testing.T) {
 		})
 	}
 }
+
+// lightRoast is a stored roast level for test coffees (optional since #176).
+var lightRoast = func() *string { s := "LIGHT"; return &s }()

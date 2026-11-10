@@ -67,7 +67,7 @@ type CreateCoffeeInput struct {
 	OriginCountryID    string          `json:"originCountryId"`
 	VarietyID          *string         `json:"varietyId,omitempty"`
 	ProcessingMethodID string          `json:"processingMethodId"`
-	RoastLevel         RoastLevel      `json:"roastLevel"`
+	RoastLevel         *RoastLevel     `json:"roastLevel,omitempty"`
 	FlavorNotes        []string        `json:"flavorNotes,omitempty"`
 	Producer           *string         `json:"producer,omitempty"`
 	Region             *string         `json:"region,omitempty"`
@@ -155,6 +155,7 @@ type UpdateCoffeeInput struct {
 	VarietyID          *string     `json:"varietyId,omitempty"`
 	ProcessingMethodID *string     `json:"processingMethodId,omitempty"`
 	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
+	ClearRoastLevel    *bool       `json:"clearRoastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes,omitempty"`
 	ClearVariety       *bool       `json:"clearVariety,omitempty"`
 	Producer           *string     `json:"producer,omitempty"`
@@ -451,6 +452,7 @@ func (e ImageKind) MarshalJSON() ([]byte, error) {
 type RoastLevel string
 
 const (
+	RoastLevelExtraLight RoastLevel = "EXTRA_LIGHT"
 	RoastLevelLight      RoastLevel = "LIGHT"
 	RoastLevelMedium     RoastLevel = "MEDIUM"
 	RoastLevelMediumDark RoastLevel = "MEDIUM_DARK"
@@ -458,6 +460,7 @@ const (
 )
 
 var AllRoastLevel = []RoastLevel{
+	RoastLevelExtraLight,
 	RoastLevelLight,
 	RoastLevelMedium,
 	RoastLevelMediumDark,
@@ -466,7 +469,7 @@ var AllRoastLevel = []RoastLevel{
 
 func (e RoastLevel) IsValid() bool {
 	switch e {
-	case RoastLevelLight, RoastLevelMedium, RoastLevelMediumDark, RoastLevelDark:
+	case RoastLevelExtraLight, RoastLevelLight, RoastLevelMedium, RoastLevelMediumDark, RoastLevelDark:
 		return true
 	}
 	return false

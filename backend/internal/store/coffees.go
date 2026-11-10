@@ -326,7 +326,7 @@ type CreateCoffeeParams struct {
 	OriginCountryID    string
 	VarietyID          *string
 	ProcessingMethodID string
-	RoastLevel         string
+	RoastLevel         *string // nil = not given
 	FlavorNotes        []string
 	Producer           string
 	Region             string
@@ -393,6 +393,7 @@ type UpdateCoffeeParams struct {
 	VarietyID          *string
 	ProcessingMethodID *string
 	RoastLevel         *string
+	ClearRoastLevel    bool     // true sets roast_level to NULL (RoastLevel must be nil)
 	FlavorNotes        []string // nil = unchanged; empty slice clears
 	ClearVariety       bool     // true sets variety_id to NULL (VarietyID must be nil)
 	ImageURLs          []string // nil = unchanged; empty slice clears
@@ -423,7 +424,7 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				origin_country_id    = COALESCE($4, origin_country_id),
 				variety_id           = CASE WHEN $9 THEN NULL ELSE COALESCE($5, variety_id) END,
 				processing_method_id = COALESCE($6, processing_method_id),
-				roast_level          = COALESCE($7::roast_level, roast_level),
+				roast_level          = CASE WHEN $20 THEN NULL ELSE COALESCE($7::roast_level, roast_level) END,
 				flavor_notes         = COALESCE($8, flavor_notes),
 				image_urls           = COALESCE($10, image_urls),
 				producer             = COALESCE($11, producer),
@@ -438,7 +439,8 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
 		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs,
-		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear))
+		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear,
+		p.ClearRoastLevel))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

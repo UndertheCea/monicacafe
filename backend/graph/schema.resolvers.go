@@ -517,8 +517,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
-	if !input.RoastLevel.IsValid() {
-		return nil, errBadInput("roastLevel", "invalid roast level")
+	roast, err := roastLevelParam(input.RoastLevel)
+	if err != nil {
+		return nil, err
 	}
 	if err := r.validateRefs(ctx, &input.OriginCountryID, input.VarietyID, &input.ProcessingMethodID); err != nil {
 		return nil, err
@@ -558,7 +559,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 			co, err = tx.CreateCoffee(ctx, store.CreateCoffeeParams{
 				ShopID: sh.ID, Name: name, Slug: base + "-" + suffix, Description: desc,
 				OriginCountryID: input.OriginCountryID, VarietyID: input.VarietyID,
-				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: string(input.RoastLevel),
+				ProcessingMethodID: input.ProcessingMethodID, RoastLevel: roast,
 				FlavorNotes: notes, Producer: producer, Region: region,
 				AltitudeMinM: input.AltitudeMinM, AltitudeMaxM: input.AltitudeMaxM, BrewMethod: brew,
 				HarvestYear: input.HarvestYear,
@@ -598,12 +599,13 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Description, err = cleanOptText("description", input.Description, 0, 5000); err != nil {
 		return nil, err
 	}
-	if input.RoastLevel != nil {
-		if !input.RoastLevel.IsValid() {
-			return nil, errBadInput("roastLevel", "invalid roast level")
+	if input.ClearRoastLevel != nil && *input.ClearRoastLevel {
+		if input.RoastLevel != nil {
+			return nil, errBadInput("clearRoastLevel", "clearRoastLevel can't be combined with roastLevel")
 		}
-		rl := string(*input.RoastLevel)
-		p.RoastLevel = &rl
+		p.ClearRoastLevel = true
+	} else if p.RoastLevel, err = roastLevelParam(input.RoastLevel); err != nil {
+		return nil, err
 	}
 	if err := r.validateRefs(ctx, input.OriginCountryID, input.VarietyID, input.ProcessingMethodID); err != nil {
 		return nil, err

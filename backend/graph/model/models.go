@@ -43,7 +43,7 @@ type Coffee struct {
 	OriginCountryID    string      `json:"-"`
 	VarietyID          *string     `json:"-"`
 	ProcessingMethodID string      `json:"-"`
-	RoastLevel         RoastLevel  `json:"roastLevel"`
+	RoastLevel         *RoastLevel `json:"roastLevel,omitempty"`
 	FlavorNotes        []string    `json:"flavorNotes"`
 	Producer           string      `json:"producer"`
 	Region             string      `json:"region"`

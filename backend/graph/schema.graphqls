@@ -210,7 +210,8 @@ type Coffee {
   originCountry: OriginCountry!
   variety: CoffeeVariety
   processingMethod: ProcessingMethod!
-  roastLevel: RoastLevel!
+  # null when the seller didn't say (optional since #176).
+  roastLevel: RoastLevel
   flavorNotes: [String!]!
   # Provenance: the farm, estate, cooperative or washing station, and the
   # region inside the origin country. "" when not given.
@@ -273,7 +274,9 @@ type Variant {
   isAvailable: Boolean!
 }
 
+# EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176.
 enum RoastLevel {
+  EXTRA_LIGHT
   LIGHT
   MEDIUM
   MEDIUM_DARK
@@ -421,7 +424,8 @@ input CreateCoffeeInput {
   originCountryId: ID!
   varietyId: ID
   processingMethodId: ID!
-  roastLevel: RoastLevel!
+  # Optional (owner, #176).
+  roastLevel: RoastLevel
   # At least one non-blank note (#181); ≤ 10 notes, ≤ 30 characters each.
   flavorNotes: [String!]
   # ≤ 100 characters each; blank = not given.
@@ -443,6 +447,8 @@ input UpdateCoffeeInput {
   varietyId: ID
   processingMethodId: ID
   roastLevel: RoastLevel
+  # true removes the roast level. Can't be combined with roastLevel.
+  clearRoastLevel: Boolean
   # Omit to keep the notes; a given list needs at least one non-blank note.
   flavorNotes: [String!]
   # true removes the variety (it's optional). Can't be combined with varietyId.

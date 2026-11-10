@@ -577,6 +577,43 @@ func TestCleanProvenance(t *testing.T) {
 	}
 }
 
+func TestRoastLevelParam(t *testing.T) {
+	r := func(v string) *model.RoastLevel { x := model.RoastLevel(v); return &x }
+	for _, tt := range []struct {
+		name string
+		in   *model.RoastLevel
+		want string // "nil" = not given
+		fail bool
+	}{
+		{"not given", nil, "nil", false},
+		{"extra light", r("EXTRA_LIGHT"), "EXTRA_LIGHT", false},
+		{"light", r("LIGHT"), "LIGHT", false},
+		{"dark", r("DARK"), "DARK", false},
+		{"lower case", r("light"), "", true},
+		{"unknown", r("BLONDE"), "", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := roastLevelParam(tt.in)
+			if tt.fail {
+				if ae, ok := err.(*apiError); !ok || ae.field != "roastLevel" {
+					t.Fatalf("got %v, want a bad-input error on roastLevel", err)
+				}
+				return
+			}
+			s := "nil"
+			if got != nil {
+				s = *got
+			}
+			if err != nil || s != tt.want {
+				t.Fatalf("got (%s, %v), want %s", s, err, tt.want)
+			}
+			if back := toRoastLevel(got); (back == nil) != (tt.in == nil) || (back != nil && *back != *tt.in) {
+				t.Fatalf("round trip: got %v, want %v", back, tt.in)
+			}
+		})
+	}
+}
+
 func TestBrewMethodParam(t *testing.T) {
 	m := func(v string) *model.BrewMethod { b := model.BrewMethod(v); return &b }
 	for _, tt := range []struct {

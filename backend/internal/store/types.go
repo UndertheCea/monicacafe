@@ -38,7 +38,7 @@ type Coffee struct {
 	OriginCountryID    string
 	VarietyID          *string
 	ProcessingMethodID string
-	RoastLevel         string // LIGHT | MEDIUM | MEDIUM_DARK | DARK
+	RoastLevel         *string // EXTRA_LIGHT | LIGHT | MEDIUM | MEDIUM_DARK | DARK; nil = not given (#176)
 	FlavorNotes        []string
 	ImageURLs          []string
 	IsPublished        bool

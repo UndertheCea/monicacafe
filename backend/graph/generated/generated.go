@@ -1847,7 +1847,8 @@ type Coffee {
   originCountry: OriginCountry!
   variety: CoffeeVariety
   processingMethod: ProcessingMethod!
-  roastLevel: RoastLevel!
+  # null when the seller didn't say (optional since #176).
+  roastLevel: RoastLevel
   flavorNotes: [String!]!
   # Provenance: the farm, estate, cooperative or washing station, and the
   # region inside the origin country. "" when not given.
@@ -1910,7 +1911,9 @@ type Variant {
   isAvailable: Boolean!
 }
 
+# EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176.
 enum RoastLevel {
+  EXTRA_LIGHT
   LIGHT
   MEDIUM
   MEDIUM_DARK
@@ -2058,7 +2061,8 @@ input CreateCoffeeInput {
   originCountryId: ID!
   varietyId: ID
   processingMethodId: ID!
-  roastLevel: RoastLevel!
+  # Optional (owner, #176).
+  roastLevel: RoastLevel
   # At least one non-blank note (#181); ≤ 10 notes, ≤ 30 characters each.
   flavorNotes: [String!]
   # ≤ 100 characters each; blank = not given.
@@ -2080,6 +2084,8 @@ input UpdateCoffeeInput {
   varietyId: ID
   processingMethodId: ID
   roastLevel: RoastLevel
+  # true removes the roast level. Can't be combined with roastLevel.
+  clearRoastLevel: Boolean
   # Omit to keep the notes; a given list needs at least one non-blank note.
   flavorNotes: [String!]
   # true removes the variety (it's optional). Can't be combined with varietyId.
@@ -4563,14 +4569,11 @@ func (ec *executionContext) _Coffee_roastLevel(ctx context.Context, field graphq
 		return graphql.Null
 	}
 	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
 		return graphql.Null
 	}
-	res := resTmp.(model.RoastLevel)
+	res := resTmp.(*model.RoastLevel)
 	fc.Result = res
-	return ec.marshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, field.Selections, res)
+	return ec.marshalORoastLevel2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Coffee_roastLevel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -14042,7 +14045,7 @@ func (ec *executionContext) unmarshalInputCreateCoffeeInput(ctx context.Context,
 			it.ProcessingMethodID = data
 		case "roastLevel":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("roastLevel"))
-			data, err := ec.unmarshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, v)
+			data, err := ec.unmarshalORoastLevel2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -14287,7 +14290,7 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "flavorNotes", "clearVariety", "producer", "region", "altitudeMinM", "altitudeMaxM", "clearAltitude", "brewMethod", "clearBrewMethod", "harvestYear", "clearHarvestYear", "imageUrls"}
+	fieldsInOrder := [...]string{"name", "description", "originCountryId", "varietyId", "processingMethodId", "roastLevel", "clearRoastLevel", "flavorNotes", "clearVariety", "producer", "region", "altitudeMinM", "altitudeMaxM", "clearAltitude", "brewMethod", "clearBrewMethod", "harvestYear", "clearHarvestYear", "imageUrls"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14336,6 +14339,13 @@ func (ec *executionContext) unmarshalInputUpdateCoffeeInput(ctx context.Context,
 				return it, err
 			}
 			it.RoastLevel = data
+		case "clearRoastLevel":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearRoastLevel"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearRoastLevel = data
 		case "flavorNotes":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("flavorNotes"))
 			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
@@ -14842,9 +14852,6 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "roastLevel":
 			out.Values[i] = ec._Coffee_roastLevel(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
 		case "flavorNotes":
 			out.Values[i] = ec._Coffee_flavorNotes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -17671,16 +17678,6 @@ func (ec *executionContext) marshalNProcessingMethod2ᚖgithubᚗcomᚋunderthec
 func (ec *executionContext) unmarshalNRegisterInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRegisterInput(ctx context.Context, v any) (model.RegisterInput, error) {
 	res, err := ec.unmarshalInputRegisterInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) unmarshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx context.Context, v any) (model.RoastLevel, error) {
-	var res model.RoastLevel
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNRoastLevel2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐRoastLevel(ctx context.Context, sel ast.SelectionSet, v model.RoastLevel) graphql.Marshaler {
-	return v
 }
 
 func (ec *executionContext) marshalNShop2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐShop(ctx context.Context, sel ast.SelectionSet, v model.Shop) graphql.Marshaler {

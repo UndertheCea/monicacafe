@@ -141,7 +141,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 	return &model.Coffee{
 		ID: c.ID, ShopID: c.ShopID, Name: c.Name, Slug: c.Slug, Description: c.Description,
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
-		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: model.RoastLevel(c.RoastLevel),
+		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: toRoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
@@ -151,6 +151,32 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 
 // toBrewMethod maps the stored brew method; nil or an unknown value (the
 // DB CHECK makes that impossible today) is "not given".
+// toRoastLevel maps a stored roast level to the enum; NULL (not given) and an
+// unknown stored value read as nil.
+func toRoastLevel(s *string) *model.RoastLevel {
+	if s == nil {
+		return nil
+	}
+	r := model.RoastLevel(*s)
+	if !r.IsValid() {
+		return nil
+	}
+	return &r
+}
+
+// roastLevelParam validates an optional roast level for the store; nil stays
+// nil (not given, #176).
+func roastLevelParam(r *model.RoastLevel) (*string, error) {
+	if r == nil {
+		return nil, nil
+	}
+	if !r.IsValid() {
+		return nil, errBadInput("roastLevel", "invalid roast level")
+	}
+	s := string(*r)
+	return &s, nil
+}
+
 func toBrewMethod(s *string) *model.BrewMethod {
 	if s == nil {
 		return nil

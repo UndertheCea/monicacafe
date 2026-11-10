@@ -43,13 +43,6 @@ export interface CoffeeFilter {
   inStock?: boolean;
   /** Only coffees harvested in this year or later. */
   minHarvestYear?: number;
-  /** Only coffees whose acidity (1–5) is this or lower. */
-  maxAcidity?: number;
-  /** Only coffees whose sweetness (1–5) is this or higher. */
-  minSweetness?: number;
-  /** Only coffees whose body (1–5) is within these bounds. */
-  minBody?: number;
-  maxBody?: number;
   /** Only coffees grown (at the top of their range) at or above this many metres. */
   minAltitudeM?: number;
 }
@@ -169,9 +162,6 @@ export interface CoffeeDetail {
   altitudeMaxM: number | null;
   brewMethod: BrewMethod | null;
   harvestYear: number | null;
-  acidity: number | null;
-  sweetness: number | null;
-  body: number | null;
   imageUrls: string[];
   isPublished: boolean;
   commentCount: number;
@@ -186,7 +176,7 @@ export interface CoffeeDetail {
 
 const COFFEE_DETAIL_FIELDS = `
   id slug name description roastLevel flavorNotes imageUrls isPublished commentCount saveCount
-  producer region altitudeMinM altitudeMaxM brewMethod harvestYear acidity sweetness body
+  producer region altitudeMinM altitudeMaxM brewMethod harvestYear
   shop { id slug name city description logoUrl }
   originCountry { nameEn nameZh region }
   processingMethod { nameEn nameZh }

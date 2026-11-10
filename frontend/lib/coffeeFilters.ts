@@ -17,8 +17,8 @@ function wholeNTD(v: string | undefined): number | undefined {
 
 /**
  * Parse `/coffees?q=…&origin=…&variety=…&process=…&min=…&max=…&instock=1&sort=…&page=2`
- * into a CoffeeFilter, sort + page. The roast, brew, flavour, harvest and
- * cup-profile params the page once had (`?roast`, `?brew`, `?flavor`,
+ * into a CoffeeFilter, sort + page. The roast, brew, flavour, harvest,
+ * cup-profile and altitude params the page once had (`?roast`, `?brew`, `?flavor`,
  * `?harvest`, `?acidity`, `?sweet`, `?body`, `?altitude`) are ignored, so old
  * links show the unfiltered list (owner, #166).
  */

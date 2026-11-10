@@ -224,11 +224,6 @@ type Coffee {
   brewMethod: BrewMethod
   # The crop (產季): the year its harvest ended; null when not given.
   harvestYear: Int
-  # Cup profile (酸度 / 甜度 / 醇厚度), each 1 (low) to 5 (high); null when not
-  # given. Set together through CupProfileInput.
-  acidity: Int
-  sweetness: Int
-  body: Int
   imageUrls: [String!]!
   variants: [Variant!]!
   # Newest first. limit defaults to 20 (max 100); page with offset and use
@@ -287,14 +282,6 @@ enum RoastLevel {
 
 # What a coffee is roasted for: filter (手沖, pour-over / batch brew),
 # espresso (義式) or omni (both). Independent of the roast level.
-# A coffee's cup profile, each 1 (low) to 5 (high) or null (not given). At
-# least one must be set; use clearCupProfile to remove the profile.
-input CupProfileInput {
-  acidity: Int
-  sweetness: Int
-  body: Int
-}
-
 enum BrewMethod {
   FILTER
   ESPRESSO
@@ -446,7 +433,6 @@ input CreateCoffeeInput {
   brewMethod: BrewMethod
   # 2000 through the current year (Asia/Taipei).
   harvestYear: Int
-  cupProfile: CupProfileInput
   variants: [VariantInput!]!
 }
 
@@ -478,10 +464,6 @@ input UpdateCoffeeInput {
   harvestYear: Int
   # true removes the harvest year. Can't be combined with harvestYear.
   clearHarvestYear: Boolean
-  # Replaces all three scales (an omitted one becomes null).
-  cupProfile: CupProfileInput
-  # true removes the cup profile. Can't be combined with cupProfile.
-  clearCupProfile: Boolean
   # Replaces the gallery (order kept; first is the cover). At most 8 URLs, each
   # from createImageUpload for this coffee. [] removes every photo.
   imageUrls: [String!]
@@ -512,10 +494,10 @@ input UpdateVariantInput {
 
 # The site's /coffees page uses only originCountryId, varietyId,
 # processingMethodId, search, minPriceTwd / maxPriceTwd and inStock (owner,
-# #166): each shop rates roast, brew method, harvest, cup profile and altitude
-# by its own standard. roastLevel, flavorNote, brewMethod, minHarvestYear,
-# maxAcidity, minSweetness, minBody / maxBody and minAltitudeM stay for API
-# clients, but the site doesn't use them.
+# #166): each shop rates roast, brew method, harvest and altitude by its own
+# standard. roastLevel, flavorNote, brewMethod, minHarvestYear and
+# minAltitudeM stay for API clients, but the site doesn't use them. (The cup
+# profile and its filters were removed on the owner's answer to #176.)
 input CoffeeFilter {
   originCountryId: ID
   varietyId: ID
@@ -539,15 +521,6 @@ input CoffeeFilter {
   # Only coffees harvested in this year or later (2000–2100). Coffees without
   # a harvest year never match.
   minHarvestYear: Int
-  # Only coffees whose acidity is this or lower (1–5). Coffees without an
-  # acidity never match.
-  maxAcidity: Int
-  # Only coffees whose sweetness is this or higher (1–5).
-  minSweetness: Int
-  # Only coffees whose body is within these bounds (1–5 each; minBody must
-  # not exceed maxBody). Coffees without that scale never match.
-  minBody: Int
-  maxBody: Int
   # Only coffees grown at or above this altitude in metres (0–6000), judged
   # by the top of the coffee's range (or its single height). Coffees without
   # an altitude never match.

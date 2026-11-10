@@ -294,42 +294,24 @@ else
   echo "ok   graphql harvest year filter"
 fi
 
-# Cup profile (#136–#141): maxAcidity 2 lists the seeded low-acid Huila (203)
-# and blend (206), not the bright Yirgacheffe (201) or the unset Antigua (205).
-body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
-  -d '{"query":"{ coffees(filter: { maxAcidity: 2 }, limit: 100) { nodes { id acidity } } }"}') || body=""
-if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-000000000206","acidity":1'* \
-      || "$body" != *'"id":"00000000-0000-4000-8000-000000000203","acidity":2'* \
-      || "$body" == *'00000000-0000-4000-8000-000000000201'* || "$body" == *'00000000-0000-4000-8000-000000000205'* ]]; then
-  echo "FAIL acidity filter: expected low-acid coffees only, got: ${body:0:300}"; fail=1
-else
-  echo "ok   graphql acidity filter"
-fi
+# Cup profile removed (owner's answer on #176, #189): the coffee page no longer
+# shows the scales.
 page=$(curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201") || page=""
-if [[ "$page" == *'Acidity 4 of 5'* || "$page" == *'酸度 4 / 5'* ]]; then
-  echo "ok   coffee page shows the cup profile"
+if [[ -n "$page" && "$page" != *'酸度'* && "$page" != *'Acidity'* ]]; then
+  echo "ok   coffee page has no cup profile"
 else
-  echo "FAIL coffee page should show the Yirgacheffe's acidity (4 of 5)"; fail=1
+  echo "FAIL coffee page should not show a cup profile (酸度 / Acidity)"; fail=1
 fi
 
-# Sweet / body / high-grown (#143–#147): minSweetness 4 lists the Geisha (202)
-# and Huila (203) only; light body (≤ 2) is the Yirgacheffe (201) alone, full
-# body (≥ 4) the blend (206) alone; 1,500 m+ leaves out the 1,000–1,400 m blend
-# and the coffees are judged by the top of their range.
+# High-grown (#147, API only): 1,500 m+ leaves out the 1,000–1,400 m blend and
+# coffees are judged by the top of their range.
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
-  -d '{"query":"{ sweet: coffees(filter: { minSweetness: 4 }, limit: 100) { nodes { id } } light: coffees(filter: { maxBody: 2 }, limit: 100) { nodes { id } } full: coffees(filter: { minBody: 4 }, limit: 100) { nodes { id } } high: coffees(filter: { minAltitudeM: 1500 }, limit: 100) { nodes { id } } }"}') || body=""
-sweet=$(echo "$body" | grep -o '"sweet":{"nodes":\[[^]]*\]') || sweet=""
-light=$(echo "$body" | grep -o '"light":{"nodes":\[[^]]*\]') || light=""
-full=$(echo "$body" | grep -o '"full":{"nodes":\[[^]]*\]') || full=""
+  -d '{"query":"{ high: coffees(filter: { minAltitudeM: 1500 }, limit: 100) { nodes { id } } }"}') || body=""
 high=$(echo "$body" | grep -o '"high":{"nodes":\[[^]]*\]') || high=""
-if [[ "$body" == *'"errors"'* \
-      || "$sweet" != *'000000000202'* || "$sweet" != *'000000000203'* || "$sweet" == *'000000000201'* || "$sweet" == *'000000000206'* \
-      || "$light" != *'000000000201'* || "$light" == *'000000000202'* || "$light" == *'000000000206'* \
-      || "$full" != *'000000000206'* || "$full" == *'000000000201'* || "$full" == *'000000000203'* \
-      || "$high" != *'000000000201'* || "$high" != *'000000000205'* || "$high" == *'000000000206'* ]]; then
-  echo "FAIL sweet / body / altitude filters: got ${body:0:400}"; fail=1
+if [[ "$body" == *'"errors"'* || "$high" != *'000000000201'* || "$high" != *'000000000205'* || "$high" == *'000000000206'* ]]; then
+  echo "FAIL altitude filter: got ${body:0:400}"; fail=1
 else
-  echo "ok   graphql sweet / body / altitude filters"
+  echo "ok   graphql altitude filter"
 fi
 # /coffees no longer offers these filters (owner, #166, #167): old links show the
 # unfiltered list, the sidebar has no such fields, and cards don't show the

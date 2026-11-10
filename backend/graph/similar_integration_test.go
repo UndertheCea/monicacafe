@@ -11,7 +11,6 @@ import (
 // TestSimilarCoffees pins Coffee.similar: other shops only, published only,
 // a shared roast alone doesn't count, in-stock first, then score (the same
 // brew method adds one but never qualifies a coffee alone), then newest.
-// Acidity doesn't count: each shop rates it by its own standard (#166, #167).
 // Requires TEST_DATABASE_URL.
 func TestSimilarCoffees(t *testing.T) {
 	url, pool := newTestServer(t)
@@ -72,8 +71,7 @@ func TestSimilarCoffees(t *testing.T) {
 		return out.CreateCoffee.ID
 	}
 	filter := map[string]any{"brewMethod": "FILTER"}
-	acid := func(n int) map[string]any { return map[string]any{"cupProfile": map[string]any{"acidity": n}} }
-	src := mk(sellerA, "src", o1, p1, "LIGHT", []string{note, "Peach-" + run}, 5, true, filter, acid(2))
+	src := mk(sellerA, "src", o1, p1, "LIGHT", []string{note, "Peach-" + run}, 5, true, filter)
 	mk(sellerA, "same-shop", o1, p1, "LIGHT", []string{note}, 5, true)
 	mk(sellerB, "b1-best", o1, p1, "LIGHT", []string{strings.ToUpper(note)}, 5, true) // 3+2+1+1
 	mk(sellerB, "b8-origin-brew", o1, p2, "DARK", nil, 5, true, filter)               // 3 (+1 brew), oldest of the 3s
@@ -82,10 +80,10 @@ func TestSimilarCoffees(t *testing.T) {
 	mk(sellerB, "b4-process-note", o2, p1, "DARK", []string{"peach-" + run}, 5, true) // 2+1, newer than b2
 	mk(sellerB, "b5-sold-out", o1, p1, "LIGHT", nil, 0, true)                         // 6, but sold out
 	mk(sellerB, "b6-draft", o1, p1, "LIGHT", []string{note}, 5, false)
-	mk(sellerB, "b7-roast-brew", o2, p2, "LIGHT", nil, 5, true, filter)                                                // 1 (+1 brew): still left out
-	mk(sellerB, "b9-origin-espresso", o1, p2, "DARK", nil, 5, true, map[string]any{"brewMethod": "ESPRESSO"}, acid(5)) // 3, a different brew method
-	mk(sellerB, "b10-origin-acid", o1, p2, "DARK", nil, 5, true, acid(3))                                              // 3, newest; a close acidity adds nothing
-	mk(sellerB, "b11-roast-acid", o2, p2, "LIGHT", nil, 5, true, acid(2))                                              // 1, same acidity: still left out
+	mk(sellerB, "b7-roast-brew", o2, p2, "LIGHT", nil, 5, true, filter)                                       // 1 (+1 brew): still left out
+	mk(sellerB, "b9-origin-espresso", o1, p2, "DARK", nil, 5, true, map[string]any{"brewMethod": "ESPRESSO"}) // 3, a different brew method
+	mk(sellerB, "b10-origin-acid", o1, p2, "DARK", nil, 5, true)                                              // 3, newest
+	mk(sellerB, "b11-roast-acid", o2, p2, "LIGHT", nil, 5, true)                                              // 1: left out
 
 	similar := func(limit int) []string {
 		var out struct {

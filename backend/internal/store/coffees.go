@@ -8,16 +8,14 @@ import (
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
 	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
-	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year,
-	c.acidity, c.sweetness, c.body`
+	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
 		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
-		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear,
-		&c.Acidity, &c.Sweetness, &c.Body); err != nil {
+		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {
@@ -95,13 +93,6 @@ type CoffeeFilter struct {
 	// MinHarvestYear keeps coffees harvested in this year or later; a coffee
 	// without a harvest year never matches.
 	MinHarvestYear *int
-	// MaxAcidity keeps coffees whose acidity is at most this; a coffee
-	// without an acidity never matches.
-	MaxAcidity *int
-	// MinSweetness keeps coffees at least this sweet; MinBody / MaxBody bound
-	// the body. A coffee without that scale never matches.
-	MinSweetness     *int
-	MinBody, MaxBody *int
 	// MinAltitudeM keeps coffees whose top growing altitude (the max, or the
 	// single height) is at least this; a coffee without one never matches.
 	MinAltitudeM *int
@@ -162,18 +153,6 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	if f.MinHarvestYear != nil {
 		add("c.harvest_year >= $%d", *f.MinHarvestYear)
-	}
-	if f.MaxAcidity != nil {
-		add("c.acidity <= $%d", *f.MaxAcidity)
-	}
-	if f.MinSweetness != nil {
-		add("c.sweetness >= $%d", *f.MinSweetness)
-	}
-	if f.MinBody != nil {
-		add("c.body >= $%d", *f.MinBody)
-	}
-	if f.MaxBody != nil {
-		add("c.body <= $%d", *f.MaxBody)
 	}
 	if f.MinAltitudeM != nil {
 		add("COALESCE(c.altitude_max_m, c.altitude_min_m) >= $%d", *f.MinAltitudeM)
@@ -293,8 +272,7 @@ func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error
 // Similarity weights for SimilarCoffees. A shared roast alone (one of four
 // levels) is too common to count as similar, hence the minimum score. The
 // same brew method only reorders coffees that already qualify: most coffees
-// are filter roasts, so it can't make a coffee similar on its own. Acidity
-// isn't compared: each shop rates it by its own standard (owner, #166).
+// are filter roasts, so it can't make a coffee similar on its own.
 const (
 	similarOrigin   = 3
 	similarProcess  = 2
@@ -356,12 +334,6 @@ type CreateCoffeeParams struct {
 	AltitudeMaxM       *int
 	BrewMethod         *string
 	HarvestYear        *int
-	CupProfile         CupProfile
-}
-
-// CupProfile is a coffee's acidity / sweetness / body (1–5 each, nil = not given).
-type CupProfile struct {
-	Acidity, Sweetness, Body *int
 }
 
 // CreateCoffee inserts a draft coffee.
@@ -373,14 +345,14 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method, harvest_year, acidity, sweetness, body)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+				brew_method, harvest_year)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8::roast_level, $9, $10, $11, $12, $13, $14, $15)
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		p.ShopID, p.Name, p.Slug, p.Description, p.OriginCountryID, p.VarietyID,
 		p.ProcessingMethodID, p.RoastLevel, p.FlavorNotes, p.Producer, p.Region, p.AltitudeMinM, p.AltitudeMaxM,
-		p.BrewMethod, p.HarvestYear, p.CupProfile.Acidity, p.CupProfile.Sweetness, p.CupProfile.Body))
+		p.BrewMethod, p.HarvestYear))
 }
 
 // DuplicateCoffee copies coffee srcID into a new draft in the same shop with
@@ -393,10 +365,10 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 		WITH c AS (
 			INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method, harvest_year, acidity, sweetness, body)
+				brew_method, harvest_year)
 			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
-				brew_method, harvest_year, acidity, sweetness, body
+				brew_method, harvest_year
 			FROM coffees WHERE id = $1
 			RETURNING *
 		)
@@ -439,10 +411,6 @@ type UpdateCoffeeParams struct {
 	// false leaves it unchanged.
 	SetHarvestYear bool
 	HarvestYear    *int
-	// SetCupProfile replaces all three scales with CupProfile (nil = NULL);
-	// false leaves them unchanged.
-	SetCupProfile bool
-	CupProfile    CupProfile
 }
 
 // UpdateCoffee applies a partial update.
@@ -463,18 +431,14 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				altitude_min_m       = CASE WHEN $13 THEN $14 ELSE altitude_min_m END,
 				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END,
 				brew_method          = CASE WHEN $16 THEN $17 ELSE brew_method END,
-				harvest_year         = CASE WHEN $18 THEN $19::int ELSE harvest_year END,
-				acidity              = CASE WHEN $20 THEN $21::smallint ELSE acidity END,
-				sweetness            = CASE WHEN $20 THEN $22::smallint ELSE sweetness END,
-				body                 = CASE WHEN $20 THEN $23::smallint ELSE body END
+				harvest_year         = CASE WHEN $18 THEN $19::int ELSE harvest_year END
 			WHERE id = $1
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,
 		id, p.Name, p.Description, p.OriginCountryID, p.VarietyID, p.ProcessingMethodID,
 		p.RoastLevel, p.FlavorNotes, p.ClearVariety, p.ImageURLs,
-		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear,
-		p.SetCupProfile, p.CupProfile.Acidity, p.CupProfile.Sweetness, p.CupProfile.Body))
+		p.Producer, p.Region, p.SetAltitude, p.AltitudeMinM, p.AltitudeMaxM, p.SetBrewMethod, p.BrewMethod, p.SetHarvestYear, p.HarvestYear))
 }
 
 // SetCoffeePublished toggles a coffee's visibility.

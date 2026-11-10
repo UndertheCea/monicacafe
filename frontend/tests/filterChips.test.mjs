@@ -68,8 +68,8 @@ test("filterChips: nothing active → no chips; search and sort aren't chips", (
   assert.deepEqual(filterChips({ search: "x" }, { q: "x", sort: "saved" }, "/coffees"), []);
 });
 
-test("filterChips: API-only filters (roast, cup profile, …) never make chips (#166)", () => {
-  const f = { roastLevel: "LIGHT", brewMethod: "FILTER", flavorNote: "x", minHarvestYear: 2025, maxAcidity: 2, minSweetness: 4, minBody: 4, maxBody: 2, minAltitudeM: 1500 };
+test("filterChips: API-only filters (roast, brew, …) never make chips (#166)", () => {
+  const f = { roastLevel: "LIGHT", brewMethod: "FILTER", flavorNote: "x", minHarvestYear: 2025, minAltitudeM: 1500 };
   assert.deepEqual(filterChips(f, {}, "/coffees"), []);
 });
 
@@ -97,7 +97,7 @@ test("activeFilterCount counts filters, not search or sort; price once", () => {
     [{ search: "kenya" }, 0],
     [{ roastLevel: "DARK" }, 0],
     [{ minPriceTwd: 100, maxPriceTwd: 500 }, 1],
-    [{ originCountryId: "o", varietyId: "v", processingMethodId: "p", inStock: true, maxAcidity: 2 }, 4],
+    [{ originCountryId: "o", varietyId: "v", processingMethodId: "p", inStock: true, minAltitudeM: 1500 }, 4],
     [{ inStock: false }, 0],
   ];
   for (const [f, want] of cases) assert.equal(activeFilterCount(f), want, JSON.stringify(f));

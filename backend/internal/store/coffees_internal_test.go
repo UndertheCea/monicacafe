@@ -39,7 +39,7 @@ func TestCoffeeSortOrderBy(t *testing.T) {
 }
 
 func TestCoffeeFilterWhere(t *testing.T) {
-	id, lo, year, acid, sweet, b1, b2, alt := "x", int64(100), 2025, 2, 4, 2, 4, 1500
+	id, lo, year, alt := "x", int64(100), 2025, 1500
 	const stock = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
 	cases := []struct {
 		name     string
@@ -54,10 +54,7 @@ func TestCoffeeFilterWhere(t *testing.T) {
 		{"shop + sold out, drafts", CoffeeFilter{ShopID: &id, SoldOut: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND NOT " + stock, 1},
 		{"brew methods", CoffeeFilter{BrewMethods: []string{"FILTER", "OMNI"}}, " WHERE c.is_published AND c.brew_method = ANY($1)", 1},
 		{"harvest year", CoffeeFilter{MinHarvestYear: &year}, " WHERE c.is_published AND c.harvest_year >= $1", 1},
-		{"max acidity", CoffeeFilter{MaxAcidity: &acid}, " WHERE c.is_published AND c.acidity <= $1", 1},
-		{"min sweetness", CoffeeFilter{MinSweetness: &sweet}, " WHERE c.is_published AND c.sweetness >= $1", 1},
 		{"min altitude", CoffeeFilter{MinAltitudeM: &alt}, " WHERE c.is_published AND COALESCE(c.altitude_max_m, c.altitude_min_m) >= $1", 1},
-		{"body range", CoffeeFilter{MinBody: &b1, MaxBody: &b2}, " WHERE c.is_published AND c.body >= $1 AND c.body <= $2", 2},
 		{"shop + in stock", CoffeeFilter{ShopID: &id, InStock: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND " + stock, 1},
 		{"min price keeps its own in-stock check", CoffeeFilter{MinPriceTWD: &lo, IncludeUnpublished: true},
 			" WHERE EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= $1)", 1},

@@ -26,30 +26,13 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="border-b border-line px-4 py-24 text-center md:py-32">
+      {/* Hero: the tagline and intro only, no headline or buttons (owner, #186). The
+          page's one h1 stays for screen readers. */}
+      <section className="border-b border-line px-4 py-16 text-center md:py-24">
         <div className="mx-auto max-w-4xl">
-          <p className="label-caps mb-6 text-muted">
-            {t(locale, "home.eyebrow")}
-          </p>
-          <h1 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-ink md:text-6xl">
-            {t(locale, "home.title")}
-            <span className="font-normal">{t(locale, "home.titleAccent")}</span>
-          </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-lg leading-relaxed text-muted">{t(locale, "home.lead")}</p>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link
-              href="/coffees"
-              className="rounded-full bg-ink px-8 py-4 font-semibold text-white transition hover:bg-neutral-700"
-            >
-              {t(locale, "home.ctaCoffees")}
-            </Link>
-            <Link
-              href="/map"
-              className="rounded-full border border-ink px-8 py-4 font-semibold text-ink transition hover:bg-neutral-100"
-            >
-              {t(locale, "home.ctaMap")}
-            </Link>
-          </div>
+          <h1 className="sr-only">{t(locale, "home.heading")}</h1>
+          <p className="label-caps mb-6 text-muted">{t(locale, "home.eyebrow")}</p>
+          <p className="mx-auto max-w-2xl text-lg leading-relaxed text-muted">{t(locale, "home.lead")}</p>
         </div>
       </section>
 

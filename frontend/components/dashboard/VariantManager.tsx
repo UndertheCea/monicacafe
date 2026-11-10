@@ -127,7 +127,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
         )}
       </section>
 
-      {coffee.variants.length < LIMITS.variants && (
+      {coffee.variants.length < LIMITS.variants ? (
         <AddVariantForm
           coffeeId={coffee.id}
           existing={coffee.variants}
@@ -135,6 +135,11 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           request={request}
           onAdded={() => void fetchCoffee()}
         />
+      ) : (
+        // At the limit the add form goes away; say why instead of leaving a gap (#196).
+        <p role="note" className="rounded-2xl bg-white p-4 text-sm text-neutral-500 ring-1 ring-neutral-200 sm:p-6">
+          {t(locale, "cf.error.tooManyVariants", { max: LIMITS.variants })}
+        </p>
       )}
     </div>
   );

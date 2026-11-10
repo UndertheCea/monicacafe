@@ -1,6 +1,9 @@
 package config
 
 import (
+	"os"
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
@@ -16,24 +19,146 @@ func TestDefaultsAndOverride(t *testing.T) {
 	}
 }
 
+// goodProd is a production config that validates; tests break one field at a time.
+func goodProd() Config {
+	return Config{
+		AppEnv:           "production",
+		JWTAccessSecret:  "0123456789abcdef0123456789abcdef-a",
+		JWTRefreshSecret: "0123456789abcdef0123456789abcdef-r",
+		DatabaseURL:      "postgres://monica:Zq8vLr2nXw5tKb7h@db.internal:5432/monicacafe",
+		S3SecretKey:      "p4Jm9sQe2Vx7Lt3Bn6Ry",
+		MeiliKey:         "h7Tg2Wq9Nc4Xb8Lm",
+	}
+}
+
 func TestValidate(t *testing.T) {
-	dev := Config{AppEnv: "development", JWTAccessSecret: defaultAccessSecret, JWTRefreshSecret: defaultRefreshSecret}
-	if err := dev.Validate(); err != nil {
-		t.Fatalf("development config should validate: %v", err)
+	if err := goodProd().Validate(); err != nil {
+		t.Fatalf("a production config with its own secrets should validate: %v", err)
 	}
-	prod := dev
-	prod.AppEnv = "production"
-	if err := prod.Validate(); err == nil {
-		t.Fatal("production with default secrets must fail")
+	tests := []struct {
+		name    string
+		mut     func(*Config)
+		wantErr string // substring; "" = valid
+	}{
+		{"development keeps the published defaults", func(c *Config) {
+			*c = Config{AppEnv: "development", JWTAccessSecret: defaultAccessSecret, JWTRefreshSecret: defaultRefreshSecret,
+				DatabaseURL: "postgres://monica:monica_secret@localhost:5432/monicacafe", S3SecretKey: "monica_s3_secret"}
+		}, ""},
+		{"test env keeps them too", func(c *Config) { c.AppEnv = "test"; c.JWTAccessSecret = defaultAccessSecret }, ""},
+		{"APP_ENV unset", func(c *Config) { c.AppEnv = "" }, "APP_ENV"},
+		{"APP_ENV typo", func(c *Config) { c.AppEnv = "prod" }, "APP_ENV"},
+		{"APP_ENV wrong case", func(c *Config) { c.AppEnv = "Production" }, "APP_ENV"},
+		{"code default access secret", func(c *Config) { c.JWTAccessSecret = defaultAccessSecret }, "JWT_ACCESS_SECRET"},
+		{"short refresh secret", func(c *Config) { c.JWTRefreshSecret = "0123456789abcdef" }, "JWT_REFRESH_SECRET"},
+		{"compose access secret (32 chars)", func(c *Config) { c.JWTAccessSecret = "dev-access-secret-change-in-prod" }, "JWT_ACCESS_SECRET"},
+		{"compose refresh secret (33 chars)", func(c *Config) { c.JWTRefreshSecret = "dev-refresh-secret-change-in-prod" }, "JWT_REFRESH_SECRET"},
+		{"compose secret, upper-cased and padded", func(c *Config) { c.JWTAccessSecret = "DEV-ACCESS-SECRET-CHANGE-IN-PROD-0000" }, "JWT_ACCESS_SECRET"},
+		{"placeholder: dev-", func(c *Config) { c.JWTAccessSecret = "dev-0123456789abcdef0123456789abcdef" }, "JWT_ACCESS_SECRET"},
+		{"placeholder: change", func(c *Config) { c.JWTRefreshSecret = "please-change-this-0123456789abcdef" }, "JWT_REFRESH_SECRET"},
+		{"identical secrets", func(c *Config) { c.JWTRefreshSecret = c.JWTAccessSecret }, "must differ"},
+		{"published database password", func(c *Config) {
+			c.DatabaseURL = "postgres://monica:monica_secret@db.internal:5432/monicacafe"
+		}, "DATABASE_URL"},
+		{"published database password, keyword DSN", func(c *Config) {
+			c.DatabaseURL = "host=db user=monica password=monica_secret dbname=monicacafe"
+		}, "DATABASE_URL"},
+		{"placeholder database password", func(c *Config) {
+			c.DatabaseURL = "postgres://monica:change-me@db.internal:5432/monicacafe"
+		}, "DATABASE_URL"},
+		{"published S3 secret", func(c *Config) { c.S3SecretKey = "monica_s3_secret" }, "S3_SECRET_KEY"},
+		{"no S3 secret = uploads off", func(c *Config) { c.S3SecretKey = "" }, ""},
+		{"published Meilisearch key", func(c *Config) { c.MeiliKey = "monica_meili_key" }, "MEILI_KEY"},
+		{"no Meilisearch key", func(c *Config) { c.MeiliKey = "" }, ""},
 	}
-	prod.JWTAccessSecret = "0123456789abcdef0123456789abcdef-a"
-	prod.JWTRefreshSecret = "0123456789abcdef0123456789abcdef-r"
-	if err := prod.Validate(); err != nil {
-		t.Fatalf("production with strong secrets should validate: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := goodProd()
+			tt.mut(&c)
+			err := c.Validate()
+			switch {
+			case tt.wantErr == "" && err != nil:
+				t.Fatalf("want valid, got %v", err)
+			case tt.wantErr != "" && (err == nil || !strings.Contains(err.Error(), tt.wantErr)):
+				t.Fatalf("want an error naming %s, got %v", tt.wantErr, err)
+			}
+		})
 	}
-	prod.JWTRefreshSecret = prod.JWTAccessSecret
-	if err := prod.Validate(); err == nil {
-		t.Fatal("identical secrets must fail")
+}
+
+// Every secret printed in .env.example and docker-compose.yml must be refused
+// in production, including ones added later: a new secret-looking variable
+// fails this test until it is mapped to the setting that carries it.
+func TestPublishedSecretsRefusedInProduction(t *testing.T) {
+	apply := map[string]func(*Config, string){
+		"JWT_ACCESS_SECRET":  func(c *Config, v string) { c.JWTAccessSecret = v },
+		"JWT_REFRESH_SECRET": func(c *Config, v string) { c.JWTRefreshSecret = v },
+		"POSTGRES_PASSWORD": func(c *Config, v string) {
+			c.DatabaseURL = "postgres://monica:" + v + "@db.internal:5432/monicacafe"
+		},
+		"DATABASE_URL":  func(c *Config, v string) { c.DatabaseURL = v },
+		"S3_SECRET_KEY": func(c *Config, v string) { c.S3SecretKey = v },
+		"MEILI_KEY":     func(c *Config, v string) { c.MeiliKey = v },
+	}
+	// S3_ACCESS_KEY is an account id, not a secret (it travels in every presigned URL).
+	secretLike := regexp.MustCompile(`(SECRET|PASSWORD|_KEY)$`)
+	assignment := regexp.MustCompile(`^\s*#?\s*([A-Z][A-Z0-9_]*)=(\S+)`)
+	composeDefault := regexp.MustCompile(`\$\{([A-Z][A-Z0-9_]*):-([^}]+)\}`)
+
+	type found struct{ file, name, value string }
+	var all []found
+	for _, file := range []string{"../../../../.env.example", "../../../../docker-compose.yml"} {
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatalf("read %s: %v", file, err)
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			if m := assignment.FindStringSubmatch(line); m != nil {
+				all = append(all, found{file, m[1], m[2]})
+			}
+			for _, m := range composeDefault.FindAllStringSubmatch(line, -1) {
+				all = append(all, found{file, m[1], m[2]})
+			}
+		}
+	}
+	checked := 0
+	for _, f := range all {
+		if f.name == "S3_ACCESS_KEY" || (!secretLike.MatchString(f.name) && f.name != "DATABASE_URL") {
+			continue
+		}
+		set, ok := apply[f.name]
+		if !ok {
+			t.Errorf("%s: %s looks like a secret but this test doesn't know which setting carries it; add it to `apply` and to Validate", f.file, f.name)
+			continue
+		}
+		c := goodProd()
+		set(&c, f.value)
+		if err := c.Validate(); err == nil {
+			t.Errorf("%s: production accepted the published %s=%s", f.file, f.name, f.value)
+		}
+		checked++
+	}
+	if checked < 8 {
+		t.Fatalf("only %d published secrets found; the parser no longer matches the files", checked)
+	}
+}
+
+func TestDatabaseTarget(t *testing.T) {
+	tests := []struct{ dsn, want string }{
+		{"postgres://monica:monica_secret@localhost:5432/monicacafe", "localhost:5432/monicacafe"},
+		{"postgres://u:p%40ss@db.internal/shop?sslmode=require", "db.internal/shop"},
+		{"host=db user=monica password=hunter2 dbname=monicacafe", "(unparsed DATABASE_URL)"},
+		{"", "(unparsed DATABASE_URL)"},
+	}
+	for _, tt := range tests {
+		got := Config{DatabaseURL: tt.dsn}.DatabaseTarget()
+		if got != tt.want {
+			t.Errorf("DatabaseTarget(%q) = %q, want %q", tt.dsn, got, tt.want)
+		}
+		for _, secret := range []string{"monica_secret", "p%40ss", "p@ss", "hunter2"} {
+			if strings.Contains(got, secret) {
+				t.Errorf("DatabaseTarget(%q) leaks the password: %q", tt.dsn, got)
+			}
+		}
 	}
 }
 
@@ -105,7 +230,7 @@ func TestRateLimits(t *testing.T) {
 		{"sub-second", "5/10ms", true},
 	}
 	for _, c := range cases {
-		cfg := Config{RateLimitLoginIP: c.login, RateLimitLoginEmail: "10/10m"}
+		cfg := Config{AppEnv: "development", RateLimitLoginIP: c.login, RateLimitLoginEmail: "10/10m"}
 		r, err := cfg.RateLimits()
 		if (err != nil) != c.wantErr {
 			t.Errorf("%s: err = %v", c.name, err)
@@ -133,7 +258,7 @@ func TestMediaCleanup(t *testing.T) {
 		{"6h", "10m", 0, 0, true},
 	}
 	for _, c := range cases {
-		cfg := Config{MediaCleanupInterval: c.every, MediaCleanupMinAge: c.age}
+		cfg := Config{AppEnv: "development", MediaCleanupInterval: c.every, MediaCleanupMinAge: c.age}
 		every, age, err := cfg.MediaCleanup()
 		if (err != nil) != c.wantErr || every != c.wantEvery || age != c.wantAge {
 			t.Errorf("MediaCleanup(%q, %q) = %v, %v, %v", c.every, c.age, every, age, err)
@@ -172,7 +297,7 @@ func TestDBPool(t *testing.T) {
 			if err == nil && (gotMax != tt.wantMax || gotTimeout != tt.wantTimeout) {
 				t.Fatalf("got (%d, %s), want (%d, %s)", gotMax, gotTimeout, tt.wantMax, tt.wantTimeout)
 			}
-			if tt.wantErr && (Config{DBMaxConns: tt.max, DBStatementTimeout: tt.tmo}).Validate() == nil {
+			if tt.wantErr && (Config{AppEnv: "development", DBMaxConns: tt.max, DBStatementTimeout: tt.tmo}).Validate() == nil {
 				t.Fatal("Validate should reject it too")
 			}
 		})

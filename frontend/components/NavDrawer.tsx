@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { FULL_NAV_QUERY } from "@/lib/navMenu";
 import { Drawer } from "./Drawer";
 import { NavMenuList } from "./NavMenuList";
 
@@ -22,9 +21,9 @@ function MenuIcon() {
 }
 
 /**
- * Below lg the header folds to a menu button that opens the site navigation
- * in the shared side drawer (#175). Without JavaScript the button is a link to
- * the plain /menu page with the same links.
+ * The header's menu button: it opens the site navigation in the shared side
+ * drawer (#175), at every width (#185). Without JavaScript the button is a
+ * link to the plain /menu page with the same links.
  */
 export function NavDrawer({ locale }: { locale: Locale }) {
   const hydrated = useSyncExternalStore(
@@ -42,18 +41,9 @@ export function NavDrawer({ locale }: { locale: Locale }) {
     setOpen(false);
   }
 
-  // Widening the window to lg+ shows the full header row, so the drawer goes.
-  useEffect(() => {
-    if (!open) return;
-    const mq = window.matchMedia(FULL_NAV_QUERY);
-    const onChange = () => mq.matches && setOpen(false);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, [open]);
-
   if (!hydrated) {
     return (
-      <Link href="/menu" className={`${buttonCls} lg:hidden`} aria-label={t(locale, "nav.menuOpen")}>
+      <Link href="/menu" className={buttonCls} aria-label={t(locale, "nav.menuOpen")}>
         <MenuIcon />
       </Link>
     );
@@ -63,7 +53,7 @@ export function NavDrawer({ locale }: { locale: Locale }) {
     <>
       <button
         type="button"
-        className={`${buttonCls} lg:hidden`}
+        className={buttonCls}
         aria-label={t(locale, "nav.menuOpen")}
         aria-haspopup="dialog"
         aria-expanded={open}

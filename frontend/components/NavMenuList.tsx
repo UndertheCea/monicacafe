@@ -1,15 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useId } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { navMenu, type NavViewer } from "@/lib/navMenu";
+import { authHref, navMenu, type NavViewer } from "@/lib/navMenu";
 import { useAuth } from "./auth/AuthProvider";
 import { LanguageToggle } from "./LanguageToggle";
+import { LinkPending } from "./LinkPending";
 
 /**
- * The navigation drawer's contents (#175), also the body of the no-JavaScript
+ * The navigation drawer's contents (#175; the only site navigation since #185), also the body of the no-JavaScript
  * /menu page: section headings in small caps on the left, their links beside
  * them, then the language switch. `onNavigate` lets the drawer close when a
  * link is followed. While the session is loading (and without JavaScript) the
@@ -29,6 +30,9 @@ export function NavMenuList({
   const idBase = useId();
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  // Login / register bring the visitor back to this page afterwards.
+  const hrefOf = (href: string) => (href === "/login" || href === "/register" ? authHref(href, pathname) : href);
   const viewer: NavViewer = user
     ? { signedIn: true, role: user.role, hasShop: user.shop !== null }
     : { signedIn: false };
@@ -47,8 +51,9 @@ export function NavMenuList({
               {s.items.map((item) => (
                 <li key={`${item.label}-${"href" in item ? item.href : item.action}`}>
                   {"href" in item ? (
-                    <Link href={item.href} className={linkCls} onClick={onNavigate}>
+                    <Link href={hrefOf(item.href)} className={linkCls} onClick={onNavigate}>
                       {t(locale, item.label)}
+                      <LinkPending />
                     </Link>
                   ) : (
                     <button

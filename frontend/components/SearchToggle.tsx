@@ -6,8 +6,8 @@ import { t, type Locale } from "@/lib/i18n/dict";
 import { HeaderSearch, HeaderSearchForm } from "./HeaderSearch";
 
 /**
- * Below lg (#175): a search icon in the header that unfolds the header search
- * in a full-width panel under it. A native <details>, so it opens without
+ * The header's search icon (#175; every width since #185): it unfolds the
+ * search field in a panel under the header. A native <details>, so it opens without
  * JavaScript too; with it, the field is focused on open and the panel closes
  * after a search or a navigation.
  */
@@ -30,7 +30,6 @@ export function SearchToggle({ locale }: { locale: Locale }) {
         setOpen(isOpen);
         if (isOpen) e.currentTarget.querySelector("input")?.focus();
       }}
-      className="lg:hidden"
     >
       <summary
         aria-label={t(locale, "nav.searchOpen")}
@@ -42,9 +41,11 @@ export function SearchToggle({ locale }: { locale: Locale }) {
         </svg>
       </summary>
       <div className="absolute inset-x-0 top-full border-b border-neutral-200 bg-white px-4 py-3">
-        <Suspense fallback={<HeaderSearchForm locale={locale} variant="panel" />}>
-          <HeaderSearch locale={locale} variant="panel" onDone={() => setOpen(false)} />
+        <div className="mx-auto max-w-xl">
+        <Suspense fallback={<HeaderSearchForm locale={locale} />}>
+          <HeaderSearch locale={locale} onDone={() => setOpen(false)} />
         </Suspense>
+        </div>
       </div>
     </details>
   );

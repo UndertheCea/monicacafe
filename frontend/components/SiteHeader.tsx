@@ -1,48 +1,26 @@
-import Link from "next/link";
-import { Suspense } from "react";
-import { t, type Locale } from "@/lib/i18n/dict";
-import { AccountMenu } from "./auth/AccountMenu";
-import { HeaderSearch, HeaderSearchForm } from "./HeaderSearch";
-import { LanguageToggle } from "./LanguageToggle";
-import { LinkPending } from "./LinkPending";
+import type { Locale } from "@/lib/i18n/dict";
 import { NavDrawer } from "./NavDrawer";
 import { SearchToggle } from "./SearchToggle";
 import { Wordmark } from "./Wordmark";
 
 /**
- * lg+: wordmark, then the links, search, language and account in one row.
- * Below lg (#175): one row of menu button (opens the navigation drawer),
- * wordmark and a search icon; everything else is in the drawer.
+ * The same header at every width (#185, the owner's answer on #177): the menu
+ * button (opens the navigation drawer), the wordmark centred, and a search
+ * icon. Everything else (coffees, shops, map, language, account) is in the
+ * drawer. The outer columns are the same width, so the wordmark sits in the
+ * middle of the page.
  */
 export function SiteHeader({ locale }: { locale: Locale }) {
   return (
     <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/90 backdrop-blur">
-      <div className="relative mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 lg:gap-4">
-        <NavDrawer locale={locale} />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3">
+        <div className="justify-self-start">
+          <NavDrawer locale={locale} />
+        </div>
         <Wordmark />
-        <SearchToggle locale={locale} />
-        <nav
-          aria-label={t(locale, "nav.primary")}
-          className="hidden items-center justify-end gap-x-4 text-sm font-medium text-neutral-700 lg:flex"
-        >
-          <Link href="/coffees" className="hover:text-ink hover:underline underline-offset-4">
-            {t(locale, "nav.coffees")}
-            <LinkPending />
-          </Link>
-          <Link href="/shops" className="hover:text-ink hover:underline underline-offset-4">
-            {t(locale, "nav.shops")}
-            <LinkPending />
-          </Link>
-          <Link href="/map" className="hover:text-ink hover:underline underline-offset-4">
-            {t(locale, "nav.map")}
-            <LinkPending />
-          </Link>
-          <Suspense fallback={<HeaderSearchForm locale={locale} />}>
-            <HeaderSearch locale={locale} />
-          </Suspense>
-          <LanguageToggle locale={locale} />
-          <AccountMenu locale={locale} />
-        </nav>
+        <div className="justify-self-end">
+          <SearchToggle locale={locale} />
+        </div>
       </div>
     </header>
   );

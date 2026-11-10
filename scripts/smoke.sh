@@ -36,7 +36,7 @@ for path in /coffees /shops; do
   fi
 done
 
-# Navigation drawer (#175): the server-rendered header's menu button is a link
+# Navigation drawer (#175, every width since #185): the server-rendered header's menu button is a link
 # to /menu (the no-JavaScript fallback), which lists the drawer's links.
 home=$(curl -s --max-time 15 "$BASE_URL/") || home=""
 menu=$(curl -s --max-time 15 "$BASE_URL/menu") || menu=""

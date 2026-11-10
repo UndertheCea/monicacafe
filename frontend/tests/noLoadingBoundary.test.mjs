@@ -25,8 +25,8 @@ test("no loading boundary in the app (pages render without JavaScript)", () => {
   assert.deepEqual(loading, []);
 });
 
-test("header and pagination links show a pending dot", () => {
-  for (const f of ["components/SiteHeader.tsx", "components/Pagination.tsx"]) {
+test("menu and pagination links show a pending dot", () => {
+  for (const f of ["components/NavMenuList.tsx", "components/Pagination.tsx"]) {
     assert.match(readFileSync(join(root, f), "utf8"), /<LinkPending \/>/, f);
   }
 });

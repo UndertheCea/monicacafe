@@ -197,8 +197,9 @@ Open questions for the owner (answer by commenting on the issue):
   its own `reference+<slug>@monicacafe.local` account that can't log in. Raw values are matched to our tables (names in
   English or Chinese, or an alias). An unmatched origin or process skips the coffee, and the gap report lists every miss.
   No prices or photos are copied, so the coffees read as sold out.
-- **Navigation drawer below `lg` only (#177 default, #175)**: the full header row fits from 1024 px. The drawer's menu
-  comes from `lib/navMenu.ts`. Without JS the button is a link to `/menu`.
+- **Navigation drawer at every width (owner, #177 (b); built #185)**: the header is ☰ · wordmark (centred) · search on every
+  screen, like Lab19; a clean page matters more than one saved click on desktop. The drawer (`lib/navMenu.ts`) holds
+  everything, incl. "Open a shop" / "Seller dashboard"; login links carry `?next=`. Without JS the button links to `/menu`.
 - **One `Drawer` (modal `<dialog>`) for side panels**: the browser gives focus trapping, Esc and an inert page. A closed
   dialog is shown inline by CSS where the content is a sidebar, so the same markup serves both (#165).
 - **Flavour notes required, other details optional and folded (#176 default; #181, #182)**: the rule applies to new

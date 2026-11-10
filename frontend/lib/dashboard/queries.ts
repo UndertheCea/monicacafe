@@ -115,7 +115,7 @@ export const CREATE_COFFEE = typed<
       originCountryId: string;
       varietyId: string | null;
       processingMethodId: string;
-      roastLevel: RoastLevel;
+      roastLevel: RoastLevel | null;
       flavorNotes: string[];
       producer: string;
       region: string;
@@ -139,7 +139,7 @@ export interface EditableCoffee {
   originCountry: { id: string };
   processingMethod: { id: string };
   variety: { id: string } | null;
-  roastLevel: RoastLevel;
+  roastLevel: RoastLevel | null;
   flavorNotes: string[];
   producer: string;
   region: string;
@@ -168,17 +168,18 @@ export interface UpdateCoffeeInput {
   description?: string;
   originCountryId?: string;
   processingMethodId?: string;
+  /** Variety, producer, region and altitude can be changed, not removed (#176). */
   varietyId?: string;
-  clearVariety?: boolean;
+  /** clearRoastLevel removes it; the two can't be combined. */
   roastLevel?: string;
+  clearRoastLevel?: boolean;
   flavorNotes?: string[];
-  /** "" clears. */
+  /** 1–100 characters. */
   producer?: string;
   region?: string;
-  /** Set together (an omitted max = one height); clearAltitude removes both. */
+  /** Set together (an omitted max = one height). */
   altitudeMinM?: number;
   altitudeMaxM?: number;
-  clearAltitude?: boolean;
   /** clearBrewMethod removes it; the two can't be combined. */
   brewMethod?: string;
   clearBrewMethod?: boolean;

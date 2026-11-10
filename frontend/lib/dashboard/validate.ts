@@ -96,6 +96,7 @@ export interface CoffeeDetails {
   originCountryId: string;
   processingMethodId: string;
   varietyId: string | null;
+  /** "" = not given (optional since #176). */
   roastLevel: string;
   flavorNotes: string[];
   /** Provenance as typed: blank = not given. Altitudes are metres. */
@@ -109,8 +110,14 @@ export interface CoffeeDetails {
   harvestYear: string;
 }
 
-/** "notesRequired": no flavour note at all (#181); "notes": too many or too long. */
-export type CoffeeDetailsProblem = "required" | "notesRequired" | "notes" | "altitude" | "harvest";
+/**
+ * "required": name / origin / process (or a text over its limit); "variety",
+ * "producer", "region": missing (required since #176); "altitude": missing or
+ * invalid; "notesRequired": no flavour note at all (#181); "notes": too many or
+ * too long; "harvest": not a valid crop year.
+ */
+export type CoffeeDetailsProblem =
+  | "required" | "variety" | "producer" | "region" | "notesRequired" | "notes" | "altitude" | "harvest";
 
 /** The calendar year in Taiwan (UTC+8, no DST): what the API compares crop years with. */
 export function taipeiYear(now: Date = new Date()): number {
@@ -148,46 +155,41 @@ export function parseAltitude(min: string, max: string): Altitude | "invalid" {
   return maxM === null ? "invalid" : { minM, maxM };
 }
 
-/** First problem with a coffee's details, or null. Mirrors the backend checks. */
+/**
+ * First problem with a coffee's details, or null. Mirrors the backend checks
+ * (owner's answer on #176): name, origin, process, variety, producer, region,
+ * altitude and a flavour note are required; the roast level is optional ("").
+ */
 export function coffeeDetailsProblem(d: CoffeeDetails, roastLevels: readonly string[]): CoffeeDetailsProblem | null {
   const name = d.name.trim();
-  if (!name || !d.originCountryId || !d.processingMethodId || !roastLevels.includes(d.roastLevel)) return "required";
+  if (!name || !d.originCountryId || !d.processingMethodId) return "required";
+  if (d.roastLevel !== "" && !roastLevels.includes(d.roastLevel)) return "required";
   if (runes(name) > LIMITS.coffeeName || runes(d.description.trim()) > LIMITS.coffeeDescription) return "required";
-  if (runes(d.producer.trim()) > LIMITS.provenance || runes(d.region.trim()) > LIMITS.provenance) return "required";
+  if (!d.varietyId) return "variety";
+  const producer = d.producer.trim();
+  const region = d.region.trim();
+  if (!producer || runes(producer) > LIMITS.provenance) return "producer";
+  if (!region || runes(region) > LIMITS.provenance) return "region";
+  const altitude = parseAltitude(d.altitudeMin, d.altitudeMax);
+  if (altitude === "invalid" || altitude.minM === null) return "altitude";
   if (d.flavorNotes.length === 0) return "notesRequired";
   if (d.flavorNotes.length > LIMITS.flavorNotes || d.flavorNotes.some((n) => runes(n) > LIMITS.flavorNote)) return "notes";
-  if (parseAltitude(d.altitudeMin, d.altitudeMax) === "invalid") return "altitude";
   if (parseHarvestYear(d.harvestYear) === "invalid") return "harvest";
   return null;
 }
 
-/** The fields folded under "More details (optional)" on the coffee forms (#182). */
-export type OptionalDetails = Pick<
-  CoffeeDetails,
-  | "description" | "varietyId" | "producer" | "region" | "altitudeMin" | "altitudeMax"
-  | "brewMethod" | "harvestYear"
->;
+/** The fields folded under "More details (optional)" on the coffee forms (#182, #176). */
+export type OptionalDetails = Pick<CoffeeDetails, "description" | "brewMethod" | "harvestYear">;
 
-/**
- * How many optional details are filled in, for the "More details" summary.
- * The altitude pair counts once.
- */
+/** How many optional details are filled in, for the "More details" summary. */
 export function filledOptionalCount(d: OptionalDetails): number {
   const blank = (s: string | null) => !s || !s.trim();
-  return [
-    !blank(d.description),
-    !blank(d.varietyId),
-    !blank(d.producer),
-    !blank(d.region),
-    !blank(d.altitudeMin) || !blank(d.altitudeMax),
-    !blank(d.brewMethod),
-    !blank(d.harvestYear),
-  ].filter(Boolean).length;
+  return [!blank(d.description), !blank(d.brewMethod), !blank(d.harvestYear)].filter(Boolean).length;
 }
 
 /** Problems whose fields live under "More details", so the fold opens to show them. */
 export function isOptionalProblem(p: CoffeeDetailsProblem | null): boolean {
-  return p === "altitude" || p === "harvest";
+  return p === "harvest";
 }
 
 /**
@@ -197,8 +199,11 @@ export function isOptionalProblem(p: CoffeeDetailsProblem | null): boolean {
  */
 export function apiDetailsProblem(field: string | undefined, notesSent?: number): CoffeeDetailsProblem {
   if (field === "flavorNotes") return notesSent === 0 ? "notesRequired" : "notes";
-  // brewMethod / clearBrewMethod can only fail on a stale or tampered form.
-  if (field === "altitudeMinM" || field === "altitudeMaxM" || field === "clearAltitude") return "altitude";
+  // brewMethod / clearBrewMethod / roastLevel can only fail on a stale or tampered form.
+  if (field === "varietyId") return "variety";
+  if (field === "producer") return "producer";
+  if (field === "region") return "region";
+  if (field === "altitudeMinM" || field === "altitudeMaxM") return "altitude";
   if (field === "harvestYear" || field === "clearHarvestYear") return "harvest";
   return "required";
 }
@@ -210,14 +215,13 @@ export interface CoffeeDetailsPatch {
   originCountryId?: string;
   processingMethodId?: string;
   varietyId?: string;
-  clearVariety?: boolean;
   roastLevel?: string;
+  clearRoastLevel?: boolean;
   flavorNotes?: string[];
   producer?: string;
   region?: string;
   altitudeMinM?: number;
   altitudeMaxM?: number;
-  clearAltitude?: boolean;
   brewMethod?: string;
   clearBrewMethod?: boolean;
   harvestYear?: number;
@@ -232,28 +236,27 @@ export function coffeeDetailsPatch(before: CoffeeDetails, after: CoffeeDetails):
   if (description !== before.description) p.description = description;
   if (after.originCountryId !== before.originCountryId) p.originCountryId = after.originCountryId;
   if (after.processingMethodId !== before.processingMethodId) p.processingMethodId = after.processingMethodId;
-  if (after.roastLevel !== before.roastLevel) p.roastLevel = after.roastLevel;
-  if (after.varietyId !== before.varietyId) {
-    if (after.varietyId) p.varietyId = after.varietyId;
-    else p.clearVariety = true;
+  if (after.roastLevel !== before.roastLevel) {
+    if (after.roastLevel) p.roastLevel = after.roastLevel;
+    else p.clearRoastLevel = true;
   }
+  // Variety, producer, region and altitude can be changed but not removed
+  // (#176): a blank one is left to coffeeDetailsProblem, never sent.
+  if (after.varietyId && after.varietyId !== before.varietyId) p.varietyId = after.varietyId;
   const sameNotes =
     after.flavorNotes.length === before.flavorNotes.length && after.flavorNotes.every((n, i) => n === before.flavorNotes[i]);
   if (!sameNotes) p.flavorNotes = after.flavorNotes;
   const producer = after.producer.trim();
   const region = after.region.trim();
-  if (producer !== before.producer) p.producer = producer;
-  if (region !== before.region) p.region = region;
-  // The API sets both altitude ends together: send the new pair, or clear.
+  if (producer && producer !== before.producer) p.producer = producer;
+  if (region && region !== before.region) p.region = region;
+  // The API sets both altitude ends together: send the new pair.
   const was = parseAltitude(before.altitudeMin, before.altitudeMax);
   const now = parseAltitude(after.altitudeMin, after.altitudeMax);
   const prev = was === "invalid" ? { minM: null, maxM: null } : was;
-  if (now !== "invalid" && (now.minM !== prev.minM || now.maxM !== prev.maxM)) {
-    if (now.minM === null) p.clearAltitude = true;
-    else {
-      p.altitudeMinM = now.minM;
-      if (now.maxM !== null) p.altitudeMaxM = now.maxM;
-    }
+  if (now !== "invalid" && now.minM !== null && (now.minM !== prev.minM || now.maxM !== prev.maxM)) {
+    p.altitudeMinM = now.minM;
+    if (now.maxM !== null) p.altitudeMaxM = now.maxM;
   }
   if ((after.brewMethod || null) !== (before.brewMethod || null)) {
     if (after.brewMethod) p.brewMethod = after.brewMethod;

@@ -3,8 +3,9 @@
 
 export type CoffeeSort = "NEWEST" | "PRICE_ASC" | "PRICE_DESC" | "MOST_DISCUSSED" | "MOST_SAVED" | "SHOP_ORDER";
 
-export type RoastLevel = "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
-export const ROAST_LEVELS: RoastLevel[] = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
+/** Light to dark. EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176. */
+export type RoastLevel = "EXTRA_LIGHT" | "LIGHT" | "MEDIUM" | "MEDIUM_DARK" | "DARK";
+export const ROAST_LEVELS: RoastLevel[] = ["EXTRA_LIGHT", "LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
 
 /** What a coffee is roasted for (API enum BrewMethod). OMNI suits both. */
 export type BrewMethod = "FILTER" | "ESPRESSO" | "OMNI";

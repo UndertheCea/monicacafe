@@ -28,9 +28,11 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
             origin={originLine({ region: coffee.region, country })}
           />
         )}
-        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
-          {t(locale, `roast.${coffee.roastLevel}`)}
-        </span>
+        {coffee.roastLevel && (
+          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
+            {t(locale, `roast.${coffee.roastLevel}`)}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-4">

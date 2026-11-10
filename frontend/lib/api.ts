@@ -51,7 +51,8 @@ export interface CoffeeCardData {
   id: string;
   slug: string;
   name: string;
-  roastLevel: RoastLevel;
+  /** null when the seller didn't say (optional since #176). */
+  roastLevel: RoastLevel | null;
   flavorNotes: string[];
   producer: string;
   region: string;
@@ -154,7 +155,8 @@ export interface CoffeeDetail {
   slug: string;
   name: string;
   description: string;
-  roastLevel: RoastLevel;
+  /** null when the seller didn't say (optional since #176). */
+  roastLevel: RoastLevel | null;
   flavorNotes: string[];
   producer: string;
   region: string;

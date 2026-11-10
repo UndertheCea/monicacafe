@@ -85,7 +85,7 @@ test("variantProblems", () => {
   ]);
 });
 
-const ROASTS = ["LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
+const ROASTS = ["EXTRA_LIGHT", "LIGHT", "MEDIUM", "MEDIUM_DARK", "DARK"];
 const baseCoffee = {
   name: "Kochere",
   description: "Floral",
@@ -95,7 +95,7 @@ const baseCoffee = {
   roastLevel: "LIGHT",
   flavorNotes: ["Jasmine", "Peach"],
   producer: "Kochere Washing Station",
-  region: "",
+  region: "Gedeo",
   altitudeMin: "1800",
   altitudeMax: "2100",
   brewMethod: "FILTER",
@@ -133,7 +133,12 @@ test("coffeeDetailsProblem", () => {
     [{ originCountryId: "" }, "required"],
     [{ processingMethodId: "" }, "required"],
     [{ roastLevel: "BURNT" }, "required"],
-    [{ varietyId: null }, null],
+    [{ roastLevel: "" }, null], // optional since #176
+    [{ roastLevel: "EXTRA_LIGHT" }, null],
+    [{ varietyId: null }, "variety"], // required since #176
+    [{ varietyId: "" }, "variety"],
+    [{ producer: "  " }, "producer"],
+    [{ region: "" }, "region"],
     [{ name: "咖".repeat(121) }, "required"],
     [{ flavorNotes: Array.from({ length: 11 }, (_, i) => `n${i}`) }, "notes"],
     [{ flavorNotes: ["香".repeat(31)] }, "notes"],
@@ -142,8 +147,9 @@ test("coffeeDetailsProblem", () => {
     [{ flavorNotes: ["柑橘"] }, null],
     [{ name: "" , flavorNotes: [] }, "required"], // the required basics are reported first
     [{ producer: "莊".repeat(100) }, null],
-    [{ region: "區".repeat(101) }, "required"],
-    [{ altitudeMin: "", altitudeMax: "" }, null],
+    [{ producer: "莊".repeat(101) }, "producer"],
+    [{ region: "區".repeat(101) }, "region"],
+    [{ altitudeMin: "", altitudeMax: "" }, "altitude"], // required since #176
     [{ altitudeMin: "", altitudeMax: "2000" }, "altitude"],
     [{ altitudeMin: "2200" }, "altitude"],
     [{ altitudeMin: "1,900", altitudeMax: "" }, null],
@@ -163,17 +169,20 @@ test("coffeeDetailsPatch sends only changed fields", () => {
     [{ name: "Kochere G1" }, { name: "Kochere G1" }],
     [{ description: "Floral and bright" }, { description: "Floral and bright" }],
     [{ roastLevel: "MEDIUM", originCountryId: "o2" }, { roastLevel: "MEDIUM", originCountryId: "o2" }],
+    [{ roastLevel: "" }, { clearRoastLevel: true }],
+    [{ roastLevel: "EXTRA_LIGHT" }, { roastLevel: "EXTRA_LIGHT" }],
     [{ varietyId: "v2" }, { varietyId: "v2" }],
-    [{ varietyId: null }, { clearVariety: true }],
+    [{ varietyId: null }, {}], // required: never cleared, left to coffeeDetailsProblem
     [{ flavorNotes: ["Peach", "Jasmine"] }, { flavorNotes: ["Peach", "Jasmine"] }],
     [{ flavorNotes: [] }, { flavorNotes: [] }],
     [{ producer: " Kochere Washing Station " }, {}],
-    [{ producer: "" }, { producer: "" }],
-    [{ region: " Gedeo " }, { region: "Gedeo" }],
+    [{ producer: "" }, {}], // required: never cleared
+    [{ region: " Gedeo " }, {}],
+    [{ region: "Sidama" }, { region: "Sidama" }],
     [{ altitudeMin: "1,800", altitudeMax: " 2100" }, {}],
     [{ altitudeMax: "2200" }, { altitudeMinM: 1800, altitudeMaxM: 2200 }],
     [{ altitudeMin: "1900", altitudeMax: "" }, { altitudeMinM: 1900 }],
-    [{ altitudeMin: "", altitudeMax: "" }, { clearAltitude: true }],
+    [{ altitudeMin: "", altitudeMax: "" }, {}], // required: never cleared
     [{ altitudeMin: "", altitudeMax: "9" }, {}], // invalid: left to coffeeDetailsProblem
     [{ brewMethod: "FILTER" }, {}],
     [{ brewMethod: "OMNI" }, { brewMethod: "OMNI" }],
@@ -292,31 +301,24 @@ test("apiDetailsProblem maps the API's field to a form message", () => {
   assert.equal(apiDetailsProblem("altitudeMinM", 0), "altitude");
   assert.equal(apiDetailsProblem("altitudeMinM"), "altitude");
   assert.equal(apiDetailsProblem("altitudeMaxM"), "altitude");
-  assert.equal(apiDetailsProblem("clearAltitude"), "altitude");
   assert.equal(apiDetailsProblem("harvestYear"), "harvest");
   assert.equal(apiDetailsProblem("clearHarvestYear"), "harvest");
-  assert.equal(apiDetailsProblem("producer"), "required");
+  assert.equal(apiDetailsProblem("producer"), "producer");
+  assert.equal(apiDetailsProblem("region"), "region");
+  assert.equal(apiDetailsProblem("varietyId"), "variety");
   assert.equal(apiDetailsProblem(undefined), "required");
 });
 
-test("filledOptionalCount counts the folded details (#182)", () => {
-  const none = {
-    description: "", varietyId: null, producer: "", region: "", altitudeMin: "", altitudeMax: "",
-    brewMethod: null, harvestYear: "",
-  };
+test("filledOptionalCount counts the folded details (#182, #176)", () => {
+  const none = { description: "", brewMethod: null, harvestYear: "" };
   const cases = [
     [{}, 0],
     [{ description: "   " }, 0], // blank text isn't filled
     [{ description: "Floral" }, 1],
-    [{ varietyId: "v1" }, 1],
-    [{ producer: "Kochere", region: "Gedeo" }, 2],
-    [{ altitudeMin: "1800" }, 1],
-    [{ altitudeMin: "1800", altitudeMax: "2100" }, 1], // the pair counts once
-    [{ altitudeMax: "2100" }, 1], // invalid alone, but the seller did type it
     [{ brewMethod: "FILTER" }, 1],
     [{ harvestYear: "2025" }, 1],
-    [baseCoffee, 6], // everything but the region
-    [{ ...baseCoffee, region: "Gedeo" }, 7],
+    [{ description: "Floral", brewMethod: "OMNI", harvestYear: "2024" }, 3],
+    [baseCoffee, 3], // the required details aren't in the fold
   ];
   for (const [patch, want] of cases) {
     assert.equal(filledOptionalCount({ ...none, ...patch }), want, JSON.stringify(patch));
@@ -324,6 +326,6 @@ test("filledOptionalCount counts the folded details (#182)", () => {
 });
 
 test("isOptionalProblem: only problems inside the fold open it", () => {
-  for (const p of ["altitude", "harvest"]) assert.equal(isOptionalProblem(p), true, p);
-  for (const p of ["required", "notes", "notesRequired", null]) assert.equal(isOptionalProblem(p), false, String(p));
+  for (const p of ["harvest"]) assert.equal(isOptionalProblem(p), true, p);
+  for (const p of ["required", "variety", "producer", "region", "altitude", "notes", "notesRequired", null]) assert.equal(isOptionalProblem(p), false, String(p));
 });

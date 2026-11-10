@@ -28,8 +28,8 @@ export function CoffeeDetailView({
   const facts: [string, string][] = [
     [t(locale, "coffee.origin"), pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)],
     [t(locale, "coffee.process"), pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)],
-    [t(locale, "coffee.roast"), t(locale, `roast.${coffee.roastLevel}`)],
   ];
+  if (coffee.roastLevel) facts.push([t(locale, "coffee.roast"), t(locale, `roast.${coffee.roastLevel}`)]);
   const brew = brewLongKey(coffee.brewMethod);
   if (brew) facts.push([t(locale, "coffee.brew"), t(locale, brew)]);
   if (coffee.variety) facts.splice(1, 0, [t(locale, "coffee.variety"), coffee.variety.name]);

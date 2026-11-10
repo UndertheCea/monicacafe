@@ -2,7 +2,8 @@
 
 Claude Code loads this file automatically. It covers **how** to work in this repo. For **what** to work on and
 **why** things are the way they are, read [`PROJECT_BRIEF.md`](PROJECT_BRIEF.md). The full history is in
-[`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) (newest first); read only the parts you need.
+[`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) (newest first); read only the parts you need. The plan beyond the current
+slices (milestones, their order, open decisions) is in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Where the work is: GitHub Issues
 

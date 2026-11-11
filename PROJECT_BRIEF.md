@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-11 (after Session 33)
+Last updated: 2026-11-11 (after Session 34)
 
 ---
 
@@ -50,18 +50,16 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, home and listings (search results `noindex`), Product + Store JSON-LD | Done (#92, #195) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
-| Skip-to-content link, one `main` landmark per page | Done (#85) |
+| Accessibility: skip link, one `main`; text ≥ 4.5:1 (tested from the tokens), 44 px tap targets, `lang` spans, count-only live region; axe clean on six pages | Done (#85, #231) |
+| Design tokens (`ink` / `muted` / `faint` / `line` / `paper` / `danger`), flat hairline cards, one `<Page>` width; a test bans raw greys / reds / shadows | Done (#229) |
 | Saved coffees: save toggle + count on coffee pages, list on /account, "Most saved" sort | Done (#87–#89, #97, #98) |
 | Followed shops: follow toggle + count on shop pages, list on /account, home "From roasters you follow", "Most followed" sort, follower count on cards + dashboard | Done (#102–#107) |
 | Account deletion for buyers (password re-check; comments, saves, sessions removed) | Done (#90, #91); sellers: #93 |
-| Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments | Done (#99) |
+| Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments; draft preview (owner, #8 (b)) | Done (#99) |
 | Seller-curated shop pages: no buyer filters (#160), seller's order via `reorderShopCoffees` + dashboard ↑ / ↓ (#161, #162), sold-out archive section (#163) | Done |
-| Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
-| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI; photos scaled to 2000 px in the browser first | Done (#212) |
-| Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
+| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI; photos scaled to 2000 px in the browser first; 6-hourly orphan sweep | Done (#29, #212) |
 | Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff | Done (#100) |
-| Frontend on Next.js 16; `npm audit` has no high advisories | Done (#35) |
-| sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done |
+| Frontend on Next.js 16; sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done (#35) |
 | Rate limiting: login / register / refresh per IP (+ failed logins per email and per email + IP); comments, uploads, password, seller writes per user; every `/graphql` request per IP; IPv6 by /64, ≤ 100k keys | Done (#207, #213) |
 | Abuse caps: 200 coffees per shop (`LIMIT_REACHED`); empty shops hidden from /shops, /map, sitemap; bcrypt 12 + rehash; 1,000 common passwords refused | Done (#213) |
 | Seller work survives session loss: forms stay mounted under an inline sign-in, new-coffee draft in sessionStorage, leave-without-saving prompts | Done (#228) |
@@ -76,24 +74,26 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
-| Full `docker compose up` through nginx | Verified sessions 8–9 (and in CI) |
+| Moderation (backend): suspend users / shops, admin unpublish, append-only audit log, token version checked on every mutation, `cmd/admin` grant / revoke | Done (#224); report UI + admin screen: #225 |
+| Backups: nightly `age`-encrypted `pg_dump` to S3 or a directory (compose profile `prod`), `restore.sh`, restore drill in CI; Redis / Meilisearch behind profiles | Done (#220, #222) |
+| Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
+| Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep | Done (#217) |
 
 ## Last session
 
-**Session 33**: no answers on the open questions; #170–#174 still blocked. Seven `stage-1` slices: abuse limits for
-sellers and logins, IPv6 /64 keys, bcrypt 12 + common-password list, empty shops hidden (#213); nginx hardening (#214);
-CI security job, dependabot, pinned actions / images, Go 1.26.11 + module bumps for govulncheck (#216); flavour chips search their note + search chip (#227);
-seller forms survive refresh hiccups and session loss, with a draft and leave prompts (#228); price / sold-out under
-the coffee name (#233); unused fonts dropped and no refresh call for signed-out visitors (#234).
+**Session 34**: merged session 33's PR (#240) first; no answers on the open questions. Eight `stage-1` slices:
+moderation backend with an audit log and per-mutation token-version check (#224); backups + CI restore drill (#220);
+Redis / Meilisearch behind compose profiles (#222); `__Host-` cookie, Origin and CSP reporting from `SITE_URL` (#215);
+design tokens / flat cards / one page width (#229); accessibility pass (#231); text hygiene + upload budget (#217).
 
 ## Current focus
 
-1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS, backups and real secrets is
-   the next big step (#219, blocked). #220 (backups) and #215 (cookie / Origin from `SITE_URL`) can go first.
+1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS and real secrets is the next big
+   step (#219, blocked). Backups (#220) and the cookie / Origin rules (#215) are ready for it.
 2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still 403 on 2026-11-11).
 3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205 for orders and payouts.
-4. Next `stage-1` slices by priority: #215, #220, #224, #229–#232 (p2), then #217, #221, #222, #225, #235, #236 (p3).
-   #223 (password reset) and #226 (legal pages) are blocked on #200 / #201.
+4. Next `stage-1` slices: #230, #232 (p2; #232 can use #230's `Field`), then #225 (report + admin screen on #224's API),
+   #221, #235, #236 (p3). #223 (password reset) and #226 (legal pages) are blocked on #200 / #201.
 5. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
    turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
@@ -235,6 +235,10 @@ Open questions for the owner (answer by commenting on the issue):
 - **Migrations: plain SQL + `schema_migrations`, no Go migration library (#209)**: one POSIX script runs in compose, CI and
   `initdb.sh`; each file is one transaction under an advisory lock. Old volumes are refused until `MIGRATE_BASELINE` says
   what they already have, never guessed. Shipped migrations are never edited.
+- **Suspension hides, never deletes (#224)**: one SQL fragment (`publicCoffee`) decides what anyone may see, so every list,
+  count and lookup drops a suspended shop's coffees the same way; owners and admins still see them. Access tokens carry a
+  token version that every **mutation** checks (one primary-key read), so password change, sign out everywhere, theft
+  detection and suspension stop writes at once; queries keep the 15-minute window. The audit log is append-only by trigger.
 - **Images shrink in the browser, not on the server (#212)**: the API never handles file bytes, so the uploader scales to
   2000 px and re-encodes (PNG → WebP keeps transparency) before signing for the file it actually sends.
 - **Failed logins counted per account and per account + address; successes free (#213)**: 50 / 10 min per email across

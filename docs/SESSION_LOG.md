@@ -15,6 +15,61 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 34 — 2026-11-11 — Moderation, backups, design tokens, accessibility (eight stage-1 slices)
+PR: #PRNUM
+
+Session 33's PR (#240) was still open and green against master, so I merged it first. No question had a new answer
+from the owner; #170–#174, #219, #223 and #226 stay blocked. I built #224 myself; Sonnet sub-agents built #215,
+#217, #220 / #222, #229 and #231 in git worktrees (#231 on top of #229), which I reviewed, cherry-picked and
+re-verified together.
+
+### Shipped (one line per slice: area — what — key files)
+- #224 backend — migration 017 (`users.suspended_at` + `token_version`, `shops.suspended_at`, `audit_log` with an
+  append-only trigger); `publicCoffee` / `hasPublishedCoffee` hide suspended shops and their coffees from every public
+  query, `Coffee.Public()` for lookups, `suspendedUserIDs` hides comments; admin-only `suspendUser` / `unsuspendUser` /
+  `suspendShop` / `unsuspendShop` / `adminUnpublishCoffee` (reason required) and `adminUsers` / `adminShops` / `auditLog`
+  (role re-read from the DB); `deleteComment(reason)` audited for admins; `deleteAccount` / `changePassword` audited;
+  `tokenGate` (gqlgen interceptor) drops a mutation's claims when the token version is behind or the user suspended;
+  suspended login → FORBIDDEN (`auth.error.suspended`), refresh refused; `Shop.suspended` / `User.suspended` (owner /
+  self / admin) + dashboard notice; `cmd/admin grant|revoke <email>` in the backend image. `graph/moderation.go`,
+  `internal/store/moderation.go`.
+- #215 frontend — refresh cookie `__Host-mc_rt` (Secure, Path /) when `SITE_URL` is https, old `mc_rt` read and cleared
+  for one release; Origin checked against `SITE_URL` (+ localhost:3000 in dev) and `Sec-Fetch-Site`; CSP
+  `upgrade-insecure-requests` on https, `report-to` / `report-uri` → `app/api/csp-report` (logs one JSON line).
+  `lib/auth/cookie.ts`, `lib/csp.ts`, `lib/cspReport.ts`.
+- #222 cross-cutting — Redis (profile `cache`) and Meilisearch (profile `search`) no longer start by default; the backend
+  doesn't wait for Redis; `MEILI_ENV`.
+- #220 cross-cutting — `scripts/backup.sh` (`pg_dump -Fc`, `age`, S3 via aws-cli or a directory, 7 daily + 4 Sunday
+  dumps, one JSON line), `scripts/restore.sh`, `backup_loop.sh` + `backup.Dockerfile`, compose `backup` (profile
+  `prod`, 03:00 Taipei); CI `stack` backs up, wipes `public`, restores and smokes again; `docs/BACKUP.md`.
+- #229 frontend — tokens `ink` #111 / `muted` #595959 / `faint` / `line` / `paper` #f7f7f7 / `danger` #b91c1c in
+  `globals.css`; no raw `neutral-` / `red-` / shadows / blur (palette test); `components/Page.tsx` (max-w-6xl) on every
+  route; `lib/contrast.ts` + test.
+- #231 frontend — archive greys only the image; 44 px header / drawer / reorder / comment / chip / pagination targets;
+  `lang` spans on the language toggle and wordmark; `aria-live` only on the /coffees count; `.label-caps` 12 px, no
+  letter-spacing for zh; `tests/a11y.test.mjs`.
+- #217 backend — SEE_217
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 — all pass, incl. the new
+  `TestModeration` (24 authorisation subtests: anonymous / buyer / seller on every admin field; suspended shop invisible
+  on shop, coffee, shops, coffees, popular, map; owner still sees it; suspended user's comments hidden, login / refresh /
+  writes refused; old access token refused after a password change; audit log order + actors; DELETE on audit_log
+  fails), `TestTokenCurrent`, `TestParseArgs`. `cmd/admin` run against the DB (grant, unknown email, no-op).
+- Frontend: tsc, lint, `npm test`, `npm run build` on the combined branch.
+- Local stack (API binary + `next start`, fresh migrate + seed): `smoke.sh` 55 ok, only the three `/media/` checks fail
+  (they need nginx, as in sessions 32–33). axe-core (WCAG 2.2 AA tags) on home, /coffees, a coffee page, a shop page,
+  /login, /dashboard at 390 and 1280 px: **0 violations**. Screenshots of the shop and coffee pages look as intended.
+- Not run here (docker can't build images in this environment): the compose stack, the `backup` image and the CI
+  restore drill, the S3 path of `backup.sh`. CI runs all but the S3 path.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Token version: mutations only (queries keep the 15-minute window); the role isn't compared, because opening a shop
+  promotes a buyer without a new token. Admin fields re-read the role from the database.
+- Admins can't suspend themselves or another admin (revoke with `cmd/admin` first).
+- #232 (forms) and #230 (design system part 2) are next; #225 can now build the report flow and admin screen on #224.
+- Reference-shop slices still blocked (#168). Owner: secret scanning + a branch rule on `master` (#216) still pending.
+
 ## Session 33 — 2026-11-11 — Abuse limits, nginx and CI hardening, seller work that survives (seven stage-1 slices)
 PR: #240
 

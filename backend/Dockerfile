@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24.13-alpine AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /server ./cmd/server
 
-FROM alpine:3.21
+FROM alpine:3.21.10
 # CA roots come from the builder image (golang:alpine ships them), so the
 # runtime stage needs no package downloads. Timezone data is not needed:
 # tz.Taipei is a fixed UTC+8 zone. busybox wget serves the healthcheck.

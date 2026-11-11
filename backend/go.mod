@@ -1,6 +1,6 @@
 module github.com/underthecea/monicacafe/backend
 
-go 1.24.7
+go 1.24.13
 
 require (
 	github.com/99designs/gqlgen v0.17.73

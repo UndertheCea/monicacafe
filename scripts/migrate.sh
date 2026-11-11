@@ -20,7 +20,7 @@
 # PGUSER, PGDATABASE, …; initdb.sh uses the local socket). MIGRATIONS_DIR
 # defaults to the migrations/ folder next to this script.
 # Waits up to MIGRATE_WAIT seconds (default 60) for the server to accept
-# connections. POSIX sh: it runs in the postgres:17-alpine image.
+# connections. POSIX sh: it runs in the postgres:17.11-alpine image.
 set -eu
 
 dir="${MIGRATIONS_DIR:-$(cd "$(dirname "$0")/.." && pwd)/migrations}"

@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -65,6 +66,9 @@ type Config struct {
 	RateLimitUploadUser   string
 	RateLimitPasswordUser string
 	RateLimitSaveUser     string
+
+	// Every /graphql request, per client IP.
+	RateLimitGraphQLIP string
 }
 
 func get(k, d string) string {
@@ -84,14 +88,16 @@ func Load() Config {
 		JWTAccessSecret:  get("JWT_ACCESS_SECRET", defaultAccessSecret),
 		JWTRefreshSecret: get("JWT_REFRESH_SECRET", defaultRefreshSecret),
 		CORSOrigin:       get("CORS_ORIGIN", "http://localhost,http://localhost:3000"),
-		AppEnv:           get("APP_ENV", "development"),
-		Locale:           get("LOCALE", "zh-TW"),
-		S3Endpoint:       get("S3_ENDPOINT", "http://localhost"),
-		S3Bucket:         get("S3_BUCKET", "media"),
-		S3Region:         get("S3_REGION", "us-east-1"),
-		S3AccessKey:      get("S3_ACCESS_KEY", ""),
-		S3SecretKey:      get("S3_SECRET_KEY", ""),
-		MediaPublicURL:   get("MEDIA_PUBLIC_URL", ""),
+		// No default: an unset APP_ENV used to mean "development", which skips
+		// the production checks and turns on introspection (#206).
+		AppEnv:         get("APP_ENV", ""),
+		Locale:         get("LOCALE", "zh-TW"),
+		S3Endpoint:     get("S3_ENDPOINT", "http://localhost"),
+		S3Bucket:       get("S3_BUCKET", "media"),
+		S3Region:       get("S3_REGION", "us-east-1"),
+		S3AccessKey:    get("S3_ACCESS_KEY", ""),
+		S3SecretKey:    get("S3_SECRET_KEY", ""),
+		MediaPublicURL: get("MEDIA_PUBLIC_URL", ""),
 
 		S3InternalEndpoint:   get("S3_INTERNAL_ENDPOINT", ""),
 		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
@@ -110,6 +116,7 @@ func Load() Config {
 		RateLimitUploadUser:   get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
 		RateLimitPasswordUser: get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
 		RateLimitSaveUser:     get("RATE_LIMIT_SAVE_USER", "60/5m"),
+		RateLimitGraphQLIP:    get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 	}
 }
 
@@ -189,6 +196,7 @@ type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
 	SaveUser                                   ratelimit.Rule
+	GraphQLIP                                  ratelimit.Rule
 }
 
 // RateLimits parses the RATE_LIMIT_* settings.
@@ -206,6 +214,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
 		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
+		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)
 		if err != nil {
@@ -242,8 +251,74 @@ func (c Config) MediaCleanup() (every, minAge time.Duration, err error) {
 	return every, minAge, nil
 }
 
-// Validate rejects configurations that are unsafe to run in production.
+// publishedSecrets are the development values printed in this repository
+// (.env.example, docker-compose.yml, this file). Anyone can read them, so a
+// production server refuses every one of them (#206). A test reads
+// .env.example and fails when a secret there isn't refused.
+var publishedSecrets = []string{
+	defaultAccessSecret,
+	defaultRefreshSecret,
+	"dev-access-secret-change-in-prod",
+	"dev-refresh-secret-change-in-prod",
+	"monica_secret",
+	"monica_s3_secret",
+	"monica_meili_key",
+}
+
+// placeholderMarks appear in example values ("dev-…", "change-me", "…-change-in-prod").
+var placeholderMarks = []string{"dev-", "change"}
+
+// published reports whether v is, or contains, a value from this repository
+// or reads like a placeholder that was never replaced.
+func published(v string) bool {
+	low := strings.ToLower(v)
+	for _, p := range publishedSecrets {
+		if strings.Contains(low, p) {
+			return true
+		}
+	}
+	for _, m := range placeholderMarks {
+		if strings.Contains(low, m) {
+			return true
+		}
+	}
+	return false
+}
+
+// dsnPassword is the password in a postgres:// URL ("" when there is none or
+// the DSN is in keyword form).
+func dsnPassword(dsn string) string {
+	u, err := url.Parse(dsn)
+	if err != nil || u.User == nil {
+		return ""
+	}
+	pw, _ := u.User.Password()
+	return pw
+}
+
+// DatabaseTarget is "host/database" from DATABASE_URL, for logs: the DSN
+// itself carries the password and must never be logged.
+func (c Config) DatabaseTarget() string {
+	u, err := url.Parse(c.DatabaseURL)
+	if err != nil || u.Host == "" {
+		return "(unparsed DATABASE_URL)"
+	}
+	return u.Host + "/" + strings.TrimPrefix(u.Path, "/")
+}
+
+// AppEnvs are the accepted APP_ENV values.
+var AppEnvs = []string{"development", "test", "production"}
+
+// Validate rejects settings that can't work, and in production the ones that
+// are unsafe: secrets that are missing, short, or published in this repository.
 func (c Config) Validate() error {
+	known := false
+	for _, e := range AppEnvs {
+		known = known || c.AppEnv == e
+	}
+	if !known {
+		return fmt.Errorf("config: APP_ENV must be one of %s, got %q", strings.Join(AppEnvs, " / "), c.AppEnv)
+	}
 	if _, _, err := c.MediaCleanup(); err != nil {
 		return err
 	}
@@ -259,14 +334,30 @@ func (c Config) Validate() error {
 	if c.AppEnv != "production" {
 		return nil
 	}
-	if c.JWTAccessSecret == defaultAccessSecret || len(c.JWTAccessSecret) < minSecretLen {
-		return errors.New("config: JWT_ACCESS_SECRET must be set to at least 32 characters in production")
-	}
-	if c.JWTRefreshSecret == defaultRefreshSecret || len(c.JWTRefreshSecret) < minSecretLen {
-		return errors.New("config: JWT_REFRESH_SECRET must be set to at least 32 characters in production")
+	for _, s := range []struct{ env, val string }{
+		{"JWT_ACCESS_SECRET", c.JWTAccessSecret},
+		{"JWT_REFRESH_SECRET", c.JWTRefreshSecret},
+	} {
+		if len(s.val) < minSecretLen {
+			return fmt.Errorf("config: %s must be set to at least %d characters in production", s.env, minSecretLen)
+		}
+		if published(s.val) {
+			return fmt.Errorf("config: %s is a development value published in the repository; generate a new one for production", s.env)
+		}
 	}
 	if c.JWTAccessSecret == c.JWTRefreshSecret {
 		return errors.New("config: JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must differ")
+	}
+	// The whole DSN is checked too, so a keyword-form DSN can't hide the password.
+	if pw := dsnPassword(c.DatabaseURL); published(pw) || strings.Contains(c.DatabaseURL, "monica_secret") {
+		return errors.New("config: DATABASE_URL uses a database password published in the repository; set a new POSTGRES_PASSWORD for production")
+	}
+	// Empty S3 / Meilisearch secrets mean "not used" and are fine.
+	if c.S3SecretKey != "" && published(c.S3SecretKey) {
+		return errors.New("config: S3_SECRET_KEY is a development value published in the repository; set a new one for production")
+	}
+	if c.MeiliKey != "" && published(c.MeiliKey) {
+		return errors.New("config: MEILI_KEY is a development value published in the repository; set a new one for production")
 	}
 	return nil
 }

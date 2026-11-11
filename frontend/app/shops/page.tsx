@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SHOPS } from "@/lib/api";
 import { parsePage, type SearchParams } from "@/lib/coffeeFilters";
-import { query } from "@/lib/graphql";
+import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { listingCanonicalPath, listingRobots, shareMetadata } from "@/lib/seo";
@@ -43,7 +43,7 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   let shops;
   try {
     shops = (
-      await query(SHOPS, {
+      await serverQuery(SHOPS, {
         search: q,
         sort: shopSortForApi(sort),
         limit: SHOPS_PAGE_SIZE,

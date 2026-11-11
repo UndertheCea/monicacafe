@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITEMAP_COFFEES, SITEMAP_SHOPS } from "@/lib/api";
-import { query } from "@/lib/graphql";
+import { serverQuery } from "@/lib/serverQuery";
 import { pageOffsets, siteBase, sitemapEntries, type SitemapCoffee, type SitemapShop } from "@/lib/sitemap";
 
 // Built per request from live data (catalogue changes often in Stage 1).
@@ -21,8 +21,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let coffees: SitemapCoffee[] = [];
   try {
     [shops, coffees] = await Promise.all([
-      collect(async (offset) => (await query(SITEMAP_SHOPS, { limit: PAGE, offset })).shops),
-      collect(async (offset) => (await query(SITEMAP_COFFEES, { limit: PAGE, offset })).coffees),
+      collect(async (offset) => (await serverQuery(SITEMAP_SHOPS, { limit: PAGE, offset })).shops),
+      collect(async (offset) => (await serverQuery(SITEMAP_COFFEES, { limit: PAGE, offset })).coffees),
     ]);
   } catch (err) {
     // API down: still serve the static pages rather than an error.

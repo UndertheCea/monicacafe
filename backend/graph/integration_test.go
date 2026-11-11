@@ -12,12 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/underthecea/monicacafe/backend/graph"
-	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/store"
@@ -117,10 +114,8 @@ func newTestServerWith(t *testing.T, configure func(*graph.Resolver)) (string, *
 	if configure != nil {
 		configure(resolver)
 	}
-	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
-	srv.AddTransport(transport.POST{})
-	srv.SetErrorPresenter(graph.ErrorPresenter)
-	srv.SetRecoverFunc(graph.RecoverFunc)
+	// The same handler as production, limits included (#207).
+	srv := graph.NewServer(resolver, false)
 
 	h := middleware.ClientIPMiddleware(nil)(middleware.Auth(authSvc)(graph.LoaderMiddleware(st)(srv)))
 	ts := httptest.NewServer(h)

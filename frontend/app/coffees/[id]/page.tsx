@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { COFFEE_PAGE, isUUID } from "@/lib/api";
-import { query } from "@/lib/graphql";
+import { serverQuery } from "@/lib/serverQuery";
 import { MORE_FROM_SHOP, SIMILAR_COFFEES, alsoLike, moreFromShop } from "@/lib/moreFromShop";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -22,7 +22,7 @@ type Params = Promise<{ id: string }>;
 
 // Deduplicate the fetch between generateMetadata and the page render.
 const loadCoffee = cache(async (id: string) =>
-  isUUID(id) ? (await query(COFFEE_PAGE, { id, more: MORE_FROM_SHOP + 1, similar: SIMILAR_COFFEES })).coffee : null,
+  isUUID(id) ? (await serverQuery(COFFEE_PAGE, { id, more: MORE_FROM_SHOP + 1, similar: SIMILAR_COFFEES })).coffee : null,
 );
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {

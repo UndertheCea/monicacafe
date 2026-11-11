@@ -38,13 +38,28 @@ export function refreshDelayMs(expiresAt: number, now: number): number {
 }
 
 /**
- * Sanitise a post-login redirect target: same-origin absolute paths only, so
- * `?next=` can't send people to another site.
+ * Sanitise a post-login redirect target: a path on this site only, so
+ * `?next=` can't send people to another site. Browsers strip tabs and
+ * newlines from URLs and treat "\\" like "/", so "/\t/evil.com" would
+ * otherwise resolve to "//evil.com", another origin (#208). Control characters
+ * and backslashes are refused outright, the value must resolve to our own
+ * origin, and the parsed path (not the raw input) is returned.
  */
 export function safeNext(next: string | null | undefined, fallback = "/"): string {
-  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return fallback;
-  if (next.startsWith("/api/")) return fallback;
-  return next;
+  if (!next || !next.startsWith("/")) return fallback;
+  if (/[\u0000-\u001f\u007f\\]/.test(next)) return fallback;
+  const base = "http://x";
+  let url: URL;
+  try {
+    url = new URL(next, base);
+  } catch {
+    return fallback;
+  }
+  if (url.origin !== base) return fallback;
+  const path = url.pathname;
+  if (!path.startsWith("/") || path.startsWith("//")) return fallback;
+  if (path === "/api" || path.startsWith("/api/")) return fallback;
+  return path + url.search + url.hash;
 }
 
 /**
@@ -69,18 +84,26 @@ export function validateCredentials(
 }
 
 /**
- * X-Forwarded-For value the BFF sends to the backend: the header nginx set,
- * trimmed and capped so a client can't bloat backend requests. The backend
- * only believes it because the BFF is a trusted proxy (TRUSTED_PROXIES).
+ * The visitor's address to pass on to the API (as X-Forwarded-For), from the
+ * X-Real-IP header nginx sets to the TCP peer it saw. nginx overwrites any
+ * X-Real-IP a client sends, so through nginx the visitor can't choose it.
+ * Anyone who reaches the Next server directly can, which is why compose
+ * publishes :3000 on 127.0.0.1 only and production must not expose it. The
+ * client's own X-Forwarded-For is never passed on: a request sent straight to
+ * the Next server could put a fresh made-up address in it on every login
+ * attempt and so escape the per-IP limits (#211). Without a usable X-Real-IP
+ * (a direct hit on :3000) nothing is passed on, and the API counts the request
+ * against the Next server's own address, which only makes limits stricter.
  */
-export function forwardedFor(header: string | null): string | undefined {
-  if (!header) return undefined;
-  const hops = header
-    .split(",")
-    .map((h) => h.trim())
-    .filter((h) => /^[0-9a-fA-F:.]{2,45}$/.test(h));
-  // Keep the rightmost hops: those were appended by our own proxies.
-  return hops.length ? hops.slice(-5).join(", ") : undefined;
+export function clientAddress(realIp: string | null): string | undefined {
+  const v = (realIp ?? "").trim();
+  if (!/^[0-9a-fA-F:.]{2,45}$/.test(v)) return undefined;
+  // A dotted quad, or something with at least two colons (IPv6).
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(v);
+  if (v4) return v4.slice(1).every((o) => Number(o) <= 255) ? v : undefined;
+  return /^[0-9a-fA-F]*(:[0-9a-fA-F]*){2,7}(:\d{1,3}(\.\d{1,3}){3})?$/.test(v) || /^[0-9a-fA-F:]*::[0-9a-fA-F:.]*$/.test(v)
+    ? v
+    : undefined;
 }
 
 /**

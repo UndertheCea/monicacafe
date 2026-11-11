@@ -9,9 +9,9 @@ export interface CspOptions {
   nonce: string;
   /** `next dev` needs eval for React Refresh and fast-refresh websockets. */
   dev: boolean;
-  /** Browser-side GraphQL endpoint (NEXT_PUBLIC_GRAPHQL_URL). */
+  /** Browser-side GraphQL endpoint ("/graphql" or NEXT_PUBLIC_GRAPHQL_URL). */
   graphqlUrl: string;
-  /** Where uploaded images are served from and PUT to (NEXT_PUBLIC_MEDIA_URL). */
+  /** Where uploaded images are served from and PUT to (MEDIA_URL, read per request; empty = same origin). */
   mediaUrl: string;
 }
 

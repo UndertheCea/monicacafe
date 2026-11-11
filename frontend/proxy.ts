@@ -1,16 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { buildCsp, buildPermissionsPolicy } from "@/lib/csp";
+import { DEV_GRAPHQL_URL } from "@/lib/endpoint";
 
 // Next 16 "proxy" (formerly middleware). Sets a per-request nonce'd Content-Security-Policy. Next reads the policy
 // from the *request* headers and puts the nonce on its own <script> tags, so
 // pages render dynamically (they already do: everything is ƒ).
 export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
+  const dev = process.env.NODE_ENV === "development";
   const csp = buildCsp({
     nonce,
-    dev: process.env.NODE_ENV === "development",
-    graphqlUrl: process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql",
-    mediaUrl: process.env.NEXT_PUBLIC_MEDIA_URL ?? "http://localhost/media",
+    dev,
+    // Same origin ('self') unless overridden; `next dev` has no nginx in front.
+    graphqlUrl: process.env.NEXT_PUBLIC_GRAPHQL_URL || (dev ? DEV_GRAPHQL_URL : "/graphql"),
+    // Read per request, not at build time (#210): only needed when images come
+    // from another origin (a CDN; = the API's MEDIA_PUBLIC_URL). Unset, uploads
+    // and images are same-origin under /media/ and 'self' covers them.
+    mediaUrl: process.env.MEDIA_URL || (dev ? "http://localhost/media" : ""),
   });
 
   const headers = new Headers(request.headers);

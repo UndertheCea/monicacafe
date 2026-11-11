@@ -7,13 +7,9 @@ RUN npm ci --legacy-peer-deps
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
-# Inlined into client bundles at build time (server components read
-# GRAPHQL_URL_INTERNAL at runtime instead).
-ARG NEXT_PUBLIC_GRAPHQL_URL=http://localhost/graphql
-ENV NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL}
-# Where uploaded images live; used by the Content-Security-Policy (proxy.ts).
-ARG NEXT_PUBLIC_MEDIA_URL=http://localhost/media
-ENV NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL}
+# Nothing host-specific is built in (#210): the browser calls /graphql on the
+# page's origin, and the server reads GRAPHQL_URL_INTERNAL / MEDIA_URL at
+# runtime, so one image runs on any host and port.
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

@@ -4,14 +4,65 @@
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_COFFEE_IMAGES = 8;
+/** Photos are scaled so their longer side is at most this many pixels (#212). */
+export const MAX_IMAGE_SIDE = 2000;
+/**
+ * Largest file a seller may choose. Above MAX_IMAGE_BYTES it must shrink below
+ * that limit before upload; this bound only stops the browser decoding
+ * something enormous.
+ */
+export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+/** Quality for re-encoded JPEG / WebP photos. */
+export const RESIZE_QUALITY = 0.85;
 
 export type ImageProblem = "type" | "size";
 
-/** Problem with a chosen file, or null when it can be uploaded. */
-export function imageFileProblem(file: { type: string; size: number }): ImageProblem | null {
-  if (!(IMAGE_TYPES as readonly string[]).includes(file.type.toLowerCase())) return "type";
-  if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) return "size";
+const allowedType = (type: string) => (IMAGE_TYPES as readonly string[]).includes(type.toLowerCase());
+
+/**
+ * Problem with a file, or null when it can be uploaded as it is. `maxBytes`
+ * is MAX_IMAGE_BYTES (what the API accepts) unless checking a file the seller
+ * just chose, which may be larger as long as it shrinks (MAX_SOURCE_BYTES).
+ */
+export function imageFileProblem(file: { type: string; size: number }, maxBytes = MAX_IMAGE_BYTES): ImageProblem | null {
+  if (!allowedType(file.type)) return "type";
+  if (file.size <= 0 || file.size > maxBytes) return "size";
   return null;
+}
+
+/**
+ * Pixel size to draw an image at so its longer side is at most `max`, keeping
+ * the aspect ratio; `scaled` is false when it already fits.
+ */
+export function scaledSize(width: number, height: number, max = MAX_IMAGE_SIDE): { width: number; height: number; scaled: boolean } {
+  const long = Math.max(width, height);
+  if (!(width > 0 && height > 0) || long <= max) return { width, height, scaled: false };
+  const k = max / long;
+  return { width: Math.max(1, Math.round(width * k)), height: Math.max(1, Math.round(height * k)), scaled: true };
+}
+
+/** Whether a decoded image should be re-encoded: too many pixels, or too many bytes to upload as it is. */
+export function needsShrinking(file: { size: number }, width: number, height: number): boolean {
+  return scaledSize(width, height).scaled || file.size > MAX_IMAGE_BYTES;
+}
+
+/**
+ * Format to re-encode as. JPEG stays JPEG; PNG becomes WebP, which keeps a
+ * logo's transparency at a fraction of the size. Browsers that can't encode
+ * WebP hand back PNG, and the upload is signed for what actually came back.
+ */
+export function encodeType(type: string): "image/jpeg" | "image/webp" {
+  return type.toLowerCase() === "image/jpeg" ? "image/jpeg" : "image/webp";
+}
+
+/**
+ * The file to upload: the re-encoded one only when it is an accepted type and
+ * smaller than the original (re-encoding a small, well-compressed file can
+ * make it bigger).
+ */
+export function pickUpload<T extends { type: string; size: number }>(original: T, resized: T | null): T {
+  if (!resized || !allowedType(resized.type) || resized.size <= 0) return original;
+  return resized.size < original.size ? resized : original;
 }
 
 /** Upload progress as a whole percentage in [0, 100]. */

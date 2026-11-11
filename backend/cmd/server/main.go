@@ -10,18 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/handler/extension"
-	"github.com/99designs/gqlgen/graphql/handler/lru"
-	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/vektah/gqlparser/v2/ast"
 
 	"github.com/underthecea/monicacafe/backend/graph"
-	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/db"
 	"github.com/underthecea/monicacafe/backend/internal/mediaclean"
@@ -31,9 +25,6 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
-
-// maxQueryComplexity bounds the cost of a single GraphQL operation.
-const maxQueryComplexity = 500
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -100,18 +91,8 @@ func run() error {
 		go cleanMedia(ctx, media, st, cleanEvery, mediaclean.Options{MinAge: cleanAge, MaxDeletes: maxMediaDeletes})
 	}
 
-	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
-	srv.AddTransport(transport.Options{})
-	srv.AddTransport(transport.GET{})
-	srv.AddTransport(transport.POST{})
-	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
-	srv.SetErrorPresenter(graph.ErrorPresenter)
-	srv.SetRecoverFunc(graph.RecoverFunc)
-	srv.Use(extension.FixedComplexityLimit(maxQueryComplexity))
-	srv.Use(extension.AutomaticPersistedQuery{Cache: lru.New[string](100)})
-	if cfg.AppEnv != "production" {
-		srv.Use(extension.Introspection{})
-	}
+	// Complexity, depth, parser and cache limits live in graph.NewServer (#207).
+	srv := graph.NewServer(resolver, cfg.AppEnv != "production")
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -138,9 +119,11 @@ func run() error {
 	})
 
 	r.Group(func(r chi.Router) {
+		// First, so a throttled address costs no token check or database work.
+		r.Use(graph.IPRateLimit(ratelimit.New(rules.GraphQLIP)))
 		r.Use(middleware.Auth(authSvc))
 		r.Use(graph.LoaderMiddleware(st))
-		r.Use(chimiddleware.RequestSize(1 << 20))
+		r.Use(chimiddleware.RequestSize(graph.MaxRequestBytes))
 		r.Handle("/graphql", srv)
 	})
 	if cfg.AppEnv != "production" {

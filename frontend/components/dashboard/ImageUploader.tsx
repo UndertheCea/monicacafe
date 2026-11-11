@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_IMAGE_UPLOAD, type ImageKind, type ImageUpload } from "@/lib/dashboard/queries";
-import { IMAGE_TYPES, MAX_IMAGE_BYTES, imageFileProblem, percent } from "@/lib/dashboard/upload";
+import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent } from "@/lib/dashboard/upload";
+import { shrinkImage } from "./shrinkImage";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -21,8 +22,11 @@ function putFile(up: ImageUpload, file: File, onProgress: (pct: number) => void)
   });
 }
 
+const MB = 1024 * 1024;
+
 /**
- * Choose an image → check type/size → get a presigned URL → PUT with progress
+ * Choose an image → check type/size → shrink a large photo (#212) → check the
+ * result fits → get a presigned URL for that file → PUT with progress
  * → hand the public URL to `onUploaded` (which saves it). Used for the shop
  * logo / banner and the coffee gallery.
  */
@@ -45,17 +49,24 @@ export function ImageUploader({
   const input = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
+  const [shrinking, setShrinking] = useState(false);
 
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const chosen = e.target.files?.[0];
     e.target.value = ""; // allow choosing the same file again
-    if (!file) return;
-    const problem = imageFileProblem(file);
-    if (problem) return setError({ key: problem === "type" ? "img.error.type" : "img.error.size" });
+    if (!chosen) return;
+    const problem = imageFileProblem(chosen, MAX_SOURCE_BYTES);
+    if (problem === "type") return setError({ key: "img.error.type" });
+    if (problem) return setError({ key: "img.error.size", vars: { mb: MAX_SOURCE_BYTES / MB } });
     setError(null);
+    setShrinking(true);
+    const file = await shrinkImage(chosen).finally(() => setShrinking(false));
+    // The API takes at most MAX_IMAGE_BYTES; a large file that couldn't shrink enough stops here.
+    if (imageFileProblem(file)) return setError({ key: "img.error.tooBig", vars: { mb: MAX_IMAGE_BYTES / MB } });
     setProgress(0);
     let step: "sign" | "put" | "save" = "sign";
     try {
+      // Signed for the file actually sent: its type and size may differ from the chosen one.
       const r = await request(CREATE_IMAGE_UPLOAD, {
         input: { kind, targetId, contentType: file.type.toLowerCase(), byteSize: file.size },
       });
@@ -73,7 +84,7 @@ export function ImageUploader({
     }
   }
 
-  const busy = progress !== null;
+  const busy = shrinking || progress !== null;
   return (
     <div>
       <input
@@ -91,9 +102,9 @@ export function ImageUploader({
         onClick={() => input.current?.click()}
         className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-40"
       >
-        {busy ? t(locale, "img.uploading", { pct: progress ?? 0 }) : label}
+        {shrinking ? t(locale, "img.preparing") : busy ? t(locale, "img.uploading", { pct: progress ?? 0 }) : label}
       </button>
-      {busy && (
+      {progress !== null && (
         <div
           role="progressbar"
           aria-valuemin={0}
@@ -104,10 +115,10 @@ export function ImageUploader({
           <div className="h-full bg-ink transition-[width]" style={{ width: `${progress}%` }} />
         </div>
       )}
-      <p className="mt-1 text-xs text-neutral-500">{t(locale, "img.hint", { mb: MAX_IMAGE_BYTES / 1024 / 1024 })}</p>
+      <p className="mt-1 text-xs text-neutral-500">{t(locale, "img.hint", { mb: MAX_SOURCE_BYTES / MB, px: MAX_IMAGE_SIDE })}</p>
       {error && (
         <p role="alert" className="mt-1 text-xs text-red-600">
-          {t(locale, error.key, { mb: MAX_IMAGE_BYTES / 1024 / 1024, ...error.vars })}
+          {t(locale, error.key, { mb: MAX_IMAGE_BYTES / MB, ...error.vars })}
         </p>
       )}
     </div>

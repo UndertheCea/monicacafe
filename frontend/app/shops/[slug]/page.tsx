@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { SHOP } from "@/lib/api";
 import { PAGE_SIZE, type SearchParams } from "@/lib/coffeeFilters";
-import { query } from "@/lib/graphql";
+import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
@@ -28,7 +28,7 @@ const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const loadShop = cache(async (slug: string, page: number, archive: number) =>
   SLUG_RE.test(slug)
     ? (
-        await query(SHOP, {
+        await serverQuery(SHOP, {
           slug,
           limit: PAGE_SIZE,
           offset: (page - 1) * PAGE_SIZE,

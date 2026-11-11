@@ -20,7 +20,7 @@ import {
   REFRESH_COOKIE_PATH,
   REFRESH_MAX_AGE_S,
   bearerToken,
-  forwardedFor,
+  clientAddress,
   jwtExpiryMs,
 } from "@/lib/auth/token";
 import { authErrorStatus } from "@/lib/errors";
@@ -92,8 +92,9 @@ const str = (v: unknown) => (typeof v === "string" ? v : "");
 export async function POST(req: NextRequest, { params }: Ctx) {
   const { action } = await params;
   if (!sameOrigin(req)) return fail(403, "FORBIDDEN", "cross-site request rejected");
-  // The backend rate-limits auth per client IP; pass on what nginx saw.
-  const client = forwardingClient(forwardedFor(req.headers.get("x-forwarded-for")));
+  // The backend rate-limits auth per client IP; pass on the address nginx saw
+  // (X-Real-IP), never the client's own X-Forwarded-For (#211).
+  const client = forwardingClient(clientAddress(req.headers.get("x-real-ip")));
 
   switch (action) {
     case "login": {

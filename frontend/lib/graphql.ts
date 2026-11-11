@@ -16,7 +16,7 @@ export const gqlClient = new GraphQLClient(endpoint, {
   cache: "no-store",
 });
 
-/** Server-side client that passes the browser's X-Forwarded-For on (BFF auth calls, for rate limiting). */
+/** Server-side client that passes the visitor's address on as X-Forwarded-For (for the API's per-IP limits). */
 export function forwardingClient(xff: string | undefined) {
   if (!xff) return gqlClient;
   return new GraphQLClient(endpoint, { headers: { "X-Forwarded-For": xff }, cache: "no-store" });

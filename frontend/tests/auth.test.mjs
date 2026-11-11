@@ -1,7 +1,7 @@
 // Pure auth helpers (lib/auth/token.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bearerToken, forwardedFor, jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
+import { bearerToken, clientAddress, jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwt = (payload) => `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(payload)}.sig`;
@@ -85,17 +85,25 @@ test("validateCredentials", () => {
   for (const c of cases) assert.equal(validateCredentials(...c.args), c.want, JSON.stringify(c.args));
 });
 
-test("forwardedFor", () => {
+test("clientAddress", () => {
   const cases = [
     [null, undefined],
     ["", undefined],
     ["198.51.100.2", "198.51.100.2"],
-    [" 1.2.3.4 ,198.51.100.2 ", "1.2.3.4, 198.51.100.2"],
+    [" 198.51.100.2 ", "198.51.100.2"],
     ["2001:db8::1", "2001:db8::1"],
-    ["evil<script>, 198.51.100.2", "198.51.100.2"],
-    ["1.1.1.1,2.2.2.2,3.3.3.3,4.4.4.4,5.5.5.5,6.6.6.6", "2.2.2.2, 3.3.3.3, 4.4.4.4, 5.5.5.5, 6.6.6.6"],
+    ["::ffff:198.51.100.2", "::ffff:198.51.100.2"],
+    ["::1", "::1"],
+    // One address only: a list (an X-Forwarded-For copied in) is refused, not split.
+    ["1.2.3.4, 198.51.100.2", undefined],
+    ["999.1.1.1", undefined],
+    ["1.2.3", undefined],
+    ["evil<script>", undefined],
+    ["unknown", undefined],
+    ["deadbeef", undefined],
+    [":", undefined],
   ];
-  for (const [h, want] of cases) assert.equal(forwardedFor(h), want, String(h));
+  for (const [h, want] of cases) assert.equal(clientAddress(h), want, String(h));
 });
 
 test("bearerToken", () => {

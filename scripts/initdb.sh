@@ -7,6 +7,14 @@
 # To re-run from scratch: docker compose down -v && docker compose up
 set -eu
 
+# Demo and reference shops are fake data: never in a production database (#211).
+if [ "${APP_ENV:-development}" = "production" ]; then
+  if [ "${SEED_DEMO_DATA:-true}" = "true" ] || [ "${SEED_REFERENCE_SHOPS:-false}" = "true" ]; then
+    echo "initdb: APP_ENV=production with SEED_DEMO_DATA or SEED_REFERENCE_SHOPS true; set both to false" >&2
+    exit 1
+  fi
+fi
+
 psql_run() {
   psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -q -f "$1"
 }

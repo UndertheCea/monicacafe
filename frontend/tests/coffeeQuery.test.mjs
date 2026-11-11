@@ -7,6 +7,7 @@ import {
   SORT_PARAMS,
   hasFiltersBesidesSearch,
   clearFiltersHref,
+  flavorNoteHref,
   parseInStockParam,
   parseSearchParam,
   parseSortParam,
@@ -103,11 +104,11 @@ test("/coffees reads and offers only origin / variety / process / price / in sto
   const parser = readFileSync(new URL("../lib/coffeeFilters.ts", import.meta.url), "utf8");
   const sidebar = readFileSync(new URL("../components/coffees/FilterSidebar.tsx", import.meta.url), "utf8");
   for (const p of removed) {
-    assert.ok(!parser.includes(`sp.${p}`), `parseCoffeeSearch reads ?${p}`);
+    assert.ok(!parser.includes(`sp.${p}`) && !parser.includes(`"${p}"`), `parseCoffeeSearch reads ?${p}`);
     assert.ok(!sidebar.includes(`name="${p}"`), `the sidebar has a ${p} field`);
   }
   for (const p of ["origin", "variety", "process", "min", "max", "instock"]) {
-    assert.ok(parser.includes(`sp.${p}`), `parseCoffeeSearch ignores ?${p}`);
+    assert.ok(parser.includes(`${p}: "${p}"`), `parseCoffeeSearch ignores ?${p}`);
     assert.ok(sidebar.includes(`name="${p}"`), `the sidebar lacks ${p}`);
   }
 });
@@ -143,4 +144,18 @@ test("priceRange reads a backwards range the right way round (#180)", async () =
     [[undefined, undefined], {}],
   ];
   for (const [[min, max], want] of cases) assert.deepEqual(priceRange(min, max), want, `${min}–${max}`);
+});
+
+test("flavorNoteHref searches /coffees for the note, encoded", () => {
+  const cases = [
+    ["茉莉花", "/coffees?q=%E8%8C%89%E8%8E%89%E8%8A%B1"],
+    ["dark chocolate", "/coffees?q=dark+chocolate"],
+    ["black & tan", "/coffees?q=black+%26+tan"],
+    ["", "/coffees"],
+  ];
+  for (const [note, want] of cases) assert.equal(flavorNoteHref(note), want, note);
+  for (const note of ["茉莉花", "dark chocolate", "black & tan"]) {
+    const q = new URL(flavorNoteHref(note), "http://x").searchParams.get("q");
+    assert.equal(parseSearchParam(q), note);
+  }
 });

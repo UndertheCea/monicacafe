@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { brewLongKey } from "@/lib/brew";
+import { flavorNoteHref } from "@/lib/coffeeQuery";
 import { knownHarvestYear } from "@/lib/harvest";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { pricePer100g } from "@/lib/pricing";
@@ -93,7 +94,7 @@ export function CoffeeDetailView({
               {coffee.flavorNotes.map((note) => (
                 <li key={note}>
                   <Link
-                    href={`/coffees?flavor=${encodeURIComponent(note)}`}
+                    href={flavorNoteHref(note)}
                     className="inline-block rounded-full bg-white px-3 py-1 text-sm text-ink ring-1 ring-neutral-300 hover:bg-neutral-100"
                   >
                     {note}

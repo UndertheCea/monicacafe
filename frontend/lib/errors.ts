@@ -18,6 +18,10 @@ export const API_ERROR_CODES = [
   "BAD_USER_INPUT",
   "CONFLICT",
   "RATE_LIMITED",
+  // A query too deep or too costly (backend graph/server.go). The site's own
+  // queries never get it (a Go test runs them all against the limits), so it
+  // falls through to each form's generic message.
+  "QUERY_TOO_COMPLEX",
   "INTERNAL_SERVER_ERROR",
 ] as const;
 

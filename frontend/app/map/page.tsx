@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SHOPS_FOR_MAP, groupByCity, hasCoords } from "@/lib/api";
-import { query } from "@/lib/graphql";
+import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
@@ -30,7 +30,7 @@ export default async function MapPage() {
 
   let pins;
   try {
-    pins = (await query(SHOPS_FOR_MAP)).shopsForMap;
+    pins = (await serverQuery(SHOPS_FOR_MAP)).shopsForMap;
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }

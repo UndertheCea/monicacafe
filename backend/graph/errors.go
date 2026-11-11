@@ -18,6 +18,9 @@ const (
 	CodeBadInput        = "BAD_USER_INPUT"
 	CodeConflict        = "CONFLICT"
 	CodeRateLimited     = "RATE_LIMITED"
+	// CodeQueryTooComplex: the operation was refused before running because
+	// it nests too deeply or would cost too much (graph/server.go).
+	CodeQueryTooComplex = "QUERY_TOO_COMPLEX"
 	CodeInternal        = "INTERNAL_SERVER_ERROR"
 )
 

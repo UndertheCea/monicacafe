@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 )
 
 func TestDefaultsAndOverride(t *testing.T) {
@@ -240,6 +242,32 @@ func TestRateLimits(t *testing.T) {
 		}
 		if c.name == "default" && (r.LoginIP.Burst != 20 || r.LoginIP.Per != time.Minute || r.LoginEmail.Burst != 10) {
 			t.Errorf("default parsed to %+v", r)
+		}
+	}
+}
+
+func TestGraphQLIPRateLimit(t *testing.T) {
+	t.Setenv("RATE_LIMIT_GRAPHQL_IP", "")
+	r, err := Load().RateLimits()
+	if err != nil || r.GraphQLIP.Burst != 600 || r.GraphQLIP.Per != time.Minute {
+		t.Fatalf("default GraphQL limit = %+v, %v; want 600/1m", r.GraphQLIP, err)
+	}
+	tests := []struct {
+		in      string
+		want    ratelimit.Rule
+		wantErr bool
+	}{
+		{"120/1m", ratelimit.Rule{Burst: 120, Per: time.Minute}, false},
+		{"0", ratelimit.Rule{}, false},
+		{"fast", ratelimit.Rule{}, true},
+	}
+	for _, tt := range tests {
+		got, err := Config{AppEnv: "development", RateLimitGraphQLIP: tt.in}.RateLimits()
+		if (err != nil) != tt.wantErr || got.GraphQLIP != tt.want {
+			t.Errorf("RATE_LIMIT_GRAPHQL_IP=%q → %+v, %v", tt.in, got.GraphQLIP, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), "RATE_LIMIT_GRAPHQL_IP") {
+			t.Errorf("the error should name the variable: %v", err)
 		}
 	}
 }

@@ -66,6 +66,9 @@ type Config struct {
 	RateLimitUploadUser   string
 	RateLimitPasswordUser string
 	RateLimitSaveUser     string
+
+	// Every /graphql request, per client IP.
+	RateLimitGraphQLIP string
 }
 
 func get(k, d string) string {
@@ -113,6 +116,7 @@ func Load() Config {
 		RateLimitUploadUser:   get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
 		RateLimitPasswordUser: get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
 		RateLimitSaveUser:     get("RATE_LIMIT_SAVE_USER", "60/5m"),
+		RateLimitGraphQLIP:    get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 	}
 }
 
@@ -192,6 +196,7 @@ type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
 	SaveUser                                   ratelimit.Rule
+	GraphQLIP                                  ratelimit.Rule
 }
 
 // RateLimits parses the RATE_LIMIT_* settings.
@@ -209,6 +214,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
 		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
+		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)
 		if err != nil {

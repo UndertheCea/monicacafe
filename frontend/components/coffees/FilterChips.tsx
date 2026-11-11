@@ -32,6 +32,8 @@ export function chipLabel(locale: Locale, c: FilterChip, names?: Map<string, str
       const { key, vars } = priceChipLabel(c.min, c.max);
       return t(locale, key, vars);
     }
+    case "search":
+      return t(locale, "chip.search", { q: c.text });
     case "instock":
       return t(locale, "filter.inStock");
   }
@@ -60,7 +62,7 @@ export function FilterChips({ locale, chips, names, clearHref }: Props) {
             </li>
           );
         })}
-        {chips.length > 1 && (
+        {chips.filter((c) => c.kind !== "search").length > 1 && (
           <li>
             <Link href={clearHref} className="px-1 text-sm font-semibold text-ink underline-offset-4 hover:underline">
               {t(locale, "chip.clearAll")}

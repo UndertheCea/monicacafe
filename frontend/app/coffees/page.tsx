@@ -54,7 +54,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const q = filter.search;
   const filtered = hasFiltersBesidesSearch(filter);
-  const chips = filterChips(filter, sp, "/coffees");
+  const chips = filterChips(filter, sp, "/coffees", { search: true });
   const active = activeFilterCount(filter);
   const names = new Map<string, string>([
     ...options.originCountries.map((o) => [o.id, pick(locale, o.nameZh, o.nameEn)] as const),

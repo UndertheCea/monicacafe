@@ -7,7 +7,7 @@ verification, the issue workflow) is in [`CLAUDE.md`](CLAUDE.md). The work queue
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-10 (after Session 31)
+Last updated: 2026-11-11 (after Session 32)
 
 ---
 
@@ -36,7 +36,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–014 | Done |
+| DB schema + migrations 001–016, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
 | Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
@@ -56,12 +56,14 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments | Done (#99) |
 | Seller-curated shop pages: no buyer filters (#160), seller's order via `reorderShopCoffees` + dashboard ↑ / ↓ (#161, #162), sold-out archive section (#163) | Done |
 | Draft preview for sellers (dashboard-only, owner chose #8 (b)) | Done |
-| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI | Done |
+| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI; photos scaled to 2000 px in the browser first | Done (#212) |
 | Orphaned-image cleanup (6-hourly sweep of unreferenced objects) | Done (#29) |
 | Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff | Done (#100) |
 | Frontend on Next.js 16; `npm audit` has no high advisories | Done (#35) |
 | sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done |
-| Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user | Done |
+| Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user; every `/graphql` request per IP | Done (#207) |
+| Request limits: list fields priced by their limit, depth ≤ 8, no similar-of-similar, ≤ 5000 tokens, 100 KB body | Done (#207) |
+| Hardening: production refuses published secrets and needs `APP_ENV` (#206); safe `?next=` (#208); only nginx reachable, BFF forwards nginx's X-Real-IP (#211); one frontend image for any host (#210) | Done |
 | Error contract (`graph/errors.go` ↔ `lib/errors.ts`, pinned by a Go test) | Done |
 | Structured JSON access + panic logs (slog, request id + trusted client IP) | Done (#48, #53) |
 | Postgres pool cap + statement timeout from env | Done (#52) |
@@ -75,22 +77,22 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 31**: the owner answered five questions, now recorded below and closed: #159 (never show the tagline), #9 (cart
-in Postgres), #10 (keep OSM), #42 and #50 (no change). Three small slices shipped: the home tab title is just "Moni Cafe"
-(#194); home, /coffees, /shops and /map have share cards and canonical URLs (#195); the dictionary has no unused strings
-and the dashboard explains the 10-option limit (#196). The roasters' sites still return 403, so #170–#173 stay blocked;
-#197 asks whether Stage 2 may start anyway.
+**Session 32**: no answers on the open questions, and #170–#174 are still blocked (roasters' sites 403). Seven
+`stage-1` slices made the stack safer to host: production refuses the published secrets (#206); GraphQL prices list
+fields by their limit and rate-limits every request per IP (#207); `?next=` can't leave the site (#208); compose
+publishes only nginx and the BFF stops forwarding client-chosen addresses (#211); migrations are tracked and applied on
+every start (#209); one frontend image works on any host (#210); photos shrink to 2000 px before upload (#212).
 
 ## Current focus
 
-1. **#170–#173** (one roaster each), then **#174** (add the missing values). Blocked until the roasters' domains are
-   reachable (#168: still 403 through the proxy on 2026-11-10). The frame is ready: add rows to
-   `scripts/seed_reference.sql`, then run `./scripts/reference_gaps.sh`.
-2. **Stage 2 waits on #197.** #9 is answered (Postgres), so #21 (cart) is no longer `blocked`, but every `stage-1` slice
-   must close first unless the owner says otherwise on #197. Orders and payouts also need #12.
-3. No other `stage-1` slices are open. Blends as first-class coffees (#176 point 2) wait for an owner ask.
-4. Production: set `TRUSTED_PROXIES` to the real proxies only, keep `DB_MAX_CONNS` × API instances below Postgres'
-   `max_connections`, and choose a map tile provider before launch (#10).
+1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS, backups and real secrets is
+   the next big step. #206 / #209 / #210 / #211 removed the code-side blockers.
+2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still 403 on 2026-11-11).
+3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205 for orders and payouts.
+4. #203's safe-default tidy-ups (3, 5, 6, 7) and #202's report / moderation default say slices were "filed", but none
+   exist yet: open them next session. Password reset waits on #200 (email service).
+5. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 (the BFF trusts X-Real-IP);
+   `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10).
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -101,6 +103,13 @@ Open questions for the owner (answer by commenting on the issue):
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
 | #197 | Start Stage 2 while #170–#174 wait for network? | no, keep the stage rule | yes |
+| #199 | Hosting and domain | one VPS running compose + HTTPS | **no** |
+| #200 | Email service (password reset, verification) | Resend | **no** |
+| #201 | Legal / business basics (company, invoices, returns, terms) | none | **no** |
+| #202 | Who may open a shop; removing bad content | live at once + report link | yes |
+| #203 | UI tidy-up proposals | 3, 5, 6, 7 | yes |
+| #204 | English URLs (/en/…), bilingual seller text | keep cookie, one field | yes |
+| #205 | Multi-shop orders, shipping, stock (Stage 2) | one checkout, order per shop | **no** |
 
 ## Decisions (why it looks like this)
 
@@ -211,3 +220,16 @@ Open questions for the owner (answer by commenting on the issue):
   stays reserved for caching.
 - **Listing canonicals keep only `page` (#195)**: filters, sort and search all point at one URL per page, and `?q=` results
   are `noindex, follow`, so crawlers don't index every combination.
+- **Production refuses the repo's own secrets (#206)**: anything printed in `.env.example` / compose, or containing `dev-` /
+  `change`, is rejected when `APP_ENV=production`, and `APP_ENV` has no default. A test reads both files, so a new secret
+  there can't slip past.
+- **Request cost = limit × child, priced per SQL query (#207)**: per-parent resolvers add 10 and the similar-coffee scan
+  400 (max cost 8000), so one request runs at most ~20 scans. A Go test prices every query in the frontend source at
+  page size 100, so pages can't silently outgrow the limit.
+- **BFF trusts X-Real-IP, not X-Forwarded-For (#211)**: nginx overwrites X-Real-IP; Next route handlers can't see the
+  socket address, so :3000 must never be reachable except through nginx (compose binds it to 127.0.0.1).
+- **Migrations: plain SQL + `schema_migrations`, no Go migration library (#209)**: one POSIX script runs in compose, CI and
+  `initdb.sh`; each file is one transaction under an advisory lock. Old volumes are refused until `MIGRATE_BASELINE` says
+  what they already have, never guessed. Shipped migrations are never edited.
+- **Images shrink in the browser, not on the server (#212)**: the API never handles file bytes, so the uploader scales to
+  2000 px and re-encodes (PNG → WebP keeps transparency) before signing for the file it actually sends.

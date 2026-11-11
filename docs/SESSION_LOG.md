@@ -15,6 +15,64 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 32 — 2026-11-11 — Security and hosting groundwork (seven stage-1 slices)
+PR: #PRNUM
+
+No PR was open at the start, and no question had a new answer. #170–#173 stay blocked (the four roasters' domains
+still return 403 through the proxy) and #174 depends on them. The owner had opened four security slices (#206–#208,
+#211) and seven questions (#199–#205); I opened three more slices for gaps found in the code (#209, #210, #212). The
+worker restarted once mid-session; the work in the tree survived and carried on.
+
+### Shipped (one line per slice: area — what — key files)
+- #208 frontend — `safeNext` refuses control characters and backslashes, must resolve to our own origin, and returns
+  the parsed path (`/%09/evil.com` used to reach another site). `lib/auth/token.ts`, `tests/auth.test.mjs`.
+- #206 backend — production refuses every secret printed in `.env.example` / compose and anything with `dev-` / `change`
+  (JWT, DB password, S3, Meilisearch); `APP_ENV` must be development / test / production; the worker validates and logs
+  host/db only. A test parses both files. `internal/platform/config`, `cmd/worker`.
+- #207 backend — `graph/server.go` (shared by the API and tests): list fields cost limit × child, per-parent queries +10,
+  `similar` +400, max 8000; depth ≤ 8; similar-of-similar refused; token limit enforced by us because gqlgen v0.17.73
+  silently truncates; 100 KB body; 200 cached docs; new code `QUERY_TOO_COMPLEX`; `RATE_LIMIT_GRAPHQL_IP` (600/1m,
+  `graph/ratelimit_http.go`). Server components forward the visitor's address (`lib/serverQuery.ts`).
+- #211 cross-cutting — Postgres / API / Next published on 127.0.0.1 only; fixed compose subnet (`COMPOSE_SUBNET`) and
+  `TRUSTED_PROXIES` = loopback + it; the BFF forwards nginx's X-Real-IP (`clientAddress`), never the client's XFF;
+  `initdb.sh` stops on demo seeds with `APP_ENV=production`; `smoke.sh` checks spoofed headers still hit 429.
+- #209 cross-cutting — `scripts/migrate.sh` + `schema_migrations`, advisory lock, one transaction per file,
+  `MIGRATE_BASELINE` for old volumes; compose `migrate` one-shot before the API; Postgres healthcheck over TCP;
+  `scripts/migrate_selftest.sh` in CI; the stack job re-runs `migrate` and expects "up to date".
+- #210 frontend — browser calls `/graphql` on the page origin (`lib/endpoint.ts`), CSP media origin from runtime
+  `MEDIA_URL` (= `MEDIA_PUBLIC_URL`); no build args in the Dockerfile / compose.
+- #212 frontend — `shrinkImage` scales photos to 2000 px and re-encodes before the presigned PUT (used only when
+  smaller); files up to 25 MB accepted if the result fits 5 MB. Pure rules in `lib/dashboard/upload.ts`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` on local PostgreSQL **16**, the database
+  built the CI way (`migrate.sh`, seed, reference-shop seed / self-test / removal) — all passed. New: the abusive
+  queries refused by the real handler; all 53 frontend operations validate and fit the limits at page size 100.
+- `migrate_selftest.sh` (fresh, re-run, refused + baselined upgrade with identical columns, failing migration rolled
+  back), two concurrent runs (each migration once), and the socket path `initdb.sh` uses.
+- Frontend: `npm ci`, tsc, lint, `npm test` (185), `npm run build`. `next start`: the CSP lists a CDN only when
+  `MEDIA_URL` is set; the bundle resolves `/graphql` against the page origin. `shrinkImage` run in Chromium
+  (Playwright): 4032×3024 JPEG 14.9 MB → 2000×1500 1.4 MB, small image untouched, PNG with alpha → WebP, undecodable
+  file unchanged. Not tested: a real upload from the dashboard (no S3 store here).
+- Local stack without nginx (API binary + `next start` on a fresh `migrate.sh` + seed database):
+  `BASE_URL=:3000 API_URL=:4000 SMOKE_UPLOAD=0 smoke.sh` passed everything except `/media/` (needs nginx), twice in a
+  row without tripping the per-IP GraphQL limit. (Reseeding under a running API fails the smoke: it caches reference
+  rows for its lifetime. Restart it after recreating the database.)
+- `docker compose config --quiet`, `check_brief.sh`. Not run: `docker compose up` + `smoke.sh` (no Docker Hub pulls
+  here), so the `migrate` service, loopback ports, X-Real-IP path and the new smoke check are proven only by CI.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `RATE_LIMIT_GRAPHQL_IP` defaults to 600/1m, not the issue's suggested 120: a page view makes 1–3 requests and the
+  dashboard more; 120 would throttle one busy seller. Cost limit 8000, not 500: measured, the shop page at page size
+  100 costs ~5,200.
+- Host-local traffic reaches nginx from the Docker gateway, which sits inside the trusted subnet, so a process on the
+  same machine could still spoof X-Forwarded-For on `/graphql`. External traffic can't. The production compose file
+  (#199) should trust nginx's and Next's addresses only.
+- Existing dev volumes need `MIGRATE_BASELINE=016` once (the `migrate` service says so), or `docker compose down -v`.
+- #203 and #200 mention slices "already filed" (UI tidy-ups 3/5/6/7, password reset) that don't exist: open them.
+- Stray copies of the migrations and `migrate.sh` were left in this container's `/tmp` (removal was blocked); the
+  container is discarded, nothing in the repo is affected.
+
 ## Session 31 — 2026-11-10 — Five owner answers recorded, tagline gone, share cards on listings
 PR: #198
 

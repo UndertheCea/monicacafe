@@ -1,5 +1,5 @@
 // Backend-for-frontend auth endpoints. The refresh token never reaches page
-// JavaScript: it lives in an httpOnly cookie scoped to /api/auth, and these
+// JavaScript: it lives in an httpOnly cookie (`__Host-` prefixed and Secure on an HTTPS SITE_URL, else scoped to /api/auth), and these
 // handlers trade it for short-lived access tokens (kept in memory by
 // AuthProvider). POST /api/auth/{login,register,refresh,logout,logout-all,password,delete-account}.
 import { NextResponse, type NextRequest } from "next/server";
@@ -16,8 +16,14 @@ import {
   type SessionPayload,
 } from "@/lib/auth/session";
 import {
-  REFRESH_COOKIE,
-  REFRESH_COOKIE_PATH,
+  LEGACY_REFRESH_COOKIE,
+  LEGACY_REFRESH_COOKIE_PATH,
+  isHttpsSite,
+  originAllowed,
+  readRefreshToken,
+  refreshCookie,
+} from "@/lib/auth/cookie";
+import {
   REFRESH_MAX_AGE_S,
   SESSION_HINT_COOKIE,
   bearerToken,
@@ -30,19 +36,17 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ action: string }> };
 
-function isSecure(req: NextRequest): boolean {
-  return req.nextUrl.protocol === "https:" || req.headers.get("x-forwarded-proto") === "https";
-}
+// Secure-ness and the cookie name come from SITE_URL, never from request headers.
+const siteUrl = () => process.env.SITE_URL;
 
 /** Reject cross-site requests (defence in depth on top of SameSite=Lax). */
 function sameOrigin(req: NextRequest): boolean {
-  const origin = req.headers.get("origin");
-  if (!origin) return true; // same-origin fetches from older browsers / curl
-  try {
-    return new URL(origin).host === (req.headers.get("x-forwarded-host") ?? req.headers.get("host"));
-  } catch {
-    return false;
-  }
+  return originAllowed({
+    origin: req.headers.get("origin"),
+    secFetchSite: req.headers.get("sec-fetch-site"),
+    siteUrl: siteUrl(),
+    dev: process.env.NODE_ENV === "development",
+  });
 }
 
 function fail(status: number, code: string, message: string, field?: string, retryAfter?: number) {
@@ -53,29 +57,44 @@ function fail(status: number, code: string, message: string, field?: string, ret
 }
 
 function clearCookie(res: NextResponse) {
-  res.cookies.set(REFRESH_COOKIE, "", { httpOnly: true, sameSite: "lax", path: REFRESH_COOKIE_PATH, maxAge: 0 });
-  res.cookies.set(SESSION_HINT_COOKIE, "", { sameSite: "lax", path: "/", maxAge: 0 });
+  const c = refreshCookie(siteUrl());
+  res.cookies.set(c.name, "", { httpOnly: true, secure: c.secure, sameSite: "lax", path: c.path, maxAge: 0 });
+  clearLegacyCookie(res, c.name);
+  res.cookies.set(SESSION_HINT_COOKIE, "", { secure: isHttpsSite(siteUrl()), sameSite: "lax", path: "/", maxAge: 0 });
   return res;
 }
 
-function ok(req: NextRequest, p: { accessToken: string; refreshToken: string; user: SessionPayload["user"] }) {
+/** Drop the pre-#215 cookie (one release of migration) when the current one has another name. */
+function clearLegacyCookie(res: NextResponse, currentName: string) {
+  if (currentName === LEGACY_REFRESH_COOKIE) return;
+  res.cookies.set(LEGACY_REFRESH_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: LEGACY_REFRESH_COOKIE_PATH,
+    maxAge: 0,
+  });
+}
+
+function ok(p: { accessToken: string; refreshToken: string; user: SessionPayload["user"] }) {
   const body: SessionPayload = {
     accessToken: p.accessToken,
     expiresAt: jwtExpiryMs(p.accessToken) ?? Date.now() + 15 * 60_000,
     user: p.user,
   };
   const res = NextResponse.json(body, { headers: { "Cache-Control": "no-store" } });
-  res.cookies.set(REFRESH_COOKIE, p.refreshToken, {
+  const c = refreshCookie(siteUrl());
+  res.cookies.set(c.name, p.refreshToken, {
     httpOnly: true,
-    secure: isSecure(req),
+    secure: c.secure,
     sameSite: "lax",
-    path: REFRESH_COOKIE_PATH,
+    path: c.path,
     maxAge: REFRESH_MAX_AGE_S,
   });
+  clearLegacyCookie(res, c.name);
   // Readable by page JavaScript on purpose and holds no secret: it only tells
   // AuthProvider that a refresh is worth trying (#234).
   res.cookies.set(SESSION_HINT_COOKIE, "1", {
-    secure: isSecure(req),
+    secure: c.secure,
     sameSite: "lax",
     path: "/",
     maxAge: REFRESH_MAX_AGE_S,
@@ -111,7 +130,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const b = await readJSON(req);
       try {
         const r = await query(LOGIN, { input: { email: str(b.email), password: str(b.password) } }, client);
-        return ok(req, r.login);
+        return ok(r.login);
       } catch (err) {
         return fromError(err);
       }
@@ -122,17 +141,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         const r = await query(REGISTER, {
           input: { email: str(b.email), password: str(b.password), displayName: str(b.displayName) },
         }, client);
-        return ok(req, r.register);
+        return ok(r.register);
       } catch (err) {
         return fromError(err);
       }
     }
     case "refresh": {
-      const token = req.cookies.get(REFRESH_COOKIE)?.value;
+      const token = readRefreshToken((n) => req.cookies.get(n)?.value, siteUrl());
       if (!token) return fail(401, "UNAUTHENTICATED", "no session");
       try {
         const r = await query(REFRESH, { token }, client);
-        return ok(req, r.refreshToken);
+        return ok(r.refreshToken);
       } catch (err) {
         const res = fromError(err);
         // Only drop the cookie when the backend rejected it, not on outages.
@@ -151,7 +170,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           { input: { currentPassword: str(b.currentPassword), newPassword: str(b.newPassword) } },
           authedClient(bearer),
         );
-        return ok(req, r.changePassword);
+        return ok(r.changePassword);
       } catch (err) {
         return fromError(err);
       }
@@ -159,7 +178,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     case "logout": {
       // End this browser's session (the cookie's refresh token proves it, so
       // an expired access token doesn't matter); always clear the cookie.
-      const token = req.cookies.get(REFRESH_COOKIE)?.value;
+      const token = readRefreshToken((n) => req.cookies.get(n)?.value, siteUrl());
       if (token) {
         try {
           await query(LOGOUT, { refreshToken: token }, client);

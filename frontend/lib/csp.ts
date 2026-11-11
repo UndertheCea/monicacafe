@@ -13,7 +13,14 @@ export interface CspOptions {
   graphqlUrl: string;
   /** Where uploaded images are served from and PUT to (MEDIA_URL, read per request; empty = same origin). */
   mediaUrl: string;
+  /** SITE_URL: when https, adds upgrade-insecure-requests. */
+  siteUrl?: string;
 }
+
+/** Where browsers POST CSP violation reports (app/api/csp-report). */
+export const CSP_REPORT_PATH = "/api/csp-report";
+/** Value of the Reporting-Endpoints header that `report-to csp` refers to. */
+export const REPORTING_ENDPOINTS = `csp="${CSP_REPORT_PATH}"`;
 
 /** Origin of an absolute http(s) URL, or null for relative / invalid ones. */
 export function originOf(url: string): string | null {
@@ -27,7 +34,7 @@ export function originOf(url: string): string | null {
 
 const uniq = (xs: (string | null)[]) => [...new Set(xs.filter((x): x is string => !!x))];
 
-export function buildCsp({ nonce, dev, graphqlUrl, mediaUrl }: CspOptions): string {
+export function buildCsp({ nonce, dev, graphqlUrl, mediaUrl, siteUrl }: CspOptions): string {
   const media = originOf(mediaUrl);
   const api = originOf(graphqlUrl);
   const directives: Record<string, string[]> = {
@@ -46,9 +53,11 @@ export function buildCsp({ nonce, dev, graphqlUrl, mediaUrl }: CspOptions): stri
     "base-uri": ["'self'"],
     "object-src": ["'none'"],
   };
-  return Object.entries(directives)
-    .map(([k, v]) => `${k} ${v.join(" ")}`)
-    .join("; ");
+  const parts = Object.entries(directives).map(([k, v]) => `${k} ${v.join(" ")}`);
+  if (originOf(siteUrl ?? "")?.startsWith("https:")) parts.push("upgrade-insecure-requests");
+  // report-uri for older browsers, report-to (with Reporting-Endpoints) for the rest.
+  parts.push(`report-uri ${CSP_REPORT_PATH}`, "report-to csp");
+  return parts.join("; ");
 }
 
 /**

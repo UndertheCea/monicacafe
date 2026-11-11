@@ -82,7 +82,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 **Session 33**: no answers on the open questions; #170–#174 still blocked. Seven `stage-1` slices: abuse limits for
 sellers and logins, IPv6 /64 keys, bcrypt 12 + common-password list, empty shops hidden (#213); nginx hardening (#214);
-CI security job, dependabot, pinned actions / images (#216); flavour chips search their note + search chip (#227);
+CI security job, dependabot, pinned actions / images, Go 1.26.11 + module bumps for govulncheck (#216); flavour chips search their note + search chip (#227);
 seller forms survive refresh hiccups and session loss, with a draft and leave prompts (#228); price / sold-out under
 the coffee name (#233); unused fonts dropped and no refresh call for signed-out visitors (#234).
 

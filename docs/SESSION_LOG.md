@@ -36,7 +36,9 @@ No PR was open at the start and no question had a new answer. #170–#174 stay b
   (`internal/middleware/requestid.go`). Non-JSON 429 → RATE_LIMITED in the UI (`rateLimitedFromStatus`). Smoke checks.
 - #216 cross-cutting — CI job `security` (govulncheck v1.1.4, `npm audit --audit-level=high --omit=dev`);
   `.github/dependabot.yml` (gomod, npm, docker, docker-compose, actions; weekly, grouped); actions pinned by SHA; images
-  pinned to patch versions; `--legacy-peer-deps` dropped (no longer needed); go directive 1.24.13.
+  pinned to patch versions; `--legacy-peer-deps` dropped (no longer needed). The first CI run of govulncheck found 42
+  reachable vulnerabilities: stdlib fixes exist only on Go 1.25 / 1.26 (1.24 is out of support), so the backend moved to
+  **Go 1.26.11**, with chi 5.2.2, pgx 5.9.2, mapstructure 2.4.0 and x/text 0.41.0.
 - #227 frontend — flavour chips link to `/coffees?q=<note>` (`flavorNoteHref`); `COFFEE_PARAM` map is the single list
   `parseCoffeeSearch` reads, and a test fails on any `/coffees?<param>` link outside it; `?q=` shows a removable chip.
 - #228 frontend — only a 401 from refresh signs out (`refreshOutcome`); hiccups keep the session and retry 2 s / 5 s /

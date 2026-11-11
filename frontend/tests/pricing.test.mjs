@@ -30,3 +30,33 @@ test("pricePer100g rejects unusable inputs", () => {
     assert.equal(pricePer100g(price, weight), null, `${price}/${weight}`);
   }
 });
+
+import { coffeeAvailability } from "../lib/pricing.ts";
+import { coffeeJsonLd } from "../lib/seo.ts";
+
+const v = (priceTwd, weightG, stock, isAvailable = true) => ({ priceTwd, weightG, stock, isAvailable });
+
+test("coffeeAvailability: in stock, mixed, sold out, none", () => {
+  assert.deepEqual(coffeeAvailability([v(450, 200, 3), v(900, 500, 2)]), { kind: "from", price: 450, per100g: 225 });
+  // cheapest options are sold out / unavailable: price comes from the cheapest buyable one
+  assert.deepEqual(coffeeAvailability([v(300, 100, 0), v(380, 100, 5, false), v(900, 500, 2)]), {
+    kind: "from",
+    price: 900,
+    per100g: 180,
+  });
+  assert.deepEqual(coffeeAvailability([v(300, 100, 0), v(900, 500, 2, false)]), { kind: "soldOut" });
+  assert.deepEqual(coffeeAvailability([]), { kind: "none" });
+});
+
+test("coffeeAvailability agrees with the JSON-LD availability", () => {
+  const base = "https://example.com";
+  const cases = [[v(450, 200, 3)], [v(300, 100, 0), v(900, 500, 2)], [v(300, 100, 0)], [v(300, 100, 4, false)]];
+  for (const variants of cases) {
+    const ld = coffeeJsonLd(
+      { id: "c1", name: "N", description: "", imageUrls: [], shop: { name: "S" }, variants },
+      base,
+    );
+    const inStock = coffeeAvailability(variants).kind === "from";
+    assert.equal(ld.offers.availability, inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock");
+  }
+});

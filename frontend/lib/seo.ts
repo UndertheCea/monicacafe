@@ -2,6 +2,8 @@
 // Pure, no imports, so `npm test` can load it; pages pass the result to Next's
 // generateMetadata.
 
+import { coffeeAvailability } from "./pricing.ts";
+
 export type ShareLocale = "zh-TW" | "en";
 
 export interface ShareInput {
@@ -87,7 +89,7 @@ export interface JsonLdCoffee {
   description: string;
   imageUrls: string[];
   shop: { name: string };
-  variants: { priceTwd: number; stock: number; isAvailable: boolean }[];
+  variants: { priceTwd: number; weightG: number; stock: number; isAvailable: boolean }[];
   /** provenanceFacts(coffee) from lib/provenance (passed in to keep this file import-free). */
   provenance?: [ProvenanceKey, string][];
   /** FILTER | ESPRESSO | OMNI; null / unknown is left out. */
@@ -123,7 +125,7 @@ export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unkn
   const available = c.variants.filter((v) => v.isAvailable);
   const priced = available.length > 0 ? available : c.variants;
   const prices = priced.map((v) => v.priceTwd).filter((p) => Number.isInteger(p) && p > 0);
-  const inStock = available.some((v) => v.stock > 0);
+  const inStock = coffeeAvailability(c.variants).kind === "from";
 
   const ld: Record<string, unknown> = {
     "@context": "https://schema.org",

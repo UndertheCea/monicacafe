@@ -66,9 +66,9 @@ const coffee = {
   imageUrls: ["/media/coffees/a.jpg", "javascript:alert(1)"],
   shop: { name: "山小烘焙" },
   variants: [
-    { priceTwd: 450, stock: 0, isAvailable: true },
-    { priceTwd: 800, stock: 3, isAvailable: true },
-    { priceTwd: 100, stock: 9, isAvailable: false },
+    { priceTwd: 450, weightG: 200, stock: 0, isAvailable: true },
+    { priceTwd: 800, weightG: 200, stock: 3, isAvailable: true },
+    { priceTwd: 100, weightG: 200, stock: 9, isAvailable: false },
   ],
 };
 
@@ -92,9 +92,9 @@ test("coffeeJsonLd describes the product and an aggregate TWD offer over availab
 });
 
 test("coffeeJsonLd: sold out, no options, no photos", () => {
-  const soldOut = coffeeJsonLd({ ...coffee, variants: [{ priceTwd: 500, stock: 0, isAvailable: true }] }, base);
+  const soldOut = coffeeJsonLd({ ...coffee, variants: [{ priceTwd: 500, weightG: 200, stock: 0, isAvailable: true }] }, base);
   assert.equal(soldOut.offers.availability, "https://schema.org/OutOfStock");
-  const allOff = coffeeJsonLd({ ...coffee, variants: [{ priceTwd: 500, stock: 4, isAvailable: false }] }, base);
+  const allOff = coffeeJsonLd({ ...coffee, variants: [{ priceTwd: 500, weightG: 200, stock: 4, isAvailable: false }] }, base);
   assert.equal(allOff.offers.availability, "https://schema.org/OutOfStock");
   assert.equal(allOff.offers.lowPrice, 500);
   const bare = coffeeJsonLd({ ...coffee, description: " ", imageUrls: [], variants: [] }, base);

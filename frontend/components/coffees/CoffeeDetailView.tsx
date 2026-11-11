@@ -4,7 +4,7 @@ import { brewLongKey } from "@/lib/brew";
 import { flavorNoteHref } from "@/lib/coffeeQuery";
 import { knownHarvestYear } from "@/lib/harvest";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
-import { pricePer100g } from "@/lib/pricing";
+import { coffeeAvailability, pricePer100g } from "@/lib/pricing";
 import { originLine, provenanceFacts } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
@@ -38,6 +38,8 @@ export function CoffeeDetailView({
   for (const [key, value] of provenanceFacts(coffee)) facts.push([t(locale, key), value]);
   const harvest = knownHarvestYear(coffee.harvestYear);
   if (harvest) facts.push([t(locale, "coffee.harvest"), t(locale, "coffee.harvestValue", { year: harvest })]);
+
+  const availability = coffeeAvailability(coffee.variants);
 
   return (
     <div className="mt-6 grid gap-10 lg:grid-cols-2">
@@ -75,6 +77,19 @@ export function CoffeeDetailView({
           {coffee.shop.city && ` · ${coffee.shop.city}`}
         </p>
         <h1 className="mt-1 text-3xl font-bold leading-tight text-ink">{coffee.name}</h1>
+        {availability.kind === "from" && (
+          <p className="mt-2 text-xl font-semibold text-ink">
+            {t(locale, "coffees.from", { price: formatTWD(availability.price) })}
+            {availability.per100g !== null && (
+              <span className="ml-2 text-sm font-normal text-neutral-500">
+                {t(locale, "coffee.per100g", { price: formatTWD(availability.per100g) })}
+              </span>
+            )}
+          </p>
+        )}
+        {availability.kind === "soldOut" && (
+          <p className="mt-2 text-xl font-semibold text-ink">{t(locale, "coffee.soldOutHeadline")}</p>
+        )}
         {actions}
 
         <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-neutral-200">
@@ -127,14 +142,14 @@ export function CoffeeDetailView({
               </thead>
               <tbody className="divide-y divide-neutral-100">
                 {coffee.variants.map((v) => (
-                  <tr key={v.id} className={v.isAvailable ? "" : "text-neutral-400"}>
+                  <tr key={v.id}>
                     <td className="px-4 py-2">{t(locale, `grind.${v.grind}`)}</td>
                     <td className="px-4 py-2">{v.weightG} g</td>
                     <td className="px-4 py-2">
                       <span className="font-semibold">NT${formatTWD(v.priceTwd)}</span>
                       <Per100g locale={locale} priceTwd={v.priceTwd} weightG={v.weightG} />
                     </td>
-                    <td className="px-4 py-2">
+                    <td className={v.isAvailable ? "px-4 py-2" : "px-4 py-2 text-neutral-500"}>
                       {v.isAvailable ? t(locale, "coffee.inStock", { n: v.stock }) : t(locale, "coffees.soldOut")}
                     </td>
                   </tr>

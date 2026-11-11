@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 32 — 2026-11-11 — Security and hosting groundwork (seven stage-1 slices)
-PR: #PRNUM
+PR: #239
 
 No PR was open at the start, and no question had a new answer. #170–#173 stay blocked (the four roasters' domains
 still return 403 through the proxy) and #174 depends on them. The owner had opened four security slices (#206–#208,

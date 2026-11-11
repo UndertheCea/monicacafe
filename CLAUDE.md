@@ -84,6 +84,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved
 | `frontend/tests/*.test.mjs` | `npm test` (Node's built-in runner) |
 | `scripts/smoke.sh` | Hits every demo route, sitemap, the auth cookie flow, GraphQL and an image upload after `docker compose up` (CI job `stack`) |
 | `scripts/seed_reference.sql` | Dev-only reference shops (`SEED_REFERENCE_SHOPS=true`); `reference_gaps.sh` reports values our dropdowns lack, `remove_reference_shops.sql` deletes them |
+| `scripts/backup.sh` | Nightly `pg_dump` + age encryption → S3 or a directory, 7 daily + 4 weekly (compose `backup`, profile `prod`, loop in `backup_loop.sh`); `restore.sh` restores into an empty DB. Runbook: [`docs/BACKUP.md`](docs/BACKUP.md); CI `stack` runs a restore drill |
 | `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |

@@ -17,6 +17,8 @@ import {
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ShopImages } from "./ShopImages";
+import { SignInAgain } from "./SignInAgain";
+import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 
 // Leaflet touches `window`; load the picker on the client only.
@@ -41,7 +43,7 @@ const profileOf = (s: EditableShop): ShopProfile => ({
 });
 
 export function ShopProfileForm({ locale }: { locale: Locale }) {
-  const { status, request } = useAuth();
+  const { status, view, user, request } = useSellerSession();
   const [load, setLoad] = useState<Load>({ state: "loading" });
 
   const loadShop = useCallback(async (): Promise<Load> => {
@@ -64,8 +66,8 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
     };
   }, [status, loadShop]);
 
-  if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (status === "anonymous") return <LoginNeeded locale={locale} next="/dashboard/shop" />;
+  if (view === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
+  if (view === "login") return <LoginNeeded locale={locale} next="/dashboard/shop" />;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
   if (!load.shop) {
@@ -78,10 +80,16 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
     );
   }
   const onSaved = (shop: EditableShop) => setLoad({ state: "ready", shop });
+  // Session ended with the page open (#228): keep the editor (and what was
+  // typed) mounted but disabled under an inline sign-in.
+  const locked = view === "locked";
   return (
     <div className="space-y-6">
-      <ShopImages shop={load.shop} locale={locale} onSaved={onSaved} />
-      <ProfileEditor key={load.shop.id} shop={load.shop} locale={locale} onSaved={onSaved} />
+      {locked && <SignInAgain locale={locale} email={user?.email} />}
+      <fieldset disabled={locked} className="m-0 min-w-0 space-y-6 border-0 p-0">
+        <ShopImages shop={load.shop} locale={locale} onSaved={onSaved} />
+        <ProfileEditor key={load.shop.id} shop={load.shop} locale={locale} onSaved={onSaved} />
+      </fieldset>
     </div>
   );
 }
@@ -115,6 +123,7 @@ function ProfileEditor({
   };
   const patch = shopProfilePatch(profileOf(shop), draft);
   const dirty = Object.keys(patch).length > 0;
+  useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
   const outsideTaiwan = picked !== null && !inTaiwan(picked);
   const clear = () => setMsg(null);
 

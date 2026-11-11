@@ -150,3 +150,23 @@ test("the auth route sets and clears the hint with the refresh cookie (#234)", a
   assert.equal(sets.length, 2, "one set in ok(), one clear in clearCookie()");
   assert.match(src, /cookies\.set\(SESSION_HINT_COOKIE, "1", \{[^}]*maxAge: REFRESH_MAX_AGE_S/s);
 });
+
+test("refreshOutcome: only a 401 ends the session (#228)", async () => {
+  const { refreshOutcome } = await import("../lib/auth/token.ts");
+  const cases = [
+    [200, "session"],
+    [401, "signedOut"],
+    [null, "retry"], // network error
+    [429, "retry"],
+    [500, "retry"],
+    [502, "retry"],
+    [503, "retry"],
+    [400, "retry"],
+  ];
+  for (const [status, want] of cases) assert.equal(refreshOutcome(status), want, String(status));
+});
+
+test("refreshRetryDelayMs: 2 s, 5 s, 15 s, then every minute (#228)", async () => {
+  const { refreshRetryDelayMs } = await import("../lib/auth/token.ts");
+  assert.deepEqual([0, 1, 2, 3, 4, 50].map(refreshRetryDelayMs), [2000, 5000, 15000, 60000, 60000, 60000]);
+});

@@ -9,6 +9,23 @@ export const REFRESH_COOKIE_PATH = "/api/auth";
 export const REFRESH_MAX_AGE_S = 7 * 24 * 60 * 60;
 
 /**
+ * What a POST /api/auth/refresh outcome means for the session (#228). Only a
+ * 401 says the session is over; a network error (`null`), a 5xx or a 429 may
+ * be a hiccup, so the current session is kept and the refresh retried.
+ */
+export function refreshOutcome(status: number | null): "session" | "signedOut" | "retry" {
+  if (status === null) return "retry";
+  if (status === 401) return "signedOut";
+  if (status >= 200 && status < 300) return "session";
+  return "retry";
+}
+
+/** Backoff for retrying a failed refresh: 2 s, 5 s, 15 s, then every minute (#228). */
+export function refreshRetryDelayMs(attempt: number): number {
+  return [2_000, 5_000, 15_000][attempt] ?? 60_000;
+}
+
+/**
  * Session hint (#234): a readable, non-secret cookie set alongside the refresh
  * cookie and cleared with it. It says only "this browser may have a session",
  * so AuthProvider skips the refresh call for visitors who never signed in.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useUnsavedChanges } from "./useSellerSession";
 import { BREW_METHODS, FILTER_OPTIONS, ROAST_LEVELS } from "@/lib/api";
 import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
 import {
@@ -88,6 +89,9 @@ export function CoffeeDetailsForm({
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
   }, []);
+
+  const unsaved = Object.keys(coffeeDetailsPatch(saved, { ...draft, flavorNotes: parseFlavorNotes(draft.notes) })).length > 0;
+  useUnsavedChanges(unsaved && !busy, t(locale, "dash.unsavedConfirm"));
 
   if (optsFailed) return <Notice>{t(locale, "error.title")}</Notice>;
   if (!opts) return <Notice>{t(locale, "dash.loading")}</Notice>;

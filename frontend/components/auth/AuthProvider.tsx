@@ -7,7 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, authedClient, toApiError, unavailable, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
-import { hasSessionHint, refreshDelayMs } from "@/lib/auth/token";
+import { hasSessionHint, refreshDelayMs, refreshOutcome, refreshRetryDelayMs } from "@/lib/auth/token";
 import { rateLimitedFromStatus, retryAfterSeconds } from "@/lib/errors";
 
 type State =
@@ -45,12 +45,21 @@ const CHANNEL = "mc-auth";
 // backend revokes every session when a refresh token is reused).
 let inflight: Promise<SessionPayload | null> | null = null;
 
+// Resolves to the new session, or null when the server says the session is
+// over (401). Anything else (network error, 5xx, 429) rejects: the session may
+// still be fine, so callers keep it and try again later (#228).
 function refreshSession(): Promise<SessionPayload | null> {
   if (!inflight) {
     const run = async (): Promise<SessionPayload | null> => {
-      const res = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
-      if (res.status === 401) return null;
-      if (!res.ok) throw await asError(res);
+      let res: Response;
+      try {
+        res = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+      } catch {
+        throw unavailable();
+      }
+      const outcome = refreshOutcome(res.status);
+      if (outcome === "signedOut") return null;
+      if (outcome === "retry") throw await asError(res);
       return (await res.json()) as SessionPayload;
     };
     const p: Promise<SessionPayload | null> =
@@ -108,21 +117,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return s;
   }, []);
 
+  // Pending retry after a failed refresh: the attempt number, or null.
+  const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
+
   const reload = useCallback(async () => {
     try {
-      return (await apply(await refreshSession()))?.user ?? null;
+      const s = apply(await refreshSession());
+      setRetryAttempt(null);
+      return s?.user ?? null;
     } catch {
-      // Backend unreachable: keep the cookie, show the signed-out UI for now.
-      apply(null);
-      return null;
+      // A hiccup, not a verdict (#228): keep the current session (a seller's
+      // form stays usable) and retry with backoff. Only a first load with
+      // nothing to keep shows the signed-out UI meanwhile.
+      if (stateRef.current.status === "loading") apply(null);
+      setRetryAttempt((a) => (a === null ? 0 : a + 1));
+      const cur = stateRef.current;
+      return cur.status === "authenticated" ? cur.session.user : null;
     }
   }, [apply]);
+
+  useEffect(() => {
+    if (retryAttempt === null) return;
+    const id = window.setTimeout(() => void reload(), refreshRetryDelayMs(retryAttempt));
+    return () => window.clearTimeout(id);
+  }, [retryAttempt, reload]);
 
   // Initial load + cross-tab sync.
   useEffect(() => {
     // Visitors who never signed in (no hint cookie) make no auth request at all (#234).
     const initial = hasSessionHint(document.cookie) ? refreshSession() : Promise.resolve(null);
-    initial.then(apply, () => apply(null)); // same as reload(), state set in the callback
+    initial.then(apply, () => {
+      // Server unreachable on first load: signed-out UI for now, retry with backoff (#228).
+      apply(null);
+      setRetryAttempt(0);
+    });
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel(CHANNEL);
     channelRef.current = ch;
@@ -165,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
+    setRetryAttempt(null);
     try {
       // The route handler revokes the session named by the httpOnly cookie.
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
@@ -191,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
     let res = await send(token);
     if (res.status === 401) {
-      token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+      token = apply(await refreshSession())?.accessToken ?? null;
       if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
       res = await send(token);
     }
@@ -219,7 +248,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
       let res = await send(token);
       if (res.status === 401) {
-        token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+        token = apply(await refreshSession())?.accessToken ?? null;
         if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
         res = await send(token);
       }
@@ -250,7 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let res = await send(token);
       if (res.status === 401) {
         // Access token expired: refresh once and retry.
-        token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+        token = apply(await refreshSession())?.accessToken ?? null;
         if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
         res = await send(token);
       }
@@ -269,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let token = cur.status === "authenticated" ? cur.session.accessToken : null;
       if (!token && cur.status === "loading") {
         // Called before the initial refresh settled: use the shared in-flight one.
-        token = apply(await refreshSession().catch(() => null))?.accessToken ?? null;
+        token = apply(await refreshSession())?.accessToken ?? null;
       }
       if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
       try {
@@ -277,7 +306,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         const e = toApiError(err);
         if (e.code !== "UNAUTHENTICATED") throw e;
-        const s = apply(await refreshSession().catch(() => null));
+        const s = apply(await refreshSession());
         if (!s) throw e;
         try {
           return await run(s.accessToken);

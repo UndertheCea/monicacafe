@@ -48,7 +48,11 @@ re-verified together.
 - #231 frontend — archive greys only the image; 44 px header / drawer / reorder / comment / chip / pagination targets;
   `lang` spans on the language toggle and wordmark; `aria-live` only on the /coffees count; `.label-caps` 12 px, no
   letter-spacing for zh; `tests/a11y.test.mjs`.
-- #217 backend — SEE_217
+- #217 backend — `cleanText` refuses Cc / Cf characters and invalid UTF-8 (ZWJ allowed), `cleanMultiline` allows `\n`
+  in descriptions and comments; migration 018: length CHECKs (display name 50, shop name 80 / description 2000 / city
+  40, coffee name 120 / description 5000) + `upload_grants`; `UPLOAD_DAILY_BYTES_PER_SHOP` (200 MiB, advisory-locked
+  reserve) → `UPLOAD_QUOTA`; `Sweep` pages the bucket and asks the DB per page (`ReferencedImageKeys`). Magic-number
+  check not done.
 
 ### Verification (what ran and passed; what was NOT tested and why)
 - Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 — all pass, incl. the new

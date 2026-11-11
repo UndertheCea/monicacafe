@@ -33,7 +33,7 @@ export function SearchToggle({ locale }: { locale: Locale }) {
     >
       <summary
         aria-label={t(locale, "nav.searchOpen")}
-        className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full border border-line text-ink hover:border-ink [&::-webkit-details-marker]:hidden"
+        className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-full border border-line text-ink hover:border-ink [&::-webkit-details-marker]:hidden"
       >
         <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75">
           <circle cx="8.5" cy="8.5" r="5.25" />

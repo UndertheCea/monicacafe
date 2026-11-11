@@ -14,6 +14,7 @@ export function Wordmark({ size = "md" }: { size?: "md" | "sm" }) {
     <Link
       href="/"
       aria-label={WORDMARK.label}
+      lang="en"
       className="inline-flex shrink-0 items-baseline whitespace-nowrap leading-none text-ink hover:no-underline"
     >
       <span

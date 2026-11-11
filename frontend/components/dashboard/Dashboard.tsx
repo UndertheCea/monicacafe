@@ -142,7 +142,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
   const reorderable = canReorder(shop.coffees.nodes.length, shop.coffees.total);
   const lastIndex = shop.coffees.nodes.length - 1;
   const moveBtn =
-    "flex h-8 w-8 items-center justify-center rounded-full border border-line text-sm text-ink hover:border-muted disabled:opacity-30 disabled:hover:border-line";
+    "flex h-11 w-11 items-center justify-center rounded-full border border-line text-sm text-ink hover:border-muted disabled:opacity-30 disabled:hover:border-line";
   return (
     <div className="space-y-8">
       {shop.suspended && (

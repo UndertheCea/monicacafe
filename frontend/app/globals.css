@@ -53,8 +53,19 @@
 @layer components {
   /* SEY-style small caps label: "GEISHA · NATURAL · 巴拿馬". */
   .label-caps {
-    @apply text-[0.6875rem] font-medium uppercase tracking-[0.18em];
+    @apply text-xs font-medium uppercase tracking-[0.18em];
   }
+
+  /* Letter-spacing and uppercase are for Latin only: CJK text reads worse spaced out. */
+  .label-caps:lang(zh) {
+    @apply tracking-normal;
+  }
+}
+
+/* Sold-out archive (app/shops/[slug]/page.tsx): grey the picture, never the words. */
+.archive-grid article > div:first-child {
+  filter: grayscale(1);
+  opacity: 0.75;
 }
 
 /* Side drawer (components/Drawer.tsx): slides in from the left. */

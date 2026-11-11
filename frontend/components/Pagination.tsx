@@ -3,7 +3,7 @@ import { pageHref, type SearchParams } from "@/lib/coffeeFilters";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { LinkPending } from "./LinkPending";
 
-const btn = "rounded-full border border-line px-4 py-2 hover:border-muted";
+const btn = "rounded-full border border-line inline-flex min-h-11 items-center px-4 hover:border-muted";
 
 /** Prev / "page X of Y" / next links that preserve the current query string. */
 export function Pagination({

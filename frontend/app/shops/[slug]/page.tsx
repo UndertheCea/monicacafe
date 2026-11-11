@@ -153,8 +153,8 @@ export default async function ShopPage({
                 </h2>
                 <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
               </div>
-              {/* Muted, still black and white: greyscale photos and tiles, softer text. */}
-              <div className="grid gap-5 opacity-70 grayscale sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {/* Greyscale on the photo / tile only (.archive-grid, globals.css): text keeps full contrast (#231). */}
+              <div className="archive-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {archive.nodes.map((c) => (
                   <CoffeeCard key={c.id} coffee={c} locale={locale} />
                 ))}

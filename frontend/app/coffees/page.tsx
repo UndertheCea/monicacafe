@@ -89,9 +89,9 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           </FilterPanel>
         </aside>
 
-        <section aria-live="polite">
+        <section>
           {q && <h2 className="mb-1 text-lg font-semibold text-ink">{t(locale, "coffees.results", { q })}</h2>}
-          <p className="mb-4 text-sm text-muted">{t(locale, "coffees.count", { n: list.total })}</p>
+          <p aria-live="polite" className="mb-4 text-sm text-muted">{t(locale, "coffees.count", { n: list.total })}</p>
           <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
           {list.nodes.length === 0 ? (

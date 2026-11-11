@@ -69,7 +69,7 @@ export function Drawer({ id, open, onClose, title, closeLabel, inlineClassName =
         <button
           type="button"
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-lg leading-none text-ink hover:border-muted"
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-line text-lg leading-none text-ink hover:border-muted"
           aria-label={closeLabel}
         >
           <span aria-hidden="true">×</span>

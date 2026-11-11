@@ -18,9 +18,9 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
         document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
         startTransition(() => router.refresh());
       }}
-      className="rounded-full border border-line px-3 py-1 text-sm font-medium text-ink transition hover:border-ink hover:text-ink hover:underline underline-offset-4 disabled:opacity-50"
+      className="inline-flex min-h-11 items-center rounded-full border border-line px-4 text-sm font-medium text-ink transition hover:border-ink hover:text-ink hover:underline underline-offset-4 disabled:opacity-50"
     >
-      {t(locale, "lang.toggle")}
+      <span lang={next === "en" ? "en" : "zh-Hant"}>{t(locale, "lang.toggle")}</span>
     </button>
   );
 }

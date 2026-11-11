@@ -64,7 +64,7 @@ export function CommentBody({
               setDraft(current.body);
               setError(null);
             }}
-            className="mt-1 text-xs font-medium text-muted hover:text-ink hover:underline underline-offset-4"
+            className="-ml-2 mt-1 inline-flex min-h-11 items-center px-2 text-xs font-medium text-muted hover:text-ink hover:underline underline-offset-4"
           >
             {t(locale, "comments.edit")}
           </button>
@@ -122,14 +122,14 @@ export function CommentBody({
               setDraft(null);
               setError(null);
             }}
-            className="rounded-full px-3 py-1 text-sm text-muted ring-1 ring-line hover:bg-paper"
+            className="inline-flex min-h-11 items-center rounded-full px-4 text-sm text-muted ring-1 ring-line hover:bg-paper"
           >
             {t(locale, "comments.cancel")}
           </button>
           <button
             type="submit"
             disabled={busy || !st.canSave}
-            className="rounded-full bg-ink px-3 py-1 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
           >
             {busy ? t(locale, "comments.saving") : t(locale, "comments.save")}
           </button>

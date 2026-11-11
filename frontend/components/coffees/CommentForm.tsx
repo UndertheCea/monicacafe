@@ -81,7 +81,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
         <button
           type="submit"
           disabled={busy || len === 0 || tooLong}
-          className="rounded-full bg-ink px-4 py-1.5 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
         >
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
         </button>
@@ -135,7 +135,7 @@ export function DeleteCommentButton({
             setBusy(false);
           }
         }}
-        className="text-xs font-medium text-muted hover:text-danger disabled:opacity-50"
+        className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-muted hover:text-danger disabled:opacity-50"
       >
         {t(locale, "comments.delete")}
       </button>

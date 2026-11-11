@@ -52,7 +52,7 @@ export function FilterChips({ locale, chips, names, clearHref }: Props) {
               <Link
                 href={c.href}
                 aria-label={t(locale, "chip.remove", { label })}
-                className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1 text-sm text-ink transition hover:border-ink"
+                className="inline-flex items-center min-h-11 gap-1.5 rounded-full border border-line bg-white px-3 text-sm text-ink transition hover:border-ink"
               >
                 {label}
                 <span aria-hidden="true" className="text-muted">
@@ -64,7 +64,7 @@ export function FilterChips({ locale, chips, names, clearHref }: Props) {
         })}
         {chips.filter((c) => c.kind !== "search").length > 1 && (
           <li>
-            <Link href={clearHref} className="px-1 text-sm font-semibold text-ink underline-offset-4 hover:underline">
+            <Link href={clearHref} className="inline-flex min-h-11 items-center px-1 text-sm font-semibold text-ink underline-offset-4 hover:underline">
               {t(locale, "chip.clearAll")}
             </Link>
           </li>

@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   // No `images.remotePatterns`: nothing uses next/image (seller images are
   // plain <img> tags served from our own bucket), and a "**" wildcard turned
   // the image optimizer into an open proxy (GHSA-9g9p-9gw9-jx7f). If next/image
-  // is adopted, list only the NEXT_PUBLIC_MEDIA_URL host. Image, script and
+  // is adopted, list only the MEDIA_URL (MEDIA_PUBLIC_URL) host. Image, script and
   // connect origins are pinned by the Content-Security-Policy (proxy.ts).
 };
 

@@ -1,14 +1,17 @@
 import { ClientError, GraphQLClient } from "graphql-request";
 import { UNAVAILABLE, parseGraphQLErrors } from "./errors";
 
-// Server components talk to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
-// http://backend:4000/graphql inside docker compose); the browser uses the
-// public URL behind nginx.
-const publicEndpoint = process.env.NEXT_PUBLIC_GRAPHQL_URL ?? "http://localhost:4000/graphql";
-const endpoint =
-  typeof window === "undefined"
-    ? (process.env.GRAPHQL_URL_INTERNAL ?? publicEndpoint)
-    : publicEndpoint;
+import { browserGraphqlUrl, serverGraphqlUrl } from "./endpoint";
+
+// Server code talks to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
+// http://backend:4000/graphql inside docker compose); the browser calls
+// /graphql on the page's own origin, behind nginx (lib/endpoint.ts, #210).
+const env = {
+  nodeEnv: process.env.NODE_ENV,
+  publicUrl: process.env.NEXT_PUBLIC_GRAPHQL_URL,
+  internalUrl: process.env.GRAPHQL_URL_INTERNAL,
+};
+const endpoint = typeof window === "undefined" ? serverGraphqlUrl(env) : browserGraphqlUrl(env, window.location.origin);
 
 export const gqlClient = new GraphQLClient(endpoint, {
   credentials: "include",

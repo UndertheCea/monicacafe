@@ -20,7 +20,10 @@ type Resolver struct {
 	Media *storage.Media
 	// Limits throttles the public auth mutations; nil limiters allow all.
 	Limits Limits
-	refs   *refCache
+	// UploadDailyBytes is the bytes of images one shop may presign per rolling
+	// 24 hours (#217); 0 = unlimited.
+	UploadDailyBytes int64
+	refs             *refCache
 }
 
 // Limits are the rate limiters. The *IP ones are keyed by client IP (see

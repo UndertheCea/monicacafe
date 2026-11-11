@@ -41,6 +41,10 @@ type Config struct {
 	MediaCleanupInterval string
 	MediaCleanupMinAge   string
 
+	// Bytes of images one shop may presign per rolling 24h (0 = unlimited).
+	// Parsed by UploadDailyBytes.
+	UploadDailyBytesPerShop string
+
 	// How often the API deletes expired refresh tokens (Go duration, e.g.
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
 	TokenPruneInterval string
@@ -109,6 +113,8 @@ func Load() Config {
 		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
 		MediaCleanupMinAge:   get("MEDIA_CLEANUP_MIN_AGE", "24h"),
 
+		UploadDailyBytesPerShop: get("UPLOAD_DAILY_BYTES_PER_SHOP", "209715200"), // 200 MiB
+
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
 		DBMaxConns:         get("DB_MAX_CONNS", "10"),
 		DBStatementTimeout: get("DB_STATEMENT_TIMEOUT", "10s"),
@@ -165,6 +171,20 @@ func (c Config) TokenPruneEvery() (time.Duration, error) {
 		return 0, fmt.Errorf("config: TOKEN_PRUNE_INTERVAL must be a duration of at least %s (or 0 to disable), got %q", minPruneInterval, v)
 	}
 	return d, nil
+}
+
+// UploadDailyBytes parses UPLOAD_DAILY_BYTES_PER_SHOP: a whole number of
+// bytes, 0 meaning no daily budget.
+func (c Config) UploadDailyBytes() (int64, error) {
+	v := strings.TrimSpace(c.UploadDailyBytesPerShop)
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("config: UPLOAD_DAILY_BYTES_PER_SHOP must be a whole number of bytes (0 = unlimited), got %q", v)
+	}
+	return n, nil
 }
 
 // Bounds for the Postgres pool settings. A statement timeout under a second
@@ -334,6 +354,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if _, err := c.TokenPruneEvery(); err != nil {
+		return err
+	}
+	if _, err := c.UploadDailyBytes(); err != nil {
 		return err
 	}
 	if _, _, err := c.DBPool(); err != nil {

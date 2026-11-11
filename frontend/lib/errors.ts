@@ -20,6 +20,8 @@ export const API_ERROR_CODES = [
   "RATE_LIMITED",
   // A fixed cap was reached, e.g. 200 coffees per shop (#213).
   "LIMIT_REACHED",
+  // A shop used up its daily image upload budget (#217).
+  "UPLOAD_QUOTA",
   // A query too deep or too costly (backend graph/server.go). The site's own
   // queries never get it (a Go test runs them all against the limits), so it
   // falls through to each form's generic message.

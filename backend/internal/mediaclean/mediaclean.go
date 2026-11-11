@@ -37,12 +37,19 @@ type Result struct {
 // Prefixes are the only parts of the bucket the sweep looks at.
 var Prefixes = []string{"shops/", "coffees/"}
 
-// Sweep lists the bucket, then reads the referenced URLs (in that order, so a
-// URL saved while listing is still seen), and deletes unreferenced objects
-// older than MinAge. Errors deleting single objects are counted, not fatal.
-func Sweep(ctx context.Context, b Bucket, imageURLs func(context.Context) ([]string, error), now time.Time, o Options) (Result, error) {
+// Referenced reports which of keys a saved shop or coffee still points at.
+type Referenced func(ctx context.Context, keys []string) ([]string, error)
+
+// Sweep walks the bucket one listing page at a time (never holding more than a
+// page in memory). For each page it picks the objects that are old enough and
+// shaped like ours, asks the database which of those are still referenced, and
+// deletes the rest. Listing precedes the reference read for the same page, so
+// a URL saved in between is still seen; later uploads are protected by MinAge.
+// Errors deleting single objects are counted, not fatal; the run stops once
+// MaxDeletes objects are gone and the next run continues.
+func Sweep(ctx context.Context, b Bucket, referenced Referenced, now time.Time, o Options) (Result, error) {
 	var res Result
-	var objects []storage.Object
+	var firstErr error
 	prefixes := o.Prefixes
 	if len(prefixes) == 0 {
 		prefixes = Prefixes
@@ -54,46 +61,41 @@ func Sweep(ctx context.Context, b Bucket, imageURLs func(context.Context) ([]str
 			if err != nil {
 				return res, fmt.Errorf("list %s: %w", prefix, err)
 			}
-			objects = append(objects, page...)
+			res.Scanned += len(page)
+			if candidates := storage.Orphans(page, nil, now, o.MinAge); len(candidates) > 0 {
+				refs, err := referenced(ctx, candidates)
+				if err != nil {
+					return res, fmt.Errorf("read referenced images: %w", err)
+				}
+				keep := make(map[string]bool, len(refs))
+				for _, k := range refs {
+					keep[k] = true
+				}
+				for _, key := range candidates {
+					if keep[key] {
+						continue
+					}
+					res.Orphans++
+					if o.MaxDeletes > 0 && res.Deleted >= o.MaxDeletes {
+						return res, firstErr
+					}
+					if err := b.DeleteObject(ctx, key); err != nil {
+						if firstErr == nil {
+							firstErr = fmt.Errorf("delete %s: %w", key, err)
+						}
+						if ctx.Err() != nil {
+							return res, firstErr
+						}
+						continue
+					}
+					res.Deleted++
+				}
+			}
 			if next == "" {
 				break
 			}
 			token = next
 		}
-	}
-	res.Scanned = len(objects)
-	if len(objects) == 0 {
-		return res, nil
-	}
-
-	urls, err := imageURLs(ctx)
-	if err != nil {
-		return res, fmt.Errorf("read referenced images: %w", err)
-	}
-	referenced := make(map[string]bool, len(urls))
-	for _, u := range urls {
-		if k := storage.ImageKeyIn(u); k != "" {
-			referenced[k] = true
-		}
-	}
-
-	orphans := storage.Orphans(objects, referenced, now, o.MinAge)
-	res.Orphans = len(orphans)
-	var firstErr error
-	for _, key := range orphans {
-		if o.MaxDeletes > 0 && res.Deleted >= o.MaxDeletes {
-			break
-		}
-		if err := b.DeleteObject(ctx, key); err != nil {
-			if firstErr == nil {
-				firstErr = fmt.Errorf("delete %s: %w", key, err)
-			}
-			if ctx.Err() != nil {
-				break
-			}
-			continue
-		}
-		res.Deleted++
 	}
 	return res, firstErr
 }

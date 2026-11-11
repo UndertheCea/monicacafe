@@ -261,25 +261,36 @@ func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
 	return out, mapErr(rows.Err())
 }
 
-// ImageURLs returns every image URL a row still points at: shop logos and
-// banners and coffee galleries (drafts included). Used to find orphaned
-// objects in the media bucket.
-func (s *Store) ImageURLs(ctx context.Context) ([]string, error) {
+// ReferencedImageKeys returns those of keys (media-bucket object keys such as
+// "shops/<id>/logo-….jpg") that a shop logo or banner or a coffee gallery
+// (drafts included) still points at. Used to find orphaned objects page by
+// page. An image is only ever saved on the listing whose ID is in its key, so
+// each key is checked against one row.
+func (s *Store) ReferencedImageKeys(ctx context.Context, keys []string) ([]string, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT logo_url FROM shops WHERE logo_url IS NOT NULL AND logo_url <> ''
-		UNION SELECT banner_url FROM shops WHERE banner_url IS NOT NULL AND banner_url <> ''
-		UNION SELECT unnest(image_urls) FROM coffees`)
+		WITH k AS (
+			SELECT key, split_part(key, '/', 1) AS kind, split_part(key, '/', 2) AS id
+			FROM unnest($1::text[]) AS key
+			WHERE key ~ '^(shops|coffees)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+		)
+		SELECT key FROM k WHERE kind = 'shops' AND EXISTS (
+			SELECT 1 FROM shops s WHERE s.id = k.id::uuid
+			  AND (position(k.key in COALESCE(s.logo_url, '')) > 0 OR position(k.key in COALESCE(s.banner_url, '')) > 0))
+		UNION ALL
+		SELECT key FROM k WHERE kind = 'coffees' AND EXISTS (
+			SELECT 1 FROM coffees c, unnest(c.image_urls) AS u
+			WHERE c.id = k.id::uuid AND position(k.key in u) > 0)`, keys)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	defer rows.Close()
 	var out []string
 	for rows.Next() {
-		var u string
-		if err := rows.Scan(&u); err != nil {
+		var k string
+		if err := rows.Scan(&k); err != nil {
 			return nil, mapErr(err)
 		}
-		out = append(out, u)
+		out = append(out, k)
 	}
 	return out, mapErr(rows.Err())
 }

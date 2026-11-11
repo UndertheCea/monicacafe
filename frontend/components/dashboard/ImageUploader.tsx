@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_IMAGE_UPLOAD, type ImageKind, type ImageUpload } from "@/lib/dashboard/queries";
-import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent } from "@/lib/dashboard/upload";
+import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent, uploadSignErrorKey } from "@/lib/dashboard/upload";
 import { shrinkImage } from "./shrinkImage";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
@@ -77,7 +77,7 @@ export function ImageUploader({
     } catch (err) {
       const e2 = toApiError(err);
       if (step === "sign" && e2.code === "RATE_LIMITED") setError(rateLimitMessage(e2.retryAfter));
-      else if (step === "sign" && e2.code === "BAD_USER_INPUT") setError({ key: "img.error.unavailable" });
+      else if (step === "sign") setError({ key: uploadSignErrorKey(e2.code) });
       else setError({ key: step === "put" ? "img.error.upload" : "img.error.save" });
     } finally {
       setProgress(null);

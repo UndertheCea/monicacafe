@@ -20,6 +20,8 @@ const (
 	CodeRateLimited     = "RATE_LIMITED"
 	// CodeLimitReached: a fixed cap was hit, e.g. coffees per shop (#213).
 	CodeLimitReached = "LIMIT_REACHED"
+	// CodeUploadQuota: the shop's daily image upload budget is used up (#217).
+	CodeUploadQuota = "UPLOAD_QUOTA"
 	// CodeQueryTooComplex: the operation was refused before running because
 	// it nests too deeply or would cost too much (graph/server.go).
 	CodeQueryTooComplex = "QUERY_TOO_COMPLEX"
@@ -39,6 +41,10 @@ func (e *apiError) Error() string { return e.message }
 
 func errLimitReached(field, msg string) error {
 	return &apiError{code: CodeLimitReached, message: msg, field: field}
+}
+
+func errUploadQuota() error {
+	return &apiError{code: CodeUploadQuota, message: "daily image upload budget reached, try again tomorrow", field: "byteSize"}
 }
 
 func errUnauthenticated() error {

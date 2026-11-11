@@ -435,7 +435,7 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
-	desc, err := cleanText("description", input.Description, 0, 2000)
+	desc, err := cleanMultiline("description", input.Description, 0, 2000)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +486,7 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if p.Name, err = cleanOptText("name", input.Name, 1, 80); err != nil {
 		return nil, err
 	}
-	if p.Description, err = cleanOptText("description", input.Description, 0, 2000); err != nil {
+	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 2000); err != nil {
 		return nil, err
 	}
 	if p.City, err = cleanOptText("city", input.City, 1, 40); err != nil {
@@ -566,7 +566,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
-	desc, err := cleanText("description", input.Description, 0, 5000)
+	desc, err := cleanMultiline("description", input.Description, 0, 5000)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +655,7 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Name, err = cleanOptText("name", input.Name, 1, maxCoffeeName); err != nil {
 		return nil, err
 	}
-	if p.Description, err = cleanOptText("description", input.Description, 0, 5000); err != nil {
+	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 5000); err != nil {
 		return nil, err
 	}
 	if input.ClearRoastLevel != nil && *input.ClearRoastLevel {
@@ -882,21 +882,32 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	if err != nil {
 		return nil, errBadInput("byteSize", err.Error())
 	}
-	var prefix, kind string
+	var prefix, kind, shopID string
 	switch input.Kind {
 	case model.ImageKindShopLogo, model.ImageKindShopBanner:
-		if _, err := r.ownedShop(ctx, c, input.TargetID); err != nil {
+		sh, err := r.ownedShop(ctx, c, input.TargetID)
+		if err != nil {
 			return nil, err
 		}
+		shopID = sh.ID
 		prefix, kind = storage.ShopPrefix(input.TargetID), "logo"
 		if input.Kind == model.ImageKindShopBanner {
 			kind = "banner"
 		}
 	case model.ImageKindCoffeePhoto:
-		if _, err := r.ownedCoffee(ctx, c, input.TargetID); err != nil {
+		co, err := r.ownedCoffee(ctx, c, input.TargetID)
+		if err != nil {
 			return nil, err
 		}
+		shopID = co.ShopID
 		prefix, kind = storage.CoffeePrefix(input.TargetID), "photo"
+	}
+	// Every upload target belongs to a shop: its daily byte budget applies
+	// (declared sizes; the presigned PUT is pinned to the same length).
+	if err := r.Store.ReserveUpload(ctx, shopID, int64(input.ByteSize), r.UploadDailyBytes); errors.Is(err, store.ErrUploadQuota) {
+		return nil, errUploadQuota()
+	} else if err != nil {
+		return nil, err
 	}
 	key, err := storage.NewKey(prefix, kind, ext)
 	if err != nil {
@@ -1026,7 +1037,7 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	if err := requireUUID("coffeeId", input.CoffeeID); err != nil {
 		return nil, err
 	}
-	body, err := cleanText("body", input.Body, 1, 500)
+	body, err := cleanMultiline("body", input.Body, 1, 500)
 	if err != nil {
 		return nil, err
 	}
@@ -1063,7 +1074,7 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body st
 	if !isUUID(id) {
 		return nil, errNotFound("comment")
 	}
-	text, err := cleanText("body", body, 1, 500)
+	text, err := cleanMultiline("body", body, 1, 500)
 	if err != nil {
 		return nil, err
 	}

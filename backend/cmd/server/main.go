@@ -66,7 +66,8 @@ func run() error {
 		slog.Warn("image uploads disabled: S3_ACCESS_KEY / S3_SECRET_KEY not set")
 	}
 	resolver := graph.NewResolver(st, authSvc, media)
-	rules, _ := cfg.RateLimits() // checked by cfg.Validate
+	resolver.UploadDailyBytes, _ = cfg.UploadDailyBytes() // checked by cfg.Validate
+	rules, _ := cfg.RateLimits()                          // checked by cfg.Validate
 	resolver.Limits = graph.Limits{
 		LoginIP:      ratelimit.New(rules.LoginIP),
 		LoginEmail:   ratelimit.New(rules.LoginEmail),
@@ -204,7 +205,7 @@ func cleanMedia(ctx context.Context, media *storage.Media, st *store.Store, ever
 			return
 		case <-ticker.C:
 		}
-		res, err := mediaclean.Sweep(ctx, media, st.ImageURLs, time.Now(), opts)
+		res, err := mediaclean.Sweep(ctx, media, st.ReferencedImageKeys, time.Now(), opts)
 		switch {
 		case err != nil && ctx.Err() == nil:
 			slog.Warn("media cleanup failed", "err", err, "scanned", res.Scanned, "deleted", res.Deleted)

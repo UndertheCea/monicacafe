@@ -57,11 +57,11 @@ func TestMediaCleanup(t *testing.T) {
 	opts := mediaclean.Options{Prefixes: []string{storage.ShopPrefix(shopID)}}
 
 	// Young objects survive the default safety margin.
-	res, err := mediaclean.Sweep(ctx, media, store.New(pool).ImageURLs, time.Now(), mediaclean.Options{MinAge: time.Hour, Prefixes: opts.Prefixes})
+	res, err := mediaclean.Sweep(ctx, media, store.New(pool).ReferencedImageKeys, time.Now(), mediaclean.Options{MinAge: time.Hour, Prefixes: opts.Prefixes})
 	if err != nil || res.Scanned != 2 || res.Deleted != 0 {
 		t.Fatalf("sweep with min age: %+v, %v", res, err)
 	}
-	res, err = mediaclean.Sweep(ctx, media, store.New(pool).ImageURLs, time.Now(), opts)
+	res, err = mediaclean.Sweep(ctx, media, store.New(pool).ReferencedImageKeys, time.Now(), opts)
 	if err != nil || res.Scanned != 2 || res.Orphans != 1 || res.Deleted != 1 {
 		t.Fatalf("sweep: %+v, %v", res, err)
 	}

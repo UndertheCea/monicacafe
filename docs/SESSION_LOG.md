@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 33 — 2026-11-11 — Abuse limits, nginx and CI hardening, seller work that survives (seven stage-1 slices)
-PR: #PRNUM
+PR: #240
 
 No PR was open at the start and no question had a new answer. #170–#174 stay blocked (roasters' domains, #168), #219 /
 #223 / #226 wait on #199 / #200 / #201. I built #213 and #228 / #234 myself; Sonnet sub-agents built #214, #216, #227 and

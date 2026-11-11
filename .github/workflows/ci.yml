@@ -43,13 +43,16 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
+      # Same script compose runs (#209); its self-test covers a re-run, the
+      # upgrade of a database made before schema_migrations, and a failing migration.
       - name: Apply migrations + demo seed
         working-directory: .
         run: |
-          for f in migrations/*.sql scripts/seed_dev.sql; do
-            echo "→ $f"
-            psql -v ON_ERROR_STOP=1 -h localhost -U monica -d monicacafe -f "$f"
-          done
+          DATABASE_URL="$TEST_DATABASE_URL" ./scripts/migrate.sh
+          psql -v ON_ERROR_STOP=1 -h localhost -U monica -d monicacafe -f scripts/seed_dev.sql
+      - name: Migration runner self-test
+        working-directory: .
+        run: DATABASE_URL="$TEST_DATABASE_URL" ./scripts/migrate_selftest.sh
       # Reference shops (#169): load the (dev-only) seed, run its self-test
       # (fixture coffees: matching, skips, the gap view), then remove it all and
       # check nothing is left before the integration tests use the database.
@@ -127,6 +130,12 @@ jobs:
           docker compose up --build -d --wait --wait-timeout 300
       - name: Smoke test via http://localhost
         run: ./scripts/smoke.sh
+      # The migrate service runs on every start: running it again must find the
+      # database up to date.
+      - name: Migrations re-run on an existing volume
+        run: |
+          out=$(docker compose run --rm migrate 2>&1); echo "$out"
+          grep -q "up to date" <<<"$out" || { echo "migrate didn't report up to date"; exit 1; }
       - name: Reference-shop gap report
         run: ./scripts/reference_gaps.sh
       - name: Service status and logs (on failure)

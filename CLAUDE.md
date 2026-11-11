@@ -75,7 +75,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `backend/internal/ratelimit`, `internal/middleware` | In-memory token buckets (auth, comments, uploads, password); client IP via `TRUSTED_PROXIES` |
 | `backend/internal/storage` | S3 SigV4 presigned uploads, which image URLs belong to the bucket |
 | `backend/internal/payments/ecpay` | ECPay CheckMacValue signing stub (Stage 2) |
-| `migrations/NNN_*.sql` | Plain SQL, applied in order by `scripts/initdb.sh`, then `scripts/seed_dev.sql` |
+| `migrations/NNN_*.sql` | Plain SQL; `scripts/migrate.sh` applies the ones not in `schema_migrations` (compose service `migrate`, every start; `initdb.sh` on an empty volume, then `scripts/seed_dev.sql`). Never edit a migration that has shipped: add a new one |
 | `frontend/app/` | App Router pages; `api/auth/[action]` is the auth backend-for-frontend |
 | `frontend/lib/` | `api.ts` (typed queries), `graphql.ts` (client), `i18n/`, `auth/`, `dashboard/`, `csp.ts` |
 | `frontend/proxy.ts` | Next 16 proxy (was middleware): per-request nonce'd Content-Security-Policy |
@@ -93,7 +93,7 @@ CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).
 
 ```bash
 cd backend && gofmt -l . && go build ./... && go vet ./... && go test ./... -count=1
-# with a migrated DB: TEST_DATABASE_URL=postgres://monica:monica_secret@localhost:5432/monicacafe go test -race ./...
+# with a migrated DB (DATABASE_URL=… ./scripts/migrate.sh): TEST_DATABASE_URL=postgres://monica:monica_secret@localhost:5432/monicacafe go test -race ./...
 cd frontend && npm ci && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd .. && docker compose config --quiet && ./scripts/check_brief.sh
 # full stack: docker compose up --build -d && ./scripts/smoke.sh

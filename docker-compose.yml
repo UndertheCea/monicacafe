@@ -16,8 +16,9 @@ services:
       SEED_REFERENCE_SHOPS: ${SEED_REFERENCE_SHOPS:-false}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # initdb.sh applies migrations/*.sql in order, then the demo seed.
+      # On an empty volume initdb.sh runs scripts/migrate.sh, then the demo seed.
       - ./scripts/initdb.sh:/docker-entrypoint-initdb.d/00_initdb.sh:ro
+      - ./scripts/migrate.sh:/monicacafe/scripts/migrate.sh:ro
       - ./migrations:/monicacafe/migrations:ro
       - ./scripts/seed_dev.sql:/monicacafe/scripts/seed_dev.sql:ro
       - ./scripts/seed_reference.sql:/monicacafe/scripts/seed_reference.sql:ro
@@ -26,11 +27,32 @@ services:
       # the network. Only nginx is published on every interface.
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # Over TCP: during first-start initialisation Postgres listens on its
+      # socket only, so this stays unhealthy until initdb.sh has finished.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
     restart: unless-stopped
+
+  # One-shot, on every `docker compose up`: applies migrations the database
+  # doesn't have yet (#209), so a volume created before a `git pull` catches up
+  # instead of failing. The API starts only after it succeeds. A volume made
+  # before schema_migrations existed needs MIGRATE_BASELINE once (see .env.example).
+  migrate:
+    image: postgres:17-alpine
+    entrypoint: ["/bin/sh", "/monicacafe/scripts/migrate.sh"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
+      MIGRATIONS_DIR: /monicacafe/migrations
+      MIGRATE_BASELINE: ${MIGRATE_BASELINE:-}
+    volumes:
+      - ./scripts/migrate.sh:/monicacafe/scripts/migrate.sh:ro
+      - ./migrations:/monicacafe/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   redis:
     image: redis:7-alpine
@@ -143,8 +165,8 @@ services:
       MEDIA_CLEANUP_INTERVAL: ${MEDIA_CLEANUP_INTERVAL:-6h}
       MEDIA_CLEANUP_MIN_AGE: ${MEDIA_CLEANUP_MIN_AGE:-24h}
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     ports:

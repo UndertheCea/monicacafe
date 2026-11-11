@@ -7,6 +7,7 @@ import (
 
 func TestShopFilterWhere(t *testing.T) {
 	city := "台北市"
+	const pub = hasPublishedCoffee
 	const term = "(s.name ILIKE $%[1]d OR s.description ILIKE $%[1]d)"
 	cases := []struct {
 		name string
@@ -14,11 +15,11 @@ func TestShopFilterWhere(t *testing.T) {
 		want string
 		args []any
 	}{
-		{"no filter", ShopFilter{}, "", nil},
-		{"city", ShopFilter{City: &city}, " WHERE s.city = $1", []any{city}},
-		{"one term, escaped", ShopFilter{SearchTerms: []string{"50%_"}}, " WHERE " + fmt.Sprintf(term, 1), []any{`%50\%\_%`}},
+		{"no filter: shops with a published coffee only", ShopFilter{}, " WHERE " + pub, nil},
+		{"city", ShopFilter{City: &city}, " WHERE " + pub + " AND s.city = $1", []any{city}},
+		{"one term, escaped", ShopFilter{SearchTerms: []string{"50%_"}}, " WHERE " + pub + " AND " + fmt.Sprintf(term, 1), []any{`%50\%\_%`}},
 		{"city + two terms", ShopFilter{City: &city, SearchTerms: []string{"豆", "Roast"}},
-			" WHERE s.city = $1 AND " + fmt.Sprintf(term, 2) + " AND " + fmt.Sprintf(term, 3),
+			" WHERE " + pub + " AND s.city = $1 AND " + fmt.Sprintf(term, 2) + " AND " + fmt.Sprintf(term, 3),
 			[]any{city, "%豆%", "%Roast%"}},
 	}
 	for _, tc := range cases {

@@ -165,7 +165,7 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 		return nil, err
 	}
 	hash, err := auth.HashPassword(input.Password)
-	if errors.Is(err, auth.ErrWeakPassword) {
+	if errors.Is(err, auth.ErrWeakPassword) || errors.Is(err, auth.ErrCommonPassword) {
 		return nil, errBadInput("password", err.Error())
 	}
 	if err != nil {
@@ -192,23 +192,33 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 		auth.EqualiseTiming(input.Password)
 		return nil, invalid
 	}
-	// Per account too, so a botnet spread over many IPs can't keep guessing
-	// one password. Counted for unknown emails as well, so the limit doesn't
+	// Failed passwords are counted per account (a ceiling across all IPs, so a
+	// botnet can't keep guessing one password) and per account + IP (#213).
+	// Only failures spend tokens: an attacker can't lock the owner out from
+	// one address, and needs several addresses to reach the account-wide
+	// ceiling. Unknown emails are counted the same way, so the limit doesn't
 	// reveal which accounts exist.
-	if err := allowKey(r.Limits.LoginEmail, email); err != nil {
+	emailIP := loginEmailIPKey(ctx, email)
+	if err := checkKeys(email, emailIP, r.Limits.LoginEmail, r.Limits.LoginEmailIP); err != nil {
 		return nil, err
+	}
+	failed := func() (*model.AuthPayload, error) {
+		r.Limits.LoginEmail.Allow(email)
+		r.Limits.LoginEmailIP.Allow(emailIP)
+		return nil, invalid
 	}
 	u, err := r.Store.UserByEmail(ctx, email)
 	if errors.Is(err, store.ErrNotFound) {
 		auth.EqualiseTiming(input.Password)
-		return nil, invalid
+		return failed()
 	}
 	if err != nil {
 		return nil, err
 	}
 	if !auth.CheckPassword(u.PasswordHash, input.Password) {
-		return nil, invalid
+		return failed()
 	}
+	r.rehashPassword(ctx, u, input.Password)
 	return r.issueTokens(ctx, u)
 }
 
@@ -386,6 +396,9 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	slug, err := normaliseShopSlug(input.Slug)
 	if err != nil {
 		return nil, err
@@ -435,6 +448,9 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if _, err := r.ownedShop(ctx, c, id); err != nil {
 		return nil, err
 	}
@@ -475,6 +491,9 @@ func (r *mutationResolver) ReorderShopCoffees(ctx context.Context, shopID string
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	sh, err := r.ownedShop(ctx, c, shopID)
 	if err != nil {
 		return nil, err
@@ -501,11 +520,17 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	sh, err := r.Store.ShopByOwner(ctx, c.UserID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errForbidden("open a shop before listing coffees")
 	}
 	if err != nil {
+		return nil, err
+	}
+	if err := r.checkCoffeeCap(ctx, sh.ID); err != nil {
 		return nil, err
 	}
 
@@ -592,6 +617,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
 		return nil, err
 	}
@@ -675,6 +703,9 @@ func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
 		return nil, err
 	}
@@ -707,6 +738,9 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
 		return nil, err
 	}
@@ -721,6 +755,9 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, error) {
 	c, err := requireViewer(ctx)
 	if err != nil {
+		return false, err
+	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return false, err
 	}
 	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
@@ -754,8 +791,14 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	src, err := r.ownedCoffee(ctx, c, id)
 	if err != nil {
+		return nil, err
+	}
+	if err := r.checkCoffeeCap(ctx, src.ShopID); err != nil {
 		return nil, err
 	}
 	newName := copyName(src.Name, " (copy)")
@@ -845,6 +888,9 @@ func (r *mutationResolver) AddVariant(ctx context.Context, coffeeID string, inpu
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if _, err := r.ownedCoffee(ctx, c, coffeeID); err != nil {
 		return nil, err
 	}
@@ -885,6 +931,9 @@ func (r *mutationResolver) UpdateVariant(ctx context.Context, id string, input m
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
 	if _, err := r.ownedVariant(ctx, c, id); err != nil {
 		return nil, err
 	}
@@ -906,6 +955,9 @@ func (r *mutationResolver) UpdateVariant(ctx context.Context, id string, input m
 func (r *mutationResolver) DeleteVariant(ctx context.Context, id string) (bool, error) {
 	c, err := requireViewer(ctx)
 	if err != nil {
+		return false, err
+	}
+	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return false, err
 	}
 	v, err := r.ownedVariant(ctx, c, id)

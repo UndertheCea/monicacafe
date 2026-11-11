@@ -55,6 +55,29 @@ func seedShops(t *testing.T, ctx context.Context, tx *store.Store, suffix string
 	return ids
 }
 
+// publishCoffee gives a shop one published coffee, so public listings show it.
+func publishCoffee(t *testing.T, ctx context.Context, tx *store.Store, shopID, slug string) {
+	t.Helper()
+	origins, err := tx.OriginCountries(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	methods, err := tx.ProcessingMethods(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	co, err := tx.CreateCoffee(ctx, store.CreateCoffeeParams{
+		ShopID: shopID, Name: "c", Slug: slug, OriginCountryID: origins[0].ID,
+		ProcessingMethodID: methods[0].ID, RoastLevel: lightRoast,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.SetCoffeePublished(ctx, co.ID, true); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestPublishedCoffeeCountsByShopIDs(t *testing.T) {
 	s := testStore(t)
 	ctx := context.Background()
@@ -134,14 +157,16 @@ func TestListShopsSort(t *testing.T) {
 			limit, offset int
 			want          string
 		}{
-			{store.ShopSortNewest, 10, 0, "Charlie,Delta,Alpha,Bravo"},
-			{store.ShopSortName, 10, 0, "Alpha,Bravo,Charlie,Delta"},
+			// Alpha has no published coffee, so no listing shows it (#213),
+			// even though it has the most followers.
+			{store.ShopSortNewest, 10, 0, "Charlie,Delta,Bravo"},
+			{store.ShopSortName, 10, 0, "Bravo,Charlie,Delta"},
 			// Bravo's drafts don't count; Bravo and Charlie tie at 1 → newer first.
-			{store.ShopSortMostCoffees, 10, 0, "Delta,Charlie,Bravo,Alpha"},
+			{store.ShopSortMostCoffees, 10, 0, "Delta,Charlie,Bravo"},
 			{store.ShopSortMostCoffees, 2, 1, "Charlie,Bravo"},
 			// Bravo and Charlie tie at 1 → newer first; nobody follows Delta.
-			{store.ShopSortMostFollowed, 10, 0, "Alpha,Charlie,Bravo,Delta"},
-			{store.ShopSortMostFollowed, 1, 3, "Delta"},
+			{store.ShopSortMostFollowed, 10, 0, "Charlie,Bravo,Delta"},
+			{store.ShopSortMostFollowed, 1, 2, "Delta"},
 		} {
 			got, total, err := tx.ListShops(ctx, store.ShopFilter{City: &city}, tc.sort, tc.limit, tc.offset)
 			if err != nil {
@@ -151,8 +176,8 @@ func TestListShopsSort(t *testing.T) {
 			for _, sh := range got {
 				out = append(out, names[sh.ID])
 			}
-			if s := strings.Join(out, ","); s != tc.want || total != 4 {
-				t.Errorf("%q limit %d offset %d: got %s (total %d), want %s (total 4)", tc.sort, tc.limit, tc.offset, s, total, tc.want)
+			if s := strings.Join(out, ","); s != tc.want || total != 3 {
+				t.Errorf("%q limit %d offset %d: got %s (total %d), want %s (total 3)", tc.sort, tc.limit, tc.offset, s, total, tc.want)
 			}
 		}
 		return errRollback

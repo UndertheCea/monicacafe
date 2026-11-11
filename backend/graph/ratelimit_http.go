@@ -22,7 +22,7 @@ func IPRateLimit(l *ratelimit.Limiter) func(http.Handler) http.Handler {
 			return next
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ok, retry := l.Allow(middleware.ClientIPFrom(r.Context()))
+			ok, retry := l.Allow(ratelimit.IPKey(middleware.ClientIPFrom(r.Context())))
 			if ok {
 				next.ServeHTTP(w, r)
 				return

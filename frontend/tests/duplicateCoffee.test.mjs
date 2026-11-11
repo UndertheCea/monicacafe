@@ -22,4 +22,5 @@ test("duplicateCoffeeErrorKey maps API codes", () => {
   assert.equal(duplicateCoffeeErrorKey("FORBIDDEN"), "cf.notYours");
   assert.equal(duplicateCoffeeErrorKey("NOT_FOUND"), "cf.notYours");
   assert.equal(duplicateCoffeeErrorKey("RATE_LIMITED"), "dash.error.generic");
+  assert.equal(duplicateCoffeeErrorKey("LIMIT_REACHED"), "dash.error.coffeeLimit");
 });

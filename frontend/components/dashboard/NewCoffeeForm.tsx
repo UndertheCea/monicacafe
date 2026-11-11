@@ -21,6 +21,7 @@ import {
   type VariantDraft,
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
+import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
 import { FlavorNotesField } from "./FlavorNotesField";
@@ -151,6 +152,11 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         ].includes(e2.field ?? "");
       const problem = detailsField ? apiDetailsProblem(e2.field, notes.length) : null;
       if (isOptionalProblem(problem)) setMoreOpen(true);
+      if (e2.code === "LIMIT_REACHED") {
+        setError({ key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } });
+        setBusy(false);
+        return;
+      }
       const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);

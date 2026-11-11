@@ -15,8 +15,12 @@ export function copyName(name: string, suffix: string): string {
   return base + suffix;
 }
 
+/** Most coffees a shop may have, drafts included (backend graph.MaxCoffeesPerShop). */
+export const MAX_COFFEES_PER_SHOP = 200;
+
 /** Message for a failed duplicateCoffee, by API error code. */
 export function duplicateCoffeeErrorKey(code: string): MessageKey {
+  if (code === "LIMIT_REACHED") return "dash.error.coffeeLimit";
   if (code === "NOT_FOUND" || code === "FORBIDDEN") return "cf.notYours";
   return "dash.error.generic";
 }

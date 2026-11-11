@@ -77,6 +77,15 @@ func (s *Store) ChangePassword(ctx context.Context, userID, passwordHash string)
 	})
 }
 
+// RehashPassword replaces a password hash with a stronger hash of the same
+// password (#213). Sessions stay, since the password didn't change; the old
+// hash must still be current, so a concurrent password change wins.
+func (s *Store) RehashPassword(ctx context.Context, userID, oldHash, newHash string) error {
+	_, err := s.db.Exec(ctx, `UPDATE users SET password_hash = $3 WHERE id = $1 AND password_hash = $2`,
+		userID, oldHash, newHash)
+	return mapErr(err)
+}
+
 // DeleteUser removes an account and the personal data hanging off it: its
 // comments, saved coffees and refresh tokens (the last two cascade). An
 // account that owns a shop is refused with ErrOwnsShop, since its coffees and

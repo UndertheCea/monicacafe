@@ -3,6 +3,8 @@ package auth
 import (
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
@@ -88,5 +90,57 @@ func TestPasswords(t *testing.T) {
 	}
 	if CheckPassword(h, "wrong-password") {
 		t.Fatal("wrong password accepted")
+	}
+}
+
+func TestValidatePasswordCommon(t *testing.T) {
+	cases := []struct {
+		pw   string
+		want error
+	}{
+		{"password", ErrCommonPassword},
+		{"PassWord", ErrCommonPassword},
+		{" 12345678 ", ErrCommonPassword},
+		{"iloveyou", ErrCommonPassword},
+		{"short", ErrWeakPassword},
+		{"correct-horse-battery", nil},
+		{"咖啡好好喝coffee", nil},
+	}
+	for _, c := range cases {
+		if got := ValidatePassword(c.pw); got != c.want {
+			t.Errorf("ValidatePassword(%q) = %v, want %v", c.pw, got, c.want)
+		}
+	}
+	if len(commonPasswords) < 900 {
+		t.Fatalf("common password list has %d entries", len(commonPasswords))
+	}
+	for pw := range commonPasswords {
+		if len([]rune(pw)) < MinPasswordLen {
+			t.Fatalf("%q is shorter than the length rule; the list should only hold passwords it doesn't already reject", pw)
+		}
+	}
+}
+
+func TestNeedsRehash(t *testing.T) {
+	old, _ := bcrypt.GenerateFromPassword([]byte("correct-horse-battery"), bcrypt.MinCost)
+	cur, _ := Rehash("correct-horse-battery")
+	cases := []struct {
+		name, hash string
+		want       bool
+	}{
+		{"lower cost", string(old), true},
+		{"current cost", cur, false},
+		{"not a hash", "nope", false},
+	}
+	for _, c := range cases {
+		if got := NeedsRehash(c.hash); got != c.want {
+			t.Errorf("%s: NeedsRehash = %v, want %v", c.name, got, c.want)
+		}
+	}
+	if !CheckPassword(cur, "correct-horse-battery") {
+		t.Fatal("rehashed password doesn't verify")
+	}
+	if h, err := Rehash("password"); err != nil || !CheckPassword(h, "password") {
+		t.Fatal("Rehash must accept an existing common password")
 	}
 }

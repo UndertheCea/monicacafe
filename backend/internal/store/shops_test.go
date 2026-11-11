@@ -63,7 +63,9 @@ func TestShopPins(t *testing.T) {
 		{"lat only", f64(24.1477), nil},
 		{"lng only", nil, f64(120.6736)},
 		{"edge of range", f64(-90), f64(180)},
+		{"no published coffee: not on the map", f64(25), f64(121)},
 	}
+	const emptyCase = 5
 
 	// Everything runs in one transaction that is always rolled back, so a
 	// shared dev database is left untouched.
@@ -77,6 +79,9 @@ func TestShopPins(t *testing.T) {
 			sh, err := tx.CreateShop(ctx, store.CreateShopParams{OwnerID: u.ID, Slug: slug, Name: tc.name, City: "台北市"})
 			if err != nil {
 				return err
+			}
+			if i != emptyCase {
+				publishCoffee(t, ctx, tx, sh.ID, slug+"-c")
 			}
 			if tc.lat != nil || tc.lng != nil {
 				if _, err := tx.UpdateShop(ctx, sh.ID, store.UpdateShopParams{Lat: tc.lat, Lng: tc.lng}); err != nil {
@@ -96,6 +101,12 @@ func TestShopPins(t *testing.T) {
 		for i, tc := range cases {
 			slug := fmt.Sprintf("pins-%s-%d", suffix, i)
 			p, ok := got[slug]
+			if i == emptyCase {
+				if ok {
+					t.Errorf("%s: shop is on the map", tc.name)
+				}
+				continue
+			}
 			if !ok {
 				t.Errorf("%s: shop missing from ShopPins", tc.name)
 				continue

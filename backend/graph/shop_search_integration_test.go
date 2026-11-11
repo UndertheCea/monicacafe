@@ -11,7 +11,7 @@ import (
 // (case-insensitive, wildcards literal), never matches on city, keeps the
 // total in step and works with every sort. Requires TEST_DATABASE_URL.
 func TestShopSearch(t *testing.T) {
-	url, _ := newTestServer(t)
+	url, pool := newTestServer(t)
 	run := fmt.Sprintf("q%d", time.Now().UnixNano())
 	anon := &gqlClient{t: t, url: url}
 
@@ -23,10 +23,12 @@ func TestShopSearch(t *testing.T) {
 	}
 	for i, sh := range shops {
 		c, _ := register(t, url, fmt.Sprintf("shopsearch%d+%s@example.com", i, run))
+		var created struct{ CreateShop struct{ ID string } }
 		c.mustDo(`mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
 			map[string]any{"in": map[string]any{
 				"slug": fmt.Sprintf("search-%d-%s", i, run), "name": sh.name, "description": sh.desc, "city": sh.city,
-			}}, nil)
+			}}, &created)
+		publishTestCoffee(t, pool, created.CreateShop.ID)
 	}
 
 	const q = `query($s: String, $sort: ShopSort, $l: Int) { shops(search: $s, sort: $sort, limit: $l) { total nodes { name } } }`
@@ -43,9 +45,9 @@ func TestShopSearch(t *testing.T) {
 		{run + " 焙", nil, 10, "Beta,Alpha", 2}, // Beta by name, Alpha by description
 		{"  " + run + "   single  ", nil, 10, "Alpha", 1},
 		{run + " 100%", nil, 10, "Beta", 1},
-		{run + " 10_%", nil, 10, "", 0}, // _ is literal, not a wildcard
-		{run + " 台北市", nil, 10, "", 0},  // city is not searched
-		{run, "MOST_COFFEES", 2, "Gamma,Beta", 3},
+		{run + " 10_%", nil, 10, "", 0},           // _ is literal, not a wildcard
+		{run + " 台北市", nil, 10, "", 0},            // city is not searched
+		{run, "MOST_COFFEES", 2, "Gamma,Beta", 3}, // one coffee each → newest first
 	}
 	for _, tt := range tests {
 		t.Run(tt.search, func(t *testing.T) {

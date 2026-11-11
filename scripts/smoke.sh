@@ -222,7 +222,8 @@ else
 fi
 
 # Auth rate limit (#27): wrong-password logins for one email are refused with
-# 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL's burst (default 10) is spent.
+# 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL_IP's burst (default 10: failures
+# per email + address, #213) is spent.
 rl_email="smokerl$(date +%s)$RANDOM@example.com"; rl_code=""; rl_n=0
 while (( rl_n < ${SMOKE_LOGIN_BURST:-10} + 1 )); do
   rl_n=$((rl_n + 1))

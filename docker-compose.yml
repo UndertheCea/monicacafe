@@ -54,7 +54,10 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Reserved (cart / cache, Stage 2): no code reads it yet, so it only starts
+  # with `docker compose --profile cache up`. The backend does not wait for it.
   redis:
+    profiles: ["cache"]
     image: redis:7.4.12-alpine
     command: redis-server --appendonly yes
     volumes:
@@ -66,12 +69,13 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # Stage 3 (search). Not required by the Stage 1 API; started so the
-  # service is ready when the indexer lands.
+  # Reserved (Stage 3 search): nothing uses it yet, so it only starts with
+  # `docker compose --profile search up`. Set MEILI_KEY first (see .env.example).
   meilisearch:
+    profiles: ["search"]
     image: getmeili/meilisearch:v1.14
     environment:
-      MEILI_ENV: development
+      MEILI_ENV: ${MEILI_ENV:-development}
       MEILI_MASTER_KEY: ${MEILI_KEY:-monica_meili_key}
     volumes:
       - meili_data:/meili_data
@@ -127,9 +131,6 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOCALE: ${LOCALE:-zh-TW}
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
-      REDIS_URL: redis://redis:6379
-      MEILI_URL: http://meilisearch:7700
-      MEILI_KEY: ${MEILI_KEY:-monica_meili_key}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
       TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
@@ -169,8 +170,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_healthy
     ports:
       - "127.0.0.1:${BACKEND_PORT:-4000}:4000"
     restart: unless-stopped

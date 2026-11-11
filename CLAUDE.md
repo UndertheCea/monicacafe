@@ -61,7 +61,7 @@ browser ──► nginx :80 ──┬─► frontend (Next.js 16, :3000) ──�
                         │        └─ /api/auth/* route handlers (hold the refresh token in an httpOnly cookie)
                         ├─► backend (Go, :4000) /graphql, /health
                         └─► /media/ ─► S3 store (SeaweedFS :8333 in compose; browsers PUT via presigned URLs)
-backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) · Meilisearch (Stage 3, idle)
+backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved) · Meilisearch (profile `search`, reserved, Stage 3)
 ```
 
 | Path | What lives there |

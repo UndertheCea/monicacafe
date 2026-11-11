@@ -82,6 +82,8 @@ func get(k, d string) string {
 	return d
 }
 
+// RedisURL and MeiliURL* are reserved and optional (#222): nothing reads them yet
+// and compose starts those services only under the cache / search profiles.
 func Load() Config {
 	return Config{
 		Port:             get("PORT", "4000"),

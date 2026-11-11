@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BREW_METHODS, FILTER_OPTIONS, ROAST_LEVELS, type BrewMethod, type GrindOption, type RoastLevel } from "@/lib/api";
 import { CREATE_COFFEE } from "@/lib/dashboard/queries";
 import {
@@ -21,10 +20,14 @@ import {
   type VariantDraft,
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
+import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
+import { draftKey, isEmptyDraft, makeDraft, parseDraft } from "@/lib/dashboard/session";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
+import { SignInAgain } from "./SignInAgain";
+import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -46,8 +49,25 @@ function optionalFromForm(fd: FormData): OptionalDetails {
 
 const emptyRow = (): VariantDraft => ({ grind: "WHOLE_BEAN", weightG: "200", priceTwd: "", stock: "0" });
 
+// sessionStorage can be missing or throw (private mode, storage full); a draft is a convenience, never required.
+function readDraft(key: string) {
+  try {
+    return parseDraft(window.sessionStorage.getItem(key));
+  } catch {
+    return null;
+  }
+}
+function writeDraft(key: string, value: string | null) {
+  try {
+    if (value === null) window.sessionStorage.removeItem(key);
+    else window.sessionStorage.setItem(key, value);
+  } catch {
+    // ignore: the form still works without a draft
+  }
+}
+
 export function NewCoffeeForm({ locale }: { locale: Locale }) {
-  const { status, user, request } = useAuth();
+  const { view, user, request } = useSellerSession();
   const router = useRouter();
   const [opts, setOpts] = useState<Options | null>(null);
   const [optsFailed, setOptsFailed] = useState(false);
@@ -56,13 +76,70 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   const [busy, setBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [filled, setFilled] = useState(0);
+  // Autosaved draft (#228): fields typed so far, whether a draft was restored.
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [fieldsDirty, setFieldsDirty] = useState(false);
+  const [restored, setRestored] = useState(false);
+  const key = user ? draftKey(user.id) : null;
 
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
   }, []);
 
-  if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (status === "anonymous") return <LoginNeeded locale={locale} next="/dashboard/coffees/new" />;
+  // Saves the form (text fields + option rows, never images) to sessionStorage.
+  const persist = useCallback(
+    (form: HTMLFormElement, currentRows: VariantDraft[]) => {
+      if (!key) return false;
+      const d = makeDraft(new FormData(form).entries(), currentRows);
+      const empty = isEmptyDraft(d);
+      writeDraft(key, empty ? null : JSON.stringify(d));
+      return !empty;
+    },
+    [key],
+  );
+  // Disabled inputs drop out of FormData, so never save while the form is locked.
+  const canSave = view === "open";
+  useEffect(() => {
+    if (formRef.current && canSave) persist(formRef.current, rows);
+  }, [rows, persist, canSave]);
+
+  // When the form first mounts, put a saved draft back: named inputs are
+  // uncontrolled, so their values are set on the DOM; option rows are state.
+  const mountForm = useCallback(
+    (form: HTMLFormElement | null) => {
+      formRef.current = form;
+      if (!form || !key || form.dataset.restored) return;
+      form.dataset.restored = "1";
+      const d = readDraft(key);
+      if (!d) return;
+      for (const [name, value] of Object.entries(d.fields)) {
+        const el = form.elements.namedItem(name);
+        if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
+          el.value = value;
+        }
+      }
+      if (d.rows.length > 0) setRows(d.rows);
+      setFilled(filledOptionalCount(optionalFromForm(new FormData(form))));
+      setFieldsDirty(true);
+      setRestored(true);
+    },
+    [key],
+  );
+
+  function discardDraft() {
+    if (key) writeDraft(key, null);
+    formRef.current?.reset();
+    setRows([emptyRow()]);
+    setFilled(0);
+    setFieldsDirty(false);
+    setRestored(false);
+  }
+
+  const dirty = fieldsDirty || !isEmptyDraft({ fields: {}, rows });
+  useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
+
+  if (view === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
+  if (view === "login") return <LoginNeeded locale={locale} next="/dashboard/coffees/new" />;
   if (!user?.shop) {
     return (
       <Notice>
@@ -142,6 +219,8 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           })),
         },
       });
+      if (key) writeDraft(key, null);
+      setFieldsDirty(false);
       router.push("/dashboard");
     } catch (err) {
       const e2 = toApiError(err);
@@ -151,6 +230,11 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         ].includes(e2.field ?? "");
       const problem = detailsField ? apiDetailsProblem(e2.field, notes.length) : null;
       if (isOptionalProblem(problem)) setMoreOpen(true);
+      if (e2.code === "LIMIT_REACHED") {
+        setError({ key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } });
+        setBusy(false);
+        return;
+      }
       const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
       setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);
@@ -172,119 +256,136 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
     </label>
   );
 
+  const locked = view === "locked";
   return (
-    <form
-      onSubmit={onSubmit}
-      onChange={(e) => setFilled(filledOptionalCount(optionalFromForm(new FormData(e.currentTarget))))}
-      noValidate
-      className="space-y-6"
-    >
-      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+    <div className="space-y-6">
+      {locked && <SignInAgain locale={locale} email={user.email} />}
+      <form
+        ref={mountForm}
+        onSubmit={onSubmit}
+        onChange={(e) => {
+          setFilled(filledOptionalCount(optionalFromForm(new FormData(e.currentTarget))));
+          setFieldsDirty(persist(e.currentTarget, rows));
+        }}
+        noValidate
+      >
+        <fieldset disabled={locked} className="m-0 min-w-0 space-y-6 border-0 p-0">
+          {restored && (
+            <p role="status" className="flex flex-wrap items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-ink ring-1 ring-neutral-200">
+              {t(locale, "dash.draftRestored")}
+              <button type="button" onClick={discardDraft} className="font-semibold underline underline-offset-4">
+                {t(locale, "dash.draftDiscard")}
+              </button>
+            </p>
+          )}
+          {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
 
-      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
-        <div className="sm:col-span-2">
-          <h2 className="text-lg font-bold text-ink">{t(locale, "cf.essentials")}</h2>
-          <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
-        </div>
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.name")} *
-          <input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className={inputCls} />
-        </label>
-        {select(
-          "origin",
-          "cf.origin",
-          opts.originCountries.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
-        )}
-        {select(
-          "process",
-          "cf.process",
-          opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
-        )}
-        {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })))}
-        {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })), false)}
-        <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
-        <ProvenanceFields locale={locale} />
-        <FlavorNotesField locale={locale} error={error?.key} />
-      </section>
+          <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <h2 className="text-lg font-bold text-ink">{t(locale, "cf.essentials")}</h2>
+              <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
+            </div>
+            <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+              {t(locale, "cf.name")} *
+              <input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className={inputCls} />
+            </label>
+            {select(
+              "origin",
+              "cf.origin",
+              opts.originCountries.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
+            )}
+            {select(
+              "process",
+              "cf.process",
+              opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
+            )}
+            {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })))}
+            {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })), false)}
+            <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
+            <ProvenanceFields locale={locale} />
+            <FlavorNotesField locale={locale} error={error?.key} />
+          </section>
 
-      <section className="rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
-        <h2 className="text-lg font-bold text-ink">{t(locale, "cf.variants")} *</h2>
-        <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
-        <ul className="mt-4 space-y-3">
-          {rows.map((r, i) => {
-            const problem = problems.get(i);
-            return (
-              <li key={i} className="rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
-                  <label className="block text-xs font-medium text-neutral-600">
-                    {t(locale, "cf.grind")}
-                    <select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className={inputCls}>
-                      {GRINDS.map((g) => (
-                        <option key={g} value={g}>
-                          {t(locale, `grind.${g}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-xs font-medium text-neutral-600">
-                    {t(locale, "cf.weightG")}
-                    <input inputMode="numeric" value={r.weightG} onChange={(e) => setRow(i, { weightG: e.target.value })} className={inputCls} />
-                  </label>
-                  <label className="block text-xs font-medium text-neutral-600">
-                    {t(locale, "cf.priceTwd")}
-                    <input inputMode="numeric" value={r.priceTwd} onChange={(e) => setRow(i, { priceTwd: e.target.value })} className={inputCls} />
-                  </label>
-                  <label className="block text-xs font-medium text-neutral-600">
-                    {t(locale, "cf.stock")}
-                    <input inputMode="numeric" value={r.stock} onChange={(e) => setRow(i, { stock: e.target.value })} className={inputCls} />
-                  </label>
-                  <button
-                    type="button"
-                    disabled={rows.length === 1}
-                    onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
-                    className="col-span-2 justify-self-end rounded-full px-3 py-2 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40 sm:col-span-1"
-                  >
-                    {t(locale, "cf.removeRow")}
-                  </button>
-                </div>
-                {problem && r.priceTwd !== "" && (
-                  <p className="mt-2 text-xs text-red-600">{t(locale, VARIANT_PROBLEM_KEY[problem])}</p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        <button
-          type="button"
-          disabled={rows.length >= LIMITS.variants}
-          onClick={() => setRows((rs) => [...rs, { ...emptyRow(), weightG: "" }])}
-          className="mt-3 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-40"
-        >
-          {t(locale, "cf.addRow")}
-        </button>
-      </section>
+          <section className="rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
+            <h2 className="text-lg font-bold text-ink">{t(locale, "cf.variants")} *</h2>
+            <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
+            <ul className="mt-4 space-y-3">
+              {rows.map((r, i) => {
+                const problem = problems.get(i);
+                return (
+                  <li key={i} className="rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
+                      <label className="block text-xs font-medium text-neutral-600">
+                        {t(locale, "cf.grind")}
+                        <select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className={inputCls}>
+                          {GRINDS.map((g) => (
+                            <option key={g} value={g}>
+                              {t(locale, `grind.${g}`)}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-xs font-medium text-neutral-600">
+                        {t(locale, "cf.weightG")}
+                        <input inputMode="numeric" value={r.weightG} onChange={(e) => setRow(i, { weightG: e.target.value })} className={inputCls} />
+                      </label>
+                      <label className="block text-xs font-medium text-neutral-600">
+                        {t(locale, "cf.priceTwd")}
+                        <input inputMode="numeric" value={r.priceTwd} onChange={(e) => setRow(i, { priceTwd: e.target.value })} className={inputCls} />
+                      </label>
+                      <label className="block text-xs font-medium text-neutral-600">
+                        {t(locale, "cf.stock")}
+                        <input inputMode="numeric" value={r.stock} onChange={(e) => setRow(i, { stock: e.target.value })} className={inputCls} />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={rows.length === 1}
+                        onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
+                        className="col-span-2 justify-self-end rounded-full px-3 py-2 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40 sm:col-span-1"
+                      >
+                        {t(locale, "cf.removeRow")}
+                      </button>
+                    </div>
+                    {problem && r.priceTwd !== "" && (
+                      <p className="mt-2 text-xs text-red-600">{t(locale, VARIANT_PROBLEM_KEY[problem])}</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              type="button"
+              disabled={rows.length >= LIMITS.variants}
+              onClick={() => setRows((rs) => [...rs, { ...emptyRow(), weightG: "" }])}
+              className="mt-3 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-40"
+            >
+              {t(locale, "cf.addRow")}
+            </button>
+          </section>
 
-      <MoreDetails locale={locale} filled={filled} open={moreOpen} onOpenChange={setMoreOpen}>
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.description")}
-          <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
-        </label>
-        {select("brew", "cf.brew", brewOptions(locale), false)}
-        <HarvestYearField locale={locale} />
-      </MoreDetails>
+          <MoreDetails locale={locale} filled={filled} open={moreOpen} onOpenChange={setMoreOpen}>
+            <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+              {t(locale, "cf.description")}
+              <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
+            </label>
+            {select("brew", "cf.brew", brewOptions(locale), false)}
+            <HarvestYearField locale={locale} />
+          </MoreDetails>
 
-      <div className="flex items-center gap-4">
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
-        >
-          {busy ? t(locale, "cf.saving") : t(locale, "cf.save")}
-        </button>
-        <Link href="/dashboard" className="text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4">
-          {t(locale, "cf.back")}
-        </Link>
-      </div>
-    </form>
+          <div className="flex items-center gap-4">
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
+            >
+              {busy ? t(locale, "cf.saving") : t(locale, "cf.save")}
+            </button>
+            <Link href="/dashboard" className="text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4">
+              {t(locale, "cf.back")}
+            </Link>
+          </div>
+        </fieldset>
+      </form>
+    </div>
   );
 }

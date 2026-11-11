@@ -15,6 +15,56 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 33 — 2026-11-11 — Abuse limits, nginx and CI hardening, seller work that survives (seven stage-1 slices)
+PR: #240
+
+No PR was open at the start and no question had a new answer. #170–#174 stay blocked (roasters' domains, #168), #219 /
+#223 / #226 wait on #199 / #200 / #201. I built #213 and #228 / #234 myself; Sonnet sub-agents built #214, #216, #227 and
+#233 in git worktrees, which I reviewed, cherry-picked and re-verified together.
+
+### Shipped (one line per slice: area — what — key files)
+- #213 backend — `RATE_LIMIT_SELLER_WRITE_USER` (60/5m) on every shop / coffee / option mutation; ≤ 200 coffees per shop
+  (`LIMIT_REACHED`, new code in `graph/errors.go` + `lib/errors.ts`); `/shops`, `shopsForMap` (≤ 2000) and the sitemap
+  list only shops with a published coffee; failed logins only spend `RATE_LIMIT_LOGIN_EMAIL` (now 50/10m) and the new
+  `RATE_LIMIT_LOGIN_EMAIL_IP` (10/10m); limiter keys by IPv6 /64, ≤ 100k keys with LRU-tenth eviction
+  (`internal/ratelimit`); bcrypt 12 with rehash on login; 1,000 most common 8+ char passwords refused
+  (`internal/auth/common_passwords.txt`, SecLists MIT).
+- #214 cross-cutting — `nginx/nginx.conf`: `/media/` GET / HEAD / PUT only with `sandbox` CSP + nosniff, cache header on
+  reads only; `limit_req` per IP (/graphql 20 r/s burst 40, /api/ 5 r/s burst 10, 429); 10 s client timeouts, 30 s
+  proxy read; 1m / 6m body caps; `location = /graphql`; /playground no longer via nginx; `/_next/static/` immutable;
+  `X-Request-ID` to upstreams + JSON access log. API keeps a sane incoming request id
+  (`internal/middleware/requestid.go`). Non-JSON 429 → RATE_LIMITED in the UI (`rateLimitedFromStatus`). Smoke checks.
+- #216 cross-cutting — CI job `security` (govulncheck v1.1.4, `npm audit --audit-level=high --omit=dev`);
+  `.github/dependabot.yml` (gomod, npm, docker, docker-compose, actions; weekly, grouped); actions pinned by SHA; images
+  pinned to patch versions; `--legacy-peer-deps` dropped (no longer needed). The first CI run of govulncheck found 42
+  reachable vulnerabilities: stdlib fixes exist only on Go 1.25 / 1.26 (1.24 is out of support), so the backend moved to
+  **Go 1.26.11**, with chi 5.2.2, pgx 5.9.2, mapstructure 2.4.0 and x/text 0.41.0.
+- #227 frontend — flavour chips link to `/coffees?q=<note>` (`flavorNoteHref`); `COFFEE_PARAM` map is the single list
+  `parseCoffeeSearch` reads, and a test fails on any `/coffees?<param>` link outside it; `?q=` shows a removable chip.
+- #228 frontend — only a 401 from refresh signs out (`refreshOutcome`); hiccups keep the session and retry 2 s / 5 s /
+  15 s / 1 min; dashboard forms stay mounted (disabled fieldset) under `SignInAgain` when the session ends; new-coffee
+  draft in sessionStorage per user; `useUnsavedChanges` (beforeunload + in-app link confirm). `lib/dashboard/session.ts`.
+- #233 frontend — "NT$X 起 · 每 100 g" or "已售完" under the coffee name; JSON-LD availability from the same
+  `coffeeAvailability`; unavailable option rows keep full contrast.
+- #234 frontend — Geist / Geist Mono removed (only Inter Tight for the wordmark); `data-scroll-behavior="smooth"` +
+  `motion-safe:scroll-smooth`; `mc_s` hint cookie so signed-out visitors make no auth request (was one per page load).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 — all pass, incl. new
+  `TestLoginLockout`, `TestPasswordPolicy`, `TestSellerWriteLimitAndCoffeeCap` and the updated listing / map tests.
+- Frontend: tsc, lint, `npm test` (202), `npm run build`; the built CSS has no Geist faces.
+- Playwright against the API binary + `next start`: anonymous home load makes 0 auth requests; #228 end to end (draft
+  restored after reload, leave prompt, aborted refresh keeps the form, 401 → panel with values kept, sign-in restores
+  them, save clears the draft); coffee page at 390 px shows "NT$400 起 每 100 g NT$200"; `?q=茉莉花` shows the chip.
+- `smoke.sh` against that local stack (fresh migrate + seed): all pass except `/media/` (needs nginx, as in session 32).
+- `nginx -t` on the new config in `nginx:1.27.5-alpine`: OK. Not run here: the compose stack (image builds can't reach
+  the Go module proxy from inside docker in this sandbox) and govulncheck (vuln.go.dev blocked) — CI covers both.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Sessions from before #234 need one new sign-in (the hint cookie can only be set by a login / refresh response).
+- The coffee cap counts before inserting, so two concurrent creates can overshoot by one; the seller write limit bounds it.
+- The owner should enable secret scanning + push protection and a `master` branch rule requiring CI (#216).
+
 ## Session 32 — 2026-11-11 — Security and hosting groundwork (seven stage-1 slices)
 PR: #239
 

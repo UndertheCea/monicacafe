@@ -139,9 +139,15 @@ type ShopFilter struct {
 	SearchTerms []string
 }
 
+// hasPublishedCoffee keeps public listings to shops with something to show
+// (#213): a shop appears on /shops, /map and the sitemap from its first
+// published coffee, so creating empty shops can't flood them. The owner still
+// reaches their own shop from the dashboard, and its page stays at its URL.
+const hasPublishedCoffee = `EXISTS (SELECT 1 FROM coffees c WHERE c.shop_id = s.id AND c.is_published)`
+
 func (f ShopFilter) where() (string, []any) {
 	var (
-		conds []string
+		conds = []string{hasPublishedCoffee}
 		args  []any
 	)
 	if f.City != nil {
@@ -151,9 +157,6 @@ func (f ShopFilter) where() (string, []any) {
 	for _, term := range f.SearchTerms {
 		args = append(args, LikePattern(term))
 		conds = append(conds, fmt.Sprintf("(s.name ILIKE $%[1]d OR s.description ILIKE $%[1]d)", len(args)))
-	}
-	if len(conds) == 0 {
-		return "", nil
 	}
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
@@ -231,11 +234,16 @@ type ShopPin struct {
 	Lng  *float64
 }
 
-// ShopPins returns every shop's map pin, grouped by city then name. Only the
-// six columns the map needs are read (no descriptions / image URLs).
+// MaxShopPins caps the /map payload (#213); past it the map needs clustering
+// or paging by area.
+const MaxShopPins = 2000
+
+// ShopPins returns the map pin of every shop with a published coffee (at most
+// MaxShopPins), grouped by city then name. Only the six columns the map needs
+// are read (no descriptions / image URLs).
 func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
-	rows, err := s.db.Query(ctx,
-		`SELECT id, slug, name, city, lat, lng FROM shops ORDER BY city, name, id`)
+	rows, err := s.db.Query(ctx, `SELECT id, slug, name, city, lat, lng FROM shops s
+		WHERE `+hasPublishedCoffee+` ORDER BY city, name, id LIMIT $1`, MaxShopPins)
 	if err != nil {
 		return nil, mapErr(err)
 	}

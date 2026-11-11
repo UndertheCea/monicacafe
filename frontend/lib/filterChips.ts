@@ -11,12 +11,14 @@ export interface ChipFilter {
   minPriceTwd?: number;
   maxPriceTwd?: number;
   inStock?: boolean;
+  search?: string;
 }
 
 export type FilterChip =
   | { kind: "origin" | "variety" | "process"; id: string; href: string }
   | { kind: "price"; min?: number; max?: number; href: string }
-  | { kind: "instock"; href: string };
+  | { kind: "instock"; href: string }
+  | { kind: "search"; text: string; href: string };
 
 type Params = Record<string, string | string[] | undefined>;
 
@@ -40,9 +42,11 @@ export function hrefWithout(base: string, sp: Params, drop: readonly string[]): 
  * string (to rebuild each "without" link) and `base` the list's path
  * (/coffees or /shops/<slug>). Search and sort are not filters: they stay.
  */
-export function filterChips(f: ChipFilter, sp: Params, base: string): FilterChip[] {
+export function filterChips(f: ChipFilter, sp: Params, base: string, opts: { search?: boolean } = {}): FilterChip[] {
   const out: FilterChip[] = [];
   const without = (...p: string[]) => hrefWithout(base, sp, p);
+  // Opt-in: the keyword search is not a filter (activeFilterCount ignores it), but /coffees shows it as a removable chip.
+  if (opts.search && f.search) out.push({ kind: "search", text: f.search, href: without("q") });
   if (f.originCountryId) out.push({ kind: "origin", id: f.originCountryId, href: without("origin") });
   if (f.varietyId) out.push({ kind: "variety", id: f.varietyId, href: without("variety") });
   if (f.processingMethodId) out.push({ kind: "process", id: f.processingMethodId, href: without("process") });

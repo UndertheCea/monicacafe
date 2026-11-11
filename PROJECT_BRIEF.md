@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-11 (after Session 32)
+Last updated: 2026-11-11 (after Session 33)
 
 ---
 
@@ -39,14 +39,14 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 |---|---|
 | DB schema + migrations 001–016, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
-| Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly |
+| Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
 | Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
 | Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, similar coffees (no longer a /coffees filter or on cards, #167) | Done (#122–#127) |
 | Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, keyword search | Done (#129–#134) |
 | Cup profile (酸度 / 甜度 / 醇厚度) | Removed on the owner's answer to #176: columns, API, filters, forms, page (#189) |
 | High-grown filter `minAltitudeM` in the API only (site dropped it, #167; sweet / body went with the cup profile, #189); "Clear filters" on an empty /coffees | Done (#143–#148) |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
-| Pages: home, /coffees (+keyword search, filters, sort, in-stock), header search, /coffees/[id] (+paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
+| Pages: home, /coffees (+keyword search with a removable chip, filters, sort, in-stock), header search, /coffees/[id] (+price / sold-out under the name, flavour notes link to search, paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
 | Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, home and listings (search results `noindex`), Product + Store JSON-LD | Done (#92, #195) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
@@ -62,14 +62,16 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff | Done (#100) |
 | Frontend on Next.js 16; `npm audit` has no high advisories | Done (#35) |
 | sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done |
-| Rate limiting: login / register / refresh per IP (+ login per email); comments, uploads, password per user; every `/graphql` request per IP | Done (#207) |
+| Rate limiting: login / register / refresh per IP (+ failed logins per email and per email + IP); comments, uploads, password, seller writes per user; every `/graphql` request per IP; IPv6 by /64, ≤ 100k keys | Done (#207, #213) |
+| Abuse caps: 200 coffees per shop (`LIMIT_REACHED`); empty shops hidden from /shops, /map, sitemap; bcrypt 12 + rehash; 1,000 common passwords refused | Done (#213) |
+| Seller work survives session loss: forms stay mounted under an inline sign-in, new-coffee draft in sessionStorage, leave-without-saving prompts | Done (#228) |
 | Request limits: list fields priced by their limit, depth ≤ 8, no similar-of-similar, ≤ 5000 tokens, 100 KB body | Done (#207) |
 | Hardening: production refuses published secrets and needs `APP_ENV` (#206); safe `?next=` (#208); only nginx reachable, BFF forwards nginx's X-Real-IP (#211); one frontend image for any host (#210) | Done |
 | Error contract (`graph/errors.go` ↔ `lib/errors.ts`, pinned by a Go test) | Done |
 | Structured JSON access + panic logs (slog, request id + trusted client IP) | Done (#48, #53) |
 | Postgres pool cap + statement timeout from env | Done (#52) |
-| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke** | Done |
-| nginx: gzip for text responses, no server version | Done (#64) |
+| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke**, `security` (govulncheck + npm audit), dependabot, actions pinned by SHA, images by patch version | Done (#216) |
+| nginx: gzip, no server version, `/media/` sandboxed (GET / HEAD / PUT only), per-IP `limit_req` on /graphql and /api/, timeouts + body caps, exact `/graphql`, JSON access log with request ids | Done (#64, #214) |
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
@@ -78,22 +80,23 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 32**: no answers on the open questions, and #170–#174 are still blocked (roasters' sites 403). Seven
-`stage-1` slices made the stack safer to host: production refuses the published secrets (#206); GraphQL prices list
-fields by their limit and rate-limits every request per IP (#207); `?next=` can't leave the site (#208); compose
-publishes only nginx and the BFF stops forwarding client-chosen addresses (#211); migrations are tracked and applied on
-every start (#209); one frontend image works on any host (#210); photos shrink to 2000 px before upload (#212).
+**Session 33**: no answers on the open questions; #170–#174 still blocked. Seven `stage-1` slices: abuse limits for
+sellers and logins, IPv6 /64 keys, bcrypt 12 + common-password list, empty shops hidden (#213); nginx hardening (#214);
+CI security job, dependabot, pinned actions / images, Go 1.26.11 + module bumps for govulncheck (#216); flavour chips search their note + search chip (#227);
+seller forms survive refresh hiccups and session loss, with a draft and leave prompts (#228); price / sold-out under
+the coffee name (#233); unused fonts dropped and no refresh call for signed-out visitors (#234).
 
 ## Current focus
 
 1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS, backups and real secrets is
-   the next big step. #206 / #209 / #210 / #211 removed the code-side blockers.
+   the next big step (#219, blocked). #220 (backups) and #215 (cookie / Origin from `SITE_URL`) can go first.
 2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still 403 on 2026-11-11).
 3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205 for orders and payouts.
-4. #203's safe-default tidy-ups (3, 5, 6, 7) and #202's report / moderation default say slices were "filed", but none
-   exist yet: open them next session. Password reset waits on #200 (email service).
+4. Next `stage-1` slices by priority: #215, #220, #224, #229–#232 (p2), then #217, #221, #222, #225, #235, #236 (p3).
+   #223 (password reset) and #226 (legal pages) are blocked on #200 / #201.
 5. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 (the BFF trusts X-Real-IP);
-   `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10).
+   `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
+   turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -234,3 +237,9 @@ Open questions for the owner (answer by commenting on the issue):
   what they already have, never guessed. Shipped migrations are never edited.
 - **Images shrink in the browser, not on the server (#212)**: the API never handles file bytes, so the uploader scales to
   2000 px and re-encodes (PNG → WebP keeps transparency) before signing for the file it actually sends.
+- **Failed logins counted per account and per account + address; successes free (#213)**: 50 / 10 min per email across
+  all addresses and 10 / 10 min per email + IP (IPv6 by /64), both spent only on a wrong password, so one address can't
+  lock the owner out. Shops appear publicly from their first published coffee; a shop holds at most 200 coffees.
+- **A session ends only on a 401 (#228)**: network errors, 5xx and 429 on refresh keep the session and retry (2 s, 5 s,
+  15 s, then each minute). A form whose session ends stays mounted, disabled, under an inline sign-in. The `mc_s` hint
+  cookie (readable, no secret) lets signed-out visitors skip the refresh call (#234).

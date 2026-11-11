@@ -87,7 +87,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |
 
-Stack: Go 1.24, chi v5, gqlgen v0.17.73, pgx v5 · Next.js 16 App Router, React 19, TypeScript strict, Tailwind
+Stack: Go 1.26, chi v5, gqlgen v0.17.73, pgx v5 · Next.js 16 App Router, React 19, TypeScript strict, Tailwind
 CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).
 
 ## How to verify

@@ -222,7 +222,8 @@ else
 fi
 
 # Auth rate limit (#27): wrong-password logins for one email are refused with
-# 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL's burst (default 10) is spent.
+# 429 + Retry-After once RATE_LIMIT_LOGIN_EMAIL_IP's burst (default 10: failures
+# per email + address, #213) is spent.
 rl_email="smokerl$(date +%s)$RANDOM@example.com"; rl_code=""; rl_n=0
 while (( rl_n < ${SMOKE_LOGIN_BURST:-10} + 1 )); do
   rl_n=$((rl_n + 1))
@@ -453,7 +454,48 @@ if [[ "${SMOKE_UPLOAD:-1}" != "0" ]]; then
     else
       echo "FAIL upload: PUT → $code, GET $public_url → ${got:0:100}"; fail=1
     fi
+
+    # Uploaded files are untrusted (#214): served sandboxed, never cached on PUT.
+    media_hdrs=$(curl -s -o /dev/null -D - --max-time 15 "$public_url") || media_hdrs=""
+    if grep -qi "^content-security-policy: default-src 'none'; sandbox" <<<"$media_hdrs" \
+      && grep -qi '^x-content-type-options: nosniff' <<<"$media_hdrs"; then
+      echo "ok   /media/ GET carries the sandbox CSP + nosniff"
+    else
+      echo "FAIL /media/ GET headers lack the sandbox CSP / nosniff: $(head -1 <<<"$media_hdrs")"; fail=1
+    fi
+
+    # Informational: does the S3 store refuse a presigned PUT sent with another
+    # Content-Type than the one signed (image/png)? A fresh URL, same size.
+    upload2=$(gql "$token" "$(printf '{"query":"mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { uploadUrl } }","variables":{"in":{"kind":"SHOP_LOGO","targetId":"%s","contentType":"image/png","byteSize":%d}}}' "$shop_id" "$size")")
+    upload_url2=$(field uploadUrl <<<"$upload2" | sed 's/\\u0026/\&/g')
+    if [[ -n "$upload_url2" ]]; then
+      ct_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X PUT -H 'Content-Type: text/html' --data-binary "$payload" "$upload_url2") || ct_code="000"
+      echo "info upload: presigned PUT with a different Content-Type (text/html, signed image/png) → $ct_code (4xx = store enforces the signed type, 200 = it does not)"
+    fi
   fi
+fi
+
+# nginx only lets GET / HEAD / PUT through to the media store (#214).
+del_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X DELETE "$BASE_URL/media/x" || echo 000)
+if [[ "$BASE_URL" == "$API_URL" ]]; then
+  if [[ "$del_code" == "403" || "$del_code" == "405" ]]; then
+    echo "ok   DELETE /media/x refused ($del_code)"
+  else
+    echo "FAIL DELETE /media/x → $del_code (want 403 or 405)"; fail=1
+  fi
+fi
+
+# Next's hashed assets are cached for a year (#214): scrape one href from the home page.
+static_path=$(grep -o '/_next/static/[^"]*\.\(js\|css\)' <<<"${home:-}" | head -1 || true)
+if [[ -n "$static_path" ]]; then
+  static_hdrs=$(curl -s -o /dev/null -D - --max-time 15 "$BASE_URL$static_path") || static_hdrs=""
+  if [[ "$BASE_URL" != "$API_URL" ]] || grep -qi '^cache-control: public, max-age=31536000, immutable' <<<"$static_hdrs"; then
+    echo "ok   /_next/static/ asset has the long immutable cache header"
+  else
+    echo "FAIL $static_path cache-control: $(grep -i '^cache-control:' <<<"$static_hdrs" | tr -d '\r')"; fail=1
+  fi
+else
+  echo "FAIL no /_next/static/ asset found on the home page"; fail=1
 fi
 
 # Spoofed client addresses (#211): through nginx, made-up X-Forwarded-For /

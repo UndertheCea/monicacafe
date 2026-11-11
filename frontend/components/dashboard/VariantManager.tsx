@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/components/auth/AuthProvider";
 import { isUUID, type GrindOption } from "@/lib/api";
 import {
   ADD_VARIANT,
@@ -21,6 +20,8 @@ import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
 import { CoffeeGallery } from "./CoffeeGallery";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { GRINDS } from "./NewCoffeeForm";
+import { SignInAgain } from "./SignInAgain";
+import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
 
@@ -32,7 +33,7 @@ function errKey(code: string): MessageKey {
 }
 
 export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale: Locale }) {
-  const { status, user, request } = useAuth();
+  const { status, view, user, request } = useSellerSession();
   const router = useRouter();
   const [load, setLoad] = useState<Load>({ state: "loading" });
 
@@ -58,8 +59,8 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
     };
   }, [status, loadCoffee]);
 
-  if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (status === "anonymous") return <LoginNeeded locale={locale} next={`/dashboard/coffees/${coffeeId}`} />;
+  if (view === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
+  if (view === "login") return <LoginNeeded locale={locale} next={`/dashboard/coffees/${coffeeId}`} />;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
   // Published coffees are visible to everyone, so also check ownership here
@@ -74,78 +75,82 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-bold text-ink">{coffee.name}</h2>
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200">
-          {t(locale, coffee.isPublished ? "dash.published" : "dash.draft")}
-        </span>
-        {coffee.isPublished && (
-          <Link href={`/coffees/${coffee.id}`} className="text-sm text-ink underline-offset-4 hover:underline">
-            {t(locale, "dash.view")}
-          </Link>
-        )}
-        <Link href={`/dashboard/coffees/${coffee.id}/preview`} className="text-sm text-ink underline-offset-4 hover:underline">
-          {t(locale, "dash.preview")}
-        </Link>
-        {!coffee.isPublished && (
-          <span className="ml-auto">
-            <DeleteCoffeeButton coffeeId={coffee.id} locale={locale} onDeleted={() => router.push("/dashboard")} />
+      {view === "locked" && <SignInAgain locale={locale} email={user?.email} />}
+      {/* Session ended with the page open (#228): everything stays mounted, disabled, until signed in again. */}
+      <fieldset disabled={view === "locked"} className="m-0 min-w-0 space-y-6 border-0 p-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-xl font-bold text-ink">{coffee.name}</h2>
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200">
+            {t(locale, coffee.isPublished ? "dash.published" : "dash.draft")}
           </span>
-        )}
-      </div>
+          {coffee.isPublished && (
+            <Link href={`/coffees/${coffee.id}`} className="text-sm text-ink underline-offset-4 hover:underline">
+              {t(locale, "dash.view")}
+            </Link>
+          )}
+          <Link href={`/dashboard/coffees/${coffee.id}/preview`} className="text-sm text-ink underline-offset-4 hover:underline">
+            {t(locale, "dash.preview")}
+          </Link>
+          {!coffee.isPublished && (
+            <span className="ml-auto">
+              <DeleteCoffeeButton coffeeId={coffee.id} locale={locale} onDeleted={() => router.push("/dashboard")} />
+            </span>
+          )}
+        </div>
 
-      <CoffeeDetailsForm
-        coffee={coffee}
-        locale={locale}
-        onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
-      />
-
-      <CoffeeGallery
-        coffee={coffee}
-        locale={locale}
-        onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
-      />
-
-      <section className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
-        <h3 className="font-bold text-ink">{t(locale, "cf.variants")}</h3>
-        <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
-        {coffee.variants.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-500">{t(locale, "dash.noVariants")}</p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {coffee.variants.map((v) => (
-              <VariantRow
-                key={v.id}
-                variant={v}
-                locale={locale}
-                onSaved={replace}
-                onDeleted={() => void fetchCoffee()}
-                request={request}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {coffee.variants.length < LIMITS.variants ? (
-        <AddVariantForm
-          coffeeId={coffee.id}
-          existing={coffee.variants}
+        <CoffeeDetailsForm
+          coffee={coffee}
           locale={locale}
-          request={request}
-          onAdded={() => void fetchCoffee()}
+          onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
         />
-      ) : (
-        // At the limit the add form goes away; say why instead of leaving a gap (#196).
-        <p role="note" className="rounded-2xl bg-white p-4 text-sm text-neutral-500 ring-1 ring-neutral-200 sm:p-6">
-          {t(locale, "cf.error.tooManyVariants", { max: LIMITS.variants })}
-        </p>
-      )}
+
+        <CoffeeGallery
+          coffee={coffee}
+          locale={locale}
+          onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
+        />
+
+        <section className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+          <h3 className="font-bold text-ink">{t(locale, "cf.variants")}</h3>
+          <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
+          {coffee.variants.length === 0 ? (
+            <p className="mt-4 text-sm text-neutral-500">{t(locale, "dash.noVariants")}</p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {coffee.variants.map((v) => (
+                <VariantRow
+                  key={v.id}
+                  variant={v}
+                  locale={locale}
+                  onSaved={replace}
+                  onDeleted={() => void fetchCoffee()}
+                  request={request}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {coffee.variants.length < LIMITS.variants ? (
+          <AddVariantForm
+            coffeeId={coffee.id}
+            existing={coffee.variants}
+            locale={locale}
+            request={request}
+            onAdded={() => void fetchCoffee()}
+          />
+        ) : (
+          // At the limit the add form goes away; say why instead of leaving a gap (#196).
+          <p role="note" className="rounded-2xl bg-white p-4 text-sm text-neutral-500 ring-1 ring-neutral-200 sm:p-6">
+            {t(locale, "cf.error.tooManyVariants", { max: LIMITS.variants })}
+          </p>
+        )}
+      </fieldset>
     </div>
   );
 }
 
-type Request = ReturnType<typeof useAuth>["request"];
+type Request = ReturnType<typeof useSellerSession>["request"];
 
 function VariantRow({
   variant: v,
@@ -172,6 +177,7 @@ function VariantRow({
   const p = parseWhole(price, 0, LIMITS.priceTwd);
   const s = parseWhole(stock, 0, LIMITS.stock);
   const dirty = p !== v.priceTwd || s !== v.stock || onSale !== initialOnSale;
+  useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
 
   async function save() {
     if (p === null) return setMsg({ ok: false, key: "cf.error.price" });
@@ -268,6 +274,7 @@ function AddVariantForm({
   const [row, setRow] = useState<VariantDraft>({ grind: "WHOLE_BEAN", weightG: "", priceTwd: "", stock: "0" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
+  useUnsavedChanges((row.weightG !== "" || row.priceTwd !== "" || row.stock !== "0") && !busy, t(locale, "dash.unsavedConfirm"));
 
   async function add(e: React.FormEvent) {
     e.preventDefault();

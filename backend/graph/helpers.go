@@ -901,3 +901,21 @@ func toShopPin(p *store.ShopPin) *model.ShopPin {
 	}
 	return out
 }
+
+// MaxCoffeesPerShop caps a shop's coffees, drafts included (#213), so one
+// account can't flood the catalogue. A seller who reaches it deletes drafts
+// first. The count is read before the insert, so two concurrent creates can
+// overshoot by one; the seller write rate limit bounds that.
+const MaxCoffeesPerShop = 200
+
+// checkCoffeeCap refuses a new coffee when the shop already has the maximum.
+func (r *Resolver) checkCoffeeCap(ctx context.Context, shopID string) error {
+	n, err := r.Store.CountShopCoffees(ctx, shopID)
+	if err != nil {
+		return err
+	}
+	if n >= MaxCoffeesPerShop {
+		return errLimitReached("coffees", fmt.Sprintf("a shop can list at most %d coffees", MaxCoffeesPerShop))
+	}
+	return nil
+}

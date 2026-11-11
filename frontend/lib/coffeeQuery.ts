@@ -87,6 +87,11 @@ export function searchHref(q: string | undefined): string {
   return s ? `/coffees?${new URLSearchParams({ q: s })}` : "/coffees";
 }
 
+/** A flavour-note chip on a coffee page: searches /coffees for the note (the API keyword search matches notes). */
+export function flavorNoteHref(note: string): string {
+  return searchHref(note);
+}
+
 /**
  * True when a parsed /coffees filter narrows the list by more than the
  * keyword search (origin, variety, process, price, in stock).

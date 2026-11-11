@@ -337,6 +337,13 @@ type CreateCoffeeParams struct {
 }
 
 // CreateCoffee inserts a draft coffee.
+// CountShopCoffees counts a shop's coffees, drafts included.
+func (s *Store) CountShopCoffees(ctx context.Context, shopID string) (int, error) {
+	var n int
+	err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees WHERE shop_id = $1`, shopID).Scan(&n)
+	return n, mapErr(err)
+}
+
 func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee, error) {
 	if p.FlavorNotes == nil {
 		p.FlavorNotes = []string{}

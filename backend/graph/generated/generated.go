@@ -1648,8 +1648,10 @@ type Query {
   shop(slug: String!): Shop
   # sort defaults to NEWEST. search: keywords (≤ 100 characters, ≤ 8 words);
   # every word must appear in the shop's name or description. Case-insensitive;
-  # blank is ignored.
+  # blank is ignored. Only shops with at least one published coffee are listed
+  # (#213); a new shop appears with its first published coffee.
   shops(city: String, search: String, sort: ShopSort, limit: Int, offset: Int): ShopConnection!
+  # Shops with at least one published coffee, at most 2000 (#213).
   shopsForMap: [ShopPin!]!
 
   # Coffee browsing

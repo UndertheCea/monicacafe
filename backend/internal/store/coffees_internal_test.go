@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -55,6 +56,7 @@ func TestCoffeeFilterWhere(t *testing.T) {
 		{"brew methods", CoffeeFilter{BrewMethods: []string{"FILTER", "OMNI"}}, " WHERE c.is_published AND c.brew_method = ANY($1)", 1},
 		{"harvest year", CoffeeFilter{MinHarvestYear: &year}, " WHERE c.is_published AND c.harvest_year >= $1", 1},
 		{"min altitude", CoffeeFilter{MinAltitudeM: &alt}, " WHERE c.is_published AND COALESCE(c.altitude_max_m, c.altitude_min_m) >= $1", 1},
+		{"search term covers flavour notes", CoffeeFilter{SearchTerms: []string{"茉莉花"}}, " WHERE c.is_published AND " + fmt.Sprintf(searchCond, 1), 1},
 		{"shop + in stock", CoffeeFilter{ShopID: &id, InStock: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND " + stock, 1},
 		{"min price keeps its own in-stock check", CoffeeFilter{MinPriceTWD: &lo, IncludeUnpublished: true},
 			" WHERE EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= $1)", 1},

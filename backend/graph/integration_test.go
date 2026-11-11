@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"strings"
 	"testing"
@@ -31,6 +32,9 @@ type gqlClient struct {
 	t     *testing.T
 	url   string
 	token string
+	// ip, when set, is sent as X-Forwarded-For; the test server trusts
+	// loopback, so the API sees the request as coming from ip.
+	ip string
 }
 
 type gqlResponse struct {
@@ -48,6 +52,9 @@ func (c *gqlClient) do(query string, vars map[string]any, out any) *gqlResponse 
 	req.Header.Set("Content-Type", "application/json")
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	if c.ip != "" {
+		req.Header.Set("X-Forwarded-For", c.ip)
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -117,7 +124,8 @@ func newTestServerWith(t *testing.T, configure func(*graph.Resolver)) (string, *
 	// The same handler as production, limits included (#207).
 	srv := graph.NewServer(resolver, false)
 
-	h := middleware.ClientIPMiddleware(nil)(middleware.Auth(authSvc)(graph.LoaderMiddleware(st)(srv)))
+	loopback := []netip.Prefix{netip.MustParsePrefix("127.0.0.0/8"), netip.MustParsePrefix("::1/128")}
+	h := middleware.ClientIPMiddleware(loopback)(middleware.Auth(authSvc)(graph.LoaderMiddleware(st)(srv)))
 	ts := httptest.NewServer(h)
 	t.Cleanup(ts.Close)
 	return ts.URL, pool
@@ -243,22 +251,25 @@ func TestMarketplaceFlow(t *testing.T) {
 	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!) { updateShop(id: $id, input: {lat: 91}) { id } }`,
 		map[string]any{"id": shop.CreateShop.ID})
 
-	// The map query exposes the pin with both coordinates.
-	var pins struct {
-		ShopsForMap []struct {
-			Slug     string
-			Lat, Lng *float64
+	// The map query exposes the pin with both coordinates once the shop has a
+	// published coffee; an empty shop isn't on the map (#213).
+	mapPin := func() (found, exact bool) {
+		var pins struct {
+			ShopsForMap []struct {
+				Slug     string
+				Lat, Lng *float64
+			}
 		}
-	}
-	anon.mustDo(`{ shopsForMap { slug lat lng } }`, nil, &pins)
-	foundPin := false
-	for _, p := range pins.ShopsForMap {
-		if p.Slug == slug {
-			foundPin = p.Lat != nil && p.Lng != nil && *p.Lat == lat && *p.Lng == lng
+		anon.mustDo(`{ shopsForMap { slug lat lng } }`, nil, &pins)
+		for _, p := range pins.ShopsForMap {
+			if p.Slug == slug {
+				return true, p.Lat != nil && p.Lng != nil && *p.Lat == lat && *p.Lng == lng
+			}
 		}
+		return false, false
 	}
-	if !foundPin {
-		t.Fatalf("shopsForMap missing pin for %s: %+v", slug, pins.ShopsForMap)
+	if found, _ := mapPin(); found {
+		t.Fatalf("shopsForMap shows %s before it has a published coffee", slug)
 	}
 
 	// ── Coffee ──────────────────────────────────────────────────────────────
@@ -325,6 +336,9 @@ func TestMarketplaceFlow(t *testing.T) {
 	}
 	buyer.expectCode(graph.CodeForbidden, `mutation($id: ID!) { publishCoffee(id: $id) { id } }`, map[string]any{"id": co.ID})
 	seller.mustDo(`mutation($id: ID!) { publishCoffee(id: $id) { isPublished } }`, map[string]any{"id": co.ID}, nil)
+	if found, exact := mapPin(); !found || !exact {
+		t.Fatalf("shopsForMap: pin for %s found=%v exact=%v after publishing", slug, found, exact)
+	}
 
 	var upd struct {
 		UpdateCoffee struct{ Name, RoastLevel string }
@@ -480,6 +494,20 @@ func TestMarketplaceFlow(t *testing.T) {
 
 // testVarietyID is a variety id for test coffees: a variety is required on
 // create since #176 (owner). Heirloom is in migration 001's reference data.
+// publishTestCoffee gives a shop one published coffee straight in the
+// database, so public shop listings (which hide empty shops, #213) show it.
+func publishTestCoffee(t *testing.T, pool *pgxpool.Pool, shopID string) {
+	t.Helper()
+	_, err := pool.Exec(context.Background(), `
+		INSERT INTO coffees (shop_id, name, slug, origin_country_id, processing_method_id, is_published)
+		SELECT $1, 'listed', 'listed-' || gen_random_uuid(),
+			(SELECT id FROM origin_countries ORDER BY id LIMIT 1),
+			(SELECT id FROM processing_methods ORDER BY id LIMIT 1), true`, shopID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func testVarietyID(t *testing.T) string {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")

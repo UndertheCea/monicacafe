@@ -58,14 +58,18 @@ type Config struct {
 	// "0" disables one. Parsed by RateLimits.
 	RateLimitLoginIP    string
 	RateLimitLoginEmail string
-	RateLimitRegisterIP string
-	RateLimitRefreshIP  string
+	// RateLimitLoginEmailIP counts failed logins per email + client address.
+	RateLimitLoginEmailIP string
+	RateLimitRegisterIP   string
+	RateLimitRefreshIP    string
 
 	// Per-account limits on signed-in writes.
 	RateLimitCommentUser  string
 	RateLimitUploadUser   string
 	RateLimitPasswordUser string
 	RateLimitSaveUser     string
+	// RateLimitSellerWriteUser covers every shop / coffee / option mutation.
+	RateLimitSellerWriteUser string
 
 	// Every /graphql request, per client IP.
 	RateLimitGraphQLIP string
@@ -108,15 +112,17 @@ func Load() Config {
 		DBStatementTimeout: get("DB_STATEMENT_TIMEOUT", "10s"),
 		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
 
-		RateLimitLoginIP:      get("RATE_LIMIT_LOGIN_IP", "20/1m"),
-		RateLimitLoginEmail:   get("RATE_LIMIT_LOGIN_EMAIL", "10/10m"),
-		RateLimitRegisterIP:   get("RATE_LIMIT_REGISTER_IP", "10/1h"),
-		RateLimitRefreshIP:    get("RATE_LIMIT_REFRESH_IP", "60/1m"),
-		RateLimitCommentUser:  get("RATE_LIMIT_COMMENT_USER", "5/5m"),
-		RateLimitUploadUser:   get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
-		RateLimitPasswordUser: get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
-		RateLimitSaveUser:     get("RATE_LIMIT_SAVE_USER", "60/5m"),
-		RateLimitGraphQLIP:    get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
+		RateLimitLoginIP:         get("RATE_LIMIT_LOGIN_IP", "20/1m"),
+		RateLimitLoginEmail:      get("RATE_LIMIT_LOGIN_EMAIL", "50/10m"),
+		RateLimitLoginEmailIP:    get("RATE_LIMIT_LOGIN_EMAIL_IP", "10/10m"),
+		RateLimitRegisterIP:      get("RATE_LIMIT_REGISTER_IP", "10/1h"),
+		RateLimitRefreshIP:       get("RATE_LIMIT_REFRESH_IP", "60/1m"),
+		RateLimitCommentUser:     get("RATE_LIMIT_COMMENT_USER", "5/5m"),
+		RateLimitUploadUser:      get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
+		RateLimitPasswordUser:    get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
+		RateLimitSaveUser:        get("RATE_LIMIT_SAVE_USER", "60/5m"),
+		RateLimitSellerWriteUser: get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
+		RateLimitGraphQLIP:       get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 	}
 }
 
@@ -194,8 +200,9 @@ const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.
 // RateLimitRules are the parsed auth rate limits.
 type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
+	LoginEmailIP                               ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
-	SaveUser                                   ratelimit.Rule
+	SaveUser, SellerWriteUser                  ratelimit.Rule
 	GraphQLIP                                  ratelimit.Rule
 }
 
@@ -208,12 +215,14 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 	}{
 		{"RATE_LIMIT_LOGIN_IP", c.RateLimitLoginIP, &r.LoginIP},
 		{"RATE_LIMIT_LOGIN_EMAIL", c.RateLimitLoginEmail, &r.LoginEmail},
+		{"RATE_LIMIT_LOGIN_EMAIL_IP", c.RateLimitLoginEmailIP, &r.LoginEmailIP},
 		{"RATE_LIMIT_REGISTER_IP", c.RateLimitRegisterIP, &r.RegisterIP},
 		{"RATE_LIMIT_REFRESH_IP", c.RateLimitRefreshIP, &r.RefreshIP},
 		{"RATE_LIMIT_COMMENT_USER", c.RateLimitCommentUser, &r.CommentUser},
 		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
 		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
+		{"RATE_LIMIT_SELLER_WRITE_USER", c.RateLimitSellerWriteUser, &r.SellerWriteUser},
 		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)

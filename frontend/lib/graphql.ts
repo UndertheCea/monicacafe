@@ -1,5 +1,5 @@
 import { ClientError, GraphQLClient } from "graphql-request";
-import { UNAVAILABLE, parseGraphQLErrors } from "./errors";
+import { UNAVAILABLE, parseGraphQLErrors, rateLimitedFromStatus } from "./errors";
 
 import { browserGraphqlUrl, serverGraphqlUrl } from "./endpoint";
 
@@ -73,6 +73,9 @@ export class ApiError extends Error {
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err;
   if (err instanceof ClientError) {
+    // nginx's own 429 has no JSON body, so no `errors` to read (#214).
+    const limited = err.response.errors ? undefined : rateLimitedFromStatus(err.response.status, err.response.headers?.get("retry-after"));
+    if (limited) return new ApiError(limited.code, limited.message, undefined, limited.retryAfter);
     const f = parseGraphQLErrors(err.response.errors);
     return new ApiError(f.code, f.message, f.field, f.retryAfter);
   }

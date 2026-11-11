@@ -68,6 +68,19 @@ test("filterChips: nothing active → no chips; search and sort aren't chips", (
   assert.deepEqual(filterChips({ search: "x" }, { q: "x", sort: "saved" }, "/coffees"), []);
 });
 
+test("filterChips: the search chip is opt-in, first, and removes only q", () => {
+  const sp = { q: "茉莉花", sort: "saved", page: "3", origin: "o1", instock: "1" };
+  const f = { search: "茉莉花", originCountryId: "o1", inStock: true };
+  assert.deepEqual(filterChips(f, sp, "/coffees").map((c) => c.kind), ["origin", "instock"]);
+  const chips = filterChips(f, sp, "/coffees", { search: true });
+  assert.deepEqual(chips.map((c) => c.kind), ["search", "origin", "instock"]);
+  assert.equal(chips[0].text, "茉莉花");
+  const u = new URL(chips[0].href, "http://x");
+  assert.deepEqual([...u.searchParams.keys()].sort(), ["instock", "origin", "sort"]);
+  assert.equal(filterChips({ search: "x" }, { q: "x" }, "/coffees", { search: true })[0].href, "/coffees");
+  assert.equal(activeFilterCount(f), 2); // the search isn't counted as a filter
+});
+
 test("filterChips: API-only filters (roast, brew, …) never make chips (#166)", () => {
   const f = { roastLevel: "LIGHT", brewMethod: "FILTER", flavorNote: "x", minHarvestYear: 2025, minAltitudeM: 1500 };
   assert.deepEqual(filterChips(f, {}, "/coffees"), []);

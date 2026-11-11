@@ -68,15 +68,18 @@ func run() error {
 	resolver := graph.NewResolver(st, authSvc, media)
 	rules, _ := cfg.RateLimits() // checked by cfg.Validate
 	resolver.Limits = graph.Limits{
-		LoginIP:    ratelimit.New(rules.LoginIP),
-		LoginEmail: ratelimit.New(rules.LoginEmail),
-		RegisterIP: ratelimit.New(rules.RegisterIP),
-		RefreshIP:  ratelimit.New(rules.RefreshIP),
+		LoginIP:      ratelimit.New(rules.LoginIP),
+		LoginEmail:   ratelimit.New(rules.LoginEmail),
+		LoginEmailIP: ratelimit.New(rules.LoginEmailIP),
+		RegisterIP:   ratelimit.New(rules.RegisterIP),
+		RefreshIP:    ratelimit.New(rules.RefreshIP),
 
 		CommentUser:  ratelimit.New(rules.CommentUser),
 		UploadUser:   ratelimit.New(rules.UploadUser),
 		PasswordUser: ratelimit.New(rules.PasswordUser),
 		SaveUser:     ratelimit.New(rules.SaveUser),
+
+		SellerWriteUser: ratelimit.New(rules.SellerWriteUser),
 	}
 	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
 	if err != nil {
@@ -95,6 +98,7 @@ func run() error {
 	srv := graph.NewServer(resolver, cfg.AppEnv != "production")
 
 	r := chi.NewRouter()
+	r.Use(middleware.SanitizeRequestID)
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.ClientIPMiddleware(proxies))

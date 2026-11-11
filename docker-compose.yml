@@ -5,7 +5,7 @@
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-monica}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monica_secret}
@@ -40,7 +40,7 @@ services:
   # instead of failing. The API starts only after it succeeds. A volume made
   # before schema_migrations existed needs MIGRATE_BASELINE once (see .env.example).
   migrate:
-    image: postgres:17-alpine
+    image: postgres:17.11-alpine
     entrypoint: ["/bin/sh", "/monicacafe/scripts/migrate.sh"]
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
@@ -55,7 +55,7 @@ services:
     restart: "no"
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.12-alpine
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
@@ -141,13 +141,15 @@ services:
       # claim any client address (#211).
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.0/8,::1/128,${COMPOSE_SUBNET:-172.30.89.0/24}}
       RATE_LIMIT_LOGIN_IP: ${RATE_LIMIT_LOGIN_IP:-20/1m}
-      RATE_LIMIT_LOGIN_EMAIL: ${RATE_LIMIT_LOGIN_EMAIL:-10/10m}
+      RATE_LIMIT_LOGIN_EMAIL: ${RATE_LIMIT_LOGIN_EMAIL:-50/10m}
+      RATE_LIMIT_LOGIN_EMAIL_IP: ${RATE_LIMIT_LOGIN_EMAIL_IP:-10/10m}
       RATE_LIMIT_REGISTER_IP: ${RATE_LIMIT_REGISTER_IP:-10/1h}
       RATE_LIMIT_REFRESH_IP: ${RATE_LIMIT_REFRESH_IP:-60/1m}
       RATE_LIMIT_COMMENT_USER: ${RATE_LIMIT_COMMENT_USER:-5/5m}
       RATE_LIMIT_UPLOAD_USER: ${RATE_LIMIT_UPLOAD_USER:-30/10m}
       RATE_LIMIT_PASSWORD_USER: ${RATE_LIMIT_PASSWORD_USER:-5/15m}
       RATE_LIMIT_SAVE_USER: ${RATE_LIMIT_SAVE_USER:-60/5m}
+      RATE_LIMIT_SELLER_WRITE_USER: ${RATE_LIMIT_SELLER_WRITE_USER:-60/5m}
       RATE_LIMIT_GRAPHQL_IP: ${RATE_LIMIT_GRAPHQL_IP:-600/1m}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
@@ -193,7 +195,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.27-alpine
+    image: nginx:1.27.5-alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

@@ -18,6 +18,8 @@ export const API_ERROR_CODES = [
   "BAD_USER_INPUT",
   "CONFLICT",
   "RATE_LIMITED",
+  // A fixed cap was reached, e.g. 200 coffees per shop (#213).
+  "LIMIT_REACHED",
   // A query too deep or too costly (backend graph/server.go). The site's own
   // queries never get it (a Go test runs them all against the limits), so it
   // falls through to each form's generic message.
@@ -113,4 +115,18 @@ export function authErrorMessage(
     if (field === "displayName") return { key: "auth.error.displayName" };
   }
   return { key: "auth.error.generic" };
+}
+
+/**
+ * The error for an HTTP 429 whose body isn't the API's JSON: nginx's own
+ * request limit (limit_req, #214) answers with an HTML page and no
+ * `extensions`. Any other status returns undefined. `retryAfter` is the
+ * Retry-After header, if there is one.
+ */
+export function rateLimitedFromStatus(status: number, retryAfter?: unknown): ApiErrorFields | undefined {
+  if (status !== 429) return undefined;
+  const out: ApiErrorFields = { code: "RATE_LIMITED", message: "too many requests" };
+  const secs = retryAfterSeconds(retryAfter);
+  if (secs) out.retryAfter = secs;
+  return out;
 }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { copyName, duplicateCoffeeErrorKey } from "@/lib/dashboard/duplicateCoffee";
+import { MAX_COFFEES_PER_SHOP, copyName, duplicateCoffeeErrorKey } from "@/lib/dashboard/duplicateCoffee";
 import { DUPLICATE_COFFEE } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -39,7 +39,7 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
       >
         {t(locale, busy ? "dash.duplicating" : "dash.duplicate")}
       </button>
-      {error && <FormError>{t(locale, error)}</FormError>}
+      {error && <FormError>{t(locale, error, { max: MAX_COFFEES_PER_SHOP })}</FormError>}
     </span>
   );
 }

@@ -18,6 +18,8 @@ const (
 	CodeBadInput        = "BAD_USER_INPUT"
 	CodeConflict        = "CONFLICT"
 	CodeRateLimited     = "RATE_LIMITED"
+	// CodeLimitReached: a fixed cap was hit, e.g. coffees per shop (#213).
+	CodeLimitReached = "LIMIT_REACHED"
 	// CodeQueryTooComplex: the operation was refused before running because
 	// it nests too deeply or would cost too much (graph/server.go).
 	CodeQueryTooComplex = "QUERY_TOO_COMPLEX"
@@ -34,6 +36,10 @@ type apiError struct {
 }
 
 func (e *apiError) Error() string { return e.message }
+
+func errLimitReached(field, msg string) error {
+	return &apiError{code: CodeLimitReached, message: msg, field: field}
+}
 
 func errUnauthenticated() error {
 	return &apiError{code: CodeUnauthenticated, message: "authentication required"}

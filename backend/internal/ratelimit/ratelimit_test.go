@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
@@ -123,5 +124,90 @@ func TestSweepDropsRefilledBuckets(t *testing.T) {
 	l.Allow("d")
 	if l.Len() != 2 {
 		t.Fatalf("after sweep Len = %d, want 2 (c, d)", l.Len())
+	}
+}
+
+func TestIPKey(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"203.0.113.7", "203.0.113.7"},
+		{"::ffff:203.0.113.7", "203.0.113.7"},
+		{"2001:db8:1:2:aaaa::1", "2001:db8:1:2::/64"},
+		{"2001:db8:1:2:ffff:ffff:ffff:ffff", "2001:db8:1:2::/64"},
+		{"2001:db8:1:3::1", "2001:db8:1:3::/64"},
+		{"fe80::1%eth0", "fe80::/64"},
+		{"", ""},
+		{"not-an-ip", "not-an-ip"},
+	}
+	for _, c := range cases {
+		if got := IPKey(c.in); got != c.want {
+			t.Errorf("IPKey(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestMaxKeysEvictsOldestFirst(t *testing.T) {
+	cases := []struct {
+		name     string
+		maxKeys  int
+		inserts  int
+		wantLen  int
+		wantKept []string // keys that must still be limited (bucket kept)
+		wantGone []string // keys that must have been dropped
+	}{
+		{"under the cap keeps all", 5, 5, 5, []string{"k0", "k4"}, nil},
+		{"one over drops the oldest", 5, 6, 5, []string{"k1", "k5"}, []string{"k0"}},
+		{"a tenth at a time", 20, 21, 19, []string{"k2", "k20"}, []string{"k0", "k1"}},
+	}
+	for _, c := range cases {
+		clk := &fakeClock{t: time.Unix(0, 0)}
+		l := newWithClock(Rule{Burst: 1, Per: time.Hour}, clk.now)
+		l.maxKeys = c.maxKeys
+		for i := range c.inserts {
+			clk.advance(time.Second)
+			l.Allow("k" + strconv.Itoa(i))
+		}
+		if l.Len() != c.wantLen {
+			t.Fatalf("%s: Len = %d, want %d", c.name, l.Len(), c.wantLen)
+		}
+		l.mu.Lock()
+		for _, k := range c.wantKept {
+			if _, ok := l.buckets[k]; !ok {
+				t.Errorf("%s: %s was evicted", c.name, k)
+			}
+		}
+		for _, k := range c.wantGone {
+			if _, ok := l.buckets[k]; ok {
+				t.Errorf("%s: %s was kept", c.name, k)
+			}
+		}
+		l.mu.Unlock()
+	}
+}
+
+func TestCheckDoesNotSpend(t *testing.T) {
+	cases := []struct {
+		name   string
+		spends int // Allow calls before the Checks
+		checks int
+		wantOK bool
+		wantN  int // tracked keys afterwards
+	}{
+		{"unknown key is allowed and not tracked", 0, 5, true, 0},
+		{"checks don't drain the bucket", 1, 10, true, 1},
+		{"empty bucket is reported", 2, 1, false, 1},
+	}
+	for _, c := range cases {
+		clk := &fakeClock{t: time.Unix(0, 0)}
+		l := newWithClock(Rule{Burst: 2, Per: time.Minute}, clk.now)
+		for range c.spends {
+			l.Allow("k")
+		}
+		var ok bool
+		for range c.checks {
+			ok, _ = l.Check("k")
+		}
+		if ok != c.wantOK || l.Len() != c.wantN {
+			t.Errorf("%s: Check = %v, Len = %d; want %v, %d", c.name, ok, l.Len(), c.wantOK, c.wantN)
+		}
 	}
 }

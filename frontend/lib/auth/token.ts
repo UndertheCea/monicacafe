@@ -9,6 +9,18 @@ export const REFRESH_COOKIE_PATH = "/api/auth";
 export const REFRESH_MAX_AGE_S = 7 * 24 * 60 * 60;
 
 /**
+ * Session hint (#234): a readable, non-secret cookie set alongside the refresh
+ * cookie and cleared with it. It says only "this browser may have a session",
+ * so AuthProvider skips the refresh call for visitors who never signed in.
+ */
+export const SESSION_HINT_COOKIE = "mc_s";
+
+/** Whether a `document.cookie` string carries the session hint. */
+export function hasSessionHint(cookieHeader: string): boolean {
+  return cookieHeader.split(";").some((c) => c.trim().startsWith(SESSION_HINT_COOKIE + "="));
+}
+
+/**
  * Expiry (ms since epoch) from a JWT's `exp` claim, or null when the token is
  * malformed. Only decodes — the backend verifies signatures.
  */

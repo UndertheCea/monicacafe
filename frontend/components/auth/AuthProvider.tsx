@@ -7,7 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, authedClient, toApiError, unavailable, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
-import { refreshDelayMs } from "@/lib/auth/token";
+import { hasSessionHint, refreshDelayMs } from "@/lib/auth/token";
 import { rateLimitedFromStatus, retryAfterSeconds } from "@/lib/errors";
 
 type State =
@@ -120,7 +120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initial load + cross-tab sync.
   useEffect(() => {
-    refreshSession().then(apply, () => apply(null)); // same as reload(), state set in the callback
+    // Visitors who never signed in (no hint cookie) make no auth request at all (#234).
+    const initial = hasSessionHint(document.cookie) ? refreshSession() : Promise.resolve(null);
+    initial.then(apply, () => apply(null)); // same as reload(), state set in the callback
     if (typeof BroadcastChannel === "undefined") return;
     const ch = new BroadcastChannel(CHANNEL);
     channelRef.current = ch;

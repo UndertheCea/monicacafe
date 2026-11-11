@@ -19,6 +19,7 @@ import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
   REFRESH_MAX_AGE_S,
+  SESSION_HINT_COOKIE,
   bearerToken,
   clientAddress,
   jwtExpiryMs,
@@ -53,6 +54,7 @@ function fail(status: number, code: string, message: string, field?: string, ret
 
 function clearCookie(res: NextResponse) {
   res.cookies.set(REFRESH_COOKIE, "", { httpOnly: true, sameSite: "lax", path: REFRESH_COOKIE_PATH, maxAge: 0 });
+  res.cookies.set(SESSION_HINT_COOKIE, "", { sameSite: "lax", path: "/", maxAge: 0 });
   return res;
 }
 
@@ -68,6 +70,14 @@ function ok(req: NextRequest, p: { accessToken: string; refreshToken: string; us
     secure: isSecure(req),
     sameSite: "lax",
     path: REFRESH_COOKIE_PATH,
+    maxAge: REFRESH_MAX_AGE_S,
+  });
+  // Readable by page JavaScript on purpose and holds no secret: it only tells
+  // AuthProvider that a refresh is worth trying (#234).
+  res.cookies.set(SESSION_HINT_COOKIE, "1", {
+    secure: isSecure(req),
+    sameSite: "lax",
+    path: "/",
     maxAge: REFRESH_MAX_AGE_S,
   });
   return res;

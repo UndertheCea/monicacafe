@@ -1,7 +1,16 @@
 // Pure auth helpers (lib/auth/token.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bearerToken, clientAddress, jwtExpiryMs, refreshDelayMs, safeNext, validateCredentials } from "../lib/auth/token.ts";
+import {
+  SESSION_HINT_COOKIE,
+  bearerToken,
+  clientAddress,
+  hasSessionHint,
+  jwtExpiryMs,
+  refreshDelayMs,
+  safeNext,
+  validateCredentials,
+} from "../lib/auth/token.ts";
 
 const b64url = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const jwt = (payload) => `${b64url({ alg: "HS256", typ: "JWT" })}.${b64url(payload)}.sig`;
@@ -118,4 +127,26 @@ test("bearerToken", () => {
     { header: null, want: null },
   ];
   for (const c of cases) assert.equal(bearerToken(c.header), c.want, JSON.stringify(c.header));
+});
+
+test("hasSessionHint: only the exact hint cookie counts (#234)", () => {
+  assert.equal(SESSION_HINT_COOKIE, "mc_s");
+  const cases = [
+    ["", false],
+    ["mc_s=1", true],
+    ["locale=en; mc_s=1", true],
+    ["locale=en;mc_s=1; theme=x", true],
+    ["mc_s_other=1", false],
+    ["xmc_s=1", false],
+    ["locale=mc_s=1", false],
+  ];
+  for (const [cookie, want] of cases) assert.equal(hasSessionHint(cookie), want, cookie);
+});
+
+test("the auth route sets and clears the hint with the refresh cookie (#234)", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const src = await readFile(new URL("../app/api/auth/[action]/route.ts", import.meta.url), "utf8");
+  const sets = src.match(/cookies\.set\(SESSION_HINT_COOKIE/g) ?? [];
+  assert.equal(sets.length, 2, "one set in ok(), one clear in clearCookie()");
+  assert.match(src, /cookies\.set\(SESSION_HINT_COOKIE, "1", \{[^}]*maxAge: REFRESH_MAX_AGE_S/s);
 });

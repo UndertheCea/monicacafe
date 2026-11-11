@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter_Tight } from "next/font/google";
+import { Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -8,16 +8,8 @@ import { pageTitle } from "@/lib/brand";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
+// Body text uses the system stack (Tailwind's font-sans); Geist / Geist Mono were loaded but never mapped, so
+// they were dropped in #234. The only web font is the wordmark's.
 // The wordmark's heavy italic grotesque (#110); self-hosted by next/font, so the CSP needs no font host.
 const wordmarkFont = Inter_Tight({
   variable: "--font-inter-tight",
@@ -42,8 +34,8 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   return (
-    <html lang={locale}>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${wordmarkFont.variable} flex min-h-screen flex-col font-sans`}>
+    <html lang={locale} data-scroll-behavior="smooth">
+      <body className={`${wordmarkFont.variable} flex min-h-screen flex-col font-sans`}>
         {/* First focusable element: lets keyboard / screen-reader users jump past the header. */}
         <a
           href="#main"

@@ -23,8 +23,10 @@
     @apply box-border;
   }
 
+  /* Smooth only for in-page anchor jumps, and only when motion is welcome. data-scroll-behavior="smooth" on <html>
+     tells Next 16 to switch it off while it scrolls to the top on a route change, so navigation is instant (#234). */
   html {
-    @apply scroll-smooth;
+    @apply motion-safe:scroll-smooth;
   }
 
   body {

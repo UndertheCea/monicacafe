@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 34 — 2026-11-11 — Moderation, backups, design tokens, accessibility (eight stage-1 slices)
-PR: #PRNUM
+PR: #255
 
 Session 33's PR (#240) was still open and green against master, so I merged it first. No question had a new answer
 from the owner; #170–#174, #219, #223 and #226 stay blocked. I built #224 myself; Sonnet sub-agents built #215,

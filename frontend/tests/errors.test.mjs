@@ -9,6 +9,7 @@ import {
   loadErrorKey,
   parseGraphQLErrors,
   rateLimitMessage,
+  rateLimitedFromStatus,
   retryAfterSeconds,
 } from "../lib/errors.ts";
 
@@ -104,4 +105,16 @@ test("API_ERROR_CODES are unique and upper snake case", () => {
   assert.equal(new Set(API_ERROR_CODES).size, API_ERROR_CODES.length);
   for (const c of API_ERROR_CODES) assert.match(c, /^[A-Z][A-Z_]*$/);
   assert.ok(!API_ERROR_CODES.includes(UNAVAILABLE), "UNAVAILABLE is client-only");
+});
+
+test("rateLimitedFromStatus: nginx's non-JSON 429 maps to RATE_LIMITED", () => {
+  const msg = "too many requests";
+  const cases = [
+    [429, undefined, { code: "RATE_LIMITED", message: msg }],
+    [429, "30", { code: "RATE_LIMITED", message: msg, retryAfter: 30 }],
+    [429, "soon", { code: "RATE_LIMITED", message: msg }],
+    [503, "30", undefined],
+    [200, undefined, undefined],
+  ];
+  for (const [status, retry, want] of cases) assert.deepEqual(rateLimitedFromStatus(status, retry), want, `${status} ${retry}`);
 });

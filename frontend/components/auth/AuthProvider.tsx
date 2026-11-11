@@ -8,7 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ApiError, authedClient, toApiError, unavailable, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
 import { refreshDelayMs } from "@/lib/auth/token";
-import { retryAfterSeconds } from "@/lib/errors";
+import { rateLimitedFromStatus, retryAfterSeconds } from "@/lib/errors";
 
 type State =
   | { status: "loading" }
@@ -72,7 +72,9 @@ async function asError(res: Response): Promise<ApiError> {
     const b = (await res.json()) as SessionErrorBody;
     return new ApiError(b.code, b.message, b.field, retryAfterSeconds(b.retryAfter ?? res.headers.get("retry-after")));
   } catch {
-    return unavailable();
+    // Not JSON: nginx's own 429 (#214) still reads as "too many requests".
+    const limited = rateLimitedFromStatus(res.status, res.headers.get("retry-after"));
+    return limited ? new ApiError(limited.code, limited.message, undefined, limited.retryAfter) : unavailable();
   }
 }
 

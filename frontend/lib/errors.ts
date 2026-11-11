@@ -116,3 +116,17 @@ export function authErrorMessage(
   }
   return { key: "auth.error.generic" };
 }
+
+/**
+ * The error for an HTTP 429 whose body isn't the API's JSON: nginx's own
+ * request limit (limit_req, #214) answers with an HTML page and no
+ * `extensions`. Any other status returns undefined. `retryAfter` is the
+ * Retry-After header, if there is one.
+ */
+export function rateLimitedFromStatus(status: number, retryAfter?: unknown): ApiErrorFields | undefined {
+  if (status !== 429) return undefined;
+  const out: ApiErrorFields = { code: "RATE_LIMITED", message: "too many requests" };
+  const secs = retryAfterSeconds(retryAfter);
+  if (secs) out.retryAfter = secs;
+  return out;
+}

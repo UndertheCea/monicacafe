@@ -98,6 +98,7 @@ func run() error {
 	srv := graph.NewServer(resolver, cfg.AppEnv != "production")
 
 	r := chi.NewRouter()
+	r.Use(middleware.SanitizeRequestID)
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.ClientIPMiddleware(proxies))

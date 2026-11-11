@@ -10,6 +10,10 @@ type User struct {
 	DisplayName  string
 	Role         string // BUYER | SELLER | ADMIN
 	CreatedAt    time.Time
+	// SuspendedAt: an admin suspended the account (#224); nil = active.
+	SuspendedAt *time.Time
+	// TokenVersion is carried in access tokens; bumping it ends them for writes.
+	TokenVersion int
 }
 
 // Shop is a seller storefront.
@@ -26,6 +30,8 @@ type Shop struct {
 	Lng         *float64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	// SuspendedAt: an admin took the shop off the site (#224); nil = active.
+	SuspendedAt *time.Time
 }
 
 // Coffee is a coffee listing belonging to a shop.
@@ -54,7 +60,13 @@ type Coffee struct {
 	BrewMethod *string
 	// HarvestYear (migration 012): the crop year; nil = not given.
 	HarvestYear *int
+	// ShopSuspended: the coffee's shop was taken off the site (#224).
+	ShopSuspended bool
 }
+
+// Public reports whether anyone may see the coffee: published, and its shop
+// isn't suspended. Owners and admins still see it through canSeeDrafts.
+func (c *Coffee) Public() bool { return c.IsPublished && !c.ShopSuspended }
 
 // Variant is a purchasable size/grind of a coffee.
 type Variant struct {

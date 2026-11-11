@@ -76,6 +76,8 @@ export function authErrorStatus(code: string): number {
       return 401;
     case "BAD_USER_INPUT":
       return 400;
+    case "FORBIDDEN":
+      return 403;
     case "CONFLICT":
       return 409;
     case "RATE_LIMITED":
@@ -95,6 +97,7 @@ export function retryAfterSeconds(v: unknown): number | undefined {
 
 export type AuthErrorMessage =
   | { key: "auth.error.unavailable" | "auth.error.invalid" | "auth.error.taken" | "auth.error.generic" }
+  | { key: "auth.error.suspended" }
   | { key: "auth.error.email" | "auth.error.password" | "auth.error.displayName" }
   | RateLimitMessage;
 
@@ -108,6 +111,8 @@ export function authErrorMessage(
   if (code === "RATE_LIMITED") return rateLimitMessage(retryAfter);
   if (code === "UNAVAILABLE") return { key: "auth.error.unavailable" };
   if (mode === "login" && code === "UNAUTHENTICATED") return { key: "auth.error.invalid" };
+  // Login answers FORBIDDEN only for a suspended account, after the right password (#224).
+  if (mode === "login" && code === "FORBIDDEN") return { key: "auth.error.suspended" };
   if (code === "CONFLICT") return { key: "auth.error.taken" };
   if (code === "BAD_USER_INPUT") {
     if (field === "email") return { key: "auth.error.email" };

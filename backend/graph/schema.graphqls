@@ -30,6 +30,16 @@ type Query {
   originCountries: [OriginCountry!]!
   coffeeVarieties: [CoffeeVariety!]!
   processingMethods: [ProcessingMethod!]!
+
+  # Moderation (#224). Admin only: UNAUTHENTICATED when signed out, FORBIDDEN
+  # for everyone else. The role is checked against the database on every call,
+  # so a revoked admin loses access at once. search: every word must appear in
+  # the email or display name (users) / name or slug (shops). Suspended and
+  # empty shops are listed too. limit defaults to 20 (max 100).
+  adminUsers(search: String, limit: Int, offset: Int): UserConnection!
+  adminShops(search: String, limit: Int, offset: Int): ShopConnection!
+  # Newest first.
+  auditLog(limit: Int, offset: Int): AuditEntryConnection!
 }
 
 # ─── Mutations ────────────────────────────────────────────────────────────────
@@ -45,7 +55,8 @@ type Mutation {
   # every session, like logoutEverywhere.
   logout(refreshToken: String): Boolean!
   # Ends every session of the signed-in user (all refresh tokens revoked).
-  # Access tokens already issued stay valid until they expire (≤ 15 min).
+  # Access tokens already issued can still read until they expire (≤ 15 min)
+  # but are refused for every mutation at once (#224).
   logoutEverywhere: Boolean!
 
   # Account (signed in)
@@ -98,7 +109,9 @@ type Mutation {
   # limit as addComment; the coffee must still be published. Unchanged text
   # returns the comment as it is, without setting editedAt.
   updateComment(id: ID!, body: String!): Comment!
-  deleteComment(id: ID!): Boolean!
+  # The author, or an admin. An admin deleting someone else's comment is
+  # recorded in the audit log with reason (≤ 500 characters).
+  deleteComment(id: ID!, reason: String): Boolean!
 
   # Saved coffees (signed in). Only published coffees can be saved (a draft is
   # NOT_FOUND). Unsaving works whatever the coffee's state, and returns null
@@ -113,6 +126,19 @@ type Mutation {
   # followerCount.
   followShop(id: ID!): Shop!
   unfollowShop(id: ID!): Shop
+
+  # Moderation (#224). Admin only (checked against the database). Each needs a
+  # reason (1–500 characters) and writes an audit-log entry in the same
+  # transaction. Suspending a user ends every session at once (their access
+  # tokens stop working for writes) and hides their comments; a suspended shop
+  # and its coffees disappear from every public page, the sitemap and the map.
+  # Admins can't suspend themselves or another admin. Repeating an action
+  # (suspending a suspended user) is BAD_USER_INPUT.
+  suspendUser(id: ID!, reason: String!): User!
+  unsuspendUser(id: ID!, reason: String!): User!
+  suspendShop(id: ID!, reason: String!): Shop!
+  unsuspendShop(id: ID!, reason: String!): Shop!
+  adminUnpublishCoffee(id: ID!, reason: String!): Coffee!
 
   # Stage 2: cart, orders, ECPay checkout — parked
 }
@@ -137,7 +163,53 @@ type User {
   # Shops the user follows, most recently followed first. Same visibility as
   # savedCoffees. limit defaults to 20 (max 100).
   followedShops(limit: Int, offset: Int): ShopConnection!
+  # An admin suspended the account (#224). Only the user themself and admins
+  # see true; everyone else gets false.
+  suspended: Boolean!
   createdAt: Time!
+}
+
+type UserConnection {
+  nodes: [User!]!
+  total: Int!
+}
+
+# ─── Moderation (#224) ────────────────────────────────────────────────────────
+
+enum AuditAction {
+  SUSPEND_USER
+  UNSUSPEND_USER
+  SUSPEND_SHOP
+  UNSUSPEND_SHOP
+  UNPUBLISH_COFFEE
+  DELETE_COMMENT
+  DELETE_ACCOUNT
+  CHANGE_PASSWORD
+  GRANT_ADMIN
+  REVOKE_ADMIN
+}
+
+enum AuditTargetType {
+  USER
+  SHOP
+  COFFEE
+  COMMENT
+}
+
+type AuditEntry {
+  id: ID!
+  # Who did it: null for the admin CLI, or when that account was deleted.
+  actor: User
+  action: AuditAction!
+  targetType: AuditTargetType!
+  targetId: ID!
+  reason: String!
+  createdAt: Time!
+}
+
+type AuditEntryConnection {
+  nodes: [AuditEntry!]!
+  total: Int!
 }
 
 enum UserRole {
@@ -172,6 +244,10 @@ type Shop {
   isFollowed: Boolean!
   # How many people follow it.
   followerCount: Int!
+  # An admin took the shop off the site (#224): it and its coffees are hidden
+  # from every public page. Only the owner and admins see true (the dashboard
+  # shows a notice); nobody else can reach a suspended shop.
+  suspended: Boolean!
   createdAt: Time!
   # Last change to the shop's profile.
   updatedAt: Time!

@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at, updated_at`
+const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at, updated_at, suspended_at`
 
 func scanShop(row interface{ Scan(...any) error }) (*Shop, error) {
 	var sh Shop
 	if err := row.Scan(&sh.ID, &sh.OwnerID, &sh.Slug, &sh.Name, &sh.Description,
-		&sh.LogoURL, &sh.BannerURL, &sh.City, &sh.Lat, &sh.Lng, &sh.CreatedAt, &sh.UpdatedAt); err != nil {
+		&sh.LogoURL, &sh.BannerURL, &sh.City, &sh.Lat, &sh.Lng, &sh.CreatedAt, &sh.UpdatedAt, &sh.SuspendedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	return &sh, nil
@@ -143,7 +143,9 @@ type ShopFilter struct {
 // (#213): a shop appears on /shops, /map and the sitemap from its first
 // published coffee, so creating empty shops can't flood them. The owner still
 // reaches their own shop from the dashboard, and its page stays at its URL.
-const hasPublishedCoffee = `EXISTS (SELECT 1 FROM coffees c WHERE c.shop_id = s.id AND c.is_published)`
+// A suspended shop (#224) is never listed.
+const hasPublishedCoffee = `s.suspended_at IS NULL
+	AND EXISTS (SELECT 1 FROM coffees c WHERE c.shop_id = s.id AND c.is_published)`
 
 func (f ShopFilter) where() (string, []any) {
 	var (

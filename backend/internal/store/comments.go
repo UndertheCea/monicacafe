@@ -67,7 +67,8 @@ func (s *Store) DeleteComment(ctx context.Context, id string) error {
 func (s *Store) CommentsByCoffee(ctx context.Context, coffeeID string, limit, offset int) ([]*Comment, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT `+commentColumns+` FROM comments
-		WHERE coffee_id = $1 ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`, coffeeID, limit, offset)
+		WHERE coffee_id = $1 AND user_id NOT IN (`+suspendedUserIDs+`)
+		ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`, coffeeID, limit, offset)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -88,7 +89,8 @@ func (s *Store) CommentsByCoffee(ctx context.Context, coffeeID string, limit, of
 func (s *Store) CommentCountsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (map[string]int, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT coffee_id, count(*) FROM comments
-		WHERE coffee_id = ANY($1::uuid[]) GROUP BY coffee_id`, coffeeIDs)
+		WHERE coffee_id = ANY($1::uuid[]) AND user_id NOT IN (`+suspendedUserIDs+`)
+		GROUP BY coffee_id`, coffeeIDs)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -110,7 +112,8 @@ func (s *Store) CommentCountsByCoffeeIDs(ctx context.Context, coffeeIDs []string
 // CommentsByShop lists a page of the comments on every coffee of a shop
 // (drafts included), newest first, plus the total.
 func (s *Store) CommentsByShop(ctx context.Context, shopID string, limit, offset int) ([]*Comment, int, error) {
-	return s.commentPage(ctx, `FROM comments cm JOIN coffees c ON c.id = cm.coffee_id WHERE c.shop_id = $1`, shopID, limit, offset)
+	return s.commentPage(ctx, `FROM comments cm JOIN coffees c ON c.id = cm.coffee_id
+		WHERE c.shop_id = $1 AND cm.user_id NOT IN (`+suspendedUserIDs+`)`, shopID, limit, offset)
 }
 
 // commentPage runs a newest-first, offset-paged comment listing over `from`
@@ -136,6 +139,11 @@ func (s *Store) commentPage(ctx context.Context, from string, arg any, limit, of
 	}
 	return out, total, mapErr(rows.Err())
 }
+
+// suspendedUserIDs lists accounts an admin suspended (#224). Their comments are
+// hidden from coffee pages, counts and the seller's inbox; the author's own
+// list (CommentsByUser) still shows them.
+const suspendedUserIDs = `SELECT id FROM users WHERE suspended_at IS NOT NULL`
 
 // CommentsByUser lists a page of a user's comments, newest first, plus the total.
 func (s *Store) CommentsByUser(ctx context.Context, userID string, limit, offset int) ([]*Comment, int, error) {

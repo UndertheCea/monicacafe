@@ -17,6 +17,11 @@ type AddCommentInput struct {
 	Body     string `json:"body"`
 }
 
+type AuditEntryConnection struct {
+	Nodes []*AuditEntry `json:"nodes"`
+	Total int           `json:"total"`
+}
+
 type AuthPayload struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
@@ -193,6 +198,11 @@ type UploadHeader struct {
 	Value string `json:"value"`
 }
 
+type UserConnection struct {
+	Nodes []*User `json:"nodes"`
+	Total int     `json:"total"`
+}
+
 type Variant struct {
 	ID          string      `json:"id"`
 	Grind       GrindOption `json:"grind"`
@@ -207,6 +217,136 @@ type VariantInput struct {
 	WeightG  int         `json:"weightG"`
 	PriceTwd int         `json:"priceTwd"`
 	Stock    int         `json:"stock"`
+}
+
+type AuditAction string
+
+const (
+	AuditActionSuspendUser     AuditAction = "SUSPEND_USER"
+	AuditActionUnsuspendUser   AuditAction = "UNSUSPEND_USER"
+	AuditActionSuspendShop     AuditAction = "SUSPEND_SHOP"
+	AuditActionUnsuspendShop   AuditAction = "UNSUSPEND_SHOP"
+	AuditActionUnpublishCoffee AuditAction = "UNPUBLISH_COFFEE"
+	AuditActionDeleteComment   AuditAction = "DELETE_COMMENT"
+	AuditActionDeleteAccount   AuditAction = "DELETE_ACCOUNT"
+	AuditActionChangePassword  AuditAction = "CHANGE_PASSWORD"
+	AuditActionGrantAdmin      AuditAction = "GRANT_ADMIN"
+	AuditActionRevokeAdmin     AuditAction = "REVOKE_ADMIN"
+)
+
+var AllAuditAction = []AuditAction{
+	AuditActionSuspendUser,
+	AuditActionUnsuspendUser,
+	AuditActionSuspendShop,
+	AuditActionUnsuspendShop,
+	AuditActionUnpublishCoffee,
+	AuditActionDeleteComment,
+	AuditActionDeleteAccount,
+	AuditActionChangePassword,
+	AuditActionGrantAdmin,
+	AuditActionRevokeAdmin,
+}
+
+func (e AuditAction) IsValid() bool {
+	switch e {
+	case AuditActionSuspendUser, AuditActionUnsuspendUser, AuditActionSuspendShop, AuditActionUnsuspendShop, AuditActionUnpublishCoffee, AuditActionDeleteComment, AuditActionDeleteAccount, AuditActionChangePassword, AuditActionGrantAdmin, AuditActionRevokeAdmin:
+		return true
+	}
+	return false
+}
+
+func (e AuditAction) String() string {
+	return string(e)
+}
+
+func (e *AuditAction) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AuditAction(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AuditAction", str)
+	}
+	return nil
+}
+
+func (e AuditAction) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AuditAction) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AuditAction) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type AuditTargetType string
+
+const (
+	AuditTargetTypeUser    AuditTargetType = "USER"
+	AuditTargetTypeShop    AuditTargetType = "SHOP"
+	AuditTargetTypeCoffee  AuditTargetType = "COFFEE"
+	AuditTargetTypeComment AuditTargetType = "COMMENT"
+)
+
+var AllAuditTargetType = []AuditTargetType{
+	AuditTargetTypeUser,
+	AuditTargetTypeShop,
+	AuditTargetTypeCoffee,
+	AuditTargetTypeComment,
+}
+
+func (e AuditTargetType) IsValid() bool {
+	switch e {
+	case AuditTargetTypeUser, AuditTargetTypeShop, AuditTargetTypeCoffee, AuditTargetTypeComment:
+		return true
+	}
+	return false
+}
+
+func (e AuditTargetType) String() string {
+	return string(e)
+}
+
+func (e *AuditTargetType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AuditTargetType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AuditTargetType", str)
+	}
+	return nil
+}
+
+func (e AuditTargetType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AuditTargetType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AuditTargetType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type BrewMethod string

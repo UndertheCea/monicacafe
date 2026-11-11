@@ -10,11 +10,12 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 )
 
-const userColumns = `id, email, password_hash, display_name, role, created_at`
+const userColumns = `id, email, password_hash, display_name, role, created_at, suspended_at, token_version`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var u User
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Role, &u.CreatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.Role, &u.CreatedAt,
+		&u.SuspendedAt, &u.TokenVersion); err != nil {
 		return nil, mapErr(err)
 	}
 	return &u, nil
@@ -73,7 +74,10 @@ func (s *Store) ChangePassword(ctx context.Context, userID, passwordHash string)
 		if tag.RowsAffected() == 0 {
 			return ErrNotFound
 		}
-		return tx.RevokeUserRefreshTokens(ctx, userID)
+		if err := tx.RevokeUserRefreshTokens(ctx, userID); err != nil {
+			return err
+		}
+		return tx.Audit(ctx, AuditEntry{ActorID: &userID, Action: AuditChangePassword, TargetType: AuditUser, TargetID: userID})
 	})
 }
 
@@ -104,6 +108,10 @@ func (s *Store) DeleteUser(ctx context.Context, userID string) error {
 		}
 		if owns {
 			return ErrOwnsShop
+		}
+		// Recorded before the delete; the row's actor becomes NULL with it.
+		if err := tx.Audit(ctx, AuditEntry{ActorID: &userID, Action: AuditDeleteAccount, TargetType: AuditUser, TargetID: userID}); err != nil {
+			return err
 		}
 		if _, err := tx.db.Exec(ctx, `DELETE FROM comments WHERE user_id = $1`, userID); err != nil {
 			return mapErr(err)
@@ -244,11 +252,35 @@ func (s *Store) RevokeRefreshToken(ctx context.Context, tokenHash, userID string
 	return n, err
 }
 
-// RevokeUserRefreshTokens revokes every active refresh token for a user (logout everywhere).
+// RevokeUserRefreshTokens ends every session of a user (logout everywhere,
+// password change, suspected theft, suspension): all active refresh tokens are
+// revoked and the token version is bumped, so access tokens already issued stop
+// working for writes at once (#224).
 func (s *Store) RevokeUserRefreshTokens(ctx context.Context, userID string) error {
-	_, err := s.db.Exec(ctx, `
-		UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID)
-	return mapErr(err)
+	return s.InTx(ctx, func(tx *Store) error {
+		if _, err := tx.db.Exec(ctx, `
+			UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
+			return mapErr(err)
+		}
+		_, err := tx.db.Exec(ctx, `UPDATE users SET token_version = token_version + 1 WHERE id = $1`, userID)
+		return mapErr(err)
+	})
+}
+
+// TokenState is what a mutation checks an access token against (#224).
+type TokenState struct {
+	Version   int
+	Suspended bool
+	Role      string
+}
+
+// UserTokenState reads a user's token version, suspension and role in one
+// primary-key lookup. ErrNotFound when the account is gone.
+func (s *Store) UserTokenState(ctx context.Context, userID string) (TokenState, error) {
+	var t TokenState
+	err := s.db.QueryRow(ctx, `SELECT token_version, suspended_at IS NOT NULL, role FROM users WHERE id = $1`, userID).
+		Scan(&t.Version, &t.Suspended, &t.Role)
+	return t, mapErr(err)
 }
 
 // PruneRefreshTokens deletes refresh tokens that expired before now, in

@@ -145,6 +145,11 @@ export function Dashboard({ locale }: { locale: Locale }) {
     "flex h-8 w-8 items-center justify-center rounded-full border border-neutral-300 text-sm text-ink hover:border-neutral-500 disabled:opacity-30 disabled:hover:border-neutral-300";
   return (
     <div className="space-y-8">
+      {shop.suspended && (
+        <p role="status" className="rounded-2xl bg-white p-4 text-sm font-semibold text-ink ring-2 ring-ink">
+          {t(locale, "dash.suspended")}
+        </p>
+      )}
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
         <div className="min-w-0">
           <h2 className="truncate text-2xl font-bold text-ink">{shop.name}</h2>

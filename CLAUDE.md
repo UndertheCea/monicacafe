@@ -68,6 +68,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 |---|---|
 | `backend/cmd/server` | HTTP server: chi, gqlgen, JWT middleware, slog, graceful shutdown |
 | `backend/cmd/worker` | River job-queue skeleton (Stage 2) |
+| `backend/cmd/admin` | `admin grant <email>` / `admin revoke <email>` set the ADMIN role (audited); in compose: `docker compose exec backend /app/admin grant <email>` |
 | `backend/graph/` | `schema.graphqls`, resolvers, hand-written models, dataloaders, input validation, integration tests |
 | `backend/graph/errors.go` + `frontend/lib/errors.ts` | The error contract: `extensions.code` (+ `field`, `retryAfter`); a Go test keeps the code lists in sync |
 | `backend/internal/store` | All SQL (hand-written pgx v5), transactions, sentinel errors |

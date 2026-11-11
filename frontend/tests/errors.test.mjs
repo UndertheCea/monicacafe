@@ -18,6 +18,7 @@ test("authErrorStatus", () => {
     ["UNAUTHENTICATED", 401],
     ["BAD_USER_INPUT", 400],
     ["CONFLICT", 409],
+    ["FORBIDDEN", 403],
     ["RATE_LIMITED", 429],
     ["UNAVAILABLE", 503],
     ["INTERNAL_SERVER_ERROR", 500],
@@ -52,6 +53,8 @@ test("authErrorMessage", () => {
     { args: ["register", "BAD_USER_INPUT", "password"], want: { key: "auth.error.password" } },
     { args: ["register", "BAD_USER_INPUT", "other"], want: { key: "auth.error.generic" } },
     { args: ["login", "UNAVAILABLE"], want: { key: "auth.error.unavailable" } },
+    { args: ["login", "FORBIDDEN"], want: { key: "auth.error.suspended" } },
+    { args: ["register", "FORBIDDEN"], want: { key: "auth.error.generic" } },
   ];
   for (const c of cases) assert.deepEqual(authErrorMessage(...c.args), c.want, c.args.join(" "));
 });

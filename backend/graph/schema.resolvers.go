@@ -18,6 +18,21 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
+// Actor is the resolver for the actor field.
+func (r *auditEntryResolver) Actor(ctx context.Context, obj *model.AuditEntry) (*model.User, error) {
+	if obj.ActorID == nil {
+		return nil, nil
+	}
+	u, err := r.loadersFor(ctx).UserByID.Load(ctx, *obj.ActorID)
+	if isLoaderNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return toUser(u), nil
+}
+
 // Shop is the resolver for the shop field.
 func (r *coffeeResolver) Shop(ctx context.Context, obj *model.Coffee) (*model.Shop, error) {
 	sh, err := r.loadersFor(ctx).ShopByID.Load(ctx, obj.ShopID)
@@ -142,7 +157,7 @@ func (r *commentResolver) Coffee(ctx context.Context, obj *model.Comment) (*mode
 		}
 		return nil, fmt.Errorf("load coffee %s of comment %s: %w", obj.CoffeeID, obj.ID, err)
 	}
-	if !co.IsPublished {
+	if !co.Public() {
 		ok, err := r.canSeeDrafts(ctx, co.ShopID)
 		if err != nil || !ok {
 			return nil, err
@@ -218,6 +233,10 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	if !auth.CheckPassword(u.PasswordHash, input.Password) {
 		return failed()
 	}
+	if u.SuspendedAt != nil {
+		// Told only after the right password, so it reveals nothing to guessers.
+		return nil, errForbidden("this account is suspended")
+	}
 	r.rehashPassword(ctx, u, input.Password)
 	return r.issueTokens(ctx, u)
 }
@@ -259,6 +278,11 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, token string) (*mod
 	}
 	if err != nil {
 		return nil, err
+	}
+	if u.SuspendedAt != nil {
+		// Suspension revokes every token; this covers a refresh racing it.
+		_ = r.Store.RevokeUserRefreshTokens(ctx, u.ID)
+		return nil, invalid
 	}
 	return r.authPayload(u, next.Token)
 }
@@ -346,6 +370,10 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input model.Chang
 		return nil, err
 	}
 	if err := r.Store.ChangePassword(ctx, u.ID, hash); err != nil {
+		return nil, err
+	}
+	// Reloaded for the token version the change just bumped (#224).
+	if u, err = r.Store.UserByID(ctx, u.ID); err != nil {
 		return nil, err
 	}
 	return r.issueTokens(ctx, u)
@@ -1009,7 +1037,7 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	if err != nil {
 		return nil, err
 	}
-	if !co.IsPublished {
+	if !co.Public() {
 		return nil, errNotFound("coffee")
 	}
 	// Spent only by valid comments, so a typo doesn't cost a token.
@@ -1061,7 +1089,7 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body st
 	if err != nil {
 		return nil, err
 	}
-	if !co.IsPublished {
+	if !co.Public() {
 		return nil, errNotFound("coffee")
 	}
 	// Same bucket as addComment: an edit is new public text.
@@ -1079,7 +1107,7 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body st
 }
 
 // DeleteComment is the resolver for the deleteComment field.
-func (r *mutationResolver) DeleteComment(ctx context.Context, id string) (bool, error) {
+func (r *mutationResolver) DeleteComment(ctx context.Context, id string, reason *string) (bool, error) {
 	c, err := requireViewer(ctx)
 	if err != nil {
 		return false, err
@@ -1094,8 +1122,25 @@ func (r *mutationResolver) DeleteComment(ctx context.Context, id string) (bool, 
 	if err != nil {
 		return false, err
 	}
-	if cm.UserID != c.UserID && !isAdmin(c) {
-		return false, errForbidden("you can only delete your own comments")
+	if cm.UserID != c.UserID {
+		// Someone else's comment: admins only, checked against the database,
+		// and recorded in the audit log (#224).
+		if !isAdmin(c) {
+			return false, errForbidden("you can only delete your own comments")
+		}
+		if c, err = r.requireAdmin(ctx); err != nil {
+			return false, err
+		}
+		why := ""
+		if reason != nil {
+			if why, err = cleanText("reason", *reason, 0, maxReasonLen); err != nil {
+				return false, err
+			}
+		}
+		if err := r.Store.AdminDeleteComment(ctx, c.UserID, id, why); err != nil && !errors.Is(err, store.ErrNotFound) {
+			return false, err
+		}
+		return true, nil
 	}
 	if err := r.Store.DeleteComment(ctx, id); err != nil && !errors.Is(err, store.ErrNotFound) {
 		return false, err
@@ -1121,7 +1166,7 @@ func (r *mutationResolver) SaveCoffee(ctx context.Context, id string) (*model.Co
 	}
 	// Drafts can't be saved, even by their owner: a saved list is for coffees
 	// people can actually look at.
-	if !co.IsPublished {
+	if !co.Public() {
 		return nil, errNotFound("coffee")
 	}
 	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
@@ -1161,7 +1206,7 @@ func (r *mutationResolver) UnsaveCoffee(ctx context.Context, id string) (*model.
 	if err != nil {
 		return nil, err
 	}
-	if !co.IsPublished {
+	if !co.Public() {
 		ok, err := r.canSeeDrafts(ctx, co.ShopID)
 		if err != nil || !ok {
 			return nil, err
@@ -1227,6 +1272,31 @@ func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.
 	return toShop(sh), nil
 }
 
+// SuspendUser is the resolver for the suspendUser field.
+func (r *mutationResolver) SuspendUser(ctx context.Context, id string, reason string) (*model.User, error) {
+	return r.setUserSuspended(ctx, id, reason, true)
+}
+
+// UnsuspendUser is the resolver for the unsuspendUser field.
+func (r *mutationResolver) UnsuspendUser(ctx context.Context, id string, reason string) (*model.User, error) {
+	return r.setUserSuspended(ctx, id, reason, false)
+}
+
+// SuspendShop is the resolver for the suspendShop field.
+func (r *mutationResolver) SuspendShop(ctx context.Context, id string, reason string) (*model.Shop, error) {
+	return r.setShopSuspended(ctx, id, reason, true)
+}
+
+// UnsuspendShop is the resolver for the unsuspendShop field.
+func (r *mutationResolver) UnsuspendShop(ctx context.Context, id string, reason string) (*model.Shop, error) {
+	return r.setShopSuspended(ctx, id, reason, false)
+}
+
+// AdminUnpublishCoffee is the resolver for the adminUnpublishCoffee field.
+func (r *mutationResolver) AdminUnpublishCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error) {
+	return r.adminUnpublishCoffee(ctx, id, reason)
+}
+
 // CoffeeCount is the resolver for the coffeeCount field.
 func (r *originCountryResolver) CoffeeCount(ctx context.Context, obj *model.OriginCountry) (int, error) {
 	c, err := r.loadersFor(ctx).RefCounts(ctx)
@@ -1269,6 +1339,9 @@ func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, err
 	}
 	if err != nil {
 		return nil, err
+	}
+	if sh.SuspendedAt != nil && !canSeeSuspension(ctx, sh.OwnerID) {
+		return nil, nil
 	}
 	return toShop(sh), nil
 }
@@ -1322,7 +1395,7 @@ func (r *queryResolver) Coffee(ctx context.Context, id string) (*model.Coffee, e
 	if err != nil {
 		return nil, err
 	}
-	if !co.IsPublished {
+	if !co.Public() {
 		ok, err := r.canSeeDrafts(ctx, co.ShopID)
 		if err != nil {
 			return nil, err
@@ -1403,6 +1476,21 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 	return refs.methods, nil
 }
 
+// AdminUsers is the resolver for the adminUsers field.
+func (r *queryResolver) AdminUsers(ctx context.Context, search *string, limit *int, offset *int) (*model.UserConnection, error) {
+	return r.adminUsers(ctx, search, limit, offset)
+}
+
+// AdminShops is the resolver for the adminShops field.
+func (r *queryResolver) AdminShops(ctx context.Context, search *string, limit *int, offset *int) (*model.ShopConnection, error) {
+	return r.adminShops(ctx, search, limit, offset)
+}
+
+// AuditLog is the resolver for the auditLog field.
+func (r *queryResolver) AuditLog(ctx context.Context, limit *int, offset *int) (*model.AuditEntryConnection, error) {
+	return r.auditLog(ctx, limit, offset)
+}
+
 // Coffees is the resolver for the coffees field.
 func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
 	f, err := storeFilter(filter)
@@ -1464,6 +1552,11 @@ func (r *shopResolver) FollowerCount(ctx context.Context, obj *model.Shop) (int,
 	return r.loadersFor(ctx).FollowerCountByShop.Load(ctx, obj.ID)
 }
 
+// Suspended is the resolver for the suspended field.
+func (r *shopResolver) Suspended(ctx context.Context, obj *model.Shop) (bool, error) {
+	return obj.SuspendedAt != nil && canSeeSuspension(ctx, obj.OwnerID), nil
+}
+
 // Email is the resolver for the email field.
 func (r *userResolver) Email(ctx context.Context, obj *model.User) (*string, error) {
 	c := viewer(ctx)
@@ -1482,6 +1575,9 @@ func (r *userResolver) Shop(ctx context.Context, obj *model.User) (*model.Shop, 
 	}
 	if err != nil {
 		return nil, err
+	}
+	if sh.SuspendedAt != nil && !canSeeSuspension(ctx, sh.OwnerID) {
+		return nil, nil
 	}
 	return toShop(sh), nil
 }
@@ -1532,6 +1628,14 @@ func (r *userResolver) FollowedShops(ctx context.Context, obj *model.User, limit
 	return &model.ShopConnection{Nodes: nodes, Total: total}, nil
 }
 
+// Suspended is the resolver for the suspended field.
+func (r *userResolver) Suspended(ctx context.Context, obj *model.User) (bool, error) {
+	return obj.SuspendedAt != nil && canSeeSuspension(ctx, obj.ID), nil
+}
+
+// AuditEntry returns generated.AuditEntryResolver implementation.
+func (r *Resolver) AuditEntry() generated.AuditEntryResolver { return &auditEntryResolver{r} }
+
 // Coffee returns generated.CoffeeResolver implementation.
 func (r *Resolver) Coffee() generated.CoffeeResolver { return &coffeeResolver{r} }
 
@@ -1561,6 +1665,7 @@ func (r *Resolver) Shop() generated.ShopResolver { return &shopResolver{r} }
 // User returns generated.UserResolver implementation.
 func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
+type auditEntryResolver struct{ *Resolver }
 type coffeeResolver struct{ *Resolver }
 type coffeeVarietyResolver struct{ *Resolver }
 type commentResolver struct{ *Resolver }

@@ -111,7 +111,7 @@ func (r *Resolver) issueTokens(ctx context.Context, u *store.User) (*model.AuthP
 
 // authPayload pairs a fresh access token with an already-recorded refresh token.
 func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthPayload, error) {
-	access, err := r.Auth.IssueAccessToken(u.ID, u.Role)
+	access, err := r.Auth.IssueAccessToken(u.ID, u.Role, u.TokenVersion)
 	if err != nil {
 		return nil, fmt.Errorf("issue access token: %w", err)
 	}
@@ -125,7 +125,7 @@ func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthP
 func toUser(u *store.User) *model.User {
 	return &model.User{
 		ID: u.ID, EmailAddr: u.Email, DisplayName: u.DisplayName,
-		Role: model.UserRole(u.Role), CreatedAt: u.CreatedAt,
+		Role: model.UserRole(u.Role), CreatedAt: u.CreatedAt, SuspendedAt: u.SuspendedAt,
 	}
 }
 
@@ -133,7 +133,7 @@ func toShop(s *store.Shop) *model.Shop {
 	return &model.Shop{
 		ID: s.ID, OwnerID: s.OwnerID, Slug: s.Slug, Name: s.Name, Description: s.Description,
 		LogoURL: s.LogoURL, BannerURL: s.BannerURL, City: s.City, Lat: s.Lat, Lng: s.Lng,
-		CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
+		CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, SuspendedAt: s.SuspendedAt,
 	}
 }
 

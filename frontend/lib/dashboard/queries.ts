@@ -31,6 +31,8 @@ export interface DashboardShop {
   city: string;
   description: string;
   followerCount: number;
+  /** An admin took the shop off the site (#224); the dashboard shows a notice. */
+  suspended: boolean;
   coffees: { total: number; nodes: DashboardCoffee[] };
 }
 
@@ -44,7 +46,7 @@ export const MY_SHOP = typed<{ me: { id: string; shop: DashboardShop | null } | 
     me {
       id
       shop {
-        id slug name city description followerCount
+        id slug name city description followerCount suspended
         coffees(limit: ${DASH_COFFEES_PAGE}) { total nodes { ${DASHBOARD_COFFEE_FIELDS} } }
       }
     }

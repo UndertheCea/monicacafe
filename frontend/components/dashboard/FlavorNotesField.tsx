@@ -30,7 +30,7 @@ export function FlavorNotesField({
       : { defaultValue: "" };
   const inline = error && NOTES_ERROR_KEYS.includes(error) ? error : null;
   return (
-    <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+    <label className="block text-sm font-medium text-ink sm:col-span-2">
       {t(locale, "cf.flavorNotes")} *
       <input
         name="notes"
@@ -41,11 +41,11 @@ export function FlavorNotesField({
         placeholder={t(locale, "filter.flavorPlaceholder")}
         className={inputCls}
       />
-      <span id="flavor-notes-hint" className="mt-1 block text-xs font-normal text-neutral-500">
+      <span id="flavor-notes-hint" className="mt-1 block text-xs font-normal text-muted">
         {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}
       </span>
       {inline && (
-        <span className="mt-1 block text-xs font-normal text-red-600">
+        <span className="mt-1 block text-xs font-normal text-danger">
           {t(locale, inline, { max: LIMITS.flavorNotes, len: LIMITS.flavorNote })}
         </span>
       )}

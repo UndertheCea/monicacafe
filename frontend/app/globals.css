@@ -1,16 +1,25 @@
 @import "tailwindcss";
 
 /*
- * Moni Cafe palette (#109): a white page with black type and nothing else.
- * Every accent in the UI is one of these tokens (`text-ink`, `bg-paper`, `ring-ink`, …) or a neutral grey;
- * the only other colour is the soft Radix tile behind a coffee without a photo (lib/coffeeTile.ts) and
- * red for error alerts. Change the look here, in one place.
+ * Moni Cafe palette (#109, #229): a white page with black type and nothing else. Every colour in the UI is one of
+ * these tokens (`text-ink`, `text-muted`, `ring-line`, `bg-paper`, `text-danger`, ...); the only other colour is the
+ * soft Radix tile behind a coffee without a photo (lib/coffeeTile.ts). Tailwind's neutral-* / red-* / gray-* scales,
+ * shadows and backdrop blur are banned outside this file (tests/palette.test.mjs). Change the look here, in one place.
+ * tests/contrast.test.mjs checks the contrast of the text tokens below.
  */
 @theme {
+  /* Primary text, icons and black buttons (hover: bg-ink/80). */
   --color-ink: #111111;
-  --color-paper: #ffffff;
-  --color-muted: #6b6b6b;
-  --color-line: #e5e5e5;
+  /* Secondary text: at least 4.5:1 on white and on paper. Use for anything that carries information. */
+  --color-muted: #595959;
+  /* Disabled text and placeholders only. Below 4.5:1 on purpose, so never for text that must be read. */
+  --color-faint: #8a8a8a;
+  /* Hairlines: borders, rings (cards are a ring-1 ring-line on white), dividers, progress tracks. */
+  --color-line: #d4d4d4;
+  /* Tinted surfaces: soft sections, image placeholders, hover backgrounds. The page itself is plain white. */
+  --color-paper: #f7f7f7;
+  /* The one red: errors and destructive actions. At least 4.5:1 on white. Tints: bg-danger/10, ring-danger/30. */
+  --color-danger: #b91c1c;
 }
 
 /* The wordmark face, loaded by next/font in app/layout.tsx (inline: the variable is set on <body>). */
@@ -30,7 +39,7 @@
   }
 
   body {
-    @apply bg-paper text-ink antialiased;
+    @apply bg-white text-ink antialiased;
     font-feature-settings: "kern" 1, "liga" 1;
   }
 

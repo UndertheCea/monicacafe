@@ -27,11 +27,11 @@ export function MoreDetails({
     <details
       open={open}
       onToggle={(e) => onOpenChange(e.currentTarget.open)}
-      className={`group rounded-2xl bg-white ring-1 ring-neutral-200 ${className}`}
+      className={`group rounded-2xl bg-white ring-1 ring-line ${className}`}
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-4 font-bold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
         <span>{filled > 0 ? t(locale, "cf.moreDetailsFilled", { n: filled }) : t(locale, "cf.moreDetails")}</span>
-        <span aria-hidden="true" className="text-neutral-500 transition-transform group-open:rotate-180">
+        <span aria-hidden="true" className="text-muted transition-transform group-open:rotate-180">
           ▾
         </span>
       </summary>

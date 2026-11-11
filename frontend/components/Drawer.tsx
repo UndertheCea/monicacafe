@@ -60,7 +60,7 @@ export function Drawer({ id, open, onClose, title, closeLabel, inlineClassName =
         if (e.target !== e.currentTarget || e.detail === 0) return; // only pointer clicks on the backdrop
         if (isOutside(e.currentTarget.getBoundingClientRect(), e.clientX, e.clientY)) onClose();
       }}
-      className={`group max-h-none max-w-none border-0 bg-transparent p-0 text-ink [&:not([open])]:static [&:not([open])]:w-auto ${inlineClassName} open:fixed open:block open:inset-y-0 open:left-0 open:right-auto open:m-0 open:h-dvh open:w-[85vw] open:max-w-[24rem] sm:open:w-[24rem] open:overflow-y-auto open:bg-white open:p-4 open:shadow-xl motion-safe:open:animate-[drawer-in_160ms_ease-out] backdrop:bg-black/40`}
+      className={`group max-h-none max-w-none border-0 bg-transparent p-0 text-ink [&:not([open])]:static [&:not([open])]:w-auto ${inlineClassName} open:fixed open:block open:inset-y-0 open:left-0 open:right-auto open:m-0 open:h-dvh open:w-[85vw] open:max-w-[24rem] sm:open:w-[24rem] open:overflow-y-auto open:bg-white open:p-4 motion-safe:open:animate-[drawer-in_160ms_ease-out] backdrop:bg-black/40`}
     >
       <div className="mb-3 hidden items-center justify-between group-open:flex">
         <h2 id={titleId} className="text-base font-bold text-ink">
@@ -69,7 +69,7 @@ export function Drawer({ id, open, onClose, title, closeLabel, inlineClassName =
         <button
           type="button"
           onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full border border-neutral-300 text-lg leading-none text-ink hover:border-neutral-500"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-lg leading-none text-ink hover:border-muted"
           aria-label={closeLabel}
         >
           <span aria-hidden="true">×</span>

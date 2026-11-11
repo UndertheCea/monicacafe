@@ -6,7 +6,7 @@ import { SEARCH_MAX_CHARS, parseSearchParam, searchHref } from "@/lib/coffeeQuer
 import { t, type Locale } from "@/lib/i18n/dict";
 
 const inputCls =
-  "w-full rounded-full border border-neutral-300 bg-white px-3 py-2 text-base text-neutral-800 placeholder:text-neutral-400 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+  "w-full rounded-full border border-line bg-white px-3 py-2 text-base text-ink placeholder:text-faint focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
 /**
  * Header search: a plain GET form to /coffees (works without JavaScript). With

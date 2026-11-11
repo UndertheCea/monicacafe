@@ -10,6 +10,7 @@ import { siteBase } from "@/lib/sitemap";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FollowingFeed } from "@/components/coffees/FollowingFeed";
 import { ShopCard } from "@/components/shops/ShopCard";
+import { Page } from "@/components/Page";
 
 // The tab title stays the root layout's "Moni Cafe"; the share card and description follow the reader's
 // language instead of the layout's mixed-language fallback (#195).
@@ -46,12 +47,14 @@ export default async function HomePage() {
       {/* Hero */}
       {/* Hero: the tagline and intro only, no headline or buttons (owner, #186). The
           page's one h1 stays for screen readers. */}
-      <section className="border-b border-line px-4 py-16 text-center md:py-24">
+      <section className="border-b border-line py-16 text-center md:py-24">
+        <Page>
         <div className="mx-auto max-w-4xl">
           <h1 className="sr-only">{t(locale, "home.heading")}</h1>
           <p className="label-caps mb-6 text-muted">{t(locale, "home.eyebrow")}</p>
           <p className="mx-auto max-w-2xl text-lg leading-relaxed text-muted">{t(locale, "home.lead")}</p>
         </div>
+        </Page>
       </section>
 
       {/* Signed-in only: fetched client-side with the viewer's token */}
@@ -74,7 +77,7 @@ export default async function HomePage() {
             ))}
           </div>
         ) : (
-          <p className="text-neutral-500">{t(locale, "coffees.empty")}</p>
+          <p className="text-muted">{t(locale, "coffees.empty")}</p>
         )}
       </Section>
 
@@ -96,26 +99,26 @@ export default async function HomePage() {
             ))}
           </div>
         ) : (
-          <p className="text-neutral-500">{t(locale, "shops.empty")}</p>
+          <p className="text-muted">{t(locale, "shops.empty")}</p>
         )}
       </Section>
 
       {/* Why */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-6xl">
+      <section className="py-20">
+        <Page>
           <h2 className="mb-12 text-center text-3xl font-bold text-ink">{t(locale, "home.whyTitle")}</h2>
           <div className="grid gap-8 md:grid-cols-3">
             {why.map((f, i) => (
-              <div key={f.title} className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-neutral-100">
+              <div key={f.title} className="rounded-2xl bg-white p-8 ring-1 ring-line">
                 <span aria-hidden className="label-caps mb-4 block text-muted">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <h3 className="mb-3 text-lg font-semibold text-ink">{f.title}</h3>
-                <p className="text-neutral-500">{f.body}</p>
+                <p className="text-muted">{f.body}</p>
               </div>
             ))}
           </div>
-        </div>
+        </Page>
       </section>
     </div>
   );
@@ -139,28 +142,28 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section aria-labelledby={id} className={`px-4 py-16 ${tinted ? "border-y border-line" : ""}`}>
-      <div className="mx-auto max-w-7xl">
+    <section aria-labelledby={id} className={`py-16 ${tinted ? "border-y border-line" : ""}`}>
+      <Page>
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
             <h2 id={id} className="text-2xl font-bold text-ink">
               {title}
             </h2>
-            <p className="mt-1 text-neutral-600">{subtitle}</p>
+            <p className="mt-1 text-muted">{subtitle}</p>
           </div>
           <Link href={href} className="shrink-0 text-sm font-medium text-ink underline-offset-4 hover:underline">
             {t(locale, "home.seeAll")}
           </Link>
         </div>
         {children}
-      </div>
+      </Page>
     </section>
   );
 }
 
 function Unavailable({ locale }: { locale: Locale }) {
   return (
-    <p role="status" className="rounded-2xl bg-white p-8 text-center text-neutral-500 ring-1 ring-neutral-200">
+    <p role="status" className="rounded-2xl bg-white p-8 text-center text-muted ring-1 ring-line">
       {t(locale, "home.unavailable")}
     </p>
   );

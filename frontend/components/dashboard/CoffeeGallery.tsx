@@ -40,16 +40,16 @@ export function CoffeeGallery({
   }
 
   const btn =
-    "rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-neutral-700 shadow ring-1 ring-neutral-200 hover:bg-white disabled:opacity-40";
+    "rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-ink ring-1 ring-line hover:bg-white disabled:opacity-40";
 
   return (
-    <section className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+    <section className="rounded-2xl bg-white p-4 ring-1 ring-line sm:p-6">
       <h3 className="font-bold text-ink">{t(locale, "img.galleryTitle")}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{t(locale, "img.galleryHint", { max: MAX_COFFEE_IMAGES })}</p>
+      <p className="mt-1 text-sm text-muted">{t(locale, "img.galleryHint", { max: MAX_COFFEE_IMAGES })}</p>
       {urls.length > 0 && (
         <ol className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {urls.map((src, i) => (
-            <li key={src} className="relative aspect-square overflow-hidden rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
+            <li key={src} className="relative aspect-square overflow-hidden rounded-xl bg-paper ring-1 ring-line">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
@@ -105,11 +105,11 @@ export function CoffeeGallery({
             onUploaded={(u) => save([...urls, u])}
           />
         ) : (
-          <p className="text-sm text-neutral-500">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>
+          <p className="text-sm text-muted">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {t(locale, error)}
         </p>
       )}

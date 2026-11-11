@@ -13,6 +13,7 @@ import { ShopCard } from "@/components/shops/ShopCard";
 import { ShopListSortForm } from "@/components/shops/ShopSortForm";
 import { parseSearchParam } from "@/lib/coffeeQuery";
 import { parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
+import { Page } from "@/components/Page";
 
 const SHOPS_PAGE_SIZE = 12;
 
@@ -56,22 +57,22 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   const pages = Math.max(1, Math.ceil(shops.total / SHOPS_PAGE_SIZE));
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <Page className="py-10">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-ink">{t(locale, "shops.title")}</h1>
-        <p className="mt-2 text-neutral-600">{t(locale, "shops.subtitle")}</p>
+        <p className="mt-2 text-muted">{t(locale, "shops.subtitle")}</p>
       </header>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div aria-live="polite">
           {q && <h2 className="text-lg font-semibold text-ink">{t(locale, "shops.results", { q })}</h2>}
-          <p className="text-sm text-neutral-500">{t(locale, "shops.count", { n: shops.total })}</p>
+          <p className="text-sm text-muted">{t(locale, "shops.count", { n: shops.total })}</p>
         </div>
         {/* Hidden only while the platform has a single shop and nobody searched. */}
         {(shops.total > 1 || q) && <ShopListSortForm locale={locale} sort={sort} q={q} />}
       </div>
 
       {shops.nodes.length === 0 ? (
-        <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
+        <div className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
           <p>{q ? t(locale, "shops.emptySearch", { q }) : t(locale, "shops.empty")}</p>
           {q && (
             <Link
@@ -91,6 +92,6 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
       )}
 
       <Pagination locale={locale} sp={sp} page={page} pages={pages} base="/shops" />
-    </div>
+    </Page>
   );
 }

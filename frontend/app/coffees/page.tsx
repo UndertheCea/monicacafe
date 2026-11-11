@@ -15,6 +15,7 @@ import { FilterPanel } from "@/components/coffees/FilterPanel";
 import { FilterSidebar } from "@/components/coffees/FilterSidebar";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
+import { Page } from "@/components/Page";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
   const [sp, locale] = await Promise.all([searchParams, getLocale()]);
@@ -63,10 +64,10 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   ]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <Page className="py-10">
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-ink">{t(locale, "coffees.title")}</h1>
-        <p className="mt-2 text-neutral-600">{t(locale, "coffees.subtitle")}</p>
+        <p className="mt-2 text-muted">{t(locale, "coffees.subtitle")}</p>
       </header>
 
       {/* Sidebar from md (768px): tablets and half-width windows keep the desktop layout (#165). */}
@@ -90,11 +91,11 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
         <section aria-live="polite">
           {q && <h2 className="mb-1 text-lg font-semibold text-ink">{t(locale, "coffees.results", { q })}</h2>}
-          <p className="mb-4 text-sm text-neutral-500">{t(locale, "coffees.count", { n: list.total })}</p>
+          <p className="mb-4 text-sm text-muted">{t(locale, "coffees.count", { n: list.total })}</p>
           <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
           {list.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
+            <div className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
               <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
               {(q || filtered) && (
                 <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2">
@@ -128,6 +129,6 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           <Pagination locale={locale} sp={sp} page={page} pages={pages} base="/coffees" />
         </section>
       </div>
-    </div>
+    </Page>
   );
 }

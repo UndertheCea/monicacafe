@@ -145,7 +145,7 @@ export function CoffeeDetailsForm({
     items: { id: string; label: string }[],
     required = true,
   ) => (
-    <label className="block text-sm font-medium text-neutral-700">
+    <label className="block text-sm font-medium text-ink">
       {t(locale, label)}
       {required && " *"}
       <select value={value} onChange={(e) => onChange(e.target.value)} required={required} className={inputCls}>
@@ -160,11 +160,11 @@ export function CoffeeDetailsForm({
   );
 
   return (
-    <form onSubmit={onSubmit} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+    <form onSubmit={onSubmit} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-line sm:p-6">
       <h3 className="font-bold text-ink">{t(locale, "cf.essentials")}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
+      <p className="mt-1 text-sm text-muted">{t(locale, "cf.essentialsHint")}</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "cf.name")} *
           <input
             value={draft.name}
@@ -199,7 +199,7 @@ export function CoffeeDetailsForm({
           ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })),
           false,
         )}
-        <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
+        <p className="-mt-2 text-xs text-muted sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
         <ProvenanceFields locale={locale} values={draft} onChange={set} />
         <FlavorNotesField
           locale={locale}
@@ -215,7 +215,7 @@ export function CoffeeDetailsForm({
         onOpenChange={setMoreOpen}
         className="mt-4"
       >
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
+        <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "cf.description")}
           <textarea
             value={draft.description}
@@ -232,7 +232,7 @@ export function CoffeeDetailsForm({
         <button
           type="submit"
           disabled={busy || !dirty}
-          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-40"
+          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-40"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
         </button>

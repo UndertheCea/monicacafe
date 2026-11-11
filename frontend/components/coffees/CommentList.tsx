@@ -24,12 +24,12 @@ export function CommentList({
         {t(locale, "comments.title", { n: total })}
       </h2>
       {comments.length === 0 ? (
-        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-neutral-500 ring-1 ring-neutral-200">
+        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-muted ring-1 ring-line">
           {t(locale, "comments.empty")}
         </p>
       ) : (
-        <div className="mt-4 rounded-2xl bg-white ring-1 ring-neutral-200">
-          <ul className="divide-y divide-neutral-200">
+        <div className="mt-4 rounded-2xl bg-white ring-1 ring-line">
+          <ul className="divide-y divide-line">
             {comments.map((c) => (
               <CommentItem key={c.id} comment={c} coffeePublished={isPublished} locale={locale} />
             ))}
@@ -40,7 +40,7 @@ export function CommentList({
       {isPublished ? (
         <CommentForm coffeeId={coffeeId} locale={locale} />
       ) : (
-        <p className="mt-3 text-sm text-neutral-500">{t(locale, "comments.draftClosed")}</p>
+        <p className="mt-3 text-sm text-muted">{t(locale, "comments.draftClosed")}</p>
       )}
     </section>
   );

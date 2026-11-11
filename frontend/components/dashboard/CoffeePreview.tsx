@@ -48,8 +48,8 @@ export function CoffeePreview({ coffeeId, locale }: { coffeeId: string; locale: 
         role="status"
         className={
           coffee.isPublished
-            ? "mt-4 rounded-xl bg-neutral-100 px-4 py-3 text-sm text-ink ring-1 ring-neutral-300"
-            : "mt-4 rounded-xl bg-white px-4 py-3 text-sm font-medium text-ink ring-1 ring-neutral-300"
+            ? "mt-4 rounded-xl bg-paper px-4 py-3 text-sm text-ink ring-1 ring-line"
+            : "mt-4 rounded-xl bg-white px-4 py-3 text-sm font-medium text-ink ring-1 ring-line"
         }
       >
         {t(locale, previewBannerKey(coffee.isPublished))}{" "}

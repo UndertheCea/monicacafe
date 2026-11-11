@@ -20,6 +20,9 @@ function sources(dir) {
 }
 
 const files = [...sources(join(root, "app")), ...sources(join(root, "components"))];
+// lib/ too, except the Radix tile colours (lib/coffeeTile.ts); globals.css is where the tokens are defined.
+const libFiles = sources(join(root, "lib")).filter((p) => !p.endsWith("coffeeTile.ts"));
+const utilityFiles = [...files, ...libFiles].filter((p) => !p.endsWith("globals.css"));
 
 // Every Tailwind hue except neutral (greys) and red (errors mean something). Black / white / ink / paper are fine.
 const BANNED = /\b(?:[a-z-]+:)*(?:bg|text|ring|border|from|via|to|accent|fill|stroke|outline|decoration|shadow)-(?:amber|yellow|orange|lime|stone|emerald|green|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc)-\d{2,3}\b|gradient/;
@@ -36,13 +39,25 @@ test("no colour utilities (only neutral, black, white and error red) and no grad
   assert.deepEqual(offenders, []);
 });
 
+test("no neutral, gray, red, shadow or backdrop-blur utilities: use the tokens in globals.css (#229)", () => {
+  const BAN = /(?:^|[^\w-])(?:[a-z-]+:)*(?:[a-z-]+-)?(?:(?:neutral|gray|red)-\d{2,3}|shadow(?:-[a-z0-9]+)?|backdrop-blur(?:-[a-z0-9]+)?)(?![\w-])/;
+  const offenders = [];
+  for (const p of utilityFiles) {
+    readFileSync(p, "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        if (BAN.test(line)) offenders.push(`${relative(root, p)}:${i + 1}: ${line.trim().slice(0, 120)}`);
+      });
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test("palette tokens live in globals.css and the page is white with black type", () => {
   const css = readFileSync(join(root, "app", "globals.css"), "utf8");
-  for (const token of ["--color-ink", "--color-paper", "--color-muted", "--color-line"]) {
+  for (const token of ["--color-ink", "--color-paper", "--color-muted", "--color-faint", "--color-line", "--color-danger"]) {
     assert.match(css, new RegExp(`${token}:`), token);
   }
-  assert.match(css, /--color-paper: #fff(?:fff)?;/i);
-  assert.match(css, /@apply bg-paper text-ink/);
+  assert.match(css, /@apply bg-white text-ink/);
 });
 
 test("the home hero is not a dark block", () => {

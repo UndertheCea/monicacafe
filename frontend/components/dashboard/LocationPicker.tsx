@@ -79,7 +79,7 @@ export function LocationPicker({
     if (!markerRef.current) {
       const icon = L.divIcon({
         className: "",
-        html: '<span class="grid h-8 w-8 place-items-center"><span class="block h-4 w-4 rounded-full bg-ink shadow ring-2 ring-white"></span></span>',
+        html: '<span class="grid h-8 w-8 place-items-center"><span class="block h-4 w-4 rounded-full bg-ink ring-2 ring-white"></span></span>',
         iconSize: [32, 32],
         iconAnchor: [16, 16],
       });
@@ -96,12 +96,12 @@ export function LocationPicker({
   }, [value, status]);
 
   return (
-    <div className="relative overflow-hidden rounded-xl ring-1 ring-neutral-200">
-      <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-72 w-full cursor-crosshair bg-neutral-100" />
+    <div className="relative overflow-hidden rounded-xl ring-1 ring-line">
+      <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-72 w-full cursor-crosshair bg-paper" />
       {status !== "ready" && (
         <div
           role={status === "failed" ? "alert" : "status"}
-          className="absolute inset-0 grid place-items-center bg-neutral-100/90 p-4 text-center text-sm text-neutral-600"
+          className="absolute inset-0 grid place-items-center bg-paper/90 p-4 text-center text-sm text-muted"
         >
           {status === "failed" ? failedLabel : loadingLabel}
         </div>

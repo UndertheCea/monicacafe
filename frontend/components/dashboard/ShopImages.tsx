@@ -42,9 +42,9 @@ export function ShopImages({
     const url = shop[field];
     return (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-neutral-800">{t(locale, title)}</h3>
+        <h3 className="text-sm font-semibold text-ink">{t(locale, title)}</h3>
         <div
-          className={`overflow-hidden bg-neutral-100 ring-1 ring-neutral-200 ${
+          className={`overflow-hidden bg-paper ring-1 ring-line ${
             field === "logoUrl" ? "h-24 w-24 rounded-2xl" : "aspect-[3/1] w-full rounded-xl"
           }`}
         >
@@ -53,7 +53,7 @@ export function ShopImages({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt={t(locale, alt, { name: shop.name })} className="h-full w-full object-cover" />
           ) : (
-            <span className="grid h-full w-full place-items-center text-xs text-neutral-400">{t(locale, "img.none")}</span>
+            <span className="grid h-full w-full place-items-center text-xs text-muted">{t(locale, "img.none")}</span>
           )}
         </div>
         <div className="flex flex-wrap items-start gap-2">
@@ -70,7 +70,7 @@ export function ShopImages({
               type="button"
               disabled={busy}
               onClick={() => void remove(field)}
-              className="rounded-full px-3 py-2 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40"
+              className="rounded-full px-3 py-2 text-sm text-muted hover:text-danger disabled:opacity-40"
             >
               {t(locale, "img.remove")}
             </button>
@@ -81,14 +81,14 @@ export function ShopImages({
   };
 
   return (
-    <section className="space-y-6 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
+    <section className="space-y-6 rounded-2xl bg-white p-6 ring-1 ring-line">
       <h2 className="text-lg font-bold text-ink">{t(locale, "img.shopTitle")}</h2>
       <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
         {slot("logoUrl", "SHOP_LOGO", "img.logo", "img.logoAlt")}
         {slot("bannerUrl", "SHOP_BANNER", "img.banner", "img.bannerAlt")}
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {t(locale, error)}
         </p>
       )}

@@ -41,7 +41,7 @@ export function ProvenanceFields({
   return (
     <fieldset className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
       <legend className="mb-2 text-sm font-semibold text-ink">{t(locale, "cf.provenance")}</legend>
-      <label className="block text-sm font-medium text-neutral-700">
+      <label className="block text-sm font-medium text-ink">
         {t(locale, "cf.producer")} *
         <input
           {...bind("producer")}
@@ -51,7 +51,7 @@ export function ProvenanceFields({
           className={inputCls}
         />
       </label>
-      <label className="block text-sm font-medium text-neutral-700">
+      <label className="block text-sm font-medium text-ink">
         {t(locale, "cf.region")} *
         <input
           {...bind("region")}
@@ -61,15 +61,15 @@ export function ProvenanceFields({
           className={inputCls}
         />
       </label>
-      <label className="block text-sm font-medium text-neutral-700">
+      <label className="block text-sm font-medium text-ink">
         {t(locale, "cf.altitudeMin")} *
         <input {...bind("altitudeMin")} required inputMode="numeric" placeholder="1800" className={inputCls} />
       </label>
-      <label className="block text-sm font-medium text-neutral-700">
+      <label className="block text-sm font-medium text-ink">
         {t(locale, "cf.altitudeMax")}
         <input {...bind("altitudeMax")} inputMode="numeric" placeholder="2100" className={inputCls} />
       </label>
-      <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.altitudeHint")}</p>
+      <p className="-mt-2 text-xs text-muted sm:col-span-2">{t(locale, "cf.altitudeHint")}</p>
     </fieldset>
   );
 }
@@ -87,7 +87,7 @@ export function HarvestYearField({
   const bind = binder<"harvestYear">(values, onChange);
   return (
     <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
-      <label className="block text-sm font-medium text-neutral-700">
+      <label className="block text-sm font-medium text-ink">
         {t(locale, "cf.harvestYear")}
         <input
           {...bind("harvestYear")}
@@ -97,7 +97,7 @@ export function HarvestYearField({
           className={inputCls}
         />
       </label>
-      <p className="self-end text-xs text-neutral-500">{t(locale, "cf.harvestHint")}</p>
+      <p className="self-end text-xs text-muted">{t(locale, "cf.harvestHint")}</p>
     </div>
   );
 }

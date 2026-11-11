@@ -18,7 +18,7 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
         document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
         startTransition(() => router.refresh());
       }}
-      className="rounded-full border border-neutral-300 px-3 py-1 text-sm font-medium text-neutral-700 transition hover:border-ink hover:text-ink hover:underline underline-offset-4 disabled:opacity-50"
+      className="rounded-full border border-line px-3 py-1 text-sm font-medium text-ink transition hover:border-ink hover:text-ink hover:underline underline-offset-4 disabled:opacity-50"
     >
       {t(locale, "lang.toggle")}
     </button>

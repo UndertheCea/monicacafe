@@ -8,6 +8,7 @@ import { shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { ErrorState } from "@/components/ErrorState";
 import { ShopMap } from "@/components/map/ShopMap";
+import { Page } from "@/components/Page";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -37,12 +38,12 @@ export default async function MapPage() {
   const located = pins.filter(hasCoords).length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <Page className="py-10">
       <header className="mb-6">
         <h1 className="text-3xl font-bold text-ink">{t(locale, "map.title")}</h1>
-        <p className="mt-2 text-neutral-600">{t(locale, "map.subtitle")}</p>
+        <p className="mt-2 text-muted">{t(locale, "map.subtitle")}</p>
       </header>
-      <p className="mb-4 text-sm text-neutral-500">{t(locale, "map.count", { n: located })}</p>
+      <p className="mb-4 text-sm text-muted">{t(locale, "map.count", { n: located })}</p>
 
       <ShopMap
         pins={pins}
@@ -57,13 +58,13 @@ export default async function MapPage() {
           {t(locale, "map.listTitle")}
         </h2>
         {pins.length === 0 ? (
-          <p className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
+          <p className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
             {t(locale, "map.empty")}
           </p>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {groupByCity(pins).map(([city, list]) => (
-              <div key={city} className="rounded-2xl bg-white p-5 ring-1 ring-neutral-200">
+              <div key={city} className="rounded-2xl bg-white p-5 ring-1 ring-line">
                 <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink">{city}</h3>
                 <ul className="space-y-2">
                   {list.map((p) => (
@@ -72,7 +73,7 @@ export default async function MapPage() {
                         {p.name}
                       </Link>
                       {!hasCoords(p) && (
-                        <span className="shrink-0 text-xs text-neutral-400">{t(locale, "map.noLocation")}</span>
+                        <span className="shrink-0 text-xs text-muted">{t(locale, "map.noLocation")}</span>
                       )}
                     </li>
                   ))}
@@ -82,6 +83,6 @@ export default async function MapPage() {
           </div>
         )}
       </section>
-    </div>
+    </Page>
   );
 }

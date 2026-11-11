@@ -2,17 +2,20 @@ import Link from "next/link";
 import { loadErrorKey } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { Page } from "@/components/Page";
 
 /** Bilingual error panel for a failed GraphQL fetch in a server component. */
 export function ErrorState({ locale, error }: { locale: Locale; error: unknown }) {
   const e = toApiError(error);
   return (
-    <div className="mx-auto max-w-3xl px-4 py-24">
-      <div role="alert" className="rounded-2xl bg-red-50 p-6 ring-1 ring-red-200">
-        <h1 className="text-lg font-bold text-red-900">{t(locale, "error.title")}</h1>
-        <p className="mt-2 text-red-800">{t(locale, loadErrorKey(e.code))}</p>
+    <Page className="py-24">
+    <div className="mx-auto max-w-3xl">
+      <div role="alert" className="rounded-2xl bg-danger/10 p-6 ring-1 ring-danger/30">
+        <h1 className="text-lg font-bold text-danger">{t(locale, "error.title")}</h1>
+        <p className="mt-2 text-danger">{t(locale, loadErrorKey(e.code))}</p>
       </div>
     </div>
+    </Page>
   );
 }
 
@@ -29,12 +32,14 @@ export function NotFoundState({
   backLabel: string;
 }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-24 text-center">
+    <Page className="py-24 text-center">
+    <div className="mx-auto max-w-3xl">
       <h1 className="mt-4 text-2xl font-bold text-ink">{title}</h1>
-      <p className="mt-2 text-neutral-600">{body}</p>
+      <p className="mt-2 text-muted">{body}</p>
       <Link href={backHref} className="mt-6 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
         {backLabel}
       </Link>
     </div>
+    </Page>
   );
 }

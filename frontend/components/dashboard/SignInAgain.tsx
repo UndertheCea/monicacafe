@@ -44,10 +44,10 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
       <h2 id="signin-again-title" className="font-bold text-ink">
         {t(locale, "dash.sessionLost")}
       </h2>
-      <p className="text-sm text-neutral-600">{t(locale, "dash.sessionLostHint")}</p>
+      <p className="text-sm text-muted">{t(locale, "dash.sessionLostHint")}</p>
       {error && <FormError>{t(locale, error.key, "vars" in error ? error.vars : undefined)}</FormError>}
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <label className="block text-sm font-medium text-neutral-700">
+        <label className="block text-sm font-medium text-ink">
           {t(locale, "auth.email")}
           <input
             type="email"
@@ -57,7 +57,7 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
             className={inputCls}
           />
         </label>
-        <label className="block text-sm font-medium text-neutral-700">
+        <label className="block text-sm font-medium text-ink">
           {t(locale, "auth.password")}
           <input
             type="password"
@@ -77,7 +77,7 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
           type="button"
           disabled={busy}
           onClick={() => void submit()}
-          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
+          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-60"
         >
           {t(locale, busy ? "auth.submitting" : "auth.submitLogin")}
         </button>

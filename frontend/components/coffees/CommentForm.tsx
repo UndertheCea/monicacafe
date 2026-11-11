@@ -24,7 +24,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   if (status === "loading") return null;
   if (status === "anonymous") {
     return (
-      <p className="mt-4 text-sm text-neutral-600">
+      <p className="mt-4 text-sm text-muted">
         <Link
           href={`/login?next=${encodeURIComponent(pathname)}`}
           className="font-semibold text-ink underline-offset-4 hover:underline"
@@ -58,8 +58,8 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-neutral-200">
-      <label htmlFor="comment-body" className="text-sm font-semibold text-neutral-700">
+    <form onSubmit={onSubmit} className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-line">
+      <label htmlFor="comment-body" className="text-sm font-semibold text-ink">
         {t(locale, "comments.label")}
       </label>
       <textarea
@@ -70,10 +70,10 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
         placeholder={t(locale, "comments.placeholder")}
         aria-invalid={tooLong}
         aria-describedby="comment-count"
-        className="mt-2 w-full resize-y rounded-xl border border-neutral-300 px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-neutral-300"
+        className="mt-2 w-full resize-y rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-line"
       />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <span id="comment-count" className={tooLong ? "text-xs text-red-600" : "text-xs text-neutral-500"}>
+        <span id="comment-count" className={tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
           {tooLong
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX })
             : t(locale, "comments.remaining", { n: COMMENT_MAX - len })}
@@ -81,13 +81,13 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
         <button
           type="submit"
           disabled={busy || len === 0 || tooLong}
-          className="rounded-full bg-ink px-4 py-1.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded-full bg-ink px-4 py-1.5 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
         >
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
         </button>
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {t(locale, error.key, { max: COMMENT_MAX, ...error.vars })}
         </p>
       )}
@@ -118,7 +118,7 @@ export function DeleteCommentButton({
 
   return (
     <span className="inline-flex items-center gap-2">
-      {failed && <span className="text-xs text-red-600">{t(locale, "comments.deleteError")}</span>}
+      {failed && <span className="text-xs text-danger">{t(locale, "comments.deleteError")}</span>}
       <button
         type="button"
         disabled={busy}
@@ -135,7 +135,7 @@ export function DeleteCommentButton({
             setBusy(false);
           }
         }}
-        className="text-xs font-medium text-neutral-500 hover:text-red-700 disabled:opacity-50"
+        className="text-xs font-medium text-muted hover:text-danger disabled:opacity-50"
       >
         {t(locale, "comments.delete")}
       </button>

@@ -16,6 +16,7 @@ import { FollowButton } from "@/components/shops/FollowButton";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
+import { Page } from "@/components/Page";
 
 type Params = Promise<{ slug: string }>;
 
@@ -101,18 +102,18 @@ export default async function ShopPage({
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4">
+      <Page>
         <div className={`relative flex flex-col gap-4 sm:flex-row ${shop.bannerUrl ? "-mt-12 sm:items-start" : "pt-10 sm:items-center"}`}>
-          <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-paper" />
+          <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-white" />
           <div className={shop.bannerUrl ? "sm:pt-14" : ""}>
             <h1 className="text-3xl font-bold text-ink">{shop.name}</h1>
-            {shop.city && <p className="text-sm text-neutral-500">{shop.city}</p>}
+            {shop.city && <p className="text-sm text-muted">{shop.city}</p>}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
           </div>
         </div>
 
         {shop.description && (
-          <p className="mt-6 max-w-3xl whitespace-pre-line leading-relaxed text-neutral-700">{shop.description}</p>
+          <p className="mt-6 max-w-3xl whitespace-pre-line leading-relaxed text-ink">{shop.description}</p>
         )}
 
         <section className="mt-10 pb-12" aria-labelledby="shop-coffees">
@@ -120,11 +121,11 @@ export default async function ShopPage({
             <h2 id="shop-coffees" className="text-xl font-bold text-ink">
               {t(locale, "shops.coffees")}
             </h2>
-            <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
+            <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
           </div>
 
           {shop.coffees.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
+            <div className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
               <p>{t(locale, archive.total > 0 ? "shops.allSoldOut" : "shops.noCoffees")}</p>
             </div>
           ) : (
@@ -150,7 +151,7 @@ export default async function ShopPage({
                 <h2 id="shop-archive" className="text-xl font-bold text-ink">
                   {t(locale, "shops.archive")}
                 </h2>
-                <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
+                <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
               </div>
               {/* Muted, still black and white: greyscale photos and tiles, softer text. */}
               <div className="grid gap-5 opacity-70 grayscale sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -173,7 +174,7 @@ export default async function ShopPage({
             {t(locale, "shops.back")}
           </Link>
         </section>
-      </div>
+      </Page>
     </div>
   );
 }

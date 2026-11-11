@@ -40,7 +40,7 @@ export function NavMenuList({
 
   return (
     <div>
-      <ul className="divide-y divide-neutral-200 border-y border-neutral-200">
+      <ul className="divide-y divide-line border-y border-line">
         {navMenu(viewer).map((s) => (
           <li key={s.label} className="grid grid-cols-[6.5rem_1fr] gap-3 py-4">
             <Heading id={`${idBase}-${s.label}`} className="label-caps pt-2.5 text-muted">

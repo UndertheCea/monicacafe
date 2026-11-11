@@ -3,7 +3,7 @@ import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
 
 const fieldCls =
-  "rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+  "rounded-lg border border-line bg-white px-2 py-1.5 text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
 
 /** Search + sort for the /shops list (newest / name / most coffees). */
 export function ShopListSortForm({ locale, sort, q }: { locale: Locale; sort: ShopSortParam; q?: string }) {
@@ -72,7 +72,7 @@ export function SortForm({
     <form method="get" action={action} className="flex flex-wrap items-center gap-2 text-sm">
       {children}
       <label className="flex items-center gap-2">
-        <span className="text-neutral-500">{t(locale, "sort.label")}</span>
+        <span className="text-muted">{t(locale, "sort.label")}</span>
         <select name="sort" defaultValue={value} className={fieldCls}>
           {options.map((o) => (
             <option key={o.value || "newest"} value={o.value}>
@@ -81,7 +81,7 @@ export function SortForm({
           ))}
         </select>
       </label>
-      <button type="submit" className="rounded-full border border-neutral-300 px-3 py-1.5 hover:border-neutral-500">
+      <button type="submit" className="rounded-full border border-line px-3 py-1.5 hover:border-muted">
         {t(locale, submit)}
       </button>
     </form>

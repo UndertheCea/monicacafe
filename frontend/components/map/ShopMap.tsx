@@ -46,7 +46,7 @@ export function ShopMap({
 
         const icon = L.divIcon({
           className: "",
-          html: '<span class="grid h-8 w-8 place-items-center"><span class="block h-4 w-4 rounded-full bg-ink shadow ring-2 ring-white"></span></span>',
+          html: '<span class="grid h-8 w-8 place-items-center"><span class="block h-4 w-4 rounded-full bg-ink ring-2 ring-white"></span></span>',
           iconSize: [32, 32],
           iconAnchor: [16, 16],
           popupAnchor: [0, -16],
@@ -61,7 +61,7 @@ export function ShopMap({
           link.className = "font-semibold text-ink hover:underline";
           const city = document.createElement("div");
           city.textContent = p.city;
-          city.className = "text-xs text-neutral-500";
+          city.className = "text-xs text-muted";
           popup.append(link, city);
 
           L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name, keyboard: true })
@@ -90,12 +90,12 @@ export function ShopMap({
   }, [pins]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl ring-1 ring-neutral-200">
-      <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-[60vh] min-h-[320px] w-full bg-neutral-100" />
+    <div className="relative overflow-hidden rounded-2xl ring-1 ring-line">
+      <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-[60vh] min-h-[320px] w-full bg-paper" />
       {status !== "ready" && (
         <div
           role={status === "failed" ? "alert" : "status"}
-          className="absolute inset-0 grid place-items-center bg-neutral-100/90 p-4 text-center text-sm text-neutral-600"
+          className="absolute inset-0 grid place-items-center bg-paper/90 p-4 text-center text-sm text-muted"
         >
           {status === "failed" ? failedLabel : loadingLabel}
         </div>

@@ -20,8 +20,8 @@ interface Props {
 }
 
 const fieldCls =
-  "mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
-const labelCls = "block text-xs font-semibold uppercase tracking-wide text-neutral-500";
+  "mt-1 block w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+const labelCls = "block text-xs font-semibold uppercase tracking-wide text-muted";
 
 // Plain GET form: works without JavaScript and keeps filters in the URL.
 // Only origin / variety / process / price / in stock (owner, #166): each shop
@@ -36,7 +36,7 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
   const counted = (name: string, n: number) => t(locale, "filter.optionCount", { name, n });
 
   return (
-    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-neutral-200 group-open:p-0 group-open:shadow-none group-open:ring-0">
+    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-line group-open:p-0 group-open:ring-0">
       {/* Below md the drawer (or the no-JS toggle) already says "Filters". */}
       <h2 className="hidden text-base font-bold text-ink md:block">{t(locale, "filter.title")}</h2>
 
@@ -117,7 +117,7 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
             aria-label={t(locale, "filter.min")}
             className={fieldCls}
           />
-          <span className="text-neutral-400">–</span>
+          <span className="text-faint">–</span>
           <input
             type="number"
             name="max"
@@ -132,7 +132,7 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         </div>
       </fieldset>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           name="instock"
@@ -146,13 +146,13 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
       <div className="flex gap-2">
         <button
           type="submit"
-          className="flex-1 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-neutral-700"
+          className="flex-1 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/80"
         >
           {t(locale, "filter.apply")}
         </button>
         <Link
           href="/coffees"
-          className="rounded-full border border-neutral-300 px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:border-neutral-500"
+          className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink transition hover:border-muted"
         >
           {t(locale, "filter.reset")}
         </Link>

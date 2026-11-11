@@ -42,7 +42,7 @@ export function DeleteCoffeeButton({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-full px-3 py-1.5 text-sm text-neutral-500 hover:text-red-700"
+          className="rounded-full px-3 py-1.5 text-sm text-muted hover:text-danger"
         >
           {t(locale, "dash.delete")}
         </button>
@@ -52,12 +52,12 @@ export function DeleteCoffeeButton({
   }
   return (
     <span role="group" aria-label={t(locale, "dash.deleteConfirm")} className="inline-flex flex-wrap items-center gap-2">
-      <span className="text-sm text-red-800">{t(locale, "dash.deleteConfirm")}</span>
+      <span className="text-sm text-danger">{t(locale, "dash.deleteConfirm")}</span>
       <button
         type="button"
         disabled={busy}
         onClick={() => void remove()}
-        className="rounded-full bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
+        className="rounded-full bg-danger px-3 py-1.5 text-sm font-semibold text-white hover:bg-danger/80 disabled:opacity-50"
       >
         {t(locale, busy ? "dash.deleting" : "dash.deleteYes")}
       </button>
@@ -65,7 +65,7 @@ export function DeleteCoffeeButton({
         type="button"
         disabled={busy}
         onClick={() => setConfirming(false)}
-        className="rounded-full border border-neutral-300 px-3 py-1.5 text-sm hover:border-neutral-500 disabled:opacity-50"
+        className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-muted disabled:opacity-50"
       >
         {t(locale, "dash.cancel")}
       </button>

@@ -53,7 +53,7 @@ export function MoreComments({
   return (
     <>
       {more.length > 0 && (
-        <ul className="divide-y divide-neutral-200 border-t border-neutral-200">
+        <ul className="divide-y divide-line border-t border-line">
           {more.map((c) => (
             <CommentItem
               key={c.id}
@@ -66,17 +66,17 @@ export function MoreComments({
         </ul>
       )}
       {hasMoreComments(shown.length, total, lastPage) && (
-        <div className="border-t border-neutral-200 p-3 text-center">
+        <div className="border-t border-line p-3 text-center">
           <button
             type="button"
             onClick={() => void loadMore()}
             disabled={busy}
-            className="rounded-full px-4 py-1.5 text-sm font-semibold text-ink ring-1 ring-neutral-300 hover:bg-neutral-100 disabled:opacity-60"
+            className="rounded-full px-4 py-1.5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-paper disabled:opacity-60"
           >
             {busy ? t(locale, "comments.loadingMore") : t(locale, "comments.more")}
           </button>
           {failed && (
-            <p role="alert" className="mt-2 text-sm text-red-700">
+            <p role="alert" className="mt-2 text-sm text-danger">
               {t(locale, "comments.moreError")}
             </p>
           )}

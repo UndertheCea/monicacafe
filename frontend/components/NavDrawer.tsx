@@ -10,7 +10,7 @@ import { NavMenuList } from "./NavMenuList";
 const noSubscribe = () => () => {};
 
 const buttonCls =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-ink hover:border-ink";
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-ink hover:border-ink";
 
 function MenuIcon() {
   return (

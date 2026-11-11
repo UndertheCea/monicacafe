@@ -3,7 +3,7 @@ import { pageHref, type SearchParams } from "@/lib/coffeeFilters";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { LinkPending } from "./LinkPending";
 
-const btn = "rounded-full border border-neutral-300 px-4 py-2 hover:border-neutral-500";
+const btn = "rounded-full border border-line px-4 py-2 hover:border-muted";
 
 /** Prev / "page X of Y" / next links that preserve the current query string. */
 export function Pagination({
@@ -32,7 +32,7 @@ export function Pagination({
           <LinkPending />
         </Link>
       ) : null}
-      <span className="text-neutral-500">{t(locale, "page.of", { page, pages })}</span>
+      <span className="text-muted">{t(locale, "page.of", { page, pages })}</span>
       {page < pages ? (
         <Link href={href(page + 1)} className={btn}>
           {t(locale, "page.next")}

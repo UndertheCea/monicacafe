@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // No "X-Powered-By: Next.js" (nginx hides its version the same way).
   poweredByHeader: false,
+  // A stable build id for /api/health and error reports: the commit when the
+  // build is given one (SOURCE_COMMIT), else null lets Next generate its own.
+  generateBuildId: async () => process.env.SOURCE_COMMIT || null,
   // No `images.remotePatterns`: nothing uses next/image (seller images are
   // plain <img> tags served from our own bucket), and a "**" wildcard turned
   // the image optimizer into an open proxy (GHSA-9g9p-9gw9-jx7f). If next/image

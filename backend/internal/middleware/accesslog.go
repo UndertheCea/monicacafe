@@ -17,7 +17,7 @@ func accessLevel(path string, status int) slog.Level {
 		return slog.LevelError
 	case status >= 400:
 		return slog.LevelWarn
-	case path == "/health":
+	case path == "/health" || path == "/health/live" || path == "/health/ready":
 		return slog.LevelDebug
 	default:
 		return slog.LevelInfo

@@ -23,6 +23,8 @@ func TestAccessLevel(t *testing.T) {
 		{"/graphql", 429, slog.LevelWarn},
 		{"/graphql", 500, slog.LevelError},
 		{"/health", 200, slog.LevelDebug},
+		{"/health/live", 200, slog.LevelDebug},
+		{"/health/ready", 200, slog.LevelDebug},
 		{"/health", 503, slog.LevelError},
 		{"/healthz", 200, slog.LevelInfo},
 	}

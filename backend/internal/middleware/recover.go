@@ -19,7 +19,10 @@ import (
 // http.ErrAbortHandler is re-panicked so net/http aborts the response as it
 // expects. If the handler already sent headers, nothing more is written (the
 // status can't change); the record still says so.
-func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
+//
+// Each hook is called with the request, the panic value and the stack (after
+// logging, before the 500 is written); metrics and error reporting use it.
+func Recover(logger *slog.Logger, hooks ...PanicHook) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ww := chimiddleware.NewWrapResponseWriter(w, r.ProtoMajor)
@@ -33,14 +36,18 @@ func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
 				}
 				sent := ww.Status() != 0
 				ctx := r.Context()
+				stack := debug.Stack()
 				logger.LogAttrs(ctx, slog.LevelError, "panic recovered",
 					slog.String("panic", panicText(rec)),
-					slog.String("stack", string(debug.Stack())),
+					slog.String("stack", string(stack)),
 					slog.String("method", r.Method),
 					slog.String("path", r.URL.Path),
 					slog.String("request_id", chimiddleware.GetReqID(ctx)),
 					slog.Bool("headers_sent", sent),
 				)
+				for _, h := range hooks {
+					h(r, rec, stack)
+				}
 				if !sent {
 					http.Error(ww, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				}
@@ -49,6 +56,12 @@ func Recover(logger *slog.Logger) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// PanicHook observes a recovered panic.
+type PanicHook func(r *http.Request, recovered any, stack []byte)
+
+// PanicText renders a recovered value as text.
+func PanicText(v any) string { return panicText(v) }
 
 func panicText(v any) string {
 	switch p := v.(type) {

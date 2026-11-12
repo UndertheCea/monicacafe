@@ -79,6 +79,12 @@ func parseListObjects(body []byte) ([]Object, string, error) {
 	return out, next, nil
 }
 
+// Ping reports whether the bucket answers a one-key listing (readiness check).
+func (m *Media) Ping(ctx context.Context) error {
+	_, err := m.do(ctx, http.MethodGet, "", url.Values{"list-type": {"2"}, "max-keys": {"1"}}, http.StatusOK)
+	return err
+}
+
 // DeleteObject removes key from the bucket. Deleting a missing key succeeds.
 func (m *Media) DeleteObject(ctx context.Context, key string) error {
 	_, err := m.do(ctx, http.MethodDelete, key, nil, http.StatusNoContent, http.StatusOK)

@@ -7,23 +7,30 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/underthecea/monicacafe/backend/graph"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/db"
+	"github.com/underthecea/monicacafe/backend/internal/errreport"
+	"github.com/underthecea/monicacafe/backend/internal/health"
 	"github.com/underthecea/monicacafe/backend/internal/mediaclean"
+	"github.com/underthecea/monicacafe/backend/internal/metrics"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/config"
 	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
+	"github.com/underthecea/monicacafe/backend/internal/sweep"
 )
 
 func main() {
@@ -50,7 +57,19 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer pool.Close()
+	defer pool.Close() // runs last: the sweeps are awaited before this (see below)
+
+	m := metrics.New()
+	m.RegisterPool(pool)
+	reporter, err := errreport.New(errreport.Options{DSN: cfg.SentryDSN, Environment: cfg.AppEnv, Release: cfg.SentryRelease})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		flush, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		reporter.Close(flush)
+	}()
 
 	st := store.New(pool)
 	authSvc := auth.NewService(cfg.JWTAccessSecret, cfg.JWTRefreshSecret)
@@ -68,43 +87,80 @@ func run() error {
 	resolver := graph.NewResolver(st, authSvc, media)
 	resolver.UploadDailyBytes, _ = cfg.UploadDailyBytes() // checked by cfg.Validate
 	rules, _ := cfg.RateLimits()                          // checked by cfg.Validate
+	// lim builds one limiter and counts its rejections under the bucket name.
+	lim := func(bucket string, rule ratelimit.Rule) *ratelimit.Limiter {
+		l := ratelimit.New(rule)
+		l.OnReject(m.RateLimitRejected(bucket))
+		return l
+	}
 	resolver.Limits = graph.Limits{
-		LoginIP:      ratelimit.New(rules.LoginIP),
-		LoginEmail:   ratelimit.New(rules.LoginEmail),
-		LoginEmailIP: ratelimit.New(rules.LoginEmailIP),
-		RegisterIP:   ratelimit.New(rules.RegisterIP),
-		RefreshIP:    ratelimit.New(rules.RefreshIP),
+		LoginIP:      lim("login_ip", rules.LoginIP),
+		LoginEmail:   lim("login_email", rules.LoginEmail),
+		LoginEmailIP: lim("login_email_ip", rules.LoginEmailIP),
+		RegisterIP:   lim("register_ip", rules.RegisterIP),
+		RefreshIP:    lim("refresh_ip", rules.RefreshIP),
 
-		CommentUser:  ratelimit.New(rules.CommentUser),
-		UploadUser:   ratelimit.New(rules.UploadUser),
-		PasswordUser: ratelimit.New(rules.PasswordUser),
-		SaveUser:     ratelimit.New(rules.SaveUser),
+		CommentUser:  lim("comment_user", rules.CommentUser),
+		UploadUser:   lim("upload_user", rules.UploadUser),
+		PasswordUser: lim("password_user", rules.PasswordUser),
+		SaveUser:     lim("save_user", rules.SaveUser),
 
-		SellerWriteUser: ratelimit.New(rules.SellerWriteUser),
+		SellerWriteUser: lim("seller_write_user", rules.SellerWriteUser),
 	}
 	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
 	if err != nil {
 		return err
 	}
+	// Background sweeps stop when sweepCtx is cancelled and are awaited before
+	// the pool closes; an advisory lock lets only one API instance run each.
+	sweepCtx, stopSweeps := context.WithCancel(ctx)
+	defer stopSweeps()
+	sweeps := &sweep.Runner{Locker: sweep.PGLocker{Pool: pool}, Observe: m.ObserveSweep, Logger: slog.Default()}
 	pruneEvery, _ := cfg.TokenPruneEvery() // checked by cfg.Validate
 	if pruneEvery > 0 {
-		go pruneRefreshTokens(ctx, st, pruneEvery)
+		sweeps.Start(sweepCtx, pruneJob(st, pruneEvery))
 	}
 	cleanEvery, cleanAge, _ := cfg.MediaCleanup() // checked by cfg.Validate
 	if media != nil && cleanEvery > 0 {
-		go cleanMedia(ctx, media, st, cleanEvery, mediaclean.Options{MinAge: cleanAge, MaxDeletes: maxMediaDeletes})
+		sweeps.Start(sweepCtx, mediaJob(media, st, cleanEvery, mediaclean.Options{MinAge: cleanAge, MaxDeletes: maxMediaDeletes}))
 	}
 
 	// Complexity, depth, parser and cache limits live in graph.NewServer (#207).
 	srv := graph.NewServer(resolver, cfg.AppEnv != "production")
+	srv.Use(graph.ObserveOperations(m))
+	// Internal errors and resolver panics are reported (the client only ever
+	// sees "internal server error"); the wrappers keep the originals' behaviour.
+	srv.SetErrorPresenter(func(ctx context.Context, err error) *gqlerror.Error {
+		out := graph.ErrorPresenter(ctx, err)
+		if out != nil && out.Extensions["code"] == graph.CodeInternal {
+			ev := errreport.Event{Kind: "internal_error", Message: err.Error(), Method: http.MethodPost, Path: "/graphql",
+				RequestID: chimiddleware.GetReqID(ctx)}
+			if graphql.HasOperationContext(ctx) {
+				ev.Operation = graphql.GetOperationContext(ctx).OperationName
+			}
+			reporter.Report(ev)
+		}
+		return out
+	})
+	srv.SetRecoverFunc(func(ctx context.Context, p any) error {
+		m.Panic()
+		reporter.Report(errreport.Event{Kind: "panic", Message: middleware.PanicText(p), Stack: string(debug.Stack()),
+			Method: http.MethodPost, Path: "/graphql", RequestID: chimiddleware.GetReqID(ctx)})
+		return graph.RecoverFunc(ctx, p)
+	})
 
 	r := chi.NewRouter()
 	r.Use(middleware.SanitizeRequestID)
 	r.Use(chimiddleware.RequestID)
 	r.Use(middleware.SecurityHeaders)
 	r.Use(middleware.ClientIPMiddleware(proxies))
+	r.Use(m.HTTPMiddleware()) // outside Recover: a recovered panic counts as its 500
 	r.Use(middleware.AccessLog(slog.Default()))
-	r.Use(middleware.Recover(slog.Default()))
+	r.Use(middleware.Recover(slog.Default(), func(r *http.Request, rec any, stack []byte) {
+		m.Panic()
+		reporter.Report(errreport.Event{Kind: "panic", Message: middleware.PanicText(rec), Stack: string(stack),
+			Method: r.Method, Path: r.URL.Path, RequestID: chimiddleware.GetReqID(r.Context())})
+	}))
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
@@ -113,19 +169,25 @@ func run() error {
 		MaxAge:           300,
 	}))
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		hctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		if err := pool.Ping(hctx); err != nil {
-			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		_, _ = w.Write([]byte("ok"))
-	})
+	checker := &health.Checker{
+		Database: pool.Ping,
+		Migrations: health.MigrationProbe(func(ctx context.Context, version string) (bool, error) {
+			var ok bool
+			err := pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE version = $1)", version).Scan(&ok)
+			return ok, err
+		}, health.ExpectedMigration),
+		Logger: slog.Default(),
+	}
+	if media != nil {
+		checker.Storage = media.Ping
+	}
+	r.Get("/health/live", health.Live)
+	r.Get("/health/ready", checker.ReadyHandler())
+	r.Get("/health", checker.ReadyHandler()) // alias, kept for existing probes
 
 	r.Group(func(r chi.Router) {
 		// First, so a throttled address costs no token check or database work.
-		r.Use(graph.IPRateLimit(ratelimit.New(rules.GraphQLIP)))
+		r.Use(graph.IPRateLimit(lim("graphql_ip", rules.GraphQLIP)))
 		r.Use(middleware.Auth(authSvc))
 		r.Use(graph.LoaderMiddleware(st))
 		r.Use(chimiddleware.RequestSize(graph.MaxRequestBytes))
@@ -150,67 +212,78 @@ func run() error {
 		errCh <- httpSrv.ListenAndServe()
 	}()
 
+	// Metrics live on their own internal listener, which nginx never routes.
+	var metricsSrv *http.Server
+	if addr, _ := cfg.MetricsListen(); addr != "" { // checked by cfg.Validate
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", m.Handler())
+		metricsSrv = &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 15 * time.Second}
+		go func() {
+			slog.Info("metrics listening", "addr", addr)
+			if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("metrics listener failed; the API keeps running without /metrics", "err", err)
+			}
+		}()
+	}
+
+	var serveErr error
 	select {
 	case err := <-errCh:
 		if !errors.Is(err, http.ErrServerClosed) {
-			return err
+			serveErr = err
 		}
-		return nil
 	case <-ctx.Done():
 	}
 
 	slog.Info("shutting down")
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return httpSrv.Shutdown(shutdownCtx)
+	if err := httpSrv.Shutdown(shutdownCtx); err != nil && serveErr == nil {
+		serveErr = err
+	}
+	if metricsSrv != nil {
+		_ = metricsSrv.Shutdown(shutdownCtx)
+	}
+	// Stop the sweeps and wait for them: they use the pool, which closes next.
+	stopSweeps()
+	sweeps.Wait()
+	return serveErr
 }
+
+// Advisory-lock keys, one per sweep ("moni" + 1, 2; scripts/migrate.sh uses
+// the bare 1836019305).
+const (
+	lockKeyPrune = 1836019401
+	lockKeyMedia = 1836019402
+)
 
 // pruneBatch bounds each DELETE so pruning never holds long locks.
 const pruneBatch = 5000
 
-// pruneRefreshTokens deletes expired refresh tokens now and then every
-// interval until ctx is cancelled (shutdown). Failures are logged and retried
-// on the next tick.
-func pruneRefreshTokens(ctx context.Context, st *store.Store, every time.Duration) {
-	ticker := time.NewTicker(every)
-	defer ticker.Stop()
-	for {
-		n, err := st.PruneRefreshTokens(ctx, pruneBatch)
-		switch {
-		case err != nil && ctx.Err() == nil:
-			slog.Warn("refresh token prune failed", "err", err)
-		case n > 0:
-			slog.Info("pruned expired refresh tokens", "rows", n)
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-	}
+// pruneJob deletes expired refresh tokens now and then every interval.
+func pruneJob(st *store.Store, every time.Duration) sweep.Job {
+	return sweep.Job{Name: "token_prune", Key: lockKeyPrune, Every: every, RunNow: true,
+		Run: func(ctx context.Context) (int, error) {
+			n, err := st.PruneRefreshTokens(ctx, pruneBatch)
+			if err == nil && n > 0 {
+				slog.Info("pruned expired refresh tokens", "rows", n)
+			}
+			return int(n), err
+		}}
 }
 
 // maxMediaDeletes bounds one cleanup run; the rest waits for the next tick.
 const maxMediaDeletes = 1000
 
-// cleanMedia deletes unreferenced images from the bucket every interval
-// (first run one interval after start, so a restart loop never sweeps).
-// With several API instances each sweeps; deletes are idempotent.
-func cleanMedia(ctx context.Context, media *storage.Media, st *store.Store, every time.Duration, opts mediaclean.Options) {
-	ticker := time.NewTicker(every)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-		res, err := mediaclean.Sweep(ctx, media, st.ReferencedImageKeys, time.Now(), opts)
-		switch {
-		case err != nil && ctx.Err() == nil:
-			slog.Warn("media cleanup failed", "err", err, "scanned", res.Scanned, "deleted", res.Deleted)
-		case res.Deleted > 0:
-			slog.Info("deleted orphaned images", "scanned", res.Scanned, "orphans", res.Orphans, "deleted", res.Deleted)
-		}
-	}
+// mediaJob deletes unreferenced images from the bucket every interval (first
+// run one interval after start, so a restart loop never sweeps).
+func mediaJob(media *storage.Media, st *store.Store, every time.Duration, opts mediaclean.Options) sweep.Job {
+	return sweep.Job{Name: "media_cleanup", Key: lockKeyMedia, Every: every,
+		Run: func(ctx context.Context) (int, error) {
+			res, err := mediaclean.Sweep(ctx, media, st.ReferencedImageKeys, time.Now(), opts)
+			if err == nil && res.Deleted > 0 {
+				slog.Info("deleted orphaned images", "scanned", res.Scanned, "orphans", res.Orphans, "deleted", res.Deleted)
+			}
+			return res.Deleted, err
+		}}
 }

@@ -70,6 +70,17 @@ type Limiter struct {
 	mu      sync.Mutex
 	buckets map[string]*bucket
 	swept   time.Time
+	// onReject, when set, runs (outside the lock) each time a request is refused.
+	onReject func()
+}
+
+// OnReject registers fn to run each time the limiter refuses a request (Allow
+// or Check finding an empty bucket); metrics count rejections per bucket this
+// way. Call it before the limiter is shared. A nil limiter ignores it.
+func (l *Limiter) OnReject(fn func()) {
+	if l != nil {
+		l.onReject = fn
+	}
 }
 
 // New returns a limiter for rule, or nil when the rule is disabled.
@@ -118,6 +129,14 @@ func (l *Limiter) take(key string, spend bool) (bool, time.Duration) {
 	if l == nil {
 		return true, 0
 	}
+	ok, wait := l.consume(key, spend)
+	if !ok && l.onReject != nil {
+		l.onReject()
+	}
+	return ok, wait
+}
+
+func (l *Limiter) consume(key string, spend bool) (bool, time.Duration) {
 	now := l.now()
 	rate := float64(l.rule.Burst) / float64(l.rule.Per) // tokens per nanosecond
 	l.mu.Lock()

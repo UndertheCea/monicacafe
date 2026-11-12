@@ -24,6 +24,9 @@ export default function PageError({ error, reset }: { error: Error & { digest?: 
       <div role="alert" className="rounded-box bg-danger/10 p-6 ring-1 ring-danger/30">
         <h1 className="text-lg font-bold text-danger">{t(locale, "crash.title")}</h1>
         <p className="mt-2 text-danger">{t(locale, "crash.body")}</p>
+        {error.digest && (
+          <p className="mt-2 font-mono text-xs text-danger">{t(locale, "crash.ref", { digest: error.digest })}</p>
+        )}
         <div className="mt-4 flex items-center gap-4 text-sm">
           <Button
             type="button"

@@ -4,12 +4,14 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/underthecea/monicacafe/backend/internal/errreport"
 	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 )
 
@@ -77,6 +79,15 @@ type Config struct {
 
 	// Every /graphql request, per client IP.
 	RateLimitGraphQLIP string
+
+	// Where the internal /metrics listener binds ("host:port" or ":port";
+	// empty turns it off). Never routed by nginx. Parsed by MetricsListen.
+	MetricsAddr string
+
+	// Error reporting (#221): a Sentry-compatible DSN; empty = no reporting.
+	// SentryRelease tags events with the build (e.g. a git SHA).
+	SentryDSN     string
+	SentryRelease string
 }
 
 func get(k, d string) string {
@@ -131,6 +142,12 @@ func Load() Config {
 		RateLimitSaveUser:        get("RATE_LIMIT_SAVE_USER", "60/5m"),
 		RateLimitSellerWriteUser: get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
 		RateLimitGraphQLIP:       get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
+
+		// Loopback by default (a bare `go run` must not expose metrics);
+		// compose sets ":9100", reachable on the compose network only.
+		MetricsAddr:   get("METRICS_ADDR", "127.0.0.1:9100"),
+		SentryDSN:     get("SENTRY_DSN", ""),
+		SentryRelease: get("SENTRY_RELEASE", ""),
 	}
 }
 
@@ -213,6 +230,24 @@ func (c Config) DBPool() (maxConns int32, statementTimeout time.Duration, err er
 		}
 	}
 	return int32(n), statementTimeout, nil
+}
+
+// MetricsListen validates METRICS_ADDR: "" (disabled) or host:port with a
+// port from 1 to 65535. The metrics port must differ from PORT.
+func (c Config) MetricsListen() (string, error) {
+	v := strings.TrimSpace(c.MetricsAddr)
+	if v == "" {
+		return "", nil
+	}
+	_, port, err := net.SplitHostPort(v)
+	n, perr := strconv.Atoi(port)
+	if err != nil || perr != nil || n < 1 || n > 65535 {
+		return "", fmt.Errorf("config: METRICS_ADDR must be host:port (e.g. :9100) or empty to disable, got %q", c.MetricsAddr)
+	}
+	if port == strings.TrimSpace(c.Port) {
+		return "", fmt.Errorf("config: METRICS_ADDR port %s is the API's own PORT; metrics need a separate port", port)
+	}
+	return v, nil
 }
 
 // DefaultTrustedProxies covers loopback and the private ranges docker
@@ -363,6 +398,12 @@ func (c Config) Validate() error {
 		return err
 	}
 	if _, err := c.RateLimits(); err != nil {
+		return err
+	}
+	if _, err := c.MetricsListen(); err != nil {
+		return err
+	}
+	if _, err := errreport.ParseDSN(c.SentryDSN); err != nil {
 		return err
 	}
 	if c.AppEnv != "production" {

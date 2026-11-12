@@ -145,6 +145,29 @@ if [[ "$robots" == *"Sitemap:"*"/sitemap.xml"* ]]; then echo "ok   robots.txt â†
 code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST "$BASE_URL/api/auth/refresh") || code="000"
 if [[ "$code" == "401" ]]; then echo "ok   401 POST /api/auth/refresh (no session)"; else echo "FAIL POST /api/auth/refresh â†’ $code (want 401)"; fail=1; fi
 check_status "$API_URL/health" 200
+check_status "$API_URL/health/live" 200
+check_status "$API_URL/health/ready" 200
+
+# Readiness body (#221): database and migrations ok; the object store is only reported.
+ready=$(curl -s --max-time 15 "$API_URL/health/ready") || ready=""
+if [[ "$ready" == *'"database":"ok"'* && "$ready" == *'"migrations":"ok"'* ]]; then echo "ok   /health/ready: database + migrations ok"; else echo "FAIL /health/ready body: ${ready:0:200}"; fail=1; fi
+
+# Frontend health route: build id + whether the API answered.
+fe=$(curl -s --max-time 15 "$BASE_URL/api/health") || fe=""
+if [[ "$fe" == *'"api":"up"'* && "$fe" == *'"build"'* ]]; then echo "ok   /api/health reports build and API up"; else echo "FAIL /api/health body: ${fe:0:200}"; fail=1; fi
+
+# /metrics must not be reachable from outside: nginx doesn't route it (the page
+# router answers 404) and the API's own port doesn't serve it either.
+check_status "$BASE_URL/metrics" 404
+check_status "$API_URL/metrics" 404
+# Inside the compose network the internal listener serves it (skipped without docker).
+if command -v docker >/dev/null 2>&1 && docker compose ps --status running backend 2>/dev/null | grep -q backend; then
+  if docker compose exec -T backend wget -qO- http://127.0.0.1:9100/metrics 2>/dev/null | grep -q '^moni_http_requests_total'; then
+    echo "ok   backend :9100/metrics serves Prometheus metrics (internal only)"
+  else
+    echo "FAIL backend :9100/metrics did not return moni_http_requests_total"; fail=1
+  fi
+fi
 
 # Auth BFF through the proxy: register sets the httpOnly refresh cookie scoped
 # to /api/auth; refresh trades it for a new one; replaying the previous cookie

@@ -168,6 +168,21 @@ services:
       S3_INTERNAL_ENDPOINT: ${S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
       MEDIA_CLEANUP_INTERVAL: ${MEDIA_CLEANUP_INTERVAL:-6h}
       MEDIA_CLEANUP_MIN_AGE: ${MEDIA_CLEANUP_MIN_AGE:-24h}
+      # Prometheus /metrics on its own port, reachable from the compose network
+      # only: not published below and not routed by nginx (#221).
+      METRICS_ADDR: ${METRICS_ADDR:-:9100}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+    healthcheck:
+      # Ready = Postgres answers and the schema is at the version this build
+      # expects. 127.0.0.1, not localhost (busybox wget and IPv6, see meilisearch).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+    expose:
+      - "9100"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -222,6 +237,9 @@ services:
       GRAPHQL_URL_INTERNAL: http://backend:4000/graphql
       # Public origin for sitemap.xml / robots.txt.
       SITE_URL: ${SITE_URL:-http://localhost}
+      # Server-side error reports (instrumentation.ts); empty = off (#221).
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     depends_on:
       backend:
         condition: service_healthy

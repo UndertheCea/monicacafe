@@ -71,7 +71,7 @@ export function SortForm({
     <form method="get" action={action} className="flex flex-wrap items-center gap-2 text-sm">
       {children}
       <label className="flex items-center gap-2">
-        <span className="text-muted">{t(locale, "sort.label")}</span>
+        <span className="shrink-0 whitespace-nowrap text-muted">{t(locale, "sort.label")}</span>
         <Select name="sort" defaultValue={value}>
           {options.map((o) => (
             <option key={o.value || "newest"} value={o.value}>

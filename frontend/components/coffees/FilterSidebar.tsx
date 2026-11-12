@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   type CoffeeFilter,
   type CoffeeVariety,
@@ -9,6 +8,8 @@ import {
 import { SEARCH_MAX_CHARS, SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
 import { groupByRegion, optionsWithCoffees } from "@/lib/filterOptions";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { Button, Input, Label, Select } from "@/components/ui";
+import { CARD, LABEL } from "@/lib/ui";
 
 interface Props {
   locale: Locale;
@@ -18,10 +19,6 @@ interface Props {
   varieties: Counted<CoffeeVariety>[];
   methods: Counted<ProcessingMethod>[];
 }
-
-const fieldCls =
-  "mt-1 block w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
-const labelCls = "block text-xs font-semibold uppercase tracking-wide text-muted";
 
 // Plain GET form: works without JavaScript and keeps filters in the URL.
 // Only origin / variety / process / price / in stock (owner, #166): each shop
@@ -36,36 +33,37 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
   const counted = (name: string, n: number) => t(locale, "filter.optionCount", { name, n });
 
   return (
-    <form method="get" action="/coffees" className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-line group-open:p-0 group-open:ring-0">
+    <form method="get" action="/coffees" className={`${CARD} space-y-5 p-5 group-open:p-0 group-open:ring-0`}>
       {/* Below md the drawer (or the no-JS toggle) already says "Filters". */}
       <h2 className="hidden text-base font-bold text-ink md:block">{t(locale, "filter.title")}</h2>
 
       <label className="block">
-        <span className={labelCls}>{t(locale, "filter.search")}</span>
-        <input
+        <Label as="span" className="block">{t(locale, "filter.search")}</Label>
+        <Input
+          search
           type="search"
           name="q"
           defaultValue={filter.search ?? ""}
           placeholder={t(locale, "filter.searchPlaceholder")}
           maxLength={SEARCH_MAX_CHARS}
-          className={fieldCls}
+          className="mt-1"
         />
       </label>
 
       <label className="block">
-        <span className={labelCls}>{t(locale, "sort.label")}</span>
-        <select name="sort" defaultValue={sort} className={fieldCls}>
+        <Label as="span" className="block">{t(locale, "sort.label")}</Label>
+        <Select name="sort" defaultValue={sort} className="mt-1">
           {SORT_PARAMS.map((p) => (
             <option key={p || "newest"} value={p}>
               {t(locale, `sort.${p || "newest"}`)}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className="block">
-        <span className={labelCls}>{t(locale, "filter.origin")}</span>
-        <select name="origin" defaultValue={filter.originCountryId ?? ""} className={fieldCls}>
+        <Label as="span" className="block">{t(locale, "filter.origin")}</Label>
+        <Select name="origin" defaultValue={filter.originCountryId ?? ""} className="mt-1">
           <option value="">{t(locale, "filter.any")}</option>
           {regions.map(([region, list]) => (
             <optgroup key={region} label={region}>
@@ -76,37 +74,37 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
               ))}
             </optgroup>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className="block">
-        <span className={labelCls}>{t(locale, "filter.variety")}</span>
-        <select name="variety" defaultValue={filter.varietyId ?? ""} className={fieldCls}>
+        <Label as="span" className="block">{t(locale, "filter.variety")}</Label>
+        <Select name="variety" defaultValue={filter.varietyId ?? ""} className="mt-1">
           <option value="">{t(locale, "filter.any")}</option>
           {shownVarieties.map((v) => (
             <option key={v.id} value={v.id}>
               {counted(v.name, v.coffeeCount)}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <label className="block">
-        <span className={labelCls}>{t(locale, "filter.process")}</span>
-        <select name="process" defaultValue={filter.processingMethodId ?? ""} className={fieldCls}>
+        <Label as="span" className="block">{t(locale, "filter.process")}</Label>
+        <Select name="process" defaultValue={filter.processingMethodId ?? ""} className="mt-1">
           <option value="">{t(locale, "filter.any")}</option>
           {shownMethods.map((m) => (
             <option key={m.id} value={m.id}>
               {counted(pick(locale, `${m.nameZh} ${m.nameEn}`, m.nameEn), m.coffeeCount)}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
 
       <fieldset>
-        <legend className={labelCls}>{t(locale, "filter.price")}</legend>
+        <legend className={LABEL}>{t(locale, "filter.price")}</legend>
         <div className="mt-1 flex items-center gap-2">
-          <input
+          <Input
             type="number"
             name="min"
             min={0}
@@ -115,10 +113,9 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
             defaultValue={filter.minPriceTwd ?? ""}
             placeholder={t(locale, "filter.min")}
             aria-label={t(locale, "filter.min")}
-            className={fieldCls}
           />
           <span className="text-faint">–</span>
-          <input
+          <Input
             type="number"
             name="max"
             min={0}
@@ -127,7 +124,6 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
             defaultValue={filter.maxPriceTwd ?? ""}
             placeholder={t(locale, "filter.max")}
             aria-label={t(locale, "filter.max")}
-            className={fieldCls}
           />
         </div>
       </fieldset>
@@ -144,18 +140,12 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
       </label>
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          className="flex-1 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/80"
-        >
+        <Button type="submit" className="flex-1">
           {t(locale, "filter.apply")}
-        </button>
-        <Link
-          href="/coffees"
-          className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-ink transition hover:border-muted"
-        >
+        </Button>
+        <Button href="/coffees" variant="secondary">
           {t(locale, "filter.reset")}
-        </Link>
+        </Button>
       </div>
     </form>
   );

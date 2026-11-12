@@ -22,7 +22,9 @@ import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
-import { FormError, Notice, inputCls } from "./ui";
+import { FormError, Notice } from "./ui";
+import { Button, Input, Select, Textarea } from "@/components/ui";
+import { CARD, FIELD_LABEL } from "@/lib/ui";
 
 type Options = Awaited<ReturnType<typeof loadOptions>>;
 const loadOptions = () => query(FILTER_OPTIONS);
@@ -145,33 +147,33 @@ export function CoffeeDetailsForm({
     items: { id: string; label: string }[],
     required = true,
   ) => (
-    <label className="block text-sm font-medium text-ink">
+    <label className={FIELD_LABEL}>
       {t(locale, label)}
       {required && " *"}
-      <select value={value} onChange={(e) => onChange(e.target.value)} required={required} className={inputCls}>
+      <Select value={value} onChange={(e) => onChange(e.target.value)} required={required} className="mt-1">
         <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
         {items.map((o) => (
           <option key={o.id} value={o.id}>
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 
   return (
-    <form onSubmit={onSubmit} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-line sm:p-6">
+    <form onSubmit={onSubmit} noValidate className={`${CARD} p-4 sm:p-6`}>
       <h3 className="font-bold text-ink">{t(locale, "cf.essentials")}</h3>
       <p className="mt-1 text-sm text-muted">{t(locale, "cf.essentialsHint")}</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "cf.name")} *
-          <input
+          <Input
             value={draft.name}
             onChange={(e) => set({ name: e.target.value })}
             required
             maxLength={LIMITS.coffeeName}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
         {select(
@@ -217,25 +219,24 @@ export function CoffeeDetailsForm({
       >
         <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "cf.description")}
-          <textarea
+          <Textarea
             value={draft.description}
             onChange={(e) => set({ description: e.target.value })}
             rows={5}
             maxLength={LIMITS.coffeeDescription}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
         {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
         <HarvestYearField locale={locale} values={draft} onChange={set} />
       </MoreDetails>
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <button
+        <Button
           type="submit"
           disabled={busy || !dirty}
-          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-40"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
-        </button>
+        </Button>
         {msg && (
           msg.ok ? (
             <p role="status" className="text-sm text-ink">

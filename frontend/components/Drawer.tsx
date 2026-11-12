@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { isOutside } from "@/lib/drawer";
+import { ICON_BUTTON } from "@/lib/ui";
 
 interface Props {
   id: string;
@@ -69,7 +70,7 @@ export function Drawer({ id, open, onClose, title, closeLabel, inlineClassName =
         <button
           type="button"
           onClick={onClose}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-line text-lg leading-none text-ink hover:border-muted"
+          className={`${ICON_BUTTON} text-lg leading-none`}
           aria-label={closeLabel}
         >
           <span aria-hidden="true">×</span>

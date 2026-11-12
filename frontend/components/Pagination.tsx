@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { pageHref, type SearchParams } from "@/lib/coffeeFilters";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { LinkPending } from "./LinkPending";
-
-const btn = "rounded-full border border-line inline-flex min-h-11 items-center px-4 hover:border-muted";
+import { Button } from "@/components/ui";
 
 /** Prev / "page X of Y" / next links that preserve the current query string. */
 export function Pagination({
@@ -27,17 +25,17 @@ export function Pagination({
   return (
     <nav className="mt-8 flex items-center justify-center gap-4 text-sm" aria-label={t(locale, "page.nav")}>
       {page > 1 ? (
-        <Link href={href(page - 1)} className={btn}>
+        <Button href={href(page - 1)} variant="secondary">
           {t(locale, "page.prev")}
           <LinkPending />
-        </Link>
+        </Button>
       ) : null}
       <span className="text-muted">{t(locale, "page.of", { page, pages })}</span>
       {page < pages ? (
-        <Link href={href(page + 1)} className={btn}>
+        <Button href={href(page + 1)} variant="secondary">
           {t(locale, "page.next")}
           <LinkPending />
-        </Link>
+        </Button>
       ) : null}
     </nav>
   );

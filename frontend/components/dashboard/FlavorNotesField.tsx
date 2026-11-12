@@ -2,7 +2,7 @@
 
 import { LIMITS } from "@/lib/dashboard/validate";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { inputCls } from "./ui";
+import { Input } from "@/components/ui";
 
 /** The message keys that belong under the flavour-notes input. */
 export const NOTES_ERROR_KEYS: readonly MessageKey[] = ["cf.error.notesRequired", "cf.error.notes"];
@@ -32,14 +32,14 @@ export function FlavorNotesField({
   return (
     <label className="block text-sm font-medium text-ink sm:col-span-2">
       {t(locale, "cf.flavorNotes")} *
-      <input
+      <Input
         name="notes"
         {...bind}
         required
         aria-invalid={inline ? true : undefined}
         aria-describedby="flavor-notes-hint"
         placeholder={t(locale, "filter.flavorPlaceholder")}
-        className={inputCls}
+        className="mt-1"
       />
       <span id="flavor-notes-hint" className="mt-1 block text-xs font-normal text-muted">
         {t(locale, "cf.flavorHint", { max: LIMITS.flavorNotes })}

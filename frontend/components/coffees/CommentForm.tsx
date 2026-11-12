@@ -8,6 +8,8 @@ import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button, Textarea } from "@/components/ui";
+import { CARD } from "@/lib/ui";
 
 /** Rune count, matching the backend's utf8.RuneCountInString. */
 const runeLength = (s: string) => [...s].length;
@@ -58,11 +60,11 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-line">
+    <form onSubmit={onSubmit} className={`${CARD} mt-4 p-4`}>
       <label htmlFor="comment-body" className="text-sm font-semibold text-ink">
         {t(locale, "comments.label")}
       </label>
-      <textarea
+      <Textarea
         id="comment-body"
         value={body}
         onChange={(e) => setBody(e.target.value)}
@@ -70,7 +72,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
         placeholder={t(locale, "comments.placeholder")}
         aria-invalid={tooLong}
         aria-describedby="comment-count"
-        className="mt-2 w-full resize-y rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-line"
+        className="mt-2"
       />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span id="comment-count" className={tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
@@ -78,13 +80,12 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX })
             : t(locale, "comments.remaining", { n: COMMENT_MAX - len })}
         </span>
-        <button
+        <Button
           type="submit"
           disabled={busy || len === 0 || tooLong}
-          className="inline-flex min-h-11 items-center rounded-full bg-ink px-5 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
         >
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
-        </button>
+        </Button>
       </div>
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">

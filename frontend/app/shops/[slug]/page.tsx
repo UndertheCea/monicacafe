@@ -17,6 +17,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Page } from "@/components/Page";
+import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
 type Params = Promise<{ slug: string }>;
 
@@ -106,7 +107,7 @@ export default async function ShopPage({
         <div className={`relative flex flex-col gap-4 sm:flex-row ${shop.bannerUrl ? "-mt-12 sm:items-start" : "pt-10 sm:items-center"}`}>
           <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-white" />
           <div className={shop.bannerUrl ? "sm:pt-14" : ""}>
-            <h1 className="text-3xl font-bold text-ink">{shop.name}</h1>
+            <PageTitle>{shop.name}</PageTitle>
             {shop.city && <p className="text-sm text-muted">{shop.city}</p>}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
           </div>
@@ -118,16 +119,16 @@ export default async function ShopPage({
 
         <section className="mt-10 pb-12" aria-labelledby="shop-coffees">
           <div className="mb-4 flex flex-wrap items-baseline gap-3">
-            <h2 id="shop-coffees" className="text-xl font-bold text-ink">
+            <SectionTitle id="shop-coffees">
               {t(locale, "shops.coffees")}
-            </h2>
+            </SectionTitle>
             <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
           </div>
 
           {shop.coffees.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
+            <Card className="p-10 text-center text-muted">
               <p>{t(locale, archive.total > 0 ? "shops.allSoldOut" : "shops.noCoffees")}</p>
-            </div>
+            </Card>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {shop.coffees.nodes.map((c) => (
@@ -148,9 +149,9 @@ export default async function ShopPage({
           {archive.total > 0 && (
             <section id="archive" className="mt-14 scroll-mt-20 border-t border-line pt-8" aria-labelledby="shop-archive">
               <div className="mb-4 flex flex-wrap items-baseline gap-3">
-                <h2 id="shop-archive" className="text-xl font-bold text-ink">
+                <SectionTitle id="shop-archive">
                   {t(locale, "shops.archive")}
-                </h2>
+                </SectionTitle>
                 <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
               </div>
               {/* Greyscale on the photo / tile only (.archive-grid, globals.css): text keeps full contrast (#231). */}

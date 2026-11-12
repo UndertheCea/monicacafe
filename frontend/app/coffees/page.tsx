@@ -16,6 +16,7 @@ import { FilterSidebar } from "@/components/coffees/FilterSidebar";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { Page } from "@/components/Page";
+import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
   const [sp, locale] = await Promise.all([searchParams, getLocale()]);
@@ -66,7 +67,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   return (
     <Page className="py-10">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-ink">{t(locale, "coffees.title")}</h1>
+        <PageTitle>{t(locale, "coffees.title")}</PageTitle>
         <p className="mt-2 text-muted">{t(locale, "coffees.subtitle")}</p>
       </header>
 
@@ -90,12 +91,12 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
         </aside>
 
         <section>
-          {q && <h2 className="mb-1 text-lg font-semibold text-ink">{t(locale, "coffees.results", { q })}</h2>}
+          {q && <SectionTitle className="mb-1">{t(locale, "coffees.results", { q })}</SectionTitle>}
           <p aria-live="polite" className="mb-4 text-sm text-muted">{t(locale, "coffees.count", { n: list.total })}</p>
           <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
           {list.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
+            <Card className="p-10 text-center text-muted">
               <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
               {(q || filtered) && (
                 <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2">
@@ -117,7 +118,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {list.nodes.map((c) => (

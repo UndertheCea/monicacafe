@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { INLINE_SIDEBAR_QUERY } from "@/lib/drawer";
 import { Drawer } from "@/components/Drawer";
+import { CARD } from "@/lib/ui";
 
 interface Props {
   /** The toggle's text below md, e.g. "Filters (2)". */
@@ -16,7 +17,7 @@ interface Props {
 const noSubscribe = () => () => {};
 
 const toggleCls =
-  "flex w-full cursor-pointer items-center justify-between rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-ink ring-1 ring-line md:hidden";
+  `${CARD} flex w-full cursor-pointer items-center justify-between px-5 py-3 text-sm font-semibold text-ink md:hidden`;
 
 // md+ (tablets, half-width windows, desktop): the filter form is a sidebar,
 // always shown. Below md: a "Filters (N)" button opens it in a side drawer

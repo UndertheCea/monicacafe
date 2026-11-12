@@ -20,6 +20,8 @@
   --color-paper: #f7f7f7;
   /* The one red: errors and destructive actions. At least 4.5:1 on white. Tints: bg-danger/10, ring-danger/30. */
   --color-danger: #b91c1c;
+  /* The one box radius (#230): cards, fields, images and panels are rounded-box; buttons and pills rounded-full. */
+  --radius-box: 1rem;
 }
 
 /* The wordmark face, loaded by next/font in app/layout.tsx (inline: the variable is set on <body>). */
@@ -47,6 +49,11 @@
   :focus-visible {
     outline: 2px solid var(--color-ink);
     outline-offset: 2px;
+  }
+
+  /* The skip link moves focus to <main tabindex="-1">; a box around the whole page there helps nobody. */
+  main[tabindex="-1"]:focus {
+    outline: none;
   }
 }
 

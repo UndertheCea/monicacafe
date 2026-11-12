@@ -6,7 +6,9 @@ import { CREATE_SHOP } from "@/lib/dashboard/queries";
 import { LIMITS, normaliseShopSlug, runes, suggestSlug } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { FormError, inputCls } from "./ui";
+import { FormError } from "./ui";
+import { Button, Card, Input, SectionTitle, Textarea } from "@/components/ui";
+import { FIELD_LABEL } from "@/lib/ui";
 
 export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreated: () => void }) {
   const { request, reload } = useAuth();
@@ -42,8 +44,8 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
   }
 
   return (
-    <section className="rounded-2xl bg-white p-6 ring-1 ring-line">
-      <h2 className="text-xl font-bold text-ink">{t(locale, "dash.openTitle")}</h2>
+    <Card as="section" className="p-6">
+      <SectionTitle>{t(locale, "dash.openTitle")}</SectionTitle>
       <p className="mt-1 text-sm text-muted">{t(locale, "dash.openSub")}</p>
       <form onSubmit={onSubmit} noValidate className="mt-5 grid gap-4 sm:grid-cols-2">
         {error && (
@@ -51,9 +53,9 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             <FormError>{t(locale, error)}</FormError>
           </div>
         )}
-        <label className="block text-sm font-medium text-ink">
+        <label className={FIELD_LABEL}>
           {t(locale, "dash.shopName")} *
-          <input
+          <Input
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -61,22 +63,22 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             }}
             required
             maxLength={LIMITS.shopName}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
-        <label className="block text-sm font-medium text-ink">
+        <label className={FIELD_LABEL}>
           {t(locale, "dash.city")} *
-          <input
+          <Input
             name="city"
             required
             maxLength={LIMITS.city}
             placeholder={t(locale, "dash.cityPlaceholder")}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
         <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "dash.shopSlug")} *
-          <input
+          <Input
             value={slug}
             onChange={(e) => {
               setSlug(e.target.value);
@@ -87,7 +89,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             autoCapitalize="none"
             spellCheck={false}
             aria-describedby="slug-hint"
-            className={`${inputCls} font-mono`}
+            className="mt-1 font-mono"
           />
           <span id="slug-hint" className="mt-1 block text-xs font-normal text-muted">
             {t(locale, "dash.shopSlugHint", { slug: normaliseShopSlug(slug) ?? "…" })}
@@ -95,7 +97,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
         </label>
         <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "dash.description")}
-          <textarea
+          <Textarea
             name="description"
             rows={4}
             maxLength={LIMITS.shopDescription}
@@ -103,19 +105,18 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
               const el = e.currentTarget;
               if (runes(el.value) > LIMITS.shopDescription) el.value = [...el.value].slice(0, LIMITS.shopDescription).join("");
             }}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
         <div className="sm:col-span-2">
-          <button
+          <Button
             type="submit"
             disabled={busy}
-            className="rounded-full bg-ink px-5 py-2.5 font-semibold text-white hover:bg-ink/80 disabled:opacity-60"
           >
             {busy ? t(locale, "auth.submitting") : t(locale, "dash.createShop")}
-          </button>
+          </Button>
         </div>
       </form>
-    </section>
+    </Card>
   );
 }

@@ -22,8 +22,10 @@ import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { GRINDS } from "./NewCoffeeForm";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
-import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
+import { FormError, LoginNeeded, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
+import { Badge, Button, Card, Input, SectionTitle, Select } from "@/components/ui";
+import { CARD } from "@/lib/ui";
 
 type Load = { state: "loading" } | { state: "missing" } | { state: "error" } | { state: "ready"; coffee: EditableCoffee };
 
@@ -79,10 +81,8 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
       {/* Session ended with the page open (#228): everything stays mounted, disabled, until signed in again. */}
       <fieldset disabled={view === "locked"} className="m-0 min-w-0 space-y-6 border-0 p-0">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-xl font-bold text-ink">{coffee.name}</h2>
-          <span className="rounded-full bg-paper px-2 py-0.5 text-xs font-semibold text-muted ring-1 ring-line">
-            {t(locale, coffee.isPublished ? "dash.published" : "dash.draft")}
-          </span>
+          <SectionTitle>{coffee.name}</SectionTitle>
+          <Badge tone="soft">{t(locale, coffee.isPublished ? "dash.published" : "dash.draft")}</Badge>
           {coffee.isPublished && (
             <Link href={`/coffees/${coffee.id}`} className="text-sm text-ink underline-offset-4 hover:underline">
               {t(locale, "dash.view")}
@@ -110,7 +110,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
         />
 
-        <section className="rounded-2xl bg-white p-4 ring-1 ring-line sm:p-6">
+        <Card as="section" className="p-4 sm:p-6">
           <h3 className="font-bold text-ink">{t(locale, "cf.variants")}</h3>
           <p className="mt-1 text-sm text-muted">{t(locale, "cf.variantsHint")}</p>
           {coffee.variants.length === 0 ? (
@@ -129,7 +129,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
               ))}
             </ul>
           )}
-        </section>
+        </Card>
 
         {coffee.variants.length < LIMITS.variants ? (
           <AddVariantForm
@@ -141,9 +141,9 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           />
         ) : (
           // At the limit the add form goes away; say why instead of leaving a gap (#196).
-          <p role="note" className="rounded-2xl bg-white p-4 text-sm text-muted ring-1 ring-line sm:p-6">
+          <Card as="p" role="note" className="p-4 text-sm text-muted sm:p-6">
             {t(locale, "cf.error.tooManyVariants", { max: LIMITS.variants })}
-          </p>
+          </Card>
         )}
       </fieldset>
     </div>
@@ -213,40 +213,40 @@ function VariantRow({
   }
 
   return (
-    <li className="rounded-xl bg-paper p-3 ring-1 ring-line">
+    <li className="rounded-box bg-paper p-3 ring-1 ring-line">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.2fr_1fr_1fr_auto_auto] sm:items-end">
         <div className="col-span-2 text-sm font-semibold text-ink sm:col-span-1 sm:pb-2">
           {t(locale, `grind.${v.grind}`)} · {v.weightG} g
         </div>
         <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.priceTwd")}
-          <input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} className={inputCls} />
+          <Input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} className="mt-1" />
         </label>
         <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.stock")}
-          <input inputMode="numeric" value={stock} onChange={(e) => setStock(e.target.value)} className={inputCls} />
+          <Input inputMode="numeric" value={stock} onChange={(e) => setStock(e.target.value)} className="mt-1" />
         </label>
         <label className="flex items-center gap-2 text-sm text-ink sm:pb-2">
           <input type="checkbox" checked={onSale} onChange={(e) => setOnSale(e.target.checked)} className="h-4 w-4 accent-ink" />
           {t(locale, "cf.available")}
         </label>
         <div className="flex gap-2 justify-self-end">
-          <button
+          <Button
             type="button"
             disabled={busy || !dirty}
             onClick={() => void save()}
-            className="rounded-full bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-40"
+            size="sm"
           >
             {t(locale, "cf.saveRow")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={busy}
             onClick={() => void remove()}
-            className="rounded-full px-3 py-1.5 text-sm text-muted hover:text-danger disabled:opacity-40"
+            variant="quiet" size="sm"
           >
             {t(locale, "cf.deleteRow")}
-          </button>
+          </Button>
         </div>
       </div>
       {msg && (
@@ -307,38 +307,38 @@ function AddVariantForm({
   }
 
   return (
-    <form onSubmit={add} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-line sm:p-6">
+    <form onSubmit={add} noValidate className={`${CARD} p-4 sm:p-6`}>
       <h3 className="font-bold text-ink">{t(locale, "cf.addVariant")}</h3>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
         <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.grind")}
-          <select value={row.grind} onChange={(e) => setRow({ ...row, grind: e.target.value })} className={inputCls}>
+          <Select value={row.grind} onChange={(e) => setRow({ ...row, grind: e.target.value })} className="mt-1">
             {GRINDS.map((g) => (
               <option key={g} value={g}>
                 {t(locale, `grind.${g}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.weightG")}
-          <input inputMode="numeric" value={row.weightG} onChange={(e) => setRow({ ...row, weightG: e.target.value })} className={inputCls} />
+          <Input inputMode="numeric" value={row.weightG} onChange={(e) => setRow({ ...row, weightG: e.target.value })} className="mt-1" />
         </label>
         <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.priceTwd")}
-          <input inputMode="numeric" value={row.priceTwd} onChange={(e) => setRow({ ...row, priceTwd: e.target.value })} className={inputCls} />
+          <Input inputMode="numeric" value={row.priceTwd} onChange={(e) => setRow({ ...row, priceTwd: e.target.value })} className="mt-1" />
         </label>
         <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.stock")}
-          <input inputMode="numeric" value={row.stock} onChange={(e) => setRow({ ...row, stock: e.target.value })} className={inputCls} />
+          <Input inputMode="numeric" value={row.stock} onChange={(e) => setRow({ ...row, stock: e.target.value })} className="mt-1" />
         </label>
-        <button
+        <Button
           type="submit"
           disabled={busy}
-          className="col-span-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50 sm:col-span-1"
+          className="col-span-2 sm:col-span-1"
         >
           {t(locale, "cf.addVariant")}
-        </button>
+        </Button>
       </div>
       {error && (
         <div className="mt-3">

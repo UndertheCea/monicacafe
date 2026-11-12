@@ -4,6 +4,7 @@ import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { originLine } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
+import { Badge, Card } from "@/components/ui";
 
 export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale: Locale }) {
   const price = fromPrice(coffee);
@@ -13,7 +14,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
   const source = originLine({ producer: coffee.producer, region: coffee.region });
 
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-line focus-within:ring-2 focus-within:ring-ink">
+    <Card as="article" className="relative flex flex-col overflow-hidden focus-within:ring-2 focus-within:ring-ink">
       <div className="relative aspect-[4/3] bg-paper">
         {img ? (
           // Seller-uploaded images come from arbitrary hosts in Stage 1.
@@ -29,9 +30,9 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
           />
         )}
         {coffee.roastLevel && (
-          <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-0.5 text-xs font-semibold text-ink">
+          <Badge tone="outline" className="absolute left-3 top-3">
             {t(locale, `roast.${coffee.roastLevel}`)}
-          </span>
+          </Badge>
         )}
       </div>
 
@@ -42,7 +43,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
         </p>
         <h3 className="mt-1 text-base font-bold leading-snug text-ink">
           {/* Stretched link: the whole card is clickable, one tab stop. */}
-          <Link href={`/coffees/${coffee.id}`} className="after:absolute after:inset-0 focus:outline-none">
+          <Link href={`/coffees/${coffee.id}`} className="after:absolute after:inset-0">
             {coffee.name}
           </Link>
         </h3>
@@ -71,6 +72,6 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
           <span className="text-xs text-muted">{t(locale, "coffees.comments", { n: coffee.commentCount })}</span>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

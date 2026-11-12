@@ -6,7 +6,9 @@ import { validateCredentials } from "@/lib/auth/token";
 import { authErrorMessage, type AuthErrorMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { FormError, inputCls } from "./ui";
+import { FormError } from "./ui";
+import { Button, Input } from "@/components/ui";
+import { FIELD_LABEL } from "@/lib/ui";
 
 /**
  * Inline sign-in shown above a dashboard form whose session ended (#228). The
@@ -39,7 +41,7 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
     <section
       role="alert"
       aria-labelledby="signin-again-title"
-      className="space-y-3 rounded-2xl bg-white p-5 ring-2 ring-ink"
+      className="space-y-3 rounded-box bg-white p-5 ring-2 ring-ink"
     >
       <h2 id="signin-again-title" className="font-bold text-ink">
         {t(locale, "dash.sessionLost")}
@@ -47,19 +49,19 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
       <p className="text-sm text-muted">{t(locale, "dash.sessionLostHint")}</p>
       {error && <FormError>{t(locale, error.key, "vars" in error ? error.vars : undefined)}</FormError>}
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <label className="block text-sm font-medium text-ink">
+        <label className={FIELD_LABEL}>
           {t(locale, "auth.email")}
-          <input
+          <Input
             type="email"
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
-        <label className="block text-sm font-medium text-ink">
+        <label className={FIELD_LABEL}>
           {t(locale, "auth.password")}
-          <input
+          <Input
             type="password"
             autoComplete="current-password"
             value={password}
@@ -70,17 +72,16 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
                 void submit();
               }
             }}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
-        <button
+        <Button
           type="button"
           disabled={busy}
           onClick={() => void submit()}
-          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-60"
         >
           {t(locale, busy ? "auth.submitting" : "auth.submitLogin")}
-        </button>
+        </Button>
       </div>
     </section>
   );

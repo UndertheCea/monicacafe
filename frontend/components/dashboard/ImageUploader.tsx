@@ -8,6 +8,7 @@ import { shrinkImage } from "./shrinkImage";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { Button } from "@/components/ui";
 
 /** PUT a file to a presigned URL, reporting progress (fetch can't report upload progress). */
 function putFile(up: ImageUpload, file: File, onProgress: (pct: number) => void): Promise<void> {
@@ -96,14 +97,14 @@ export function ImageUploader({
         tabIndex={-1}
         aria-hidden
       />
-      <button
+      <Button
         type="button"
         disabled={disabled || busy}
         onClick={() => input.current?.click()}
-        className="rounded-full border border-line px-4 py-2 text-sm hover:border-muted disabled:opacity-40"
+        variant="secondary"
       >
         {shrinking ? t(locale, "img.preparing") : busy ? t(locale, "img.uploading", { pct: progress ?? 0 }) : label}
-      </button>
+      </Button>
       {progress !== null && (
         <div
           role="progressbar"

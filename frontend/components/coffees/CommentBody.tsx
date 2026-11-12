@@ -9,6 +9,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button, Textarea } from "@/components/ui";
 
 type Edited = { id: string; body: string; editedAt: string | null };
 
@@ -99,7 +100,7 @@ export function CommentBody({
       <label htmlFor={fieldId} className="sr-only">
         {t(locale, "comments.editLabel")}
       </label>
-      <textarea
+      <Textarea
         id={fieldId}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -107,7 +108,6 @@ export function CommentBody({
         autoFocus
         aria-invalid={st.tooLong}
         aria-describedby={`${fieldId}-count`}
-        className="w-full resize-y rounded-xl border border-line px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-line"
       />
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
         <span id={`${fieldId}-count`} className={st.tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
@@ -116,23 +116,22 @@ export function CommentBody({
             : t(locale, "comments.remaining", { n: COMMENT_MAX_CHARS - st.len })}
         </span>
         <span className="flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => {
-              setDraft(null);
-              setError(null);
-            }}
-            className="inline-flex min-h-11 items-center rounded-full px-4 text-sm text-muted ring-1 ring-line hover:bg-paper"
+                setDraft(null);
+                setError(null);
+              }}
+            variant="secondary"
           >
             {t(locale, "comments.cancel")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             disabled={busy || !st.canSave}
-            className="inline-flex min-h-11 items-center rounded-full bg-ink px-4 text-sm font-semibold text-white hover:bg-ink/80 disabled:opacity-50"
           >
             {busy ? t(locale, "comments.saving") : t(locale, "comments.save")}
-          </button>
+          </Button>
         </span>
       </div>
       {error && (

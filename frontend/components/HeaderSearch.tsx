@@ -4,9 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent } from "react";
 import { SEARCH_MAX_CHARS, parseSearchParam, searchHref } from "@/lib/coffeeQuery";
 import { t, type Locale } from "@/lib/i18n/dict";
-
-const inputCls =
-  "w-full rounded-full border border-line bg-white px-3 py-2 text-base text-ink placeholder:text-faint focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+import { Input } from "@/components/ui";
 
 /**
  * Header search: a plain GET form to /coffees (works without JavaScript). With
@@ -53,13 +51,13 @@ export function HeaderSearchForm({
     <form role="search" method="get" action="/coffees" onSubmit={onSubmit} className="block w-full">
       <label className="block">
         <span className="sr-only">{t(locale, "nav.search")}</span>
-        <input
+        <Input
+          search
           type="search"
           name="q"
           defaultValue={defaultValue}
           maxLength={SEARCH_MAX_CHARS}
           placeholder={t(locale, "nav.searchPlaceholder")}
-          className={inputCls}
         />
       </label>
     </form>

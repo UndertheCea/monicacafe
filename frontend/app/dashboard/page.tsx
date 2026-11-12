@@ -3,6 +3,7 @@ import { Dashboard } from "@/components/dashboard/Dashboard";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { Page } from "@/components/Page";
+import { PageTitle } from "@/components/ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t(await getLocale(), "dash.title"), robots: { index: false } };
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
   return (
     <Page className="py-10">
     <div className="mx-auto max-w-5xl">
-      <h1 className="mb-6 text-3xl font-bold text-ink">{t(locale, "dash.title")}</h1>
+      <PageTitle className="mb-6">{t(locale, "dash.title")}</PageTitle>
       <Dashboard locale={locale} />
     </div>
     </Page>

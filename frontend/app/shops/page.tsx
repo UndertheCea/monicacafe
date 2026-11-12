@@ -14,6 +14,7 @@ import { ShopListSortForm } from "@/components/shops/ShopSortForm";
 import { parseSearchParam } from "@/lib/coffeeQuery";
 import { parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
 import { Page } from "@/components/Page";
+import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
 const SHOPS_PAGE_SIZE = 12;
 
@@ -59,12 +60,12 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   return (
     <Page className="py-10">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-ink">{t(locale, "shops.title")}</h1>
+        <PageTitle>{t(locale, "shops.title")}</PageTitle>
         <p className="mt-2 text-muted">{t(locale, "shops.subtitle")}</p>
       </header>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div aria-live="polite">
-          {q && <h2 className="text-lg font-semibold text-ink">{t(locale, "shops.results", { q })}</h2>}
+          {q && <SectionTitle>{t(locale, "shops.results", { q })}</SectionTitle>}
           <p className="text-sm text-muted">{t(locale, "shops.count", { n: shops.total })}</p>
         </div>
         {/* Hidden only while the platform has a single shop and nobody searched. */}
@@ -72,7 +73,7 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
       </div>
 
       {shops.nodes.length === 0 ? (
-        <div className="rounded-2xl bg-white p-10 text-center text-muted ring-1 ring-line">
+        <Card className="p-10 text-center text-muted">
           <p>{q ? t(locale, "shops.emptySearch", { q }) : t(locale, "shops.empty")}</p>
           {q && (
             <Link
@@ -82,7 +83,7 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
               {t(locale, "shops.clearSearch")}
             </Link>
           )}
-        </div>
+        </Card>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {shops.nodes.map((s) => (

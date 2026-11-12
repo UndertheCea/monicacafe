@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_SHOP, type EditableShop } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
+import { Button, Card, SectionTitle } from "@/components/ui";
 
 /** Logo + banner for the shop profile page. Each change is saved immediately. */
 export function ShopImages({
@@ -45,7 +46,7 @@ export function ShopImages({
         <h3 className="text-sm font-semibold text-ink">{t(locale, title)}</h3>
         <div
           className={`overflow-hidden bg-paper ring-1 ring-line ${
-            field === "logoUrl" ? "h-24 w-24 rounded-2xl" : "aspect-[3/1] w-full rounded-xl"
+            field === "logoUrl" ? "h-24 w-24 rounded-box" : "aspect-[3/1] w-full rounded-box"
           }`}
         >
           {url ? (
@@ -66,14 +67,14 @@ export function ShopImages({
             onUploaded={(u) => save(field, u)}
           />
           {url && (
-            <button
+            <Button
               type="button"
               disabled={busy}
               onClick={() => void remove(field)}
-              className="rounded-full px-3 py-2 text-sm text-muted hover:text-danger disabled:opacity-40"
+              variant="quiet" size="sm"
             >
               {t(locale, "img.remove")}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -81,8 +82,8 @@ export function ShopImages({
   };
 
   return (
-    <section className="space-y-6 rounded-2xl bg-white p-6 ring-1 ring-line">
-      <h2 className="text-lg font-bold text-ink">{t(locale, "img.shopTitle")}</h2>
+    <Card as="section" className="space-y-6 p-6">
+      <SectionTitle>{t(locale, "img.shopTitle")}</SectionTitle>
       <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
         {slot("logoUrl", "SHOP_LOGO", "img.logo", "img.logoAlt")}
         {slot("bannerUrl", "SHOP_BANNER", "img.banner", "img.bannerAlt")}
@@ -92,6 +93,6 @@ export function ShopImages({
           {t(locale, error)}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

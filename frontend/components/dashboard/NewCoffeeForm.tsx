@@ -29,8 +29,10 @@ import { MoreDetails } from "./MoreDetails";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
-import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
+import { FormError, LoginNeeded, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
+import { Button, Card, Input, SectionTitle, Select, Textarea } from "@/components/ui";
+import { FIELD_LABEL } from "@/lib/ui";
 
 export const GRINDS: GrindOption[] = ["WHOLE_BEAN", "COARSE", "MEDIUM", "FINE", "ESPRESSO"];
 
@@ -242,17 +244,17 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   }
 
   const select = (name: string, label: MessageKey, items: { id: string; label: string }[], required = true) => (
-    <label className="block text-sm font-medium text-ink">
+    <label className={FIELD_LABEL}>
       {t(locale, label)}
       {required && " *"}
-      <select name={name} required={required} defaultValue="" className={inputCls}>
+      <Select name={name} required={required} defaultValue="" className="mt-1">
         <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
         {items.map((o) => (
           <option key={o.id} value={o.id}>
             {o.label}
           </option>
         ))}
-      </select>
+      </Select>
     </label>
   );
 
@@ -271,7 +273,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       >
         <fieldset disabled={locked} className="m-0 min-w-0 space-y-6 border-0 p-0">
           {restored && (
-            <p role="status" className="flex flex-wrap items-center gap-3 rounded-xl bg-paper px-3 py-2 text-sm text-ink ring-1 ring-line">
+            <p role="status" className="flex flex-wrap items-center gap-3 rounded-box bg-paper px-3 py-2 text-sm text-ink ring-1 ring-line">
               {t(locale, "dash.draftRestored")}
               <button type="button" onClick={discardDraft} className="font-semibold underline underline-offset-4">
                 {t(locale, "dash.draftDiscard")}
@@ -280,14 +282,14 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           )}
           {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
 
-          <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-line sm:grid-cols-2">
+          <Card as="section" className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <h2 className="text-lg font-bold text-ink">{t(locale, "cf.essentials")}</h2>
+              <SectionTitle>{t(locale, "cf.essentials")}</SectionTitle>
               <p className="mt-1 text-sm text-muted">{t(locale, "cf.essentialsHint")}</p>
             </div>
             <label className="block text-sm font-medium text-ink sm:col-span-2">
               {t(locale, "cf.name")} *
-              <input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className={inputCls} />
+              <Input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className="mt-1" />
             </label>
             {select(
               "origin",
@@ -304,47 +306,47 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
             <p className="-mt-2 text-xs text-muted sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
             <ProvenanceFields locale={locale} />
             <FlavorNotesField locale={locale} error={error?.key} />
-          </section>
+          </Card>
 
-          <section className="rounded-2xl bg-white p-6 ring-1 ring-line">
-            <h2 className="text-lg font-bold text-ink">{t(locale, "cf.variants")} *</h2>
+          <Card as="section" className="p-6">
+            <SectionTitle>{t(locale, "cf.variants")} *</SectionTitle>
             <p className="mt-1 text-sm text-muted">{t(locale, "cf.variantsHint")}</p>
             <ul className="mt-4 space-y-3">
               {rows.map((r, i) => {
                 const problem = problems.get(i);
                 return (
-                  <li key={i} className="rounded-xl bg-paper p-3 ring-1 ring-line">
+                  <li key={i} className="rounded-box bg-paper p-3 ring-1 ring-line">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
                       <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.grind")}
-                        <select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className={inputCls}>
+                        <Select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className="mt-1">
                           {GRINDS.map((g) => (
                             <option key={g} value={g}>
                               {t(locale, `grind.${g}`)}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
                       <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.weightG")}
-                        <input inputMode="numeric" value={r.weightG} onChange={(e) => setRow(i, { weightG: e.target.value })} className={inputCls} />
+                        <Input inputMode="numeric" value={r.weightG} onChange={(e) => setRow(i, { weightG: e.target.value })} className="mt-1" />
                       </label>
                       <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.priceTwd")}
-                        <input inputMode="numeric" value={r.priceTwd} onChange={(e) => setRow(i, { priceTwd: e.target.value })} className={inputCls} />
+                        <Input inputMode="numeric" value={r.priceTwd} onChange={(e) => setRow(i, { priceTwd: e.target.value })} className="mt-1" />
                       </label>
                       <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.stock")}
-                        <input inputMode="numeric" value={r.stock} onChange={(e) => setRow(i, { stock: e.target.value })} className={inputCls} />
+                        <Input inputMode="numeric" value={r.stock} onChange={(e) => setRow(i, { stock: e.target.value })} className="mt-1" />
                       </label>
-                      <button
+                      <Button
                         type="button"
                         disabled={rows.length === 1}
                         onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
-                        className="col-span-2 justify-self-end rounded-full px-3 py-2 text-sm text-muted hover:text-danger disabled:opacity-40 sm:col-span-1"
+                        variant="quiet" size="sm" className="col-span-2 justify-self-end sm:col-span-1"
                       >
                         {t(locale, "cf.removeRow")}
-                      </button>
+                      </Button>
                     </div>
                     {problem && r.priceTwd !== "" && (
                       <p className="mt-2 text-xs text-danger">{t(locale, VARIANT_PROBLEM_KEY[problem])}</p>
@@ -353,36 +355,35 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
                 );
               })}
             </ul>
-            <button
+            <Button
               type="button"
               disabled={rows.length >= LIMITS.variants}
               onClick={() => setRows((rs) => [...rs, { ...emptyRow(), weightG: "" }])}
-              className="mt-3 rounded-full border border-line px-4 py-2 text-sm hover:border-muted disabled:opacity-40"
+              variant="secondary" className="mt-3"
             >
               {t(locale, "cf.addRow")}
-            </button>
-          </section>
+            </Button>
+          </Card>
 
           <MoreDetails locale={locale} filled={filled} open={moreOpen} onOpenChange={setMoreOpen}>
             <label className="block text-sm font-medium text-ink sm:col-span-2">
               {t(locale, "cf.description")}
-              <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
+              <Textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className="mt-1" />
             </label>
             {select("brew", "cf.brew", brewOptions(locale), false)}
             <HarvestYearField locale={locale} />
           </MoreDetails>
 
           <div className="flex items-center gap-4">
-            <button
+            <Button
               type="submit"
               disabled={busy}
-              className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-ink/80 disabled:opacity-60"
             >
               {busy ? t(locale, "cf.saving") : t(locale, "cf.save")}
-            </button>
-            <Link href="/dashboard" className="text-sm text-muted hover:text-ink hover:underline underline-offset-4">
+            </Button>
+            <Button href="/dashboard" variant="quiet" size="sm">
               {t(locale, "cf.back")}
-            </Link>
+            </Button>
           </div>
         </fieldset>
       </form>

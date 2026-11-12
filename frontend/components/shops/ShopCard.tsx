@@ -2,10 +2,11 @@ import Link from "next/link";
 import type { ShopSummary } from "@/lib/api";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { ShopLogo } from "./ShopLogo";
+import { Card } from "@/components/ui";
 
 export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }) {
   return (
-    <article className="relative flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-line focus-within:ring-2 focus-within:ring-ink">
+    <Card as="article" className="relative flex flex-col overflow-hidden focus-within:ring-2 focus-within:ring-ink">
       {/* No banner: no band at all, the card stays plain white (#112). */}
       {shop.bannerUrl && (
         <div className="relative h-28 border-b border-line">
@@ -16,7 +17,7 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
       <div className="flex flex-1 flex-col p-4">
         <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="md" className={`relative mb-3 ${shop.bannerUrl ? "-mt-10 outline-4 outline-white" : ""}`} />
         <h2 className="text-base font-bold text-ink">
-          <Link href={`/shops/${shop.slug}`} className="after:absolute after:inset-0 focus:outline-none">
+          <Link href={`/shops/${shop.slug}`} className="after:absolute after:inset-0">
             {shop.name}
           </Link>
         </h2>
@@ -32,6 +33,6 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
           <span className="font-medium text-ink">{t(locale, "shops.view")} →</span>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

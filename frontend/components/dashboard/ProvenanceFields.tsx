@@ -2,7 +2,8 @@
 
 import { LIMITS, taipeiYear } from "@/lib/dashboard/validate";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { inputCls } from "./ui";
+import { Input } from "@/components/ui";
+import { FIELD_LABEL } from "@/lib/ui";
 
 export interface ProvenanceValues {
   producer: string;
@@ -41,33 +42,33 @@ export function ProvenanceFields({
   return (
     <fieldset className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
       <legend className="mb-2 text-sm font-semibold text-ink">{t(locale, "cf.provenance")}</legend>
-      <label className="block text-sm font-medium text-ink">
+      <label className={FIELD_LABEL}>
         {t(locale, "cf.producer")} *
-        <input
+        <Input
           {...bind("producer")}
           required
           maxLength={LIMITS.provenance}
           placeholder={t(locale, "cf.producerPlaceholder")}
-          className={inputCls}
+          className="mt-1"
         />
       </label>
-      <label className="block text-sm font-medium text-ink">
+      <label className={FIELD_LABEL}>
         {t(locale, "cf.region")} *
-        <input
+        <Input
           {...bind("region")}
           required
           maxLength={LIMITS.provenance}
           placeholder={t(locale, "cf.regionPlaceholder")}
-          className={inputCls}
+          className="mt-1"
         />
       </label>
-      <label className="block text-sm font-medium text-ink">
+      <label className={FIELD_LABEL}>
         {t(locale, "cf.altitudeMin")} *
-        <input {...bind("altitudeMin")} required inputMode="numeric" placeholder="1800" className={inputCls} />
+        <Input {...bind("altitudeMin")} required inputMode="numeric" placeholder="1800" className="mt-1" />
       </label>
-      <label className="block text-sm font-medium text-ink">
+      <label className={FIELD_LABEL}>
         {t(locale, "cf.altitudeMax")}
-        <input {...bind("altitudeMax")} inputMode="numeric" placeholder="2100" className={inputCls} />
+        <Input {...bind("altitudeMax")} inputMode="numeric" placeholder="2100" className="mt-1" />
       </label>
       <p className="-mt-2 text-xs text-muted sm:col-span-2">{t(locale, "cf.altitudeHint")}</p>
     </fieldset>
@@ -87,14 +88,14 @@ export function HarvestYearField({
   const bind = binder<"harvestYear">(values, onChange);
   return (
     <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
-      <label className="block text-sm font-medium text-ink">
+      <label className={FIELD_LABEL}>
         {t(locale, "cf.harvestYear")}
-        <input
+        <Input
           {...bind("harvestYear")}
           inputMode="numeric"
           maxLength={4}
           placeholder={String(taipeiYear() - 1)}
-          className={inputCls}
+          className="mt-1"
         />
       </label>
       <p className="self-end text-xs text-muted">{t(locale, "cf.harvestHint")}</p>

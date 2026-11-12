@@ -10,6 +10,8 @@ import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { PhotoGallery } from "./PhotoGallery";
 import { ShopLogo } from "@/components/shops/ShopLogo";
+import { Badge, Button, Card, Label, PageTitle, SectionTitle } from "@/components/ui";
+import { CARD } from "@/lib/ui";
 
 /**
  * The body of a coffee page: images, facts, flavour notes, description,
@@ -66,8 +68,8 @@ export function CoffeeDetailView({
       {/* Details */}
       <div>
         {!coffee.isPublished && (
-          <p className="mb-3 inline-block rounded-full bg-line px-3 py-1 text-xs font-semibold text-ink">
-            {t(locale, "coffee.draft")}
+          <p className="mb-3">
+            <Badge tone="soft">{t(locale, "coffee.draft")}</Badge>
           </p>
         )}
         <p className="text-sm text-muted">
@@ -76,7 +78,7 @@ export function CoffeeDetailView({
           </Link>
           {coffee.shop.city && ` · ${coffee.shop.city}`}
         </p>
-        <h1 className="mt-1 text-3xl font-bold leading-tight text-ink">{coffee.name}</h1>
+        <PageTitle className="mt-1">{coffee.name}</PageTitle>
         {availability.kind === "from" && (
           <p className="mt-2 text-xl font-semibold text-ink">
             {t(locale, "coffees.from", { price: formatTWD(availability.price) })}
@@ -92,14 +94,14 @@ export function CoffeeDetailView({
         )}
         {actions}
 
-        <dl className="mt-6 grid grid-cols-2 gap-4 rounded-2xl bg-white p-5 ring-1 ring-line">
+        <Card as="dl" className="mt-6 grid grid-cols-2 gap-4 p-5">
           {facts.map(([label, value]) => (
             <div key={label}>
-              <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
+              <Label as="dt">{label}</Label>
               <dd className="mt-0.5 break-words font-medium text-ink">{value}</dd>
             </div>
           ))}
-        </dl>
+        </Card>
 
 
         {coffee.flavorNotes.length > 0 && (
@@ -125,13 +127,13 @@ export function CoffeeDetailView({
         )}
 
         <section className="mt-8" aria-labelledby="variants-heading">
-          <h2 id="variants-heading" className="text-lg font-bold text-ink">
+          <SectionTitle id="variants-heading">
             {t(locale, "coffee.variants")}
-          </h2>
+          </SectionTitle>
           {coffee.variants.length === 0 ? (
             <p className="mt-2 text-muted">{t(locale, "coffee.noVariants")}</p>
           ) : (
-            <table className="mt-3 w-full overflow-hidden rounded-2xl bg-white text-left text-sm ring-1 ring-line">
+            <table className={`${CARD} mt-3 w-full overflow-hidden text-left text-sm`}>
               <thead className="bg-paper text-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t(locale, "coffee.grind")}</th>
@@ -158,24 +160,24 @@ export function CoffeeDetailView({
             </table>
           )}
           {/* Stage 1 is discovery only — cart & ECPay checkout land in Stage 2. */}
-          <p className="mt-3 rounded-xl bg-paper px-4 py-3 text-sm text-muted">
+          <p className="mt-3 rounded-box bg-paper px-4 py-3 text-sm text-muted">
             {t(locale, "coffee.checkoutSoon")}
           </p>
         </section>
 
-        <aside className="mt-8 flex items-center gap-4 rounded-2xl bg-white p-4 ring-1 ring-line">
+        <Card as="aside" className="mt-8 flex items-center gap-4 p-4">
           <ShopLogo name={coffee.shop.name} logoUrl={coffee.shop.logoUrl} size="sm" />
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted">{t(locale, "coffee.soldBy")}</p>
             <p className="truncate font-semibold text-ink">{coffee.shop.name}</p>
           </div>
-          <Link
+          <Button
             href={`/shops/${coffee.shop.slug}`}
-            className="shrink-0 rounded-full border border-line px-4 py-2 text-sm hover:border-muted"
+            variant="secondary" className="shrink-0"
           >
             {t(locale, "coffee.visitShop")}
-          </Link>
-        </aside>
+          </Button>
+        </Card>
       </div>
     </div>
   );

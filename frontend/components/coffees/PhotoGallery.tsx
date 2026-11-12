@@ -38,7 +38,7 @@ export function PhotoGallery({
 
   return (
     <div>
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-paper ring-1 ring-line">
+      <div className="relative aspect-square overflow-hidden rounded-box bg-paper ring-1 ring-line">
         {hero ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -63,7 +63,7 @@ export function PhotoGallery({
                 onKeyDown={(e) => onKeyDown(e, i)}
                 aria-pressed={i === current}
                 aria-label={t(locale, "img.showPhoto", { n: i + 1, total: photos.length })}
-                className={`block aspect-square w-full overflow-hidden rounded-xl ring-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink ${
+                className={`block aspect-square w-full overflow-hidden rounded-box ring-1 ${
                   i === current ? "ring-2 ring-ink" : "ring-line opacity-80 hover:opacity-100"
                 }`}
               >

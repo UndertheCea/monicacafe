@@ -90,7 +90,7 @@ export function ShopMap({
   }, [pins]);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl ring-1 ring-line">
+    <div className="relative overflow-hidden rounded-box ring-1 ring-line">
       <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-[60vh] min-h-[320px] w-full bg-paper" />
       {status !== "ready" && (
         <div

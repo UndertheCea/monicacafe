@@ -19,7 +19,9 @@ import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ShopImages } from "./ShopImages";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
-import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
+import { FormError, LoginNeeded, Notice } from "./ui";
+import { Button, Card, Input, SectionTitle, Textarea } from "@/components/ui";
+import { FIELD_LABEL } from "@/lib/ui";
 
 // Leaflet touches `window`; load the picker on the client only.
 const LocationPicker = dynamic(() => import("./LocationPicker").then((m) => m.LocationPicker), { ssr: false });
@@ -152,46 +154,46 @@ function ProfileEditor({
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-line sm:grid-cols-2">
-        <label className="block text-sm font-medium text-ink">
+      <Card as="section" className="grid gap-4 p-6 sm:grid-cols-2">
+        <label className={FIELD_LABEL}>
           {t(locale, "dash.shopName")} *
-          <input
+          <Input
             value={name}
             onChange={(e) => (setName(e.target.value), clear())}
             required
             maxLength={LIMITS.shopName}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
-        <label className="block text-sm font-medium text-ink">
+        <label className={FIELD_LABEL}>
           {t(locale, "dash.city")} *
-          <input
+          <Input
             value={city}
             onChange={(e) => (setCity(e.target.value), clear())}
             required
             maxLength={LIMITS.city}
             placeholder={t(locale, "dash.cityPlaceholder")}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
         <label className="block text-sm font-medium text-ink sm:col-span-2">
           {t(locale, "dash.description")}
-          <textarea
+          <Textarea
             value={description}
             onChange={(e) => (setDescription(e.target.value), clear())}
             rows={5}
             maxLength={LIMITS.shopDescription}
-            className={inputCls}
+            className="mt-1"
           />
         </label>
         <p className="text-xs text-muted sm:col-span-2">
           {t(locale, "shop.slugFixed")} <span className="font-mono">/shops/{shop.slug}</span>
         </p>
-      </section>
+      </Card>
 
-      <section className="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-line">
+      <Card as="section" className="space-y-4 p-6">
         <div>
-          <h2 className="text-lg font-bold text-ink">{t(locale, "shop.location")}</h2>
+          <SectionTitle>{t(locale, "shop.location")}</SectionTitle>
           <p className="mt-1 text-sm text-muted">{t(locale, "shop.locationHint")}</p>
         </div>
         <LocationPicker
@@ -206,36 +208,35 @@ function ProfileEditor({
           failedLabel={t(locale, "map.loadFailed")}
         />
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm font-medium text-ink">
+          <label className={FIELD_LABEL}>
             {t(locale, "shop.lat")}
-            <input inputMode="decimal" value={lat} onChange={(e) => (setLat(e.target.value), clear())} className={inputCls} />
+            <Input inputMode="decimal" value={lat} onChange={(e) => (setLat(e.target.value), clear())} className="mt-1" />
           </label>
-          <label className="block text-sm font-medium text-ink">
+          <label className={FIELD_LABEL}>
             {t(locale, "shop.lng")}
-            <input inputMode="decimal" value={lng} onChange={(e) => (setLng(e.target.value), clear())} className={inputCls} />
+            <Input inputMode="decimal" value={lng} onChange={(e) => (setLng(e.target.value), clear())} className="mt-1" />
           </label>
         </div>
         {coords === "invalid" && (lat.trim() !== "" && lng.trim() !== "") && (
           <p className="text-sm text-danger">{t(locale, "shop.error.coords")}</p>
         )}
         {outsideTaiwan && (
-          <p role="status" className="rounded-xl bg-white px-3 py-2 text-sm text-ink ring-1 ring-line">
+          <Card as="p" role="status" className="px-3 py-2 text-sm text-ink">
             {t(locale, "shop.outsideTaiwan")}
-          </p>
+          </Card>
         )}
         {shop.lat !== null && coords === "empty" && (
           <p className="text-xs text-muted">{t(locale, "shop.cantClear")}</p>
         )}
-      </section>
+      </Card>
 
       <div className="flex flex-wrap items-center gap-4">
-        <button
+        <Button
           type="submit"
           disabled={busy || !dirty}
-          className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-ink/80 disabled:opacity-40"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
-        </button>
+        </Button>
         {msg &&
           (msg.ok ? (
             <p role="status" className="text-sm text-ink">

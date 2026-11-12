@@ -3,6 +3,7 @@ import { loadErrorKey } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Page } from "@/components/Page";
+import { PageTitle } from "@/components/ui";
 
 /** Bilingual error panel for a failed GraphQL fetch in a server component. */
 export function ErrorState({ locale, error }: { locale: Locale; error: unknown }) {
@@ -10,7 +11,7 @@ export function ErrorState({ locale, error }: { locale: Locale; error: unknown }
   return (
     <Page className="py-24">
     <div className="mx-auto max-w-3xl">
-      <div role="alert" className="rounded-2xl bg-danger/10 p-6 ring-1 ring-danger/30">
+      <div role="alert" className="rounded-box bg-danger/10 p-6 ring-1 ring-danger/30">
         <h1 className="text-lg font-bold text-danger">{t(locale, "error.title")}</h1>
         <p className="mt-2 text-danger">{t(locale, loadErrorKey(e.code))}</p>
       </div>
@@ -34,7 +35,7 @@ export function NotFoundState({
   return (
     <Page className="py-24 text-center">
     <div className="mx-auto max-w-3xl">
-      <h1 className="mt-4 text-2xl font-bold text-ink">{title}</h1>
+      <PageTitle className="mt-4">{title}</PageTitle>
       <p className="mt-2 text-muted">{body}</p>
       <Link href={backHref} className="mt-6 inline-block text-sm font-medium text-ink underline-offset-4 hover:underline">
         {backLabel}

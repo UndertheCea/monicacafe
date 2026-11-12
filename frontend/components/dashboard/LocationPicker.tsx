@@ -96,7 +96,7 @@ export function LocationPicker({
   }, [value, status]);
 
   return (
-    <div className="relative overflow-hidden rounded-xl ring-1 ring-line">
+    <div className="relative overflow-hidden rounded-box ring-1 ring-line">
       <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-72 w-full cursor-crosshair bg-paper" />
       {status !== "ready" && (
         <div

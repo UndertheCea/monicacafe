@@ -6,6 +6,7 @@ import { COMMENTS_PAGE, appendComments, hasMoreComments } from "@/lib/comments";
 import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { CommentItem } from "./CommentItem";
+import { Button } from "@/components/ui";
 
 /**
  * Comments after the server-rendered first page. Fetches anonymously (comments
@@ -67,14 +68,14 @@ export function MoreComments({
       )}
       {hasMoreComments(shown.length, total, lastPage) && (
         <div className="border-t border-line p-3 text-center">
-          <button
+          <Button
             type="button"
             onClick={() => void loadMore()}
             disabled={busy}
-            className="rounded-full px-4 py-1.5 text-sm font-semibold text-ink ring-1 ring-line hover:bg-paper disabled:opacity-60"
+            variant="secondary"
           >
             {busy ? t(locale, "comments.loadingMore") : t(locale, "comments.more")}
-          </button>
+          </Button>
           {failed && (
             <p role="alert" className="mt-2 text-sm text-danger">
               {t(locale, "comments.moreError")}

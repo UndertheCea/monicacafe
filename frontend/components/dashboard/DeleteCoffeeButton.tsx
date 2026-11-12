@@ -7,6 +7,7 @@ import { DELETE_COFFEE } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FormError } from "./ui";
+import { Button } from "@/components/ui";
 
 /** "Delete" for a draft coffee, with an inline confirm step. */
 export function DeleteCoffeeButton({
@@ -39,13 +40,13 @@ export function DeleteCoffeeButton({
   if (!confirming) {
     return (
       <span className="inline-flex flex-col gap-1">
-        <button
+        <Button
           type="button"
           onClick={() => setConfirming(true)}
-          className="rounded-full px-3 py-1.5 text-sm text-muted hover:text-danger"
+          variant="quiet" size="sm"
         >
           {t(locale, "dash.delete")}
-        </button>
+        </Button>
         {error && <FormError>{t(locale, error)}</FormError>}
       </span>
     );
@@ -53,22 +54,22 @@ export function DeleteCoffeeButton({
   return (
     <span role="group" aria-label={t(locale, "dash.deleteConfirm")} className="inline-flex flex-wrap items-center gap-2">
       <span className="text-sm text-danger">{t(locale, "dash.deleteConfirm")}</span>
-      <button
+      <Button
         type="button"
         disabled={busy}
         onClick={() => void remove()}
-        className="rounded-full bg-danger px-3 py-1.5 text-sm font-semibold text-white hover:bg-danger/80 disabled:opacity-50"
+        variant="danger" size="sm"
       >
         {t(locale, busy ? "dash.deleting" : "dash.deleteYes")}
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         disabled={busy}
         onClick={() => setConfirming(false)}
-        className="rounded-full border border-line px-3 py-1.5 text-sm hover:border-muted disabled:opacity-50"
+        variant="secondary" size="sm"
       >
         {t(locale, "dash.cancel")}
-      </button>
+      </Button>
     </span>
   );
 }

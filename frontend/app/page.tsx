@@ -11,6 +11,7 @@ import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FollowingFeed } from "@/components/coffees/FollowingFeed";
 import { ShopCard } from "@/components/shops/ShopCard";
 import { Page } from "@/components/Page";
+import { Card, SectionTitle } from "@/components/ui";
 
 // The tab title stays the root layout's "Moni Cafe"; the share card and description follow the reader's
 // language instead of the layout's mixed-language fallback (#195).
@@ -106,16 +107,16 @@ export default async function HomePage() {
       {/* Why */}
       <section className="py-20">
         <Page>
-          <h2 className="mb-12 text-center text-3xl font-bold text-ink">{t(locale, "home.whyTitle")}</h2>
+          <SectionTitle className="mb-12 text-center">{t(locale, "home.whyTitle")}</SectionTitle>
           <div className="grid gap-8 md:grid-cols-3">
             {why.map((f, i) => (
-              <div key={f.title} className="rounded-2xl bg-white p-8 ring-1 ring-line">
+              <Card key={f.title} className="p-8">
                 <span aria-hidden className="label-caps mb-4 block text-muted">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <h3 className="mb-3 text-lg font-semibold text-ink">{f.title}</h3>
                 <p className="text-muted">{f.body}</p>
-              </div>
+              </Card>
             ))}
           </div>
         </Page>
@@ -146,9 +147,9 @@ function Section({
       <Page>
         <div className="mb-6 flex items-end justify-between gap-4">
           <div>
-            <h2 id={id} className="text-2xl font-bold text-ink">
+            <SectionTitle id={id}>
               {title}
-            </h2>
+            </SectionTitle>
             <p className="mt-1 text-muted">{subtitle}</p>
           </div>
           <Link href={href} className="shrink-0 text-sm font-medium text-ink underline-offset-4 hover:underline">
@@ -163,8 +164,8 @@ function Section({
 
 function Unavailable({ locale }: { locale: Locale }) {
   return (
-    <p role="status" className="rounded-2xl bg-white p-8 text-center text-muted ring-1 ring-line">
+    <Card as="p" role="status" className="p-8 text-center text-muted">
       {t(locale, "home.unavailable")}
-    </p>
+    </Card>
   );
 }

@@ -9,6 +9,7 @@ import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, 
 import type { CommentPage } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
+import { Badge, Button, Card, SectionTitle } from "@/components/ui";
 
 type State =
   | { state: "loading" }
@@ -75,14 +76,14 @@ export function CommentFeed({
 
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="text-xl font-bold text-ink">
+      <SectionTitle id={id}>
         {t(locale, title)}
         {s.state === "ready" && s.page.total > 0 && (
           <span className="ml-2 text-sm font-normal text-muted">
             {t(locale, "comments.count", { n: s.page.total })}
           </span>
         )}
-      </h2>
+      </SectionTitle>
 
       {s.state === "loading" && <p className="mt-4 text-sm text-muted">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
@@ -91,12 +92,12 @@ export function CommentFeed({
         </p>
       )}
       {s.state === "ready" && s.page.nodes.length === 0 && (
-        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-muted ring-1 ring-line">
+        <Card as="p" className="mt-4 p-6 text-center text-muted">
           {t(locale, empty)}
-        </p>
+        </Card>
       )}
       {s.state === "ready" && s.page.nodes.length > 0 && (
-        <ul className="mt-4 divide-y divide-line rounded-2xl bg-white ring-1 ring-line">
+        <Card as="ul" className="mt-4 divide-y divide-line">
           {s.page.nodes.map((c) => {
             const href = commentCoffeeHref(c.coffee);
             return (
@@ -118,9 +119,9 @@ export function CommentFeed({
                       <span>{t(locale, "comments.coffeeHidden")}</span>
                     )}
                     {c.coffee && !c.coffee.isPublished && (
-                      <span className="ml-2 rounded-full bg-paper px-2 py-0.5 text-xs text-muted">
+                      <Badge tone="soft" className="ml-2">
                         {t(locale, "dash.draft")}
-                      </span>
+                      </Badge>
                     )}
                   </span>
                   <span className="flex items-baseline gap-3">
@@ -139,7 +140,7 @@ export function CommentFeed({
               </li>
             );
           })}
-        </ul>
+        </Card>
       )}
       {s.state === "ready" &&
         hasMoreComments(s.page.nodes.length, s.page.total, s.lastPage, COMMENT_LIST_PAGE) && (
@@ -149,14 +150,14 @@ export function CommentFeed({
                 {t(locale, "comments.moreError")}
               </p>
             )}
-            <button
+            <Button
               type="button"
               disabled={s.more === "loading"}
               onClick={() => void loadMore()}
-              className="rounded-full border border-line px-4 py-2 text-sm hover:border-muted disabled:opacity-50"
+              variant="secondary"
             >
               {t(locale, s.more === "loading" ? "comments.loadingMore" : "comments.more")}
-            </button>
+            </Button>
           </div>
         )}
     </section>

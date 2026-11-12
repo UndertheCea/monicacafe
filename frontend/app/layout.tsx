@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter_Tight } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { WelcomeNotice } from "@/components/auth/WelcomeNotice";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { pageTitle } from "@/lib/brand";
@@ -47,6 +48,7 @@ export default async function RootLayout({
         <AuthProvider>
           <SiteHeader locale={locale} />
           {/* The page's only main landmark (pages render a div); tabIndex lets the skip link move focus here. */}
+          <WelcomeNotice locale={locale} />
           <main id="main" tabIndex={-1} className="flex-1">
             {children}
           </main>

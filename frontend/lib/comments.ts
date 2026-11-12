@@ -93,3 +93,25 @@ export function withEditedComment<T extends { id: string; body: string; editedAt
 export function commentAuthorBadge(c: { fromShop?: boolean | null }): "comments.fromShop" | null {
   return c.fromShop === true ? "comments.fromShop" : null;
 }
+
+const LOADED_STATE_KEY = "moniLoadedComments";
+
+/**
+ * How many comments of a coffee were on screen, kept in `history.state` so Back
+ * restores "load more". `state` is whatever `history.state` holds (Next keeps its
+ * own keys there; `withLoadedComments` preserves them).
+ */
+export function loadedComments(state: unknown, coffeeId: string): number {
+  if (typeof state !== "object" || state === null) return 0;
+  const map = (state as Record<string, unknown>)[LOADED_STATE_KEY];
+  if (typeof map !== "object" || map === null) return 0;
+  const n = (map as Record<string, unknown>)[coffeeId];
+  return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+/** `state` with the shown count for one coffee set; every other key is kept. */
+export function withLoadedComments(state: unknown, coffeeId: string, shown: number): Record<string, unknown> {
+  const base = typeof state === "object" && state !== null ? (state as Record<string, unknown>) : {};
+  const prev = typeof base[LOADED_STATE_KEY] === "object" && base[LOADED_STATE_KEY] !== null ? (base[LOADED_STATE_KEY] as object) : {};
+  return { ...base, [LOADED_STATE_KEY]: { ...prev, [coffeeId]: shown } };
+}

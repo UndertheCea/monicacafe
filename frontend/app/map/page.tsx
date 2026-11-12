@@ -51,6 +51,7 @@ export default async function MapPage() {
         ariaLabel={t(locale, "map.ariaLabel")}
         loadingLabel={t(locale, "map.loading")}
         failedLabel={t(locale, "map.loadFailed")}
+        twoFingersLabel={t(locale, "map.twoFingers")}
       />
 
       {/* Text list: the accessible, no-JS equivalent of the map. */}

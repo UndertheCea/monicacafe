@@ -4,6 +4,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Page } from "@/components/Page";
 import { PageTitle } from "@/components/ui";
+import { ReloadButton } from "./ReloadButton";
 
 /** Bilingual error panel for a failed GraphQL fetch in a server component. */
 export function ErrorState({ locale, error }: { locale: Locale; error: unknown }) {
@@ -14,6 +15,12 @@ export function ErrorState({ locale, error }: { locale: Locale; error: unknown }
       <div role="alert" className="rounded-box bg-danger/10 p-6 ring-1 ring-danger/30">
         <h1 className="text-lg font-bold text-danger">{t(locale, "error.title")}</h1>
         <p className="mt-2 text-danger">{t(locale, loadErrorKey(e.code))}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-4 text-sm">
+          <ReloadButton label={t(locale, "crash.retry")} />
+          <Link href="/" className="font-medium text-danger hover:underline">
+            {t(locale, "notFound.home")}
+          </Link>
+        </div>
       </div>
     </div>
     </Page>

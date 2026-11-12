@@ -49,17 +49,30 @@ export function HeaderSearchForm({
 }) {
   return (
     <form role="search" method="get" action="/coffees" onSubmit={onSubmit} className="block w-full">
-      <label className="block">
-        <span className="sr-only">{t(locale, "nav.search")}</span>
-        <Input
-          search
-          type="search"
-          name="q"
-          defaultValue={defaultValue}
-          maxLength={SEARCH_MAX_CHARS}
-          placeholder={t(locale, "nav.searchPlaceholder")}
-        />
-      </label>
+      <div className="relative">
+        <label className="block">
+          <span className="sr-only">{t(locale, "nav.search")}</span>
+          <Input
+            search
+            type="search"
+            name="q"
+            defaultValue={defaultValue}
+            maxLength={SEARCH_MAX_CHARS}
+            placeholder={t(locale, "nav.searchPlaceholder")}
+            className="pr-12"
+          />
+        </label>
+        <button
+          type="submit"
+          aria-label={t(locale, "nav.searchSubmit")}
+          className="absolute right-0 top-0 inline-flex h-11 w-11 items-center justify-center rounded-full text-muted hover:text-ink"
+        >
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75">
+            <circle cx="8.5" cy="8.5" r="5.25" />
+            <path d="M12.5 12.5 17 17" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
     </form>
   );
 }

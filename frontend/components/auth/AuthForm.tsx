@@ -11,6 +11,7 @@ import { useAuth } from "./AuthProvider";
 import { Button, Card, ErrorSummary, Field, Input, useFormErrors } from "@/components/ui";
 import { CARD } from "@/lib/ui";
 import type { FormErrors } from "@/lib/formErrors";
+import { rememberWelcome } from "@/lib/welcome";
 
 type Mode = "login" | "register";
 type AuthField = "displayName" | "email" | "password";
@@ -68,7 +69,10 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
     fe.clear();
     try {
       if (mode === "login") await auth.login(email, password);
-      else await auth.register(email, password, displayName ?? "");
+      else {
+        await auth.register(email, password, displayName ?? "");
+        rememberWelcome(window.sessionStorage, displayName ?? ""); // one-time greeting (WelcomeNotice)
+      }
       router.replace(next);
       router.refresh();
     } catch (err) {

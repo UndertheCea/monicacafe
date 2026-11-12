@@ -9,6 +9,7 @@ import { t, type Locale } from "@/lib/i18n/dict";
 import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
 
 type ShopField = "name" | "city" | "slug" | "description";
 const ORDER: readonly ShopField[] = ["name", "city", "slug", "description"];
@@ -40,7 +41,9 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
       const e2 = toApiError(err);
       // CONFLICT: the slug is taken (or you already have a shop: no field, so the summary says "couldn't save").
       fe.fail(
-        e2.code === "CONFLICT" && e2.field === "slug"
+        isContactInfoError(e2.code)
+          ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
+          : e2.code === "CONFLICT" && e2.field === "slug"
           ? placeError("slug", { key: "dash.error.slugTaken" }, ORDER)
           : e2.code === "BAD_USER_INPUT" && ["slug", "name", "city"].includes(e2.field ?? "")
             ? placeError(e2.field, { key: e2.field === "slug" ? "dash.error.slug" : "dash.error.required" }, ORDER)
@@ -109,7 +112,13 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             />
           )}
         </Field>
-        <Field id={fe.id("description")} label={t(locale, "dash.description")} className="sm:col-span-2">
+        <Field
+          id={fe.id("description")}
+          label={t(locale, "dash.description")}
+          hint={t(locale, "contact.hint")}
+          error={fieldMessage(locale, fe.errors, "description")}
+          className="sm:col-span-2"
+        >
           {(p) => (
             <Textarea
               {...p}

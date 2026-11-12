@@ -13,6 +13,7 @@ import { siteBase } from "@/lib/sitemap";
 import { parseShopPagePages, shopPageHref } from "@/lib/shopQuery";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FollowButton } from "@/components/shops/FollowButton";
+import { ReportButton } from "@/components/ReportButton";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
@@ -109,6 +110,7 @@ export default async function ShopPage({
             <PageTitle>{shop.name}</PageTitle>
             {shop.city && <p className="text-sm text-muted">{shop.city}</p>}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
+            <ReportButton targetType="SHOP" targetId={shop.id} shopId={shop.id} locale={locale} />
           </div>
         </div>
 

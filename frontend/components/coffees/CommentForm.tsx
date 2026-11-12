@@ -11,6 +11,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Button, ConfirmButton, Field, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
 import { CARD } from "@/lib/ui";
 
 const ORDER = ["body"] as const;
@@ -57,6 +58,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
     } catch (err) {
       const e2 = toApiError(err);
       if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
+      else if (isContactInfoError(e2.code)) fe.fail(placeError(e2.field, { key: "contact.error" }, ORDER));
       else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX } });
       else fe.fail(placeError(undefined, { key: "comments.error" }, ORDER));
     } finally {
@@ -70,6 +72,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
       <Field
         id={fe.id("body")}
         label={t(locale, "comments.label")}
+        hint={t(locale, "contact.hint")}
         error={fieldMessage(locale, fe.errors, "body")}
       >
         {(p) => (

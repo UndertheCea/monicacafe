@@ -141,6 +141,11 @@ type RegisterInput struct {
 	DisplayName string `json:"displayName"`
 }
 
+type ReportConnection struct {
+	Nodes []*Report `json:"nodes"`
+	Total int       `json:"total"`
+}
+
 type ShopConnection struct {
 	Nodes []*Shop `json:"nodes"`
 	Total int     `json:"total"`
@@ -234,6 +239,8 @@ const (
 	AuditActionChangePassword  AuditAction = "CHANGE_PASSWORD"
 	AuditActionGrantAdmin      AuditAction = "GRANT_ADMIN"
 	AuditActionRevokeAdmin     AuditAction = "REVOKE_ADMIN"
+	AuditActionDismissReport   AuditAction = "DISMISS_REPORT"
+	AuditActionActionReport    AuditAction = "ACTION_REPORT"
 )
 
 var AllAuditAction = []AuditAction{
@@ -247,11 +254,13 @@ var AllAuditAction = []AuditAction{
 	AuditActionChangePassword,
 	AuditActionGrantAdmin,
 	AuditActionRevokeAdmin,
+	AuditActionDismissReport,
+	AuditActionActionReport,
 }
 
 func (e AuditAction) IsValid() bool {
 	switch e {
-	case AuditActionSuspendUser, AuditActionUnsuspendUser, AuditActionSuspendShop, AuditActionUnsuspendShop, AuditActionUnpublishCoffee, AuditActionDeleteComment, AuditActionDeleteAccount, AuditActionChangePassword, AuditActionGrantAdmin, AuditActionRevokeAdmin:
+	case AuditActionSuspendUser, AuditActionUnsuspendUser, AuditActionSuspendShop, AuditActionUnsuspendShop, AuditActionUnpublishCoffee, AuditActionDeleteComment, AuditActionDeleteAccount, AuditActionChangePassword, AuditActionGrantAdmin, AuditActionRevokeAdmin, AuditActionDismissReport, AuditActionActionReport:
 		return true
 	}
 	return false
@@ -584,6 +593,238 @@ func (e *ImageKind) UnmarshalJSON(b []byte) error {
 }
 
 func (e ImageKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ReportReason string
+
+const (
+	ReportReasonSpam        ReportReason = "SPAM"
+	ReportReasonContactInfo ReportReason = "CONTACT_INFO"
+	ReportReasonOffensive   ReportReason = "OFFENSIVE"
+	ReportReasonMisleading  ReportReason = "MISLEADING"
+	ReportReasonOther       ReportReason = "OTHER"
+)
+
+var AllReportReason = []ReportReason{
+	ReportReasonSpam,
+	ReportReasonContactInfo,
+	ReportReasonOffensive,
+	ReportReasonMisleading,
+	ReportReasonOther,
+}
+
+func (e ReportReason) IsValid() bool {
+	switch e {
+	case ReportReasonSpam, ReportReasonContactInfo, ReportReasonOffensive, ReportReasonMisleading, ReportReasonOther:
+		return true
+	}
+	return false
+}
+
+func (e ReportReason) String() string {
+	return string(e)
+}
+
+func (e *ReportReason) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportReason(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportReason", str)
+	}
+	return nil
+}
+
+func (e ReportReason) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ReportReason) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ReportReason) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ReportResolution string
+
+const (
+	ReportResolutionDismiss  ReportResolution = "DISMISS"
+	ReportResolutionActioned ReportResolution = "ACTIONED"
+	ReportResolutionRemove   ReportResolution = "REMOVE"
+)
+
+var AllReportResolution = []ReportResolution{
+	ReportResolutionDismiss,
+	ReportResolutionActioned,
+	ReportResolutionRemove,
+}
+
+func (e ReportResolution) IsValid() bool {
+	switch e {
+	case ReportResolutionDismiss, ReportResolutionActioned, ReportResolutionRemove:
+		return true
+	}
+	return false
+}
+
+func (e ReportResolution) String() string {
+	return string(e)
+}
+
+func (e *ReportResolution) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportResolution(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportResolution", str)
+	}
+	return nil
+}
+
+func (e ReportResolution) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ReportResolution) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ReportResolution) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ReportStatus string
+
+const (
+	ReportStatusOpen      ReportStatus = "OPEN"
+	ReportStatusActioned  ReportStatus = "ACTIONED"
+	ReportStatusDismissed ReportStatus = "DISMISSED"
+)
+
+var AllReportStatus = []ReportStatus{
+	ReportStatusOpen,
+	ReportStatusActioned,
+	ReportStatusDismissed,
+}
+
+func (e ReportStatus) IsValid() bool {
+	switch e {
+	case ReportStatusOpen, ReportStatusActioned, ReportStatusDismissed:
+		return true
+	}
+	return false
+}
+
+func (e ReportStatus) String() string {
+	return string(e)
+}
+
+func (e *ReportStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportStatus", str)
+	}
+	return nil
+}
+
+func (e ReportStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ReportStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ReportStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ReportTargetType string
+
+const (
+	ReportTargetTypeComment ReportTargetType = "COMMENT"
+	ReportTargetTypeShop    ReportTargetType = "SHOP"
+	ReportTargetTypeCoffee  ReportTargetType = "COFFEE"
+)
+
+var AllReportTargetType = []ReportTargetType{
+	ReportTargetTypeComment,
+	ReportTargetTypeShop,
+	ReportTargetTypeCoffee,
+}
+
+func (e ReportTargetType) IsValid() bool {
+	switch e {
+	case ReportTargetTypeComment, ReportTargetTypeShop, ReportTargetTypeCoffee:
+		return true
+	}
+	return false
+}
+
+func (e ReportTargetType) String() string {
+	return string(e)
+}
+
+func (e *ReportTargetType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ReportTargetType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ReportTargetType", str)
+	}
+	return nil
+}
+
+func (e ReportTargetType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ReportTargetType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ReportTargetType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

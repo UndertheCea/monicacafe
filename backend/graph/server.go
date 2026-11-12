@@ -70,6 +70,7 @@ func complexityRoot() generated.ComplexityRoot {
 	c.Query.AdminUsers = func(child int, _ *string, limit, _ *int) int { return paged(1)(child, limit, nil) }
 	c.Query.AdminShops = func(child int, _ *string, limit, _ *int) int { return paged(1)(child, limit, nil) }
 	c.Query.AuditLog = paged(1)
+	c.Query.Reports = func(child int, _ *model.ReportStatus, limit, _ *int) int { return paged(1)(child, limit, nil) }
 
 	c.Shop.Coffees = func(child int, _ *model.CoffeeFilter, _ *model.CoffeeSort, limit, _ *int) int {
 		return paged(perParentQueryCost)(child, limit, nil)

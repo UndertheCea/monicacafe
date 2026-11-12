@@ -23,6 +23,7 @@ import { LoginNeeded, Notice } from "./ui";
 import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
 import { FIELD_LABEL } from "@/lib/ui";
 
 // Leaflet touches `window`; load the picker on the client only.
@@ -175,7 +176,9 @@ function ProfileEditor({
       const e2 = toApiError(err);
       const key = e2.code === "BAD_USER_INPUT" ? API_KEY[e2.field ?? ""] : undefined;
       fe.fail(
-        key
+        isContactInfoError(e2.code)
+          ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
+          : key
           ? placeError(e2.field, { key }, ORDER)
           : { fields: {}, form: { key: "dash.error.generic" } },
       );
@@ -214,6 +217,7 @@ function ProfileEditor({
         <Field
           id={fe.id("description")}
           label={t(locale, "dash.description")}
+          hint={t(locale, "contact.hint")}
           error={fieldMessage(locale, fe.errors, "description")}
           className="sm:col-span-2"
         >

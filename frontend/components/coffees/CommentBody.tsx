@@ -9,6 +9,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { isContactInfoError } from "@/lib/moderation";
 import { Button, Field, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 
@@ -93,6 +94,7 @@ export function CommentBody({
     } catch (err) {
       const e2 = toApiError(err);
       if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
+      else if (isContactInfoError(e2.code)) fe.failField("body", { key: "contact.error" });
       else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX_CHARS } });
       else fe.fail({ fields: {}, form: { key: commentEditErrorKey(e2.code), vars: { max: COMMENT_MAX_CHARS } } });
     } finally {
@@ -106,6 +108,7 @@ export function CommentBody({
       <Field
         id={fe.id("body")}
         label={<span className="sr-only">{t(locale, "comments.editLabel")}</span>}
+        hint={t(locale, "contact.hint")}
         error={fieldMessage(locale, fe.errors, "body")}
       >
         {(p) => (

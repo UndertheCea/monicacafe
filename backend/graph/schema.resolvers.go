@@ -439,6 +439,9 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("description", desc); err != nil {
+		return nil, err
+	}
 	city, err := cleanText("city", input.City, 1, 40)
 	if err != nil {
 		return nil, err
@@ -479,7 +482,8 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return nil, err
 	}
-	if _, err := r.ownedShop(ctx, c, id); err != nil {
+	current, err := r.ownedShop(ctx, c, id)
+	if err != nil {
 		return nil, err
 	}
 	var p store.UpdateShopParams
@@ -487,6 +491,11 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 		return nil, err
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 2000); err != nil {
+		return nil, err
+	}
+	// Only new text is checked: a description saved before #225 can be
+	// sent back unchanged with other edits.
+	if err := noNewContactInfo("description", p.Description, current.Description); err != nil {
 		return nil, err
 	}
 	if p.City, err = cleanOptText("city", input.City, 1, 40); err != nil {
@@ -570,6 +579,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("description", desc); err != nil {
+		return nil, err
+	}
 	roast, err := roastLevelParam(input.RoastLevel)
 	if err != nil {
 		return nil, err
@@ -648,7 +660,8 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return nil, err
 	}
-	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+	current, err := r.ownedCoffee(ctx, c, id)
+	if err != nil {
 		return nil, err
 	}
 	var p store.UpdateCoffeeParams
@@ -656,6 +669,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 5000); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("description", p.Description, current.Description); err != nil {
 		return nil, err
 	}
 	if input.ClearRoastLevel != nil && *input.ClearRoastLevel {
@@ -1062,6 +1078,9 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("body", body); err != nil {
+		return nil, err
+	}
 	co, err := r.Store.CoffeeByID(ctx, input.CoffeeID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("coffee")
@@ -1113,6 +1132,9 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body st
 	}
 	if cm.Body == text {
 		return toComment(cm), nil
+	}
+	if err := noContactInfo("body", text); err != nil {
+		return nil, err
 	}
 	co, err := r.Store.CoffeeByID(ctx, cm.CoffeeID)
 	if errors.Is(err, store.ErrNotFound) {
@@ -1329,6 +1351,16 @@ func (r *mutationResolver) AdminUnpublishCoffee(ctx context.Context, id string, 
 	return r.adminUnpublishCoffee(ctx, id, reason)
 }
 
+// Report is the resolver for the report field.
+func (r *mutationResolver) Report(ctx context.Context, targetType model.ReportTargetType, targetID string, reason model.ReportReason, note *string) (bool, error) {
+	return r.report(ctx, targetType, targetID, reason, note)
+}
+
+// ResolveReport is the resolver for the resolveReport field.
+func (r *mutationResolver) ResolveReport(ctx context.Context, id string, action model.ReportResolution, reason *string) (*model.Report, error) {
+	return r.resolveReport(ctx, id, action, reason)
+}
+
 // CoffeeCount is the resolver for the coffeeCount field.
 func (r *originCountryResolver) CoffeeCount(ctx context.Context, obj *model.OriginCountry) (int, error) {
 	c, err := r.loadersFor(ctx).RefCounts(ctx)
@@ -1523,6 +1555,36 @@ func (r *queryResolver) AuditLog(ctx context.Context, limit *int, offset *int) (
 	return r.auditLog(ctx, limit, offset)
 }
 
+// Reports is the resolver for the reports field.
+func (r *queryResolver) Reports(ctx context.Context, status *model.ReportStatus, limit *int, offset *int) (*model.ReportConnection, error) {
+	return r.reports(ctx, status, limit, offset)
+}
+
+// Reporter is the resolver for the reporter field.
+func (r *reportResolver) Reporter(ctx context.Context, obj *model.Report) (*model.User, error) {
+	return r.reportUser(ctx, obj.ReporterID)
+}
+
+// Comment is the resolver for the comment field.
+func (r *reportResolver) Comment(ctx context.Context, obj *model.Report) (*model.Comment, error) {
+	return r.reportComment(ctx, obj)
+}
+
+// Shop is the resolver for the shop field.
+func (r *reportResolver) Shop(ctx context.Context, obj *model.Report) (*model.Shop, error) {
+	return r.reportShop(ctx, obj)
+}
+
+// Coffee is the resolver for the coffee field.
+func (r *reportResolver) Coffee(ctx context.Context, obj *model.Report) (*model.Coffee, error) {
+	return r.reportCoffee(ctx, obj)
+}
+
+// HandledBy is the resolver for the handledBy field.
+func (r *reportResolver) HandledBy(ctx context.Context, obj *model.Report) (*model.User, error) {
+	return r.reportUser(ctx, obj.HandledByID)
+}
+
 // Coffees is the resolver for the coffees field.
 func (r *shopResolver) Coffees(ctx context.Context, obj *model.Shop, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) (*model.CoffeeConnection, error) {
 	f, err := storeFilter(filter)
@@ -1691,6 +1753,9 @@ func (r *Resolver) ProcessingMethod() generated.ProcessingMethodResolver {
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Report returns generated.ReportResolver implementation.
+func (r *Resolver) Report() generated.ReportResolver { return &reportResolver{r} }
+
 // Shop returns generated.ShopResolver implementation.
 func (r *Resolver) Shop() generated.ShopResolver { return &shopResolver{r} }
 
@@ -1705,5 +1770,6 @@ type mutationResolver struct{ *Resolver }
 type originCountryResolver struct{ *Resolver }
 type processingMethodResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type reportResolver struct{ *Resolver }
 type shopResolver struct{ *Resolver }
 type userResolver struct{ *Resolver }

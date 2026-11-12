@@ -19,7 +19,7 @@ test("navMenu: the menu for each kind of viewer", () => {
     ["buyer", { signedIn: true, role: "BUYER", hasShop: false }, [...signedIn, "nav.openShop=/dashboard", "nav.logout!logout"]],
     ["seller without a shop yet", { signedIn: true, role: "SELLER", hasShop: false }, [...signedIn, "nav.openShop=/dashboard", "nav.logout!logout"]],
     ["seller", { signedIn: true, role: "SELLER", hasShop: true }, [...signedIn, "nav.dashboard=/dashboard", "nav.logout!logout"]],
-    ["admin", { signedIn: true, role: "ADMIN", hasShop: false }, [...signedIn, "nav.openShop=/dashboard", "nav.logout!logout"]],
+    ["admin", { signedIn: true, role: "ADMIN", hasShop: false }, [...signedIn, "nav.openShop=/dashboard", "nav.admin=/admin", "nav.logout!logout"]],
   ];
   for (const [name, viewer, account] of cases) {
     assert.deepEqual(flat(navMenu(viewer)), [...browse, ["nav.accountSection", account]], name);
@@ -31,6 +31,7 @@ test("navMenu: every label is translated in both languages", () => {
     { signedIn: false },
     { signedIn: true, role: "SELLER", hasShop: true },
     { signedIn: true, role: "BUYER", hasShop: false },
+    { signedIn: true, role: "ADMIN", hasShop: false },
   ];
   for (const v of viewers) {
     for (const s of navMenu(v)) {

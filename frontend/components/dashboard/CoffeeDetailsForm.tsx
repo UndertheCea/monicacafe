@@ -23,6 +23,7 @@ import {
   problemField,
 } from "@/lib/dashboard/coffeeFields";
 import { formFieldFor, placeError, type FormErrors } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import type { CoffeeFieldKey } from "./coffeeFormErrors";
 import { brewLongKey } from "@/lib/brew";
@@ -168,8 +169,9 @@ export function CoffeeDetailsForm({
       setSaveMsg("cf.saved");
     } catch (err) {
       const { code, field } = toApiError(err);
-      const failed: FormErrors<CoffeeFieldKey> =
-        code === "BAD_USER_INPUT"
+      const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(code)
+        ? placeError(field ?? "description", { key: "contact.error" }, EDIT_ORDER, COFFEE_API_ALIASES)
+        : code === "BAD_USER_INPUT"
           ? coffeeBadInput(field, next.flavorNotes.length, EDIT_ORDER)
           : { fields: {}, form: { key: code === "FORBIDDEN" ? "cf.notYours" : "cf.error.generic" } };
       const placed = Object.keys(failed.fields)[0];
@@ -273,6 +275,7 @@ export function CoffeeDetailsForm({
         <Field
           id={fe.id("description")}
           label={t(locale, "cf.description")}
+          hint={t(locale, "contact.hint")}
           error={fieldMessage(locale, fe.errors, "description")}
           className="sm:col-span-2"
         >

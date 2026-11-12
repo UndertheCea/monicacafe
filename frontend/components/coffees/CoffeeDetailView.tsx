@@ -12,6 +12,7 @@ import { PhotoGallery } from "./PhotoGallery";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Badge, Button, Card, Label, PageTitle, SectionTitle } from "@/components/ui";
 import { CARD } from "@/lib/ui";
+import { ReportButton } from "@/components/ReportButton";
 
 /**
  * The body of a coffee page: images, facts, flavour notes, description,
@@ -93,6 +94,12 @@ export function CoffeeDetailView({
           <p className="mt-2 text-xl font-semibold text-ink">{t(locale, "coffee.soldOutHeadline")}</p>
         )}
         {actions}
+        {/* Not on the seller's draft preview: only published coffees can be reported (#225). */}
+        {coffee.isPublished && (
+          <p className="mt-2">
+            <ReportButton targetType="COFFEE" targetId={coffee.id} shopId={coffee.shop.id} locale={locale} />
+          </p>
+        )}
 
         <Card as="dl" className="mt-6 grid grid-cols-2 gap-4 p-5">
           {facts.map(([label, value]) => (

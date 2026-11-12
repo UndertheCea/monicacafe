@@ -71,6 +71,21 @@ type Comment struct {
 	FromShop  bool       `json:"fromShop"`
 }
 
+// Report is one visitor report (#225); reporter, handledBy and the target
+// objects resolve from the IDs.
+type Report struct {
+	ID          string           `json:"id"`
+	ReporterID  *string          `json:"-"`
+	TargetType  ReportTargetType `json:"targetType"`
+	TargetID    string           `json:"targetId"`
+	Reason      ReportReason     `json:"reason"`
+	Note        string           `json:"note"`
+	Status      ReportStatus     `json:"status"`
+	HandledByID *string          `json:"-"`
+	HandledAt   *time.Time       `json:"handledAt,omitempty"`
+	CreatedAt   time.Time        `json:"createdAt"`
+}
+
 // AuditEntry is one audit-log row (#224); actor resolves from ActorID.
 type AuditEntry struct {
 	ID         string          `json:"id"`

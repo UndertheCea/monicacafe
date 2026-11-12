@@ -4,6 +4,7 @@ import { formatTaipeiDate } from "@/lib/utils";
 import { AuthorBadge } from "./AuthorBadge";
 import { CommentBody } from "./CommentBody";
 import { DeleteCommentButton } from "./CommentForm";
+import { ReportButton } from "@/components/ReportButton";
 
 /** One comment row; used by the server-rendered first page and by "load more". */
 export function CommentItem({
@@ -26,6 +27,7 @@ export function CommentItem({
           <AuthorBadge comment={c} locale={locale} />
         </span>
         <span className="flex items-baseline gap-3">
+          <ReportButton targetType="COMMENT" targetId={c.id} authorId={c.user.id} locale={locale} />
           <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={onDeleted} />
           <time dateTime={c.createdAt} className="text-xs text-muted">
             {formatTaipeiDate(c.createdAt, locale)}

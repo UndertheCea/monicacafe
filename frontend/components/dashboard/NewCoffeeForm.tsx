@@ -22,10 +22,10 @@ import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
 import { draftKey, isEmptyDraft, makeDraft, parseDraft } from "@/lib/dashboard/session";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, coffeeBadInput, detailsMessage } from "./CoffeeDetailsForm";
-import { COFFEE_ORDER, OPTIONAL_ORDER, isOptionalField, problemField, variantField } from "@/lib/dashboard/coffeeFields";
+import { COFFEE_API_ALIASES, COFFEE_ORDER, OPTIONAL_ORDER, isOptionalField, problemField, variantField } from "@/lib/dashboard/coffeeFields";
 import type { CoffeeFieldKey } from "./coffeeFormErrors";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
-import type { FormErrors } from "@/lib/formErrors";
+import { placeError, type FormErrors } from "@/lib/formErrors";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
 import { SignInAgain } from "./SignInAgain";
@@ -34,6 +34,7 @@ import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
 import { LoginNeeded, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
 import { Button, Card, Field, Input, SectionTitle, Select, Textarea, useFormErrors } from "@/components/ui";
+import { isContactInfoError } from "@/lib/moderation";
 
 export const GRINDS: GrindOption[] = ["WHOLE_BEAN", "COARSE", "MEDIUM", "FINE", "ESPRESSO"];
 
@@ -250,8 +251,9 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       if (e2.code === "LIMIT_REACHED") {
         fe.fail({ fields: {}, form: { key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } } });
       } else {
-        const failed: FormErrors<CoffeeFieldKey> =
-          e2.code === "BAD_USER_INPUT"
+        const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(e2.code)
+          ? placeError(e2.field ?? "description", { key: "contact.error" }, order, COFFEE_API_ALIASES)
+          : e2.code === "BAD_USER_INPUT"
             ? coffeeBadInput(e2.field, notes.length, order)
             : { fields: {}, form: { key: "cf.error.generic" } };
         const placed = Object.keys(failed.fields)[0];
@@ -440,6 +442,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
             <Field
               id={fe.id("description")}
               label={t(locale, "cf.description")}
+              hint={t(locale, "contact.hint")}
               error={fieldMessage(locale, fe.errors, "description")}
               className="sm:col-span-2"
             >

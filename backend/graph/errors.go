@@ -25,7 +25,10 @@ const (
 	// CodeQueryTooComplex: the operation was refused before running because
 	// it nests too deeply or would cost too much (graph/server.go).
 	CodeQueryTooComplex = "QUERY_TOO_COMPLEX"
-	CodeInternal        = "INTERNAL_SERVER_ERROR"
+	// CodeContactInfo: new comment or description text carries a phone
+	// number, email, link or LINE / IG / FB ID (#225); field names the input.
+	CodeContactInfo = "CONTACT_INFO_NOT_ALLOWED"
+	CodeInternal    = "INTERNAL_SERVER_ERROR"
 )
 
 // apiError is a client-safe error with a machine-readable code.

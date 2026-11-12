@@ -74,6 +74,7 @@ type Config struct {
 	RateLimitUploadUser   string
 	RateLimitPasswordUser string
 	RateLimitSaveUser     string
+	RateLimitReportUser   string
 	// RateLimitSellerWriteUser covers every shop / coffee / option mutation.
 	RateLimitSellerWriteUser string
 
@@ -140,6 +141,7 @@ func Load() Config {
 		RateLimitUploadUser:      get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
 		RateLimitPasswordUser:    get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
 		RateLimitSaveUser:        get("RATE_LIMIT_SAVE_USER", "60/5m"),
+		RateLimitReportUser:      get("RATE_LIMIT_REPORT_USER", "10/1h"),
 		RateLimitSellerWriteUser: get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
 		RateLimitGraphQLIP:       get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 
@@ -259,7 +261,7 @@ type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
 	LoginEmailIP                               ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
-	SaveUser, SellerWriteUser                  ratelimit.Rule
+	SaveUser, SellerWriteUser, ReportUser      ratelimit.Rule
 	GraphQLIP                                  ratelimit.Rule
 }
 
@@ -279,6 +281,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
 		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
+		{"RATE_LIMIT_REPORT_USER", c.RateLimitReportUser, &r.ReportUser},
 		{"RATE_LIMIT_SELLER_WRITE_USER", c.RateLimitSellerWriteUser, &r.SellerWriteUser},
 		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {

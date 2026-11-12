@@ -104,6 +104,7 @@ func run() error {
 		UploadUser:   lim("upload_user", rules.UploadUser),
 		PasswordUser: lim("password_user", rules.PasswordUser),
 		SaveUser:     lim("save_user", rules.SaveUser),
+		ReportUser:   lim("report_user", rules.ReportUser),
 
 		SellerWriteUser: lim("seller_write_user", rules.SellerWriteUser),
 	}

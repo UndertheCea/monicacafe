@@ -41,6 +41,8 @@ type Limits struct {
 	UploadUser   *ratelimit.Limiter
 	PasswordUser *ratelimit.Limiter
 	SaveUser     *ratelimit.Limiter
+	// ReportUser counts reports filed (#225).
+	ReportUser *ratelimit.Limiter
 	// SellerWriteUser covers every shop / coffee / option mutation (#213), so
 	// one account can't flood the catalogue or the map.
 	SellerWriteUser *ratelimit.Limiter

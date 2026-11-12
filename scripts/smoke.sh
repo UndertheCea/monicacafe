@@ -20,7 +20,7 @@ check_status() { # path expected
   if [[ "$code" == "$2" ]]; then echo "ok   $2 $1"; else echo "FAIL $1 → $code (want $2)"; fail=1; fi
 }
 
-for path in / /coffees /shops /map /menu /login /register /account /dashboard /dashboard/coffees/new; do
+for path in / /coffees /shops /map /menu /login /register /account /dashboard /dashboard/coffees/new /admin; do
   check_status "$BASE_URL$path" 200
 done
 check_status "$BASE_URL/shops/__no-such-shop__" 404

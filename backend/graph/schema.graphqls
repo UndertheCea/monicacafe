@@ -40,6 +40,9 @@ type Query {
   adminShops(search: String, limit: Int, offset: Int): ShopConnection!
   # Newest first.
   auditLog(limit: Int, offset: Int): AuditEntryConnection!
+  # Reports from visitors (#225), newest first. status defaults to OPEN.
+  # Admin only, like adminUsers.
+  reports(status: ReportStatus, limit: Int, offset: Int): ReportConnection!
 }
 
 # ─── Mutations ────────────────────────────────────────────────────────────────
@@ -140,6 +143,20 @@ type Mutation {
   unsuspendShop(id: ID!, reason: String!): Shop!
   adminUnpublishCoffee(id: ID!, reason: String!): Coffee!
 
+  # Report a comment, shop or coffee to the admins (#225). Signed in only
+  # (UNAUTHENTICATED otherwise); 10 an hour per account (RATE_LIMITED). A
+  # target that doesn't exist or that the viewer can't see is NOT_FOUND. note is
+  # optional, at most 500 characters. Reporting the same target again while
+  # the first report is still open changes nothing and returns true.
+  report(targetType: ReportTargetType!, targetId: ID!, reason: ReportReason!, note: String): Boolean!
+  # Closes a report and every other open report on the same target, and writes
+  # an audit-log entry (DISMISS_REPORT or ACTION_REPORT). REMOVE also takes the
+  # target down in the same transaction: a comment is deleted, a coffee
+  # unpublished, a shop suspended (each with its own audit entry), and then
+  # needs a reason (1–500 characters); for DISMISS and ACTIONED it is optional.
+  # Admin only. A report that is already closed is BAD_USER_INPUT.
+  resolveReport(id: ID!, action: ReportResolution!, reason: String): Report!
+
   # Stage 2: cart, orders, ECPay checkout — parked
 }
 
@@ -187,6 +204,9 @@ enum AuditAction {
   CHANGE_PASSWORD
   GRANT_ADMIN
   REVOKE_ADMIN
+  # A report was closed (#225): dismissed, or acted on.
+  DISMISS_REPORT
+  ACTION_REPORT
 }
 
 enum AuditTargetType {
@@ -209,6 +229,64 @@ type AuditEntry {
 
 type AuditEntryConnection {
   nodes: [AuditEntry!]!
+  total: Int!
+}
+
+# ─── Reports (#225) ───────────────────────────────────────────────────────────
+
+enum ReportTargetType {
+  COMMENT
+  SHOP
+  COFFEE
+}
+
+enum ReportReason {
+  SPAM
+  # Phone numbers, LINE IDs, links: taking the sale off the site.
+  CONTACT_INFO
+  OFFENSIVE
+  # Wrong or misleading listing (origin, process, price, …).
+  MISLEADING
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+enum ReportResolution {
+  # Nothing wrong: the report is DISMISSED.
+  DISMISS
+  # Already handled another way (e.g. the user was suspended): ACTIONED.
+  ACTIONED
+  # Delete the comment / unpublish the coffee / suspend the shop: ACTIONED.
+  REMOVE
+}
+
+type Report {
+  id: ID!
+  # null once the reporter's account is deleted.
+  reporter: User
+  targetType: ReportTargetType!
+  targetId: ID!
+  # The reported thing as it is now (the one matching targetType); null when
+  # it has been deleted since.
+  comment: Comment
+  shop: Shop
+  coffee: Coffee
+  reason: ReportReason!
+  note: String!
+  status: ReportStatus!
+  # The admin who closed it; null while open (or once that account is gone).
+  handledBy: User
+  handledAt: Time
+  createdAt: Time!
+}
+
+type ReportConnection {
+  nodes: [Report!]!
   total: Int!
 }
 

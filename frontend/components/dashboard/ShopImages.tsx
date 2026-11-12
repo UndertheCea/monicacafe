@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_SHOP, type EditableShop } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
-import { Button, Card, SectionTitle } from "@/components/ui";
+import { Card, ConfirmButton, SectionTitle } from "@/components/ui";
 
 /** Logo + banner for the shop profile page. Each change is saved immediately. */
 export function ShopImages({
@@ -27,7 +27,6 @@ export function ShopImages({
   }
 
   async function remove(field: "logoUrl" | "bannerUrl") {
-    if (!window.confirm(t(locale, "img.removeConfirm"))) return;
     setBusy(true);
     setError(null);
     try {
@@ -67,14 +66,15 @@ export function ShopImages({
             onUploaded={(u) => save(field, u)}
           />
           {url && (
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={() => void remove(field)}
-              variant="quiet" size="sm"
+            <ConfirmButton
+              question={t(locale, "img.removeConfirm")}
+              confirmLabel={t(locale, "img.remove")}
+              cancelLabel={t(locale, "confirm.cancel")}
+              busy={busy}
+              onConfirm={() => void remove(field)}
             >
               {t(locale, "img.remove")}
-            </Button>
+            </ConfirmButton>
           )}
         </div>
       </div>

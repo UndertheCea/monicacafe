@@ -6,10 +6,13 @@ import { UPDATE_COMMENT } from "@/lib/api";
 import { COMMENT_MAX_CHARS, canEditComment, commentEditErrorKey, commentEditState } from "@/lib/comments";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
-import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Button, Textarea } from "@/components/ui";
+import { Button, Field, Textarea, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+
+const ORDER = ["body"] as const;
 
 type Edited = { id: string; body: string; editedAt: string | null };
 
@@ -37,7 +40,7 @@ export function CommentBody({
   const [saved, setSaved] = useState<Edited | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
+  const fe = useFormErrors<"body">(`comment-edit-${fieldId}`, ORDER);
 
   const current = saved && saved.id === comment.id ? saved : comment;
   const editable = canEditComment(user?.id, comment.user.id, coffeePublished);
@@ -63,7 +66,7 @@ export function CommentBody({
             type="button"
             onClick={() => {
               setDraft(current.body);
-              setError(null);
+              fe.clear();
             }}
             className="-ml-2 mt-1 inline-flex min-h-11 items-center px-2 text-xs font-medium text-muted hover:text-ink hover:underline underline-offset-4"
           >
@@ -80,7 +83,7 @@ export function CommentBody({
     e.preventDefault();
     if (!st.canSave || busy || draft === null) return;
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       const r = await request(UPDATE_COMMENT, { id: comment.id, body: draft.trim() });
       setSaved(r.updateComment);
@@ -89,26 +92,37 @@ export function CommentBody({
       startTransition(() => router.refresh());
     } catch (err) {
       const e2 = toApiError(err);
-      setError(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : { key: commentEditErrorKey(e2.code) });
+      if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
+      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX_CHARS } });
+      else fe.fail({ fields: {}, form: { key: commentEditErrorKey(e2.code), vars: { max: COMMENT_MAX_CHARS } } });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSave} className="mt-2">
-      <label htmlFor={fieldId} className="sr-only">
-        {t(locale, "comments.editLabel")}
-      </label>
-      <Textarea
-        id={fieldId}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={3}
-        autoFocus
-        aria-invalid={st.tooLong}
-        aria-describedby={`${fieldId}-count`}
-      />
+    <form onSubmit={onSave} noValidate className="mt-2 space-y-1">
+      <FormSummary formId={`comment-edit-${fieldId}`} locale={locale} errors={fe.errors} order={ORDER} />
+      <Field
+        id={fe.id("body")}
+        label={<span className="sr-only">{t(locale, "comments.editLabel")}</span>}
+        error={fieldMessage(locale, fe.errors, "body")}
+      >
+        {(p) => (
+          <Textarea
+            {...p}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              fe.clearField("body");
+            }}
+            rows={3}
+            autoFocus
+            aria-invalid={st.tooLong || p["aria-invalid"]}
+            aria-describedby={`${fieldId}-count${p["aria-describedby"] ? ` ${p["aria-describedby"]}` : ""}`}
+          />
+        )}
+      </Field>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
         <span id={`${fieldId}-count`} className={st.tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
           {st.tooLong
@@ -120,7 +134,7 @@ export function CommentBody({
             type="button"
             onClick={() => {
                 setDraft(null);
-                setError(null);
+                fe.clear();
               }}
             variant="secondary"
           >
@@ -134,11 +148,6 @@ export function CommentBody({
           </Button>
         </span>
       </div>
-      {error && (
-        <p role="alert" className="mt-1 text-sm text-danger">
-          {t(locale, error.key, { max: COMMENT_MAX_CHARS, ...error.vars })}
-        </p>
-      )}
     </form>
   );
 }

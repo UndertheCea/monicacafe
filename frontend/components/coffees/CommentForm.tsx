@@ -6,10 +6,14 @@ import { useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
-import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Button, Textarea } from "@/components/ui";
+import { Button, ConfirmButton, Field, Textarea, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { placeError } from "@/lib/formErrors";
 import { CARD } from "@/lib/ui";
+
+const ORDER = ["body"] as const;
 
 /** Rune count, matching the backend's utf8.RuneCountInString. */
 const runeLength = (s: string) => [...s].length;
@@ -19,7 +23,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   const pathname = usePathname();
   const router = useRouter();
   const [body, setBody] = useState("");
-  const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
+  const fe = useFormErrors<"body">("comment", ORDER);
   const [busy, setBusy] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -45,53 +49,54 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
     e.preventDefault();
     if (len === 0 || tooLong || busy) return;
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await request(ADD_COMMENT, { input: { coffeeId, body: body.trim() } });
       setBody("");
       startTransition(() => router.refresh());
     } catch (err) {
       const e2 = toApiError(err);
-      if (e2.code === "RATE_LIMITED") setError(rateLimitMessage(e2.retryAfter));
-      else setError({ key: e2.code === "BAD_USER_INPUT" ? "comments.tooLong" : "comments.error" });
+      if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
+      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX } });
+      else fe.fail(placeError(undefined, { key: "comments.error" }, ORDER));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className={`${CARD} mt-4 p-4`}>
-      <label htmlFor="comment-body" className="text-sm font-semibold text-ink">
-        {t(locale, "comments.label")}
-      </label>
-      <Textarea
-        id="comment-body"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={3}
-        placeholder={t(locale, "comments.placeholder")}
-        aria-invalid={tooLong}
-        aria-describedby="comment-count"
-        className="mt-2"
-      />
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+    <form onSubmit={onSubmit} noValidate className={`${CARD} mt-4 space-y-2 p-4`}>
+      <FormSummary formId="comment" locale={locale} errors={fe.errors} order={ORDER} />
+      <Field
+        id={fe.id("body")}
+        label={t(locale, "comments.label")}
+        error={fieldMessage(locale, fe.errors, "body")}
+      >
+        {(p) => (
+          <Textarea
+            {...p}
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              fe.clearField("body");
+            }}
+            rows={3}
+            placeholder={t(locale, "comments.placeholder")}
+            aria-invalid={tooLong || p["aria-invalid"]}
+            aria-describedby={`comment-count${p["aria-describedby"] ? ` ${p["aria-describedby"]}` : ""}`}
+          />
+        )}
+      </Field>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <span id="comment-count" className={tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
           {tooLong
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX })
             : t(locale, "comments.remaining", { n: COMMENT_MAX - len })}
         </span>
-        <Button
-          type="submit"
-          disabled={busy || len === 0 || tooLong}
-        >
+        <Button type="submit" disabled={busy || len === 0 || tooLong}>
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
         </Button>
       </div>
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-danger">
-          {t(locale, error.key, { max: COMMENT_MAX, ...error.vars })}
-        </p>
-      )}
     </form>
   );
 }
@@ -117,29 +122,31 @@ export function DeleteCommentButton({
 
   if (!user || (user.id !== authorId && user.role !== "ADMIN")) return null;
 
+  async function remove() {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await request(DELETE_COMMENT_DOC, { id: commentId });
+      onDeleted?.(commentId);
+      startTransition(() => router.refresh());
+    } catch {
+      setFailed(true);
+      setBusy(false);
+    }
+  }
+
   return (
     <span className="inline-flex items-center gap-2">
       {failed && <span className="text-xs text-danger">{t(locale, "comments.deleteError")}</span>}
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          if (!window.confirm(t(locale, "comments.deleteConfirm"))) return;
-          setBusy(true);
-          setFailed(false);
-          try {
-            await request(DELETE_COMMENT_DOC, { id: commentId });
-            onDeleted?.(commentId);
-            startTransition(() => router.refresh());
-          } catch {
-            setFailed(true);
-            setBusy(false);
-          }
-        }}
-        className="inline-flex min-h-11 items-center px-2 text-xs font-medium text-muted hover:text-danger disabled:opacity-50"
+      <ConfirmButton
+        question={t(locale, "comments.deleteConfirm")}
+        confirmLabel={t(locale, "comments.delete")}
+        cancelLabel={t(locale, "confirm.cancel")}
+        busy={busy}
+        onConfirm={() => void remove()}
       >
         {t(locale, "comments.delete")}
-      </button>
+      </ConfirmButton>
     </span>
   );
 }

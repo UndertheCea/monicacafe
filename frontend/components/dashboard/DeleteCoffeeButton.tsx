@@ -7,7 +7,7 @@ import { DELETE_COFFEE } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FormError } from "./ui";
-import { Button } from "@/components/ui";
+import { ConfirmButton } from "@/components/ui";
 
 /** "Delete" for a draft coffee, with an inline confirm step. */
 export function DeleteCoffeeButton({
@@ -20,7 +20,6 @@ export function DeleteCoffeeButton({
   onDeleted: () => void;
 }) {
   const { request } = useAuth();
-  const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
 
@@ -33,43 +32,21 @@ export function DeleteCoffeeButton({
     } catch (err) {
       setError(deleteCoffeeErrorKey(toApiError(err).code));
       setBusy(false);
-      setConfirming(false);
     }
   }
 
-  if (!confirming) {
-    return (
-      <span className="inline-flex flex-col gap-1">
-        <Button
-          type="button"
-          onClick={() => setConfirming(true)}
-          variant="quiet" size="sm"
-        >
-          {t(locale, "dash.delete")}
-        </Button>
-        {error && <FormError>{t(locale, error)}</FormError>}
-      </span>
-    );
-  }
   return (
-    <span role="group" aria-label={t(locale, "dash.deleteConfirm")} className="inline-flex flex-wrap items-center gap-2">
-      <span className="text-sm text-danger">{t(locale, "dash.deleteConfirm")}</span>
-      <Button
-        type="button"
-        disabled={busy}
-        onClick={() => void remove()}
-        variant="danger" size="sm"
+    <span className="inline-flex flex-col gap-1">
+      <ConfirmButton
+        question={t(locale, "dash.deleteConfirm")}
+        confirmLabel={t(locale, busy ? "dash.deleting" : "dash.deleteYes")}
+        cancelLabel={t(locale, "dash.cancel")}
+        busy={busy}
+        onConfirm={() => void remove()}
       >
-        {t(locale, busy ? "dash.deleting" : "dash.deleteYes")}
-      </Button>
-      <Button
-        type="button"
-        disabled={busy}
-        onClick={() => setConfirming(false)}
-        variant="secondary" size="sm"
-      >
-        {t(locale, "dash.cancel")}
-      </Button>
+        {t(locale, "dash.delete")}
+      </ConfirmButton>
+      {error && <FormError>{t(locale, error)}</FormError>}
     </span>
   );
 }

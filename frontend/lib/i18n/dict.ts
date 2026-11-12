@@ -375,6 +375,7 @@ const zhTW = {
   "dash.draft": "草稿",
   "dash.publish": "上架",
   "dash.unpublish": "下架",
+  "dash.unpublishConfirm": "確定下架？下架後買家就看不到。",
   "dash.edit": "編輯",
   "dash.view": "查看",
   "dash.preview": "預覽",
@@ -479,6 +480,9 @@ const zhTW = {
   "cf.error.duplicate": "同一研磨與重量只能有一種規格。",
   "cf.error.lastVariant": "已上架的咖啡至少要保留一種規格，請先下架。",
   "cf.error.generic": "儲存失敗，請再試一次。",
+  "form.fixFields": "有 {n} 個欄位需要修正。",
+  "form.jumpFirst": "前往第一個問題",
+  "confirm.cancel": "取消",
   "footer.copy": "© {year} Moni Cafe · 僅配送台灣本島及離島",
 } as const;
 
@@ -854,6 +858,7 @@ const en: Messages = {
   "dash.draft": "Draft",
   "dash.publish": "Publish",
   "dash.unpublish": "Unpublish",
+  "dash.unpublishConfirm": "Unpublish? Buyers won't see it any more.",
   "dash.edit": "Edit",
   "dash.view": "View",
   "dash.preview": "Preview",
@@ -958,6 +963,9 @@ const en: Messages = {
   "cf.error.duplicate": "Each grind + weight combination can only appear once.",
   "cf.error.lastVariant": "A published coffee needs at least one option — unpublish it first.",
   "cf.error.generic": "Couldn't save. Please try again.",
+  "form.fixFields": "Fields to fix: {n}.",
+  "form.jumpFirst": "Go to the first problem",
+  "confirm.cancel": "Cancel",
   "footer.copy": "© {year} Moni Cafe · Ships within Taiwan only",
 };
 

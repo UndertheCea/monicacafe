@@ -26,7 +26,7 @@ import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
 import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
-import { Badge, Button, Card, SectionTitle } from "@/components/ui";
+import { Badge, Button, Card, ConfirmButton, SectionTitle } from "@/components/ui";
 import { ICON_BUTTON } from "@/lib/ui";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
@@ -282,14 +282,22 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     >
                       {t(locale, "dash.edit")}
                     </Button>
-                    <Button
-                      disabled={pending === c.id}
-                      onClick={() => void toggle(c.id, !c.isPublished)}
-                      variant={c.isPublished ? "secondary" : "primary"}
-                      size="sm"
-                    >
-                      {t(locale, c.isPublished ? "dash.unpublish" : "dash.publish")}
-                    </Button>
+                    {c.isPublished ? (
+                      <ConfirmButton
+                        question={t(locale, "dash.unpublishConfirm")}
+                        confirmLabel={t(locale, "dash.unpublish")}
+                        cancelLabel={t(locale, "confirm.cancel")}
+                        variant="secondary"
+                        busy={pending === c.id}
+                        onConfirm={() => void toggle(c.id, false)}
+                      >
+                        {t(locale, "dash.unpublish")}
+                      </ConfirmButton>
+                    ) : (
+                      <Button disabled={pending === c.id} onClick={() => void toggle(c.id, true)} size="sm">
+                        {t(locale, "dash.publish")}
+                      </Button>
+                    )}
                     <DuplicateCoffeeButton coffeeId={c.id} name={c.name} locale={locale} />
                     {!c.isPublished && (
                       <DeleteCoffeeButton

@@ -20,7 +20,9 @@ import { UPDATE_PROFILE } from "@/lib/auth/session";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { Button, Input, SectionTitle } from "@/components/ui";
+import { Button, Field, Input, SectionTitle, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { placeError } from "@/lib/formErrors";
 import { CARD, FIELD_LABEL } from "@/lib/ui";
 
 type Msg = { key: MessageKey; vars?: Record<string, number> };
@@ -83,20 +85,22 @@ function MyComments({ locale }: { locale: Locale }) {
   );
 }
 
+const PROFILE_ORDER = ["displayName"] as const;
+
 function ProfileForm({ locale }: { locale: Locale }) {
   const { user, request, reload } = useAuth();
   const [name, setName] = useState(user?.displayName ?? "");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Msg | null>(null);
+  const fe = useFormErrors<"displayName">("profile", PROFILE_ORDER);
   const [saved, setSaved] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const clean = cleanDisplayName(name);
     setSaved(false);
-    if (!clean) return setError({ key: "auth.error.displayName" });
+    if (!clean) return fe.failField("displayName", { key: "auth.error.displayName" });
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await request(UPDATE_PROFILE, { input: { displayName: clean } });
       setName(clean);
@@ -104,13 +108,8 @@ function ProfileForm({ locale }: { locale: Locale }) {
       setSaved(true);
     } catch (err) {
       const e2 = toApiError(err);
-      setError(
-        e2.code === "BAD_USER_INPUT"
-          ? { key: "auth.error.displayName" }
-          : e2.code === "UNAVAILABLE"
-            ? { key: "auth.error.unavailable" }
-            : { key: "account.error.generic" },
-      );
+      if (e2.code === "BAD_USER_INPUT") fe.failField("displayName", { key: "auth.error.displayName" });
+      else fe.fail({ fields: {}, form: { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.generic" } });
     } finally {
       setBusy(false);
     }
@@ -119,21 +118,29 @@ function ProfileForm({ locale }: { locale: Locale }) {
   return (
     <form onSubmit={onSubmit} noValidate className={sectionCls}>
       <SectionTitle>{t(locale, "account.profile")}</SectionTitle>
-      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+      <FormSummary formId="profile" locale={locale} errors={fe.errors} order={PROFILE_ORDER} />
       <p className="text-sm text-muted">
         {t(locale, "account.email")}: <span className="font-medium text-ink">{user?.email}</span>
       </p>
-      <label className={FIELD_LABEL}>
-        {t(locale, "auth.displayName")}
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={50}
-          autoComplete="nickname"
-          className="mt-1"
-        />
-        <span className="mt-1 block text-xs font-normal text-muted">{t(locale, "auth.displayNameHint")}</span>
-      </label>
+      <Field
+        id={fe.id("displayName")}
+        label={t(locale, "auth.displayName")}
+        hint={t(locale, "auth.displayNameHint")}
+        error={fieldMessage(locale, fe.errors, "displayName")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              fe.clearField("displayName");
+            }}
+            maxLength={50}
+            autoComplete="nickname"
+          />
+        )}
+      </Field>
       <div className="flex items-center gap-4">
         <Button type="submit" disabled={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.save")}
@@ -151,10 +158,20 @@ const PROBLEM_KEY = {
   mismatch: "account.error.mismatch",
 } as const satisfies Record<string, MessageKey>;
 
+type PasswordField = "currentPassword" | "newPassword" | "confirmPassword";
+const PASSWORD_ORDER: readonly PasswordField[] = ["currentPassword", "newPassword", "confirmPassword"];
+/** Which field each client-side problem belongs to. */
+const PROBLEM_FIELD = {
+  current: "currentPassword",
+  password: "newPassword",
+  same: "newPassword",
+  mismatch: "confirmPassword",
+} as const satisfies Record<keyof typeof PROBLEM_KEY, PasswordField>;
+
 function PasswordForm({ locale }: { locale: Locale }) {
   const { user, changePassword } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Msg | null>(null);
+  const fe = useFormErrors<PasswordField>("password", PASSWORD_ORDER);
   const [done, setDone] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -166,16 +183,24 @@ function PasswordForm({ locale }: { locale: Locale }) {
     const confirm = String(fd.get("confirmPassword") ?? "");
     setDone(false);
     const problem = passwordChangeProblem(current, next, confirm);
-    if (problem) return setError({ key: PROBLEM_KEY[problem] });
+    if (problem) return fe.failField(PROBLEM_FIELD[problem], { key: PROBLEM_KEY[problem] });
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await changePassword(current, next);
       form.reset();
       setDone(true);
     } catch (err) {
       const e2 = toApiError(err);
-      setError(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : { key: passwordErrorKey(e2.code, e2.field) });
+      fe.fail(
+        e2.code === "RATE_LIMITED"
+          ? { fields: {}, form: rateLimitMessage(e2.retryAfter) }
+          : placeError(
+              e2.code === "BAD_USER_INPUT" ? e2.field : undefined,
+              { key: passwordErrorKey(e2.code, e2.field) },
+              PASSWORD_ORDER,
+            ),
+      );
     } finally {
       setBusy(false);
     }
@@ -185,22 +210,59 @@ function PasswordForm({ locale }: { locale: Locale }) {
     <form onSubmit={onSubmit} noValidate className={sectionCls}>
       <SectionTitle>{t(locale, "account.password")}</SectionTitle>
       <p className="text-sm text-muted">{t(locale, "account.passwordHint")}</p>
-      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+      <FormSummary formId="password" locale={locale} errors={fe.errors} order={PASSWORD_ORDER} />
       {/* Lets password managers attach the new password to the right account. */}
       <input type="hidden" name="username" autoComplete="username" value={user?.email ?? ""} readOnly />
-      <label className={FIELD_LABEL}>
-        {t(locale, "account.currentPassword")}
-        <Input name="currentPassword" type="password" required autoComplete="current-password" className="mt-1" />
-      </label>
-      <label className={FIELD_LABEL}>
-        {t(locale, "account.newPassword")}
-        <Input name="newPassword" type="password" required minLength={8} autoComplete="new-password" className="mt-1" />
-        <span className="mt-1 block text-xs font-normal text-muted">{t(locale, "auth.passwordHint")}</span>
-      </label>
-      <label className={FIELD_LABEL}>
-        {t(locale, "account.confirmPassword")}
-        <Input name="confirmPassword" type="password" required autoComplete="new-password" className="mt-1" />
-      </label>
+      <Field
+        id={fe.id("currentPassword")}
+        label={t(locale, "account.currentPassword")}
+        error={fieldMessage(locale, fe.errors, "currentPassword")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            name="currentPassword"
+            type="password"
+            required
+            autoComplete="current-password"
+            onChange={() => fe.clearField("currentPassword")}
+          />
+        )}
+      </Field>
+      <Field
+        id={fe.id("newPassword")}
+        label={t(locale, "account.newPassword")}
+        hint={t(locale, "auth.passwordHint")}
+        error={fieldMessage(locale, fe.errors, "newPassword")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            name="newPassword"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            onChange={() => fe.clearField("newPassword")}
+          />
+        )}
+      </Field>
+      <Field
+        id={fe.id("confirmPassword")}
+        label={t(locale, "account.confirmPassword")}
+        error={fieldMessage(locale, fe.errors, "confirmPassword")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            name="confirmPassword"
+            type="password"
+            required
+            autoComplete="new-password"
+            onChange={() => fe.clearField("confirmPassword")}
+          />
+        )}
+      </Field>
       <div className="flex items-center gap-4">
         <Button type="submit" disabled={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.changePassword")}

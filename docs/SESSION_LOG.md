@@ -15,6 +15,65 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 35 — 2026-11-12 — Design system, forms, observability, reports, images (six stage-1 slices)
+PR: #256 (also carries #255, session 34)
+
+Session 34's PR #255 had two CI runs stuck in "queued" since 2026-11-11 20:31 UTC with no jobs; GitHub refused to cancel
+or re-run them. Rather than push an empty commit, I verified #255 locally (backend `-race` with `TEST_DATABASE_URL` on
+PostgreSQL 16, frontend tsc / lint / 219 tests / build), started this branch from its head and opened #256. Its first
+CI run (#255 + #230) was green, incl. the full-stack smoke and restore drill. Merging #256 lands #255's commits and closes
+#215, #217, #220, #222, #224, #229 and #231 via their `Closes` lines. No owner answers on any question. I built #230's primitives and
+#232's helpers myself; Sonnet / Opus sub-agents did #230's sweep, #232's form wiring, #221, #225, #235 and #236 (worktrees,
+then cherry-picked; #221 and #225 rebased by their agents onto the design system).
+
+### Shipped (one line per slice: area — what — key files)
+- #230 frontend — `lib/ui.ts` recipes + `components/ui/` (Button primary / secondary / quiet / danger, md 44 px / sm
+  36 px, Link or button, pending; Field + Input / Select / Textarea with `aria-describedby` / `aria-invalid`; Card,
+  PageTitle, SectionTitle, Label, Badge); `rounded-box` radius token; focus = the global ink outline; every hand-rolled
+  copy replaced, `dashboard/ui.tsx` re-exports. `tests/ui.test.mjs` bans hand-rolled pill buttons, `outline-none` /
+  focus rings, stray radii. Solid red buttons became the outlined `danger` variant.
+- #232 frontend — `lib/formErrors.ts` (API `field` → form field, aliases), `useFormErrors` (focus + scroll to the first
+  problem, no smooth scroll under reduced motion), `ErrorSummary`, `FormSummary`; login, register, display name,
+  password, new coffee (opens "More details" when needed), coffee details, option rows, shop profile, open a shop,
+  comments. `ConfirmButton` replaces every destructive `window.confirm` and guards unpublish; the leave-without-saving
+  guard (#228) keeps its synchronous confirm. `lib/dashboard/coffeeFields.ts`, `tests/confirm.test.mjs`.
+- #221 backend — `internal/metrics` (`/metrics` on `METRICS_ADDR`, compose `:9100` exposed only): GraphQL operation
+  count / duration (bounded names), HTTP routes, pool stats, rate-limit rejections per bucket, sweeps, panics;
+  `/health/live`, `/health/ready` (DB + `health.ExpectedMigration`, S3 reported only), `/health` alias; frontend
+  `/api/health`; `internal/errreport` Sentry envelope sender when `SENTRY_DSN` is set (scrubbed; Next `onRequestError`);
+  `internal/sweep` runner (WaitGroup, `pg_try_advisory_lock`); `docs/DEPLOY.md` "Monitoring".
+- #225 cross-cutting — migration 019 `reports` (one open per reporter + target, `ON DELETE SET NULL`); `report`,
+  admin `reports` / `resolveReport` (DISMISS / ACTIONED / REMOVE, audited); `RATE_LIMIT_REPORT_USER` 10/1h;
+  `twfmt.ContainsContactInfo` (62 cases) → `CONTACT_INFO_NOT_ALLOWED` on new / changed comments and descriptions;
+  Report drawer on comments, shops and coffees; `/admin` (reports, user / shop search + suspend, audit log); hint under
+  every comment / description field.
+- #235 cross-cutting — `createImageUpload(thumbnailByteSize)` presigns `<key>.thumb.webp` (640 px WebP made in the
+  browser), counted in one quota reservation; sweep keeps a thumb while its original is referenced; thumbs can't be
+  saved as URLs; `components/ui/Picture` replaces all 11 `<img>` (lazy / `fetchPriority`, width / height, thumb →
+  original fallback); filter options, home and sitemap data cached 60 s (`lib/catalogueCache.ts`) with no per-viewer
+  headers.
+- #236 frontend — map overlay only after hydration; one-finger drag off on touch + hint, 50vh on phones; ErrorState
+  retry + home; first / last pagination links (`lib/pagination.ts`); header search submit button; "歡迎，{name}" after
+  registering (`lib/welcome.ts`, `WelcomeNotice`); "load more" comments survive Back via `history.state`.
+- smoke — the #156 check now asserts the cards are in the shell and none are streamed; the header search's own
+  Suspense boundary started streaming in CI (same form as its fallback, so no change without JS).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, migrations 001–019) incl.
+  `TestReports`, `TestContactInfoRefused`, the advisory-lock and readiness tests.
+- Frontend: tsc, lint, `npm test` (264), `next build`. `docker compose config` (also with all profiles), `check_brief.sh`.
+- Local stack (API binary + `next start`, no nginx): login error focus lands on the field (Playwright); screenshots of
+  login, a coffee page and /shops on a phone looked right (sort label wrap fixed). The smoke run against my local DB
+  fails on seed-dependent checks only, because integration tests had filled it; CI runs it on a fresh stack.
+- Not tested: docker compose here (CI covers it); a real Sentry; the thumbnail PUT / WebP encoding and `<Picture>`
+  fallback in a real browser; the map touch behaviour on a device; "load more" restore across Back in a browser;
+  `/admin` by hand.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Reports and contact-details rule: see the brief's Decisions. Grant the first admin with `cmd/admin grant <email>`.
+- With dragging off on touch, two fingers pinch-zoom the map rather than pan it; revisit with a device if it annoys.
+- Every unblocked `stage-1` slice is now done; what's left waits on #199 / #200 / #201 and the roasters' domains (#168).
+
 ## Session 34 — 2026-11-11 — Moderation, backups, design tokens, accessibility (eight stage-1 slices)
 PR: #255
 

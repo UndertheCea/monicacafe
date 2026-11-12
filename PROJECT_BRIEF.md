@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-11 (after Session 34)
+Last updated: 2026-11-12 (after Session 35)
 
 ---
 
@@ -37,27 +37,23 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–016, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
+| DB schema + migrations 001–019, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
-| Coffee provenance: producer, region, growing altitude (API, dashboard form, coffee page + JSON-LD, cards, search) | Done (#116–#120) |
-| Brew method (filter / espresso / omni): API + filter, dashboard form, coffee page + JSON-LD, similar coffees (no longer a /coffees filter or on cards, #167) | Done (#122–#127) |
-| Harvest year (產季): API + `minHarvestYear` filter, dashboard form, coffee page + JSON-LD, keyword search | Done (#129–#134) |
-| Cup profile (酸度 / 甜度 / 醇厚度) | Removed on the owner's answer to #176: columns, API, filters, forms, page (#189) |
-| High-grown filter `minAltitudeM` in the API only (site dropped it, #167; sweet / body went with the cup profile, #189); "Clear filters" on an empty /coffees | Done (#143–#148) |
+| Coffee listing details: provenance (#116–#120), brew method (#122–#127), harvest year (#129–#134) on the API, forms, coffee page + JSON-LD; cup profile removed (#189); `minAltitudeM` / brew / harvest filters in the API only (#167) | Done |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
 | Pages: home, /coffees (+keyword search with a removable chip, filters, sort, in-stock), header search, /coffees/[id] (+price / sold-out under the name, flavour notes link to search, paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
 | Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, home and listings (search results `noindex`), Product + Store JSON-LD | Done (#92, #195) |
 | /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Accessibility: skip link, one `main`; text ≥ 4.5:1 (tested from the tokens), 44 px tap targets, `lang` spans, count-only live region; axe clean on six pages | Done (#85, #231) |
-| Design tokens (`ink` / `muted` / `faint` / `line` / `paper` / `danger`), flat hairline cards, one `<Page>` width; a test bans raw greys / reds / shadows | Done (#229) |
+| Design system: tokens, flat cards, one `<Page>` width (#229); `components/ui` Button / Field / Card / headings / Badge / Picture, one box radius (#230); errors under each field + focus, `ConfirmButton` (#232) | Done |
 | Saved coffees: save toggle + count on coffee pages, list on /account, "Most saved" sort | Done (#87–#89, #97, #98) |
 | Followed shops: follow toggle + count on shop pages, list on /account, home "From roasters you follow", "Most followed" sort, follower count on cards + dashboard | Done (#102–#107) |
 | Account deletion for buyers (password re-check; comments, saves, sessions removed) | Done (#90, #91); sellers: #93 |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments; draft preview (owner, #8 (b)) | Done (#99) |
 | Seller-curated shop pages: no buyer filters (#160), seller's order via `reorderShopCoffees` + dashboard ↑ / ↓ (#161, #162), sold-out archive section (#163) | Done |
-| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI; photos scaled to 2000 px in the browser first; 6-hourly orphan sweep | Done (#29, #212) |
+| Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI; photos scaled to 2000 px in the browser first; 6-hourly orphan sweep; 640 px thumbnails, one `<Picture>`, 60 s catalogue cache | Done (#29, #212, #235) |
 | Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff | Done (#100) |
 | Frontend on Next.js 16; sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done (#35) |
 | Rate limiting: login / register / refresh per IP (+ failed logins per email and per email + IP); comments, uploads, password, seller writes per user; every `/graphql` request per IP; IPv6 by /64, ≤ 100k keys | Done (#207, #213) |
@@ -65,38 +61,37 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Seller work survives session loss: forms stay mounted under an inline sign-in, new-coffee draft in sessionStorage, leave-without-saving prompts | Done (#228) |
 | Request limits: list fields priced by their limit, depth ≤ 8, no similar-of-similar, ≤ 5000 tokens, 100 KB body | Done (#207) |
 | Hardening: production refuses published secrets and needs `APP_ENV` (#206); safe `?next=` (#208); only nginx reachable, BFF forwards nginx's X-Real-IP (#211); one frontend image for any host (#210) | Done |
-| Error contract (`graph/errors.go` ↔ `lib/errors.ts`, pinned by a Go test) | Done |
-| Structured JSON access + panic logs (slog, request id + trusted client IP) | Done (#48, #53) |
-| Postgres pool cap + statement timeout from env | Done (#52) |
+| Error contract (`graph/errors.go` ↔ `lib/errors.ts`, Go test); JSON access + panic logs with request id (#48, #53); Postgres pool cap + statement timeout (#52) | Done |
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke**, `security` (govulncheck + npm audit), dependabot, actions pinned by SHA, images by patch version | Done (#216) |
 | nginx: gzip, no server version, `/media/` sandboxed (GET / HEAD / PUT only), per-IP `limit_req` on /graphql and /api/, timeouts + body caps, exact `/graphql`, JSON access log with request ids | Done (#64, #214) |
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
-| Moderation (backend): suspend users / shops, admin unpublish, append-only audit log, token version checked on every mutation, `cmd/admin` grant / revoke | Done (#224); report UI + admin screen: #225 |
+| Moderation: suspend users / shops, admin unpublish, audit log, token version per mutation, `cmd/admin` (#224); report comments / shops / coffees, `/admin`, contact details refused in new text (#225) | Done |
+| Observability: `/metrics` on an internal port, `/health/live` + `/health/ready`, `/api/health`, Sentry-compatible reporting when `SENTRY_DSN` is set, sweeps awaited + advisory-locked, `docs/DEPLOY.md` | Done (#221) |
 | Backups: nightly `age`-encrypted `pg_dump` to S3 or a directory (compose profile `prod`), `restore.sh`, restore drill in CI; Redis / Meilisearch behind profiles | Done (#220, #222) |
 | Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
 | Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep | Done (#217) |
 
 ## Last session
 
-**Session 34**: merged session 33's PR (#240) first; no answers on the open questions. Eight `stage-1` slices:
-moderation backend with an audit log and per-mutation token-version check (#224); backups + CI restore drill (#220);
-Redis / Meilisearch behind compose profiles (#222); `__Host-` cookie, Origin and CSP reporting from `SITE_URL` (#215);
-design tokens / flat cards / one page width (#229); accessibility pass (#231); text hygiene + upload budget (#217).
+**Session 35**: #255 (session 34) never got CI (runs stuck "queued"), so this branch started from its head and its PR
+carries both. Six `stage-1` slices: design system components (#230); per-field form errors + inline confirm (#232);
+metrics / health / error reporting (#221); reports + `/admin` + contact-details check (#225); thumbnails + catalogue
+caching (#235); small UX fixes (#236). No answers on the open questions.
 
 ## Current focus
 
 1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS and real secrets is the next big
-   step (#219, blocked). Backups (#220) and the cookie / Origin rules (#215) are ready for it.
+   step (#219, blocked). Backups (#220), cookie / Origin rules (#215) and monitoring (#221, `docs/DEPLOY.md`) are ready.
 2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still 403 on 2026-11-11).
-3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205 for orders and payouts.
-4. Next `stage-1` slices: #230, #232 (p2; #232 can use #230's `Field`), then #225 (report + admin screen on #224's API),
-   #221, #235, #236 (p3). #223 (password reset) and #226 (legal pages) are blocked on #200 / #201.
-5. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 (the BFF trusts X-Real-IP);
+3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205. Every unblocked `stage-1` slice is done;
+   #223 (password reset) and #226 (legal pages) are blocked on #200 / #201.
+4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
    turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
+   Grant the first admin with `cmd/admin grant <email>` so reports reach someone.
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -247,3 +242,9 @@ Open questions for the owner (answer by commenting on the issue):
 - **A session ends only on a 401 (#228)**: network errors, 5xx and 429 on refresh keep the session and retry (2 s, 5 s,
   15 s, then each minute). A form whose session ends stays mounted, disabled, under an inline sign-in. The `mc_s` hint
   cookie (readable, no secret) lets signed-out visitors skip the refresh call (#234).
+- **Reports go to `/admin`; contact details refused only in new text (#225)**: one open report per person per target;
+  "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks comments and descriptions when
+  written or changed, never stored rows, so old text can still be saved back unchanged.
+- **Thumbnails are derived, never stored (#235)**: `<key>.thumb.webp` sits next to its original, is kept exactly while the
+  original is referenced and can't be saved as a URL; cards fall back to the original. Only anonymous catalogue data (filter
+  options, home, sitemap) is cached for 60 s; anything carrying a viewer's cookie or IP is not.

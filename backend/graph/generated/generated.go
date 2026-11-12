@@ -137,6 +137,7 @@ type ComplexityRoot struct {
 		ExpiresAt func(childComplexity int) int
 		Headers   func(childComplexity int) int
 		PublicURL func(childComplexity int) int
+		Thumbnail func(childComplexity int) int
 		UploadURL func(childComplexity int) int
 	}
 
@@ -796,6 +797,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ImageUpload.PublicURL(childComplexity), true
+
+	case "ImageUpload.thumbnail":
+		if e.complexity.ImageUpload.Thumbnail == nil {
+			break
+		}
+
+		return e.complexity.ImageUpload.Thumbnail(childComplexity), true
 
 	case "ImageUpload.uploadUrl":
 		if e.complexity.ImageUpload.UploadURL == nil {
@@ -2259,6 +2267,9 @@ type ImageUpload {
   publicUrl: String!
   headers: [UploadHeader!]!
   expiresAt: Time!
+  # Present when the input asked for a thumbnail: PUT the 640 px WebP there the
+  # same way. Its URL is derived from publicUrl and is never saved anywhere.
+  thumbnail: ImageUpload
 }
 
 type UploadHeader {
@@ -2433,6 +2444,10 @@ input ImageUploadInput {
   contentType: String!
   # Exact file size in bytes (max 5 MB); the upload must match it.
   byteSize: Int!
+  # Exact size in bytes (max 512 KB) of a 640 px image/webp thumbnail to store
+  # beside the original; the result's ` + "`" + `thumbnail` + "`" + ` is its presigned PUT. Counts
+  # toward the shop's daily upload budget.
+  thumbnailByteSize: Int
 }
 
 input VariantInput {
@@ -7635,6 +7650,59 @@ func (ec *executionContext) fieldContext_ImageUpload_expiresAt(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _ImageUpload_thumbnail(ctx context.Context, field graphql.CollectedField, obj *model.ImageUpload) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ImageUpload_thumbnail(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Thumbnail, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.ImageUpload)
+	fc.Result = res
+	return ec.marshalOImageUpload2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUpload(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ImageUpload_thumbnail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ImageUpload",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "uploadUrl":
+				return ec.fieldContext_ImageUpload_uploadUrl(ctx, field)
+			case "publicUrl":
+				return ec.fieldContext_ImageUpload_publicUrl(ctx, field)
+			case "headers":
+				return ec.fieldContext_ImageUpload_headers(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_ImageUpload_expiresAt(ctx, field)
+			case "thumbnail":
+				return ec.fieldContext_ImageUpload_thumbnail(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type ImageUpload", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_register(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_register(ctx, field)
 	if err != nil {
@@ -9038,6 +9106,8 @@ func (ec *executionContext) fieldContext_Mutation_createImageUpload(ctx context.
 				return ec.fieldContext_ImageUpload_headers(ctx, field)
 			case "expiresAt":
 				return ec.fieldContext_ImageUpload_expiresAt(ctx, field)
+			case "thumbnail":
+				return ec.fieldContext_ImageUpload_thumbnail(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type ImageUpload", field.Name)
 		},
@@ -16240,7 +16310,7 @@ func (ec *executionContext) unmarshalInputImageUploadInput(ctx context.Context, 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"kind", "targetId", "contentType", "byteSize"}
+	fieldsInOrder := [...]string{"kind", "targetId", "contentType", "byteSize", "thumbnailByteSize"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -16275,6 +16345,13 @@ func (ec *executionContext) unmarshalInputImageUploadInput(ctx context.Context, 
 				return it, err
 			}
 			it.ByteSize = data
+		case "thumbnailByteSize":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("thumbnailByteSize"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ThumbnailByteSize = data
 		}
 	}
 
@@ -17660,6 +17737,8 @@ func (ec *executionContext) _ImageUpload(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "thumbnail":
+			out.Values[i] = ec._ImageUpload_thumbnail(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20992,6 +21071,13 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	_ = ctx
 	res := graphql.MarshalID(*v)
 	return res
+}
+
+func (ec *executionContext) marshalOImageUpload2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐImageUpload(ctx context.Context, sel ast.SelectionSet, v *model.ImageUpload) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ImageUpload(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

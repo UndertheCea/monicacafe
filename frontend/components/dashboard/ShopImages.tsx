@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_SHOP, type EditableShop } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
-import { Card, ConfirmButton, SectionTitle } from "@/components/ui";
+import { Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
 
 /** Logo + banner for the shop profile page. Each change is saved immediately. */
 export function ShopImages({
@@ -49,9 +49,13 @@ export function ShopImages({
           }`}
         >
           {url ? (
-            // Images are served from our own bucket (see backend/internal/storage).
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt={t(locale, alt, { name: shop.name })} className="h-full w-full object-cover" />
+            <Picture
+              src={url}
+              thumb
+              width={field === "logoUrl" ? 96 : 640}
+              height={field === "logoUrl" ? 96 : 213}
+              alt={t(locale, alt, { name: shop.name })}
+            />
           ) : (
             <span className="grid h-full w-full place-items-center text-xs text-muted">{t(locale, "img.none")}</span>
           )}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ShopSummary } from "@/lib/api";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { ShopLogo } from "./ShopLogo";
-import { Card } from "@/components/ui";
+import { Card, Picture } from "@/components/ui";
 
 export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }) {
   return (
@@ -10,8 +10,7 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
       {/* No banner: no band at all, the card stays plain white (#112). */}
       {shop.bannerUrl && (
         <div className="relative h-28 border-b border-line">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={shop.bannerUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+          <Picture src={shop.bannerUrl} thumb width={640} height={112} alt="" />
         </div>
       )}
       <div className="flex flex-1 flex-col p-4">

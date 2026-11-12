@@ -487,6 +487,21 @@ if [[ "${SMOKE_UPLOAD:-1}" != "0" ]]; then
       echo "FAIL /media/ GET headers lack the sandbox CSP / nosniff: $(head -1 <<<"$media_hdrs")"; fail=1
     fi
 
+    # Thumbnail (#235): one presign call also signs a ".thumb.webp" beside the original.
+    thumb_payload="smoke-thumb-$run"
+    tsize=${#thumb_payload}
+    tup=$(gql "$token" "$(printf '{"query":"mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { publicUrl thumbnail { uploadUrl publicUrl } } }","variables":{"in":{"kind":"SHOP_LOGO","targetId":"%s","contentType":"image/png","byteSize":%d,"thumbnailByteSize":%d}}}' "$shop_id" "$size" "$tsize")")
+    thumb_put=$(grep -o '"uploadUrl":"[^"]*"' <<<"$tup" | head -1 | cut -d'"' -f4 | sed 's/\\u0026/\&/g')
+    thumb_pub=$(grep -o '"publicUrl":"[^"]*"' <<<"$tup" | sed -n 2p | cut -d'"' -f4)
+    orig_pub=$(field publicUrl <<<"$tup")
+    tcode=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X PUT -H 'Content-Type: image/webp' --data-binary "$thumb_payload" "$thumb_put") || tcode="000"
+    tgot=$(curl -s --max-time 15 "$thumb_pub") || tgot=""
+    if [[ -n "$thumb_put" && "$thumb_pub" == "${orig_pub%.*}.thumb.webp" && "$tcode" == "200" && "$tgot" == "$thumb_payload" ]]; then
+      echo "ok   upload: thumbnail PUT + GET beside the original"
+    else
+      echo "FAIL upload: thumbnail PUT → $tcode, GET $thumb_pub → ${tgot:0:100} (original $orig_pub)"; fail=1
+    fi
+
     # Informational: does the S3 store refuse a presigned PUT sent with another
     # Content-Type than the one signed (image/png)? A fresh URL, same size.
     upload2=$(gql "$token" "$(printf '{"query":"mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { uploadUrl } }","variables":{"in":{"kind":"SHOP_LOGO","targetId":"%s","contentType":"image/png","byteSize":%d}}}' "$shop_id" "$size")")

@@ -391,6 +391,9 @@ type ImageUpload {
   publicUrl: String!
   headers: [UploadHeader!]!
   expiresAt: Time!
+  # Present when the input asked for a thumbnail: PUT the 640 px WebP there the
+  # same way. Its URL is derived from publicUrl and is never saved anywhere.
+  thumbnail: ImageUpload
 }
 
 type UploadHeader {
@@ -565,6 +568,10 @@ input ImageUploadInput {
   contentType: String!
   # Exact file size in bytes (max 5 MB); the upload must match it.
   byteSize: Int!
+  # Exact size in bytes (max 512 KB) of a 640 px image/webp thumbnail to store
+  # beside the original; the result's `thumbnail` is its presigned PUT. Counts
+  # toward the shop's daily upload budget.
+  thumbnailByteSize: Int
 }
 
 input VariantInput {

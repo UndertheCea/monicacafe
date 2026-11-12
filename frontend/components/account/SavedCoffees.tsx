@@ -8,7 +8,7 @@ import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { SAVED_PAGE, appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
-import { Button, Card, SectionTitle } from "@/components/ui";
+import { Button, Card, Picture, SectionTitle } from "@/components/ui";
 
 type List = { total: number; nodes: CoffeeCardData[] };
 type State =
@@ -112,8 +112,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
               <li key={c.id} className="flex items-center gap-4 p-4">
                 <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-box bg-white">
                   {img ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={img} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <Picture src={img} thumb width={56} height={56} alt="" />
                   ) : (
                     <CoffeeTile size="thumb" id={c.id} name={c.name} />
                   )}

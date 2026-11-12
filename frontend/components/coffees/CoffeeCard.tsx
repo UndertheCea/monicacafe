@@ -4,7 +4,7 @@ import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { originLine } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, Picture } from "@/components/ui";
 
 export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale: Locale }) {
   const price = fromPrice(coffee);
@@ -17,9 +17,7 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
     <Card as="article" className="relative flex flex-col overflow-hidden focus-within:ring-2 focus-within:ring-ink">
       <div className="relative aspect-[4/3] bg-paper">
         {img ? (
-          // Seller-uploaded images come from arbitrary hosts in Stage 1.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={img} alt={coffee.name} className="h-full w-full object-cover" loading="lazy" />
+          <Picture src={img} thumb width={640} height={480} alt={`${coffee.name} · ${coffee.shop.name}`} />
         ) : (
           <CoffeeTile
             id={coffee.id}

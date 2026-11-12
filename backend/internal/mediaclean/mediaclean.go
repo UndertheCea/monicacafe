@@ -63,7 +63,17 @@ func Sweep(ctx context.Context, b Bucket, referenced Referenced, now time.Time, 
 			}
 			res.Scanned += len(page)
 			if candidates := storage.Orphans(page, nil, now, o.MinAge); len(candidates) > 0 {
-				refs, err := referenced(ctx, candidates)
+				// A thumbnail is referenced iff its original is (#235): ask about
+				// the original's stem, once per image.
+				var ask []string
+				seen := map[string]bool{}
+				for _, c := range candidates {
+					if k := storage.ReferenceKey(c); !seen[k] {
+						seen[k] = true
+						ask = append(ask, k)
+					}
+				}
+				refs, err := referenced(ctx, ask)
 				if err != nil {
 					return res, fmt.Errorf("read referenced images: %w", err)
 				}
@@ -72,7 +82,7 @@ func Sweep(ctx context.Context, b Bucket, referenced Referenced, now time.Time, 
 					keep[k] = true
 				}
 				for _, key := range candidates {
-					if keep[key] {
+					if keep[storage.ReferenceKey(key)] {
 						continue
 					}
 					res.Orphans++

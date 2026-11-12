@@ -3,11 +3,12 @@
 import { useRef, useState } from "react";
 import { clampIndex, galleryPhotos, stepIndex } from "@/lib/gallery";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { Picture } from "@/components/ui";
 
 /**
  * Coffee photos: the selected one large, every photo (cover included) as a
- * thumbnail button underneath. Arrow keys move between thumbnails. Images come
- * from our media bucket (backend/internal/storage), so plain <img> is fine.
+ * thumbnail button underneath. Arrow keys move between thumbnails. The large
+ * photo is the first image on the page, so it loads eagerly with high priority.
  */
 export function PhotoGallery({
   images,
@@ -40,11 +41,12 @@ export function PhotoGallery({
     <div>
       <div className="relative aspect-square overflow-hidden rounded-box bg-paper ring-1 ring-line">
         {hero ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Picture
             src={hero}
+            width={1000}
+            height={1000}
+            priority
             alt={current === 0 ? name : t(locale, "img.photoAlt", { name, n: current + 1 })}
-            className="h-full w-full object-cover"
           />
         ) : (
           placeholder
@@ -67,8 +69,7 @@ export function PhotoGallery({
                   i === current ? "ring-2 ring-ink" : "ring-line opacity-80 hover:opacity-100"
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
+                <Picture src={src} thumb width={160} height={160} alt="" />
               </button>
             </li>
           ))}

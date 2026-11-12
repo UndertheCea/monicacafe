@@ -4,7 +4,8 @@ import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
 import { activeFilterCount, filterChips } from "@/lib/filterChips";
-import { serverQuery } from "@/lib/serverQuery";
+import { cachedServerQuery, serverQuery } from "@/lib/serverQuery";
+import { CACHE_TAGS } from "@/lib/catalogueCache";
 import { pick, t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { listingCanonicalPath, listingRobots, shareMetadata } from "@/lib/seo";
@@ -44,7 +45,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   let data;
   try {
     const [options, list] = await Promise.all([
-      serverQuery(BROWSE_FILTER_OPTIONS),
+      cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_TAGS.filterOptions]),
       serverQuery(COFFEES, { filter, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     ]);
     data = { options, list: list.coffees };

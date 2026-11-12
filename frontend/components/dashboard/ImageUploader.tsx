@@ -2,16 +2,16 @@
 
 import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { CREATE_IMAGE_UPLOAD, type ImageKind, type ImageUpload } from "@/lib/dashboard/queries";
+import { CREATE_IMAGE_UPLOAD, type ImageKind } from "@/lib/dashboard/queries";
 import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent, uploadSignErrorKey } from "@/lib/dashboard/upload";
-import { shrinkImage } from "./shrinkImage";
+import { makeThumbnail, shrinkImage } from "./shrinkImage";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { Button } from "@/components/ui";
 
 /** PUT a file to a presigned URL, reporting progress (fetch can't report upload progress). */
-function putFile(up: ImageUpload, file: File, onProgress: (pct: number) => void): Promise<void> {
+function putFile(up: { uploadUrl: string; headers: { name: string; value: string }[] }, file: Blob, onProgress: (pct: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("PUT", up.uploadUrl);
@@ -64,15 +64,20 @@ export function ImageUploader({
     const file = await shrinkImage(chosen).finally(() => setShrinking(false));
     // The API takes at most MAX_IMAGE_BYTES; a large file that couldn't shrink enough stops here.
     if (imageFileProblem(file)) return setError({ key: "img.error.tooBig", vars: { mb: MAX_IMAGE_BYTES / MB } });
+    // A 640 px WebP stored beside the original, for cards and lists (#235); none if the browser can't make one.
+    const thumb = await makeThumbnail(file);
     setProgress(0);
     let step: "sign" | "put" | "save" = "sign";
     try {
       // Signed for the file actually sent: its type and size may differ from the chosen one.
       const r = await request(CREATE_IMAGE_UPLOAD, {
-        input: { kind, targetId, contentType: file.type.toLowerCase(), byteSize: file.size },
+        input: { kind, targetId, contentType: file.type.toLowerCase(), byteSize: file.size, ...(thumb ? { thumbnailByteSize: thumb.size } : {}) },
       });
       step = "put";
       await putFile(r.createImageUpload, file, setProgress);
+      const thumbUp = r.createImageUpload.thumbnail;
+      // Best effort: without a thumbnail pages fall back to the original.
+      if (thumb && thumbUp) await putFile(thumbUp, thumb, () => {}).catch(() => {});
       step = "save";
       await onUploaded(r.createImageUpload.publicUrl);
     } catch (err) {

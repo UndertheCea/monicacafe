@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { HOME } from "@/lib/api";
 import { BRAND_NAME } from "@/lib/brand";
-import { serverQuery } from "@/lib/serverQuery";
+import { cachedServerQuery } from "@/lib/serverQuery";
+import { CACHE_TAGS } from "@/lib/catalogueCache";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
@@ -35,7 +36,7 @@ export default async function HomePage() {
 
   // The hero and feature grid are static; if the API is down the home page
   // still renders and the data sections show a short notice instead.
-  const home = await serverQuery(HOME, { popular: POPULAR_COUNT, shops: FEATURED_SHOPS }).catch(() => null);
+  const home = await cachedServerQuery(HOME, [CACHE_TAGS.home], { popular: POPULAR_COUNT, shops: FEATURED_SHOPS }).catch(() => null);
 
   const why = [
     { title: t(locale, "home.why1Title"), body: t(locale, "home.why1Body") },

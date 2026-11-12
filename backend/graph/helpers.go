@@ -550,7 +550,8 @@ func (r *Resolver) checkMediaURL(field, v, keyPrefix string) error {
 	if r.Media == nil {
 		return errBadInput(field, "image uploads are not configured on this server")
 	}
-	if len(v) > 2048 || !strings.HasPrefix(r.Media.KeyOf(v), keyPrefix) {
+	// Thumbnails (…thumb.webp) are derived from an original and never saved.
+	if len(v) > 2048 || !strings.HasPrefix(r.Media.KeyOf(v), keyPrefix) || storage.IsThumbKey(r.Media.KeyOf(v)) {
 		return errBadInput(field, field+" must be an image uploaded for this listing")
 	}
 	return nil

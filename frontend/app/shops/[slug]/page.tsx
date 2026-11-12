@@ -17,7 +17,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Page } from "@/components/Page";
-import { Card, PageTitle, SectionTitle } from "@/components/ui";
+import { Card, PageTitle, Picture, SectionTitle } from "@/components/ui";
 
 type Params = Promise<{ slug: string }>;
 
@@ -98,8 +98,7 @@ export default async function ShopPage({
       {/* No banner: no block at all, just white space (#112). */}
       {shop.bannerUrl && (
         <div className="relative h-48 border-b border-line md:h-64">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={shop.bannerUrl} alt="" className="h-full w-full object-cover" />
+          <Picture src={shop.bannerUrl} priority width={1200} height={256} alt="" />
         </div>
       )}
 

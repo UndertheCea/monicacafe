@@ -25,6 +25,17 @@ export function forwardingClient(xff: string | undefined) {
   return new GraphQLClient(endpoint, { headers: { "X-Forwarded-For": xff }, cache: "no-store" });
 }
 
+/**
+ * Client for anonymous catalogue queries that may be cached for a minute
+ * (lib/catalogueCache.ts). It sends no cookies, no Authorization and no
+ * per-visitor headers: Next keys its fetch cache on headers, so anything
+ * per-visitor would defeat the cache (and a viewer's token must never be
+ * attached to a response that is shared).
+ */
+export function cachedClient(next: { revalidate: number; tags: string[] }) {
+  return new GraphQLClient(endpoint, { next });
+}
+
 export function authedClient(accessToken: string) {
   return new GraphQLClient(endpoint, {
     headers: { Authorization: `Bearer ${accessToken}` },

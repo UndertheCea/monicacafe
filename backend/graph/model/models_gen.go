@@ -95,13 +95,15 @@ type ImageUpload struct {
 	PublicURL string          `json:"publicUrl"`
 	Headers   []*UploadHeader `json:"headers"`
 	ExpiresAt time.Time       `json:"expiresAt"`
+	Thumbnail *ImageUpload    `json:"thumbnail,omitempty"`
 }
 
 type ImageUploadInput struct {
-	Kind        ImageKind `json:"kind"`
-	TargetID    string    `json:"targetId"`
-	ContentType string    `json:"contentType"`
-	ByteSize    int       `json:"byteSize"`
+	Kind              ImageKind `json:"kind"`
+	TargetID          string    `json:"targetId"`
+	ContentType       string    `json:"contentType"`
+	ByteSize          int       `json:"byteSize"`
+	ThumbnailByteSize *int      `json:"thumbnailByteSize,omitempty"`
 }
 
 type LoginInput struct {

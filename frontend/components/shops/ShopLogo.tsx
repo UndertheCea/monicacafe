@@ -1,4 +1,5 @@
 import { shopInitials } from "@/lib/shopInitials";
+import { Picture } from "@/components/ui";
 
 const SIZES = {
   sm: "h-12 w-12 text-base",
@@ -29,9 +30,7 @@ export function ShopLogo({
       } ${SIZES[size]} ${className}`}
     >
       {logoUrl ? (
-        // Logos come from our media bucket (backend/internal/storage), so plain <img> is fine.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <Picture src={logoUrl} thumb width={96} height={96} alt="" />
       ) : (
         <span>{shopInitials(name)}</span>
       )}

@@ -26,7 +26,7 @@ import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
 import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
-import { Badge, Button, Card, ConfirmButton, SectionTitle } from "@/components/ui";
+import { Badge, Button, Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
 import { ICON_BUTTON } from "@/lib/ui";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
@@ -235,8 +235,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                   )}
                   <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-box ring-1 ring-line sm:block">
                     {c.imageUrls[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.imageUrls[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      <Picture src={c.imageUrls[0]} thumb width={48} height={48} alt="" />
                     ) : (
                       <CoffeeTile size="thumb" id={c.id} name={c.name} />
                     )}

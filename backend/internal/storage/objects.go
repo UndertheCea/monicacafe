@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -120,6 +121,35 @@ func (m *Media) do(ctx context.Context, method, key string, q url.Values, ok ...
 // keyRe matches the object keys NewKey creates under ShopPrefix / CoffeePrefix.
 var keyRe = regexp.MustCompile(`(?:shops|coffees)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[a-z]+-[0-9a-f]{24}\.(?:jpg|png|webp)$`)
 
+// thumbKeyRe matches the thumbnail key ThumbKey derives from an original key;
+// group 1 is the original's key without its extension.
+var thumbKeyRe = regexp.MustCompile(`^((?:shops|coffees)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[a-z]+-[0-9a-f]{24})\.thumb\.webp$`)
+
+// ThumbKey is the key of the 640 px thumbnail stored next to an original
+// ("…/photo-<hex>.jpg" becomes "…/photo-<hex>.thumb.webp"), or "" when key
+// isn't an original's key. Thumbnails are derived, never saved to the
+// database (#235).
+func ThumbKey(key string) string {
+	if keyRe.FindString(key) != key {
+		return ""
+	}
+	return key[:strings.LastIndex(key, ".")] + ".thumb.webp"
+}
+
+// IsThumbKey reports whether key has the shape ThumbKey produces.
+func IsThumbKey(key string) bool { return thumbKeyRe.MatchString(key) }
+
+// ReferenceKey maps an object key to what the database can reference: a
+// thumbnail is referenced iff its original is, so it is looked up as the
+// original's stem (the reference query matches by substring, so "…/photo-<hex>"
+// finds the saved "….jpg" URL). Other keys map to themselves.
+func ReferenceKey(key string) string {
+	if m := thumbKeyRe.FindStringSubmatch(key); m != nil {
+		return m[1]
+	}
+	return key
+}
+
 // ImageKeyIn extracts the object key from a saved image URL by its shape
 // (not by MEDIA_PUBLIC_URL), so changing the public URL — e.g. putting a CDN
 // in front — never makes stored images look unreferenced. "" if none.
@@ -139,7 +169,7 @@ func Orphans(objects []Object, referenced map[string]bool, now time.Time, minAge
 		if referenced[o.Key] || now.Sub(o.LastModified) < minAge {
 			continue
 		}
-		if keyRe.FindString(o.Key) != o.Key {
+		if keyRe.FindString(o.Key) != o.Key && !IsThumbKey(o.Key) {
 			continue // not ours (or a different layout): leave it alone
 		}
 		out = append(out, o.Key)

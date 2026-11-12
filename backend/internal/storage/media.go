@@ -13,7 +13,11 @@ import (
 // Image upload limits.
 const (
 	MaxImageBytes = 5 << 20 // 5 MiB
-	UploadTTL     = 10 * time.Minute
+	// MaxThumbBytes caps the 640 px WebP thumbnail uploaded beside an original (#235).
+	MaxThumbBytes = 512 << 10
+	// ThumbContentType is the only type a thumbnail may have.
+	ThumbContentType = "image/webp"
+	UploadTTL        = 10 * time.Minute
 )
 
 // imageTypes maps the accepted content types to file extensions.
@@ -24,6 +28,7 @@ var imageTypes = map[string]string{
 }
 
 var (
+	ErrThumbSize   = fmt.Errorf("thumbnail must be 1 byte to %d KB", MaxThumbBytes>>10)
 	ErrContentType = errors.New("content type must be image/jpeg, image/png or image/webp")
 	ErrSize        = fmt.Errorf("image must be 1 byte to %d MB", MaxImageBytes>>20)
 )

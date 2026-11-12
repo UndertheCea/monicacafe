@@ -882,6 +882,14 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	if err != nil {
 		return nil, errBadInput("byteSize", err.Error())
 	}
+	reserve := int64(input.ByteSize)
+	if input.ThumbnailByteSize != nil {
+		if n := int64(*input.ThumbnailByteSize); n <= 0 || n > storage.MaxThumbBytes {
+			return nil, errBadInput("thumbnailByteSize", storage.ErrThumbSize.Error())
+		} else {
+			reserve += n
+		}
+	}
 	var prefix, kind, shopID string
 	switch input.Kind {
 	case model.ImageKindShopLogo, model.ImageKindShopBanner:
@@ -904,7 +912,7 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	}
 	// Every upload target belongs to a shop: its daily byte budget applies
 	// (declared sizes; the presigned PUT is pinned to the same length).
-	if err := r.Store.ReserveUpload(ctx, shopID, int64(input.ByteSize), r.UploadDailyBytes); errors.Is(err, store.ErrUploadQuota) {
+	if err := r.Store.ReserveUpload(ctx, shopID, reserve, r.UploadDailyBytes); errors.Is(err, store.ErrUploadQuota) {
 		return nil, errUploadQuota()
 	} else if err != nil {
 		return nil, err
@@ -918,7 +926,20 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	for k, v := range up.Headers {
 		headers = append(headers, &model.UploadHeader{Name: k, Value: v})
 	}
-	return &model.ImageUpload{UploadURL: up.UploadURL, PublicURL: up.PublicURL, Headers: headers, ExpiresAt: up.ExpiresAt}, nil
+	out := &model.ImageUpload{UploadURL: up.UploadURL, PublicURL: up.PublicURL, Headers: headers, ExpiresAt: up.ExpiresAt}
+	if input.ThumbnailByteSize != nil {
+		// The thumbnail's key is derived from the original's, beside it (#235).
+		tk := storage.ThumbKey(key)
+		if tk == "" {
+			return nil, errBadInput("targetId", "cannot derive a thumbnail key")
+		}
+		tu := r.Media.PresignPut(tk, storage.ThumbContentType, int64(*input.ThumbnailByteSize))
+		out.Thumbnail = &model.ImageUpload{
+			UploadURL: tu.UploadURL, PublicURL: tu.PublicURL, ExpiresAt: tu.ExpiresAt,
+			Headers: []*model.UploadHeader{{Name: "Content-Type", Value: storage.ThumbContentType}},
+		}
+	}
+	return out, nil
 }
 
 // AddVariant is the resolver for the addVariant field.

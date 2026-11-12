@@ -26,10 +26,15 @@ done
 check_status "$BASE_URL/shops/__no-such-shop__" 404
 
 # No-JavaScript rendering (#156): list pages arrive complete, not streamed into
-# hidden placeholders behind a loading skeleton.
+# hidden placeholders behind a loading skeleton. React appends streamed boundaries
+# as <div hidden id="S:n"> after the shell; the header search's own boundary may
+# stream (its fallback is the same working form), so the check is that the cards
+# are in the shell and none of them are in a streamed part.
 for path in /coffees /shops; do
   page=$(curl -s --max-time 15 "$BASE_URL$path") || page=""
-  if [[ -n "$page" && "$page" != *'<div hidden id="S:'* && "$page" == *'<article'* ]]; then
+  shell=${page%%'<div hidden id="S:'*}
+  streamed=${page:${#shell}}
+  if [[ -n "$page" && "$shell" == *'<article'* && "$streamed" != *'<article'* ]]; then
     echo "ok   $path renders its list without JavaScript"
   else
     echo "FAIL $path should render its list in the HTML, not in a hidden streamed placeholder"; fail=1

@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-12 (after Session 35)
+Last updated: 2026-11-13 (after Session 36)
 
 ---
 
@@ -62,7 +62,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Request limits: list fields priced by their limit, depth ≤ 8, no similar-of-similar, ≤ 5000 tokens, 100 KB body | Done (#207) |
 | Hardening: production refuses published secrets and needs `APP_ENV` (#206); safe `?next=` (#208); only nginx reachable, BFF forwards nginx's X-Real-IP (#211); one frontend image for any host (#210) | Done |
 | Error contract (`graph/errors.go` ↔ `lib/errors.ts`, Go test); JSON access + panic logs with request id (#48, #53); Postgres pool cap + statement timeout (#52) | Done |
-| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke**, `security` (govulncheck + npm audit), dependabot, actions pinned by SHA, images by patch version | Done (#216) |
+| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke + browser checks** (Playwright journeys, axe on 13 pages, report → /admin; `e2e/`), `security`, dependabot, actions pinned by SHA | Done (#216, #263–#265) |
 | nginx: gzip, no server version, `/media/` sandboxed (GET / HEAD / PUT only), per-IP `limit_req` on /graphql and /api/, timeouts + body caps, exact `/graphql`, JSON access log with request ids | Done (#64, #214) |
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
@@ -76,18 +76,17 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 35**: #255 (session 34) never got CI (runs stuck "queued"), so this branch started from its head and its PR
-carries both. Six `stage-1` slices: design system components (#230); per-field form errors + inline confirm (#232);
-metrics / health / error reporting (#221); reports + `/admin` + contact-details check (#225); thumbnails + catalogue
-caching (#235); small UX fixes (#236). No answers on the open questions.
+**Session 36**: no answers on the open questions and no pickable slice, so six new `stage-1` gaps were filed and built: unused
+packages removed (#260); dependency minor / patch + Actions majors, gqlgen 0.17.98 (#261); the API router under test (#262);
+Playwright journeys (#263), axe on 13 pages (#264) and report → `/admin` (#265) in CI. axe found the wordmark's name mismatch.
 
 ## Current focus
 
 1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS and real secrets is the next big
    step (#219, blocked). Backups (#220), cookie / Origin rules (#215) and monitoring (#221, `docs/DEPLOY.md`) are ready.
-2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still 403 on 2026-11-11).
+2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still unreachable on 2026-11-13).
 3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205. Every unblocked `stage-1` slice is done;
-   #223 (password reset) and #226 (legal pages) are blocked on #200 / #201.
+   #223 / #226 wait on #200 / #201. Open dependabot majors (TS 7, ESLint 10, Node 26, Postgres 18, Redis 8) need real work.
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
    turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).

@@ -15,6 +15,51 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 36 — 2026-11-13 — Browser checks in CI, dependency upkeep, router tests (six stage-1 slices)
+PR: #266
+
+No open PR from an earlier session (only dependabot's). No owner answers on any question. Every open slice was blocked
+(#170–#174 still can't reach the roasters' domains; #219 / #223 / #226 on #199–#201; #21 / #237 are `stage-2` and #197's safe
+default keeps the stage rule), so I filed six real `stage-1` gaps (#260–#265) and built them. A Sonnet sub-agent did #262
+in a worktree (cherry-picked and reviewed); the rest I did.
+
+### Shipped (one line per slice: area — what — key files)
+- #260 frontend — removed `framer-motion`, `zustand`, `@tanstack/react-query` (never imported); `tests/dependencies.test.mjs`
+  fails when a runtime dependency isn't imported (peers / Next-loaded ones listed with a reason).
+- #262 backend — `cmd/server/router.go` `newRouter(routerDeps)` (same middleware order); `router_test.go`: health routes,
+  404 keeps security headers, no `/metrics` on the public router, playground only outside production, CORS allow / deny,
+  oversized body refused, request ids kept / replaced.
+- #261 cross-cutting — dependabot's Go group (gqlgen 0.17.98 → regenerated, chi 5.5, pgx 5.12, x/crypto 0.58), npm
+  minor / patch, nginx 1.31.8, SeaweedFS 4.53, Meilisearch 1.56, alpine 3.24.4, checkout 7.0.1 / setup-go 7.0.0 /
+  setup-node 7.1.0. New gqlgen returns the parser's token cut-off as `GRAPHQL_PARSE_FAILED`; `ErrorPresenter` maps it to
+  `QUERY_TOO_COMPLEX` (contract unchanged, `TestTokenLimitErrorIsQueryTooComplex`). The builder stays on golang 1.26.11.
+- #263 cross-cutting — `e2e/` (playwright 1.63.0, own lockfile, dependabot): seller registers, opens a shop, adds a coffee,
+  uploads a photo (original + `.thumb.webp` PUT and readable via nginx), publishes, sees it on /coffees with the photo
+  loaded; buyer saves / follows (counts, reload, /account), comments, the Roaster badge only on the seller's reply; no-JS
+  list + coffee page. Runs after smoke in `stack`; failure screenshots uploaded (upload-artifact 7.0.2, SHA-pinned).
+- #264 frontend — `e2e/a11y.test.mjs`: axe-core 4.14.0 on 13 pages (6 public, login / register signed out, account,
+  dashboard, shop profile, new and edit coffee); serious / critical fail. It found `label-content-name-mismatch` on the
+  header wordmark on every page (visible "monicafe" vs name "Moni Cafe"): a real space between the spans fixes it.
+- #265 cross-cutting — `e2e/admin.test.mjs`: report a comment → non-admin sees nothing on /admin → `cmd/admin grant`
+  (`E2E_GRANT_ADMIN`) → the admin takes it down with a reason → report closed, comment gone. Required in CI.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, migrations 001–019) on the
+  updated dependencies.
+- Frontend: tsc, lint, `npm test` (267), `next build`, `npm audit --omit=dev` (0). `docker compose config`, `check_brief.sh`.
+- Local stack without compose builds (the containers can't trust the session proxy's CA for `go mod download` / `npm ci`):
+  API binary + `next start` + SeaweedFS 4.52 and **nginx 1.31.8** containers on the host network. `smoke.sh` passed, and
+  all 21 browser checks passed (journeys, axe, moderation).
+- Not tested: `docker compose up --build` itself and the new Actions majors (CI covers both); SeaweedFS 4.53 locally (4.52
+  was cached); the browser checks only run in Chromium.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Dependabot majors left open on purpose: TypeScript 7 (#252), ESLint 10 (#251), @types/node 26 (#254), Node 26 (#244),
+  PostgreSQL 18 (#248, existing volumes need dump / restore), Redis 8 (#247). Golang 1.27 for the builder waits for go.mod.
+  #253 (framer-motion) is moot: the package is gone.
+- Browser checks register 5 users per run; with smoke's 2 that is 7 of `RATE_LIMIT_REGISTER_IP` (10/h) before the restore
+  drill restarts the API. Raise the CI limit if more journeys are added.
+
 ## Session 35 — 2026-11-12 — Design system, forms, observability, reports, images (six stage-1 slices)
 PR: #256 (also carries #255, session 34)
 

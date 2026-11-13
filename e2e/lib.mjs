@@ -1,6 +1,7 @@
 // Shared helpers for the browser checks (#263, #264). Run against a live stack:
 //   cd e2e && npm ci && BASE_URL=http://localhost npm test
 import { mkdir } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 export const BASE_URL = process.env.BASE_URL ?? "http://localhost";
@@ -28,9 +29,9 @@ export async function newVisitor(browser, { javaScript = true, bypassCSP = false
 /** Saves a full-page screenshot under e2e/artifacts/ (uploaded by CI on failure). */
 export async function snap(page, name) {
   await mkdir(ARTIFACTS, { recursive: true });
-  const file = new URL(`${name.replace(/[^a-z0-9-]+/gi, "-")}.png`, ARTIFACTS);
-  await page.screenshot({ path: file, fullPage: true }).catch(() => {});
-  return file.pathname;
+  const file = fileURLToPath(new URL(`${name.replace(/[^a-z0-9-]+/gi, "-")}.png`, ARTIFACTS));
+  await page.screenshot({ path: file, fullPage: true }).catch((e) => console.log(`# screenshot failed: ${e.message}`));
+  return file;
 }
 
 /** Runs one step; on failure saves a screenshot named after it and rethrows. */
@@ -112,4 +113,13 @@ export async function publish(page, name) {
   const row = dashboardRow(page, name);
   await row.getByRole("button", { name: "Publish" }).click();
   await row.getByText("Published").waitFor();
+}
+
+/** Logs in through the UI. */
+export async function login(page, email) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Log in" }).click();
+  await page.waitForURL((u) => !u.pathname.startsWith("/login"));
 }

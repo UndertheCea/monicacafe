@@ -156,7 +156,8 @@ jobs:
         run: ./scripts/smoke.sh
       # Browser journeys (#263): seller publishes a coffee with a photo, a buyer
       # saves / follows / comments, pages render without JavaScript; axe on 13
-      # public and signed-in pages fails on serious / critical violations (#264).
+      # public and signed-in pages fails on serious / critical violations (#264);
+      # a reported comment reaches /admin and is taken down (#265).
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -168,6 +169,9 @@ jobs:
           npm ci
           npx playwright install --with-deps chromium
           BASE_URL=http://localhost npm test
+        env:
+          # The moderation check (#265) grants its admin the only way there is: cmd/admin.
+          E2E_GRANT_ADMIN: docker compose --project-directory .. exec -T backend /app/admin grant
       - name: Browser check screenshots (on failure)
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

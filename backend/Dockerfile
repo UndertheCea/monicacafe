@@ -7,7 +7,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /server ./cmd/server \
  && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /admin ./cmd/admin
 
-FROM alpine:3.21.10
+FROM alpine:3.24.4
 # CA roots come from the builder image (golang:alpine ships them), so the
 # runtime stage needs no package downloads. Timezone data is not needed:
 # tz.Taipei is a fixed UTC+8 zone. busybox wget serves the healthcheck:

@@ -10,8 +10,10 @@ import (
 	"testing"
 
 	"github.com/99designs/gqlgen/complexity"
+	"github.com/99designs/gqlgen/graphql/errcode"
 	"github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 )
@@ -236,4 +238,29 @@ func TestFrontendOperationsFitTheLimits(t *testing.T) {
 		}
 	}
 	t.Logf("most expensive: %s at %d of %d", worstName, worst, MaxQueryComplexity)
+}
+
+// Newer gqlgen reports the parser's token cut-off as GRAPHQL_PARSE_FAILED; the
+// API keeps answering QUERY_TOO_COMPLEX for it, and only for it (#261).
+func TestTokenLimitErrorIsQueryTooComplex(t *testing.T) {
+	parse := func(msg string) *gqlerror.Error {
+		return &gqlerror.Error{Message: msg, Extensions: map[string]any{"code": errcode.ParseFailed}}
+	}
+	tests := []struct {
+		name string
+		err  *gqlerror.Error
+		want string
+	}{
+		{"token limit", parse("exceeded token limit of 5000"), CodeQueryTooComplex},
+		{"other parse error", parse("Expected Name, found <EOF>"), errcode.ParseFailed},
+		{"validation error", &gqlerror.Error{Message: "exceeded token limit", Extensions: map[string]any{"code": errcode.ValidationFailed}}, errcode.ValidationFailed},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ErrorPresenter(context.Background(), tt.err)
+			if got.Extensions["code"] != tt.want {
+				t.Fatalf("code = %v, want %s", got.Extensions["code"], tt.want)
+			}
+		})
+	}
 }

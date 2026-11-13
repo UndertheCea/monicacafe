@@ -1,0 +1,13 @@
+{
+  "name": "monicacafe-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser journeys + accessibility checks against a running stack (CI job `stack`, #263 / #264).",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"*.test.mjs\""
+  },
+  "dependencies": {
+    "axe-core": "4.14.0",
+    "playwright": "1.63.0"
+  }
+}

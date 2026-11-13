@@ -12,10 +12,7 @@ import (
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
-	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/underthecea/monicacafe/backend/graph"
@@ -150,26 +147,6 @@ func run() error {
 		return graph.RecoverFunc(ctx, p)
 	})
 
-	r := chi.NewRouter()
-	r.Use(middleware.SanitizeRequestID)
-	r.Use(chimiddleware.RequestID)
-	r.Use(middleware.SecurityHeaders)
-	r.Use(middleware.ClientIPMiddleware(proxies))
-	r.Use(m.HTTPMiddleware()) // outside Recover: a recovered panic counts as its 500
-	r.Use(middleware.AccessLog(slog.Default()))
-	r.Use(middleware.Recover(slog.Default(), func(r *http.Request, rec any, stack []byte) {
-		m.Panic()
-		reporter.Report(errreport.Event{Kind: "panic", Message: middleware.PanicText(rec), Stack: string(stack),
-			Method: r.Method, Path: r.URL.Path, RequestID: chimiddleware.GetReqID(r.Context())})
-	}))
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   cfg.CORSOrigins(),
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
-
 	checker := &health.Checker{
 		Database: pool.Ping,
 		Migrations: health.MigrationProbe(func(ctx context.Context, version string) (bool, error) {
@@ -182,21 +159,20 @@ func run() error {
 	if media != nil {
 		checker.Storage = media.Ping
 	}
-	r.Get("/health/live", health.Live)
-	r.Get("/health/ready", checker.ReadyHandler())
-	r.Get("/health", checker.ReadyHandler()) // alias, kept for existing probes
 
-	r.Group(func(r chi.Router) {
-		// First, so a throttled address costs no token check or database work.
-		r.Use(graph.IPRateLimit(lim("graphql_ip", rules.GraphQLIP)))
-		r.Use(middleware.Auth(authSvc))
-		r.Use(graph.LoaderMiddleware(st))
-		r.Use(chimiddleware.RequestSize(graph.MaxRequestBytes))
-		r.Handle("/graphql", srv)
+	r := newRouter(routerDeps{
+		Proxies:     proxies,
+		Metrics:     m.HTTPMiddleware(),
+		OnPanic:     m.Panic,
+		Reporter:    reporter,
+		CORSOrigins: cfg.CORSOrigins(),
+		Ready:       checker.ReadyHandler(),
+		GraphQL:     srv,
+		GraphQLIP:   graph.IPRateLimit(lim("graphql_ip", rules.GraphQLIP)),
+		Auth:        middleware.Auth(authSvc),
+		Loaders:     graph.LoaderMiddleware(st),
+		Playground:  cfg.AppEnv != "production",
 	})
-	if cfg.AppEnv != "production" {
-		r.Handle("/playground", playground.Handler("Moni Cafe API", "/graphql"))
-	}
 
 	httpSrv := &http.Server{
 		Addr:              ":" + cfg.Port,

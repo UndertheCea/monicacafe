@@ -73,7 +73,7 @@ services:
   # `docker compose --profile search up`. Set MEILI_KEY first (see .env.example).
   meilisearch:
     profiles: ["search"]
-    image: getmeili/meilisearch:v1.14
+    image: getmeili/meilisearch:v1.56
     environment:
       MEILI_ENV: ${MEILI_ENV:-development}
       MEILI_MASTER_KEY: ${MEILI_KEY:-monica_meili_key}
@@ -93,7 +93,7 @@ services:
   # SeaweedFS stands in for MinIO, whose images left Docker Hub. Images are
   # uploaded with presigned PUTs and served through nginx at /media/.
   seaweedfs:
-    image: chrislusf/seaweedfs:4.52
+    image: chrislusf/seaweedfs:4.53
     entrypoint: ["/bin/sh", "/seaweedfs.sh", "start"]
     environment:
       S3_BUCKET: ${S3_BUCKET:-media}
@@ -111,7 +111,7 @@ services:
 
   # One-shot: creates the bucket (idempotent).
   seaweedfs-init:
-    image: chrislusf/seaweedfs:4.52
+    image: chrislusf/seaweedfs:4.53
     entrypoint: ["/bin/sh", "/seaweedfs.sh", "init"]
     environment:
       S3_BUCKET: ${S3_BUCKET:-media}
@@ -249,7 +249,7 @@ services:
     restart: unless-stopped
 
   nginx:
-    image: nginx:1.27.5-alpine
+    image: nginx:1.31.8-alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

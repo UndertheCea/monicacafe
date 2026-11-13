@@ -21,8 +21,9 @@ export function Wordmark({ size = "md" }: { size?: "md" | "sm" }) {
         aria-hidden
         className={`flex items-baseline gap-[0.2em] font-wordmark font-extrabold italic lowercase tracking-[-0.06em] ${text}`}
       >
-        <span>{WORDMARK.main}</span>
-        <span>{WORDMARK.sub}</span>
+        {/* The space keeps the visible text "moni cafe", which must match the link's name (axe
+            label-content-name-mismatch, #264); flex layout ignores it, the gap spaces the words. */}
+        <span>{WORDMARK.main}</span> <span>{WORDMARK.sub}</span>
       </span>
     </Link>
   );

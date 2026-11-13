@@ -58,7 +58,7 @@ services:
   # with `docker compose --profile cache up`. The backend does not wait for it.
   redis:
     profiles: ["cache"]
-    image: redis:7.4.12-alpine
+    image: redis:8.10.2-alpine
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data

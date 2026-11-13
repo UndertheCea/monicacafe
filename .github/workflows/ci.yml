@@ -155,13 +155,14 @@ jobs:
       - name: Smoke test via http://localhost
         run: ./scripts/smoke.sh
       # Browser journeys (#263): seller publishes a coffee with a photo, a buyer
-      # saves / follows / comments, pages render without JavaScript.
+      # saves / follows / comments, pages render without JavaScript; axe on 13
+      # public and signed-in pages fails on serious / critical violations (#264).
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: e2e/package-lock.json
-      - name: Browser checks (Playwright)
+      - name: Browser checks (Playwright journeys + axe)
         working-directory: e2e
         run: |
           npm ci

@@ -52,6 +52,6 @@ test("the header wordmark has no tagline and sets 'cafe' at the size of 'moni' (
   const mark = readFileSync(join(root, "components/Wordmark.tsx"), "utf8");
   assert.doesNotMatch(mark, /\bsub\?:|\{sub\b/, "no tagline prop");
   // One shared size class on the element that wraps both words; no smaller text size on "cafe".
-  assert.match(mark, /<span>\{WORDMARK\.main\}<\/span>\s*<span>\{WORDMARK\.sub\}<\/span>/);
+  assert.match(mark, /<span>\{WORDMARK\.main\}<\/span> <span>\{WORDMARK\.sub\}<\/span>/);
   assert.doesNotMatch(mark, /text-\[0\.\d+rem\]/, "no small second line");
 });

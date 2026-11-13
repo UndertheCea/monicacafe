@@ -9,6 +9,8 @@
 # seed produced map pins and coffees, and that image uploads round-trip
 # through nginx to the S3 store.
 set -euo pipefail
+# With pipefail, never pipe a download into `grep -q`: grep exits at the first match, the writer gets SIGPIPE,
+# and the check fails although it matched (more likely the larger the page). Let grep read it all (`>/dev/null`).
 
 BASE_URL="${BASE_URL:-http://localhost}"
 API_URL="${API_URL:-$BASE_URL}"
@@ -114,7 +116,7 @@ if [[ -z "$coffee_path" || -z "$shop_path" ]]; then
   echo "FAIL detail pages: no coffee / shop URL in sitemap.xml"; fail=1
 else
   detail_check "$coffee_path" "$(printf '{"query":"{ coffee(id: \\"%s\\") { name } }"}' "${coffee_path##*/}")"
-  if curl -s --max-time 15 "$BASE_URL$coffee_path" | grep -q '<script type="application/ld+json"[^>]*>{"@context":"https://schema.org","@type":"Product"'; then
+  if curl -s --max-time 15 "$BASE_URL$coffee_path" | grep '<script type="application/ld+json"[^>]*>{"@context":"https://schema.org","@type":"Product"' >/dev/null; then
     echo "ok   Product JSON-LD on $coffee_path"
   else
     echo "FAIL no Product JSON-LD on $coffee_path"; fail=1
@@ -166,8 +168,8 @@ if [[ "$fe" == *'"api":"up"'* && "$fe" == *'"build"'* ]]; then echo "ok   /api/h
 check_status "$BASE_URL/metrics" 404
 check_status "$API_URL/metrics" 404
 # Inside the compose network the internal listener serves it (skipped without docker).
-if command -v docker >/dev/null 2>&1 && docker compose ps --status running backend 2>/dev/null | grep -q backend; then
-  if docker compose exec -T backend wget -qO- http://127.0.0.1:9100/metrics 2>/dev/null | grep -q '^moni_http_requests_total'; then
+if command -v docker >/dev/null 2>&1 && docker compose ps --status running backend 2>/dev/null | grep backend >/dev/null; then
+  if docker compose exec -T backend wget -qO- http://127.0.0.1:9100/metrics 2>/dev/null | grep '^moni_http_requests_total' >/dev/null; then
     echo "ok   backend :9100/metrics serves Prometheus metrics (internal only)"
   else
     echo "FAIL backend :9100/metrics did not return moni_http_requests_total"; fail=1
@@ -229,6 +231,10 @@ if [[ -n "$access" && "$pw" == "200" && -n "$after" && "$after" != "$before" && 
 else
   echo "FAIL change password: login token '${access:0:8}', /api/auth/password $pw, stale refresh $stale, new refresh $fresh"; fail=1
 fi
+
+# The auth calls above come faster than nginx's /api/ zone (5 r/s, burst 10, #214) refills; let it drain so the
+# checks below see the app's answers, not nginx's 429.
+sleep 2
 
 # Delete account through the BFF (#91): refused without an access token; with
 # one (from a refresh on the current cookie) the account goes, the cookie is
@@ -293,7 +299,7 @@ if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-0000
 else
   echo "ok   graphql provenance search"
 fi
-if curl -s --max-time 15 "$BASE_URL/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2" | grep -q '/coffees/00000000-0000-4000-8000-000000000201'; then
+if curl -s --max-time 15 "$BASE_URL/coffees?q=%E8%80%B6%E5%8A%A0%E9%9B%AA%E8%8F%B2" | grep '/coffees/00000000-0000-4000-8000-000000000201' >/dev/null; then
   echo "ok   /coffees?q= lists the match"
 else
   echo "FAIL /coffees?q= did not list the seeded match"; fail=1
@@ -401,7 +407,7 @@ else
 fi
 
 # Shop search (#75, #76): /shops?q=晨光 lists the seeded Dawn Roastery.
-if curl -s --max-time 15 "$BASE_URL/shops?q=%E6%99%A8%E5%85%89" | grep -q '/shops/demo-roastery'; then
+if curl -s --max-time 15 "$BASE_URL/shops?q=%E6%99%A8%E5%85%89" | grep '/shops/demo-roastery' >/dev/null; then
   echo "ok   /shops?q= lists the match"
 else
   echo "FAIL /shops?q= should list /shops/demo-roastery"; fail=1
@@ -444,7 +450,7 @@ fi
 
 # "You may also like" (#83, #84): the seeded 耶加雪菲 page links the seeded Kenya
 # washed coffee from another shop (same process; only reachable via Coffee.similar).
-if curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201" | grep -q '/coffees/00000000-0000-4000-8000-000000000204'; then
+if curl -s --max-time 15 "$BASE_URL/coffees/00000000-0000-4000-8000-000000000201" | grep '/coffees/00000000-0000-4000-8000-000000000204' >/dev/null; then
   echo "ok   coffee page: you may also like"
 else
   echo "FAIL coffee page: expected a similar coffee from another shop (…0204)"; fail=1

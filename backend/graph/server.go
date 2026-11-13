@@ -132,8 +132,10 @@ func (q *queryLimits) MutateOperationContext(ctx context.Context, opCtx *graphql
 	if op == nil {
 		return nil // gqlgen reports the missing operation itself
 	}
-	// gqlgen v0.17.73 drops the parser's "exceeded token limit" error and runs
-	// whatever was parsed up to the limit, so the cut-off is reported here.
+	// The parser stops at ParserTokenLimit and newer gqlgen reports that itself
+	// (ErrorPresenter maps it to QUERY_TOO_COMPLEX). v0.17.73 dropped the error and
+	// ran whatever was parsed, so the document is still counted here in case a
+	// future version does that again.
 	if tooManyTokens(opCtx.RawQuery, ParserTokenLimit) {
 		return errQueryTooComplex(fmt.Sprintf("query document has more than %d tokens", ParserTokenLimit))
 	}

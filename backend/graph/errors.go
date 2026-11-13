@@ -3,10 +3,13 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/99designs/gqlgen/graphql"
+	"github.com/99designs/gqlgen/graphql/errcode"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
 
@@ -96,6 +99,9 @@ func ErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 	if errors.As(err, &gqlErr) {
 		// Parser / validation errors produced by gqlgen itself.
 		if gqlErr.Err == nil {
+			if isTokenLimitError(gqlErr) {
+				return errQueryTooComplex(fmt.Sprintf("query document has more than %d tokens", ParserTokenLimit))
+			}
 			return gqlErr
 		}
 		// A gqlerror wrapping one of our errors (e.g. from a field resolver).
@@ -111,6 +117,13 @@ func ErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 	out.Message = "internal server error"
 	out.Extensions = map[string]any{"code": CodeInternal}
 	return out
+}
+
+// isTokenLimitError reports the parser's "exceeded token limit" error, which
+// gqlgen (from v0.17.7x on) returns as GRAPHQL_PARSE_FAILED. Clients get the
+// same QUERY_TOO_COMPLEX as for any other oversized query (#207).
+func isTokenLimitError(e *gqlerror.Error) bool {
+	return e.Extensions["code"] == errcode.ParseFailed && strings.HasPrefix(e.Message, "exceeded token limit")
 }
 
 // RecoverFunc converts resolver panics into internal errors.

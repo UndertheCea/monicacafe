@@ -284,7 +284,7 @@ func (e *AuditAction) UnmarshalGQL(v any) error {
 }
 
 func (e AuditAction) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *AuditAction) UnmarshalJSON(b []byte) error {
@@ -343,7 +343,7 @@ func (e *AuditTargetType) UnmarshalGQL(v any) error {
 }
 
 func (e AuditTargetType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *AuditTargetType) UnmarshalJSON(b []byte) error {
@@ -400,7 +400,7 @@ func (e *BrewMethod) UnmarshalGQL(v any) error {
 }
 
 func (e BrewMethod) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *BrewMethod) UnmarshalJSON(b []byte) error {
@@ -463,7 +463,7 @@ func (e *CoffeeSort) UnmarshalGQL(v any) error {
 }
 
 func (e CoffeeSort) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *CoffeeSort) UnmarshalJSON(b []byte) error {
@@ -524,7 +524,7 @@ func (e *GrindOption) UnmarshalGQL(v any) error {
 }
 
 func (e GrindOption) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *GrindOption) UnmarshalJSON(b []byte) error {
@@ -581,7 +581,7 @@ func (e *ImageKind) UnmarshalGQL(v any) error {
 }
 
 func (e ImageKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ImageKind) UnmarshalJSON(b []byte) error {
@@ -642,7 +642,7 @@ func (e *ReportReason) UnmarshalGQL(v any) error {
 }
 
 func (e ReportReason) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ReportReason) UnmarshalJSON(b []byte) error {
@@ -699,7 +699,7 @@ func (e *ReportResolution) UnmarshalGQL(v any) error {
 }
 
 func (e ReportResolution) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ReportResolution) UnmarshalJSON(b []byte) error {
@@ -756,7 +756,7 @@ func (e *ReportStatus) UnmarshalGQL(v any) error {
 }
 
 func (e ReportStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ReportStatus) UnmarshalJSON(b []byte) error {
@@ -813,7 +813,7 @@ func (e *ReportTargetType) UnmarshalGQL(v any) error {
 }
 
 func (e ReportTargetType) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ReportTargetType) UnmarshalJSON(b []byte) error {
@@ -874,7 +874,7 @@ func (e *RoastLevel) UnmarshalGQL(v any) error {
 }
 
 func (e RoastLevel) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *RoastLevel) UnmarshalJSON(b []byte) error {
@@ -933,7 +933,7 @@ func (e *ShopSort) UnmarshalGQL(v any) error {
 }
 
 func (e ShopSort) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *ShopSort) UnmarshalJSON(b []byte) error {
@@ -990,7 +990,7 @@ func (e *UserRole) UnmarshalGQL(v any) error {
 }
 
 func (e UserRole) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *UserRole) UnmarshalJSON(b []byte) error {

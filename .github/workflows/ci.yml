@@ -154,6 +154,26 @@ jobs:
           docker compose up --build -d --wait --wait-timeout 300
       - name: Smoke test via http://localhost
         run: ./scripts/smoke.sh
+      # Browser journeys (#263): seller publishes a coffee with a photo, a buyer
+      # saves / follows / comments, pages render without JavaScript.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Browser checks (Playwright)
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          BASE_URL=http://localhost npm test
+      - name: Browser check screenshots (on failure)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-screenshots
+          path: e2e/artifacts/
+          if-no-files-found: ignore
       # The migrate service runs on every start: running it again must find the
       # database up to date.
       - name: Migrations re-run on an existing volume

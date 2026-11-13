@@ -10,6 +10,10 @@ frontend/.env*.local
 frontend/tsconfig.tsbuildinfo
 frontend/next-env.d.ts
 
+# Browser checks (#263)
+e2e/node_modules/
+e2e/artifacts/
+
 # Docker
 *.log
 

@@ -22,6 +22,7 @@ export type NavLabel =
   | "nav.settings"
   | "nav.dashboard"
   | "nav.openShop"
+  | "nav.admin"
   | "nav.login"
   | "nav.register"
   | "nav.logout";
@@ -48,6 +49,8 @@ export function navMenu(v: NavViewer): NavSection[] {
         { label: "nav.following", href: "/account#followed-shops" },
         { label: "nav.settings", href: "/account" },
         { label: v.hasShop ? "nav.dashboard" : "nav.openShop", href: "/dashboard" },
+        // Moderation screen (#225); the API checks the role again on every call.
+        ...(v.role === "ADMIN" ? [{ label: "nav.admin" as const, href: "/admin" }] : []),
         { label: "nav.logout", action: "logout" },
       ]
     : [

@@ -54,7 +54,10 @@ services:
         condition: service_healthy
     restart: "no"
 
+  # Reserved (cart / cache, Stage 2): no code reads it yet, so it only starts
+  # with `docker compose --profile cache up`. The backend does not wait for it.
   redis:
+    profiles: ["cache"]
     image: redis:7.4.12-alpine
     command: redis-server --appendonly yes
     volumes:
@@ -66,12 +69,13 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # Stage 3 (search). Not required by the Stage 1 API; started so the
-  # service is ready when the indexer lands.
+  # Reserved (Stage 3 search): nothing uses it yet, so it only starts with
+  # `docker compose --profile search up`. Set MEILI_KEY first (see .env.example).
   meilisearch:
+    profiles: ["search"]
     image: getmeili/meilisearch:v1.14
     environment:
-      MEILI_ENV: development
+      MEILI_ENV: ${MEILI_ENV:-development}
       MEILI_MASTER_KEY: ${MEILI_KEY:-monica_meili_key}
     volumes:
       - meili_data:/meili_data
@@ -127,9 +131,6 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOCALE: ${LOCALE:-zh-TW}
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
-      REDIS_URL: redis://redis:6379
-      MEILI_URL: http://meilisearch:7700
-      MEILI_KEY: ${MEILI_KEY:-monica_meili_key}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
       TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
@@ -147,8 +148,10 @@ services:
       RATE_LIMIT_REFRESH_IP: ${RATE_LIMIT_REFRESH_IP:-60/1m}
       RATE_LIMIT_COMMENT_USER: ${RATE_LIMIT_COMMENT_USER:-5/5m}
       RATE_LIMIT_UPLOAD_USER: ${RATE_LIMIT_UPLOAD_USER:-30/10m}
+      UPLOAD_DAILY_BYTES_PER_SHOP: ${UPLOAD_DAILY_BYTES_PER_SHOP:-209715200}
       RATE_LIMIT_PASSWORD_USER: ${RATE_LIMIT_PASSWORD_USER:-5/15m}
       RATE_LIMIT_SAVE_USER: ${RATE_LIMIT_SAVE_USER:-60/5m}
+      RATE_LIMIT_REPORT_USER: ${RATE_LIMIT_REPORT_USER:-10/1h}
       RATE_LIMIT_SELLER_WRITE_USER: ${RATE_LIMIT_SELLER_WRITE_USER:-60/5m}
       RATE_LIMIT_GRAPHQL_IP: ${RATE_LIMIT_GRAPHQL_IP:-600/1m}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
@@ -166,13 +169,61 @@ services:
       S3_INTERNAL_ENDPOINT: ${S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
       MEDIA_CLEANUP_INTERVAL: ${MEDIA_CLEANUP_INTERVAL:-6h}
       MEDIA_CLEANUP_MIN_AGE: ${MEDIA_CLEANUP_MIN_AGE:-24h}
+      # Prometheus /metrics on its own port, reachable from the compose network
+      # only: not published below and not routed by nginx (#221).
+      METRICS_ADDR: ${METRICS_ADDR:-:9100}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+    healthcheck:
+      # Ready = Postgres answers and the schema is at the version this build
+      # expects. 127.0.0.1, not localhost (busybox wget and IPv6, see meilisearch).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
+    expose:
+      - "9100"
     depends_on:
       migrate:
         condition: service_completed_successfully
-      redis:
-        condition: service_healthy
     ports:
       - "127.0.0.1:${BACKEND_PORT:-4000}:4000"
+    restart: unless-stopped
+
+  # Nightly encrypted pg_dump at 03:00 Asia/Taipei (#220), production only:
+  # `docker compose --profile prod up -d`. Uploads to the BACKUP_S3_* bucket (or
+  # to BACKUP_TARGET, a directory, kept in the backup_data volume). Runbook and
+  # restore: docs/BACKUP.md. CI runs the same image for its restore drill.
+  backup:
+    profiles: ["prod"]
+    build:
+      context: ./scripts
+      dockerfile: backup.Dockerfile
+    command: ["sh", "/monicacafe/scripts/backup_loop.sh"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
+      MIGRATIONS_DIR: /monicacafe/migrations
+      BACKUP_HOUR: ${BACKUP_HOUR:-3}
+      BACKUP_RUN_NOW: ${BACKUP_RUN_NOW:-false}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_ALLOW_PLAINTEXT: ${BACKUP_ALLOW_PLAINTEXT:-false}
+      BACKUP_TARGET: ${BACKUP_TARGET:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-monicacafe/}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      # Only so backup.sh can refuse the media bucket as a backup target.
+      S3_BUCKET: ${S3_BUCKET:-media}
+    volumes:
+      - ./scripts:/monicacafe/scripts:ro
+      - ./migrations:/monicacafe/migrations:ro
+      - backup_data:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -187,6 +238,9 @@ services:
       GRAPHQL_URL_INTERNAL: http://backend:4000/graphql
       # Public origin for sitemap.xml / robots.txt.
       SITE_URL: ${SITE_URL:-http://localhost}
+      # Server-side error reports (instrumentation.ts); empty = off (#221).
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
     depends_on:
       backend:
         condition: service_healthy
@@ -225,3 +279,4 @@ volumes:
   redis_data:
   meili_data:
   seaweedfs_data:
+  backup_data:

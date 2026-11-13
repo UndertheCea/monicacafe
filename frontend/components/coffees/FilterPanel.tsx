@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { INLINE_SIDEBAR_QUERY } from "@/lib/drawer";
 import { Drawer } from "@/components/Drawer";
+import { CARD } from "@/lib/ui";
 
 interface Props {
   /** The toggle's text below md, e.g. "Filters (2)". */
@@ -16,7 +17,7 @@ interface Props {
 const noSubscribe = () => () => {};
 
 const toggleCls =
-  "flex w-full cursor-pointer items-center justify-between rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-ink ring-1 ring-neutral-200 md:hidden";
+  `${CARD} flex w-full cursor-pointer items-center justify-between px-5 py-3 text-sm font-semibold text-ink md:hidden`;
 
 // md+ (tablets, half-width windows, desktop): the filter form is a sidebar,
 // always shown. Below md: a "Filters (N)" button opens it in a side drawer
@@ -52,7 +53,7 @@ export function FilterPanel({ summary, title, closeLabel, children }: Props) {
           onClick={() => setOpen(true)}
         >
           {summary}
-          <span aria-hidden="true" className="text-neutral-500">
+          <span aria-hidden="true" className="text-muted">
             ☰
           </span>
         </button>
@@ -64,7 +65,7 @@ export function FilterPanel({ summary, title, closeLabel, children }: Props) {
             className={`${toggleCls} peer-checked:[&>span]:rotate-180 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink`}
           >
             {summary}
-            <span aria-hidden="true" className="text-neutral-500 transition">
+            <span aria-hidden="true" className="text-muted transition">
               ▾
             </span>
           </label>

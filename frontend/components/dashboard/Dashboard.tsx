@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { fromPrice } from "@/lib/api";
@@ -27,6 +26,8 @@ import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
 import { FormError, LoginNeeded, Notice } from "./ui";
 import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
+import { Badge, Button, Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
+import { ICON_BUTTON } from "@/lib/ui";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
 type Load =
@@ -141,52 +142,53 @@ export function Dashboard({ locale }: { locale: Locale }) {
   const followers = followerPart(shop.followerCount);
   const reorderable = canReorder(shop.coffees.nodes.length, shop.coffees.total);
   const lastIndex = shop.coffees.nodes.length - 1;
-  const moveBtn =
-    "flex h-8 w-8 items-center justify-center rounded-full border border-neutral-300 text-sm text-ink hover:border-neutral-500 disabled:opacity-30 disabled:hover:border-neutral-300";
   return (
     <div className="space-y-8">
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
+      {shop.suspended && (
+        <p role="status" className="rounded-box bg-white p-4 text-sm font-semibold text-ink ring-2 ring-ink">
+          {t(locale, "dash.suspended")}
+        </p>
+      )}
+      <Card as="section" className="flex flex-wrap items-center justify-between gap-4 p-6">
         <div className="min-w-0">
-          <h2 className="truncate text-2xl font-bold text-ink">{shop.name}</h2>
-          <p className="text-sm text-neutral-500">
+          <SectionTitle className="truncate">{shop.name}</SectionTitle>
+          <p className="text-sm text-muted">
             {shop.city} · <span className="font-mono">/shops/{shop.slug}</span> ·{" "}
             {t(locale, followers.key, { n: followers.n })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
+          <Button
             href="/dashboard/shop"
-            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
           >
             {t(locale, "dash.editShop")}
-          </Link>
-          <Link
+          </Button>
+          <Button
             href={`/shops/${shop.slug}`}
-            className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500"
+            variant="secondary"
           >
             {t(locale, "dash.viewShop")}
-          </Link>
+          </Button>
         </div>
-      </section>
+      </Card>
 
       <section aria-labelledby="my-coffees">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="my-coffees" className="text-xl font-bold text-ink">
+          <SectionTitle id="my-coffees">
             {t(locale, "dash.coffees")}{" "}
-            <span className="text-sm font-normal text-neutral-500">
+            <span className="text-sm font-normal text-muted">
               {t(locale, "dash.coffeesCount", { n: shop.coffees.total })}
             </span>
-          </h2>
-          <Link
+          </SectionTitle>
+          <Button
             href="/dashboard/coffees/new"
-            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700"
           >
             {t(locale, "dash.newCoffee")}
-          </Link>
+          </Button>
         </div>
 
         {shop.coffees.total > 1 && (
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-muted">
             {t(locale, "dash.orderNote")}
             {!reorderable && ` ${t(locale, "dash.orderLoadAll")}`}
           </p>
@@ -202,7 +204,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
             <Notice>{t(locale, "dash.noCoffees")}</Notice>
           </div>
         ) : (
-          <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
+          <Card as="ul" className="mt-4 divide-y divide-line">
             {shop.coffees.nodes.map((c, i) => {
               const price = fromPrice(c);
               return (
@@ -211,7 +213,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     <div className="flex shrink-0 gap-1 sm:flex-col">
                       <button
                         type="button"
-                        className={moveBtn}
+                        className={ICON_BUTTON}
                         disabled={ordering || i === 0}
                         onClick={() => void move(i, -1)}
                         aria-label={t(locale, "dash.moveUp", { name: c.name })}
@@ -221,7 +223,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       </button>
                       <button
                         type="button"
-                        className={moveBtn}
+                        className={ICON_BUTTON}
                         disabled={ordering || i === lastIndex}
                         onClick={() => void move(i, 1)}
                         aria-label={t(locale, "dash.moveDown", { name: c.name })}
@@ -231,29 +233,22 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       </button>
                     </div>
                   )}
-                  <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-neutral-200 sm:block">
+                  <div className="hidden h-12 w-12 shrink-0 overflow-hidden rounded-box ring-1 ring-line sm:block">
                     {c.imageUrls[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.imageUrls[0]} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      <Picture src={c.imageUrls[0]} thumb width={48} height={48} alt="" />
                     ) : (
                       <CoffeeTile size="thumb" id={c.id} name={c.name} />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={
-                          c.isPublished
-                            ? "rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white ring-1 ring-ink"
-                            : "rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200"
-                        }
-                      >
+                      <Badge tone={c.isPublished ? "solid" : "soft"}>
                         {t(locale, c.isPublished ? "dash.published" : "dash.draft")}
-                      </span>
+                      </Badge>
                       <StockBadge locale={locale} variants={c.variants} />
                       <span className="truncate font-semibold text-ink">{c.name}</span>
                     </div>
-                    <p className="mt-1 text-sm text-neutral-500">
+                    <p className="mt-1 text-sm text-muted">
                       {c.variants.length === 0
                         ? t(locale, "dash.noVariants")
                         : t(locale, "dash.variantsCount", { n: c.variants.length })}
@@ -270,34 +265,38 @@ export function Dashboard({ locale }: { locale: Locale }) {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {c.isPublished && (
-                      <Link href={`/coffees/${c.id}`} className="rounded-full px-3 py-1.5 text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4">
+                      <Button href={`/coffees/${c.id}`} variant="quiet" size="sm">
                         {t(locale, "dash.view")}
-                      </Link>
+                      </Button>
                     )}
-                    <Link
+                    <Button
                       href={`/dashboard/coffees/${c.id}/preview`}
-                      className="rounded-full px-3 py-1.5 text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4"
+                      variant="quiet" size="sm"
                     >
                       {t(locale, "dash.preview")}
-                    </Link>
-                    <Link
+                    </Button>
+                    <Button
                       href={`/dashboard/coffees/${c.id}`}
-                      className="rounded-full border border-neutral-300 px-3 py-1.5 text-sm hover:border-neutral-500"
+                      variant="secondary" size="sm"
                     >
                       {t(locale, "dash.edit")}
-                    </Link>
-                    <button
-                      type="button"
-                      disabled={pending === c.id}
-                      onClick={() => void toggle(c.id, !c.isPublished)}
-                      className={
-                        c.isPublished
-                          ? "rounded-full border border-neutral-300 px-3 py-1.5 text-sm hover:border-red-400 hover:text-red-700 disabled:opacity-50"
-                          : "rounded-full bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
-                      }
-                    >
-                      {t(locale, c.isPublished ? "dash.unpublish" : "dash.publish")}
-                    </button>
+                    </Button>
+                    {c.isPublished ? (
+                      <ConfirmButton
+                        question={t(locale, "dash.unpublishConfirm")}
+                        confirmLabel={t(locale, "dash.unpublish")}
+                        cancelLabel={t(locale, "confirm.cancel")}
+                        variant="secondary"
+                        busy={pending === c.id}
+                        onConfirm={() => void toggle(c.id, false)}
+                      >
+                        {t(locale, "dash.unpublish")}
+                      </ConfirmButton>
+                    ) : (
+                      <Button disabled={pending === c.id} onClick={() => void toggle(c.id, true)} size="sm">
+                        {t(locale, "dash.publish")}
+                      </Button>
+                    )}
                     <DuplicateCoffeeButton coffeeId={c.id} name={c.name} locale={locale} />
                     {!c.isPublished && (
                       <DeleteCoffeeButton
@@ -310,22 +309,22 @@ export function Dashboard({ locale }: { locale: Locale }) {
                 </li>
               );
             })}
-          </ul>
+          </Card>
         )}
 
         {hasMoreCoffees(shop.coffees.nodes.length, shop.coffees.total, lastPage) && (
           <div className="mt-4 flex flex-col items-center gap-2">
             {more === "error" && <FormError>{t(locale, "dash.error.generic")}</FormError>}
-            <button
+            <Button
               type="button"
               disabled={more === "loading"}
               onClick={() => void loadMore()}
-              className="rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-50"
+              variant="secondary"
             >
               {t(locale, more === "loading" ? "dash.loading" : "dash.moreCoffees", {
                 n: shop.coffees.total - shop.coffees.nodes.length,
               })}
-            </button>
+            </Button>
           </div>
         )}
       </section>
@@ -347,16 +346,12 @@ function StockBadge({ locale, variants }: { locale: Locale; variants: DashboardS
   const s = stockStatus(variants);
   if (s.kind === "out") {
     return (
-      <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-200">
-        {t(locale, "dash.stockOut")}
-      </span>
+      <Badge tone="danger">{t(locale, "dash.stockOut")}</Badge>
     );
   }
   if (s.kind === "low") {
     return (
-      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-ink ring-1 ring-neutral-300">
-        {t(locale, "dash.stockLow", { n: s.units })}
-      </span>
+      <Badge tone="outline">{t(locale, "dash.stockLow", { n: s.units })}</Badge>
     );
   }
   return null;

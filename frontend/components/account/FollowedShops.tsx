@@ -8,6 +8,7 @@ import { FOLLOWED_PAGE } from "@/lib/follows";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { ShopLogo } from "@/components/shops/ShopLogo";
+import { Button, Card, SectionTitle } from "@/components/ui";
 
 type List = { total: number; nodes: ShopSummary[] };
 type State =
@@ -74,34 +75,34 @@ export function FollowedShops({ locale }: { locale: Locale }) {
 
   return (
     <section aria-labelledby="followed-shops">
-      <h2 id="followed-shops" className="text-xl font-bold text-ink">
+      <SectionTitle id="followed-shops">
         {t(locale, "account.followedShops")}
         {s.state === "ready" && s.list.total > 0 && (
-          <span className="ml-2 text-sm font-normal text-neutral-500">{t(locale, "shops.count", { n: s.list.total })}</span>
+          <span className="ml-2 text-sm font-normal text-muted">{t(locale, "shops.count", { n: s.list.total })}</span>
         )}
-      </h2>
+      </SectionTitle>
 
-      {s.state === "loading" && <p className="mt-4 text-sm text-neutral-500">{t(locale, "dash.loading")}</p>}
+      {s.state === "loading" && <p className="mt-4 text-sm text-muted">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <p role="alert" className="mt-4 text-sm text-danger">
           {t(locale, "dash.error.generic")}
         </p>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && (
-        <p className="mt-4 rounded-2xl bg-white p-6 text-center text-neutral-500 ring-1 ring-neutral-200">
+        <Card as="p" className="mt-4 p-6 text-center text-muted">
           {t(locale, "account.noFollowed")}{" "}
           <Link href="/shops" className="font-semibold text-ink underline-offset-4 hover:underline">
             {t(locale, "account.browseShops")}
           </Link>
-        </p>
+        </Card>
       )}
       {removeError && (
-        <p role="alert" className="mt-4 text-sm text-red-700">
+        <p role="alert" className="mt-4 text-sm text-danger">
           {t(locale, "follow.error")}
         </p>
       )}
       {s.state === "ready" && s.list.nodes.length > 0 && (
-        <ul className="mt-4 divide-y divide-neutral-100 rounded-2xl bg-white ring-1 ring-neutral-200">
+        <Card as="ul" className="mt-4 divide-y divide-line">
           {s.list.nodes.map((sh) => (
             <li key={sh.id} className="flex items-center gap-4 p-4">
               <ShopLogo name={sh.name} logoUrl={sh.logoUrl} size="md" />
@@ -109,35 +110,35 @@ export function FollowedShops({ locale }: { locale: Locale }) {
                 <Link href={`/shops/${encodeURIComponent(sh.slug)}`} className="font-semibold text-ink hover:text-ink hover:underline underline-offset-4">
                   {sh.name}
                 </Link>
-                <p className="truncate text-sm text-neutral-500">
+                <p className="truncate text-sm text-muted">
                   {[sh.city, t(locale, "shops.coffeesCount", { n: sh.coffeeCount })].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => unfollow(sh.id)}
                 disabled={removing !== null}
                 aria-label={t(locale, "account.unfollowNamed", { name: sh.name })}
-                className="shrink-0 rounded-full px-3 py-1 text-sm text-neutral-600 ring-1 ring-neutral-300 hover:bg-neutral-50 disabled:opacity-60"
+                variant="secondary" size="sm" className="shrink-0"
               >
                 {removing === sh.id ? t(locale, "account.removing") : t(locale, "account.unfollow")}
-              </button>
+              </Button>
             </li>
           ))}
-        </ul>
+        </Card>
       )}
       {s.state === "ready" && hasMoreSaved(s.list.nodes.length, s.list.total, s.lastPage, FOLLOWED_PAGE) && (
         <div className="mt-4 text-center">
-          <button
+          <Button
             type="button"
             onClick={loadMore}
             disabled={s.more === "loading"}
-            className="rounded-full px-5 py-2 text-sm font-semibold text-neutral-700 ring-1 ring-neutral-300 hover:bg-neutral-50 disabled:opacity-60"
+            variant="secondary"
           >
             {s.more === "loading" ? t(locale, "dash.loading") : t(locale, "account.moreFollowed")}
-          </button>
+          </Button>
           {s.more === "error" && (
-            <p role="alert" className="mt-2 text-sm text-red-700">
+            <p role="alert" className="mt-2 text-sm text-danger">
               {t(locale, "dash.error.generic")}
             </p>
           )}

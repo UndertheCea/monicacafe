@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { COFFEE_COMMENTS, type CommentData } from "@/lib/api";
-import { COMMENTS_PAGE, appendComments, hasMoreComments } from "@/lib/comments";
+import { COMMENTS_PAGE, appendComments, hasMoreComments, loadedComments, withLoadedComments } from "@/lib/comments";
 import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { CommentItem } from "./CommentItem";
+import { Button } from "@/components/ui";
 
 /**
  * Comments after the server-rendered first page. Fetches anonymously (comments
@@ -35,6 +36,37 @@ export function MoreComments({
   const shown = appendComments(first, extra);
   const more = shown.slice(first.length);
 
+  // Back / forward remounts the page and drops this state, so the count on screen lives in history.state
+  // (merged, so Next's own keys stay) and is fetched again on mount.
+  useEffect(() => {
+    const want = loadedComments(window.history.state, coffeeId);
+    if (want <= first.length) return;
+    let live = true;
+    (async () => {
+      try {
+        let rows: CommentData[] = [];
+        let last = COMMENTS_PAGE;
+        while (live && first.length + rows.length < want && last >= COMMENTS_PAGE) {
+          const offset = first.length + rows.length;
+          const r = await query(COFFEE_COMMENTS, { id: coffeeId, limit: Math.min(COMMENTS_PAGE, want - offset), offset });
+          const page = r.coffee?.comments ?? [];
+          rows = appendComments(rows, page);
+          last = page.length;
+          if (page.length === 0) break;
+        }
+        if (live && rows.length > 0) {
+          setExtra((prev) => appendComments(prev, rows));
+          setLastPage(last);
+        }
+      } catch {
+        /* the button still loads the rest */
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [coffeeId, first.length]);
+
   async function loadMore() {
     setBusy(true);
     setFailed(false);
@@ -43,6 +75,14 @@ export function MoreComments({
       const page = r.coffee?.comments ?? [];
       setExtra((prev) => appendComments(prev, page));
       setLastPage(page.length);
+      try {
+        window.history.replaceState(
+          withLoadedComments(window.history.state, coffeeId, appendComments(shown, page).length),
+          "",
+        );
+      } catch {
+        /* history can be locked down: Back just starts from the first page */
+      }
     } catch {
       setFailed(true);
     } finally {
@@ -53,7 +93,7 @@ export function MoreComments({
   return (
     <>
       {more.length > 0 && (
-        <ul className="divide-y divide-neutral-200 border-t border-neutral-200">
+        <ul className="divide-y divide-line border-t border-line">
           {more.map((c) => (
             <CommentItem
               key={c.id}
@@ -66,17 +106,17 @@ export function MoreComments({
         </ul>
       )}
       {hasMoreComments(shown.length, total, lastPage) && (
-        <div className="border-t border-neutral-200 p-3 text-center">
-          <button
+        <div className="border-t border-line p-3 text-center">
+          <Button
             type="button"
             onClick={() => void loadMore()}
             disabled={busy}
-            className="rounded-full px-4 py-1.5 text-sm font-semibold text-ink ring-1 ring-neutral-300 hover:bg-neutral-100 disabled:opacity-60"
+            variant="secondary"
           >
             {busy ? t(locale, "comments.loadingMore") : t(locale, "comments.more")}
-          </button>
+          </Button>
           {failed && (
-            <p role="alert" className="mt-2 text-sm text-red-700">
+            <p role="alert" className="mt-2 text-sm text-danger">
               {t(locale, "comments.moreError")}
             </p>
           )}

@@ -20,10 +20,15 @@ export const API_ERROR_CODES = [
   "RATE_LIMITED",
   // A fixed cap was reached, e.g. 200 coffees per shop (#213).
   "LIMIT_REACHED",
+  // A shop used up its daily image upload budget (#217).
+  "UPLOAD_QUOTA",
   // A query too deep or too costly (backend graph/server.go). The site's own
   // queries never get it (a Go test runs them all against the limits), so it
   // falls through to each form's generic message.
   "QUERY_TOO_COMPLEX",
+  // New comment or description text with a phone number, email, link or
+  // LINE / IG / FB ID (#225); `field` names the input. See lib/moderation.ts.
+  "CONTACT_INFO_NOT_ALLOWED",
   "INTERNAL_SERVER_ERROR",
 ] as const;
 
@@ -76,6 +81,8 @@ export function authErrorStatus(code: string): number {
       return 401;
     case "BAD_USER_INPUT":
       return 400;
+    case "FORBIDDEN":
+      return 403;
     case "CONFLICT":
       return 409;
     case "RATE_LIMITED":
@@ -95,6 +102,7 @@ export function retryAfterSeconds(v: unknown): number | undefined {
 
 export type AuthErrorMessage =
   | { key: "auth.error.unavailable" | "auth.error.invalid" | "auth.error.taken" | "auth.error.generic" }
+  | { key: "auth.error.suspended" }
   | { key: "auth.error.email" | "auth.error.password" | "auth.error.displayName" }
   | RateLimitMessage;
 
@@ -108,6 +116,8 @@ export function authErrorMessage(
   if (code === "RATE_LIMITED") return rateLimitMessage(retryAfter);
   if (code === "UNAVAILABLE") return { key: "auth.error.unavailable" };
   if (mode === "login" && code === "UNAUTHENTICATED") return { key: "auth.error.invalid" };
+  // Login answers FORBIDDEN only for a suspended account, after the right password (#224).
+  if (mode === "login" && code === "FORBIDDEN") return { key: "auth.error.suspended" };
   if (code === "CONFLICT") return { key: "auth.error.taken" };
   if (code === "BAD_USER_INPUT") {
     if (field === "email") return { key: "auth.error.email" };

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { FormError, Notice, inputCls } from "@/components/dashboard/ui";
+import { FormError, Notice } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
 import { FollowedShops } from "@/components/account/FollowedShops";
 import { SavedCoffees } from "@/components/account/SavedCoffees";
@@ -20,13 +20,14 @@ import { UPDATE_PROFILE } from "@/lib/auth/session";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { Button, Field, Input, SectionTitle, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { placeError } from "@/lib/formErrors";
+import { CARD, FIELD_LABEL } from "@/lib/ui";
 
 type Msg = { key: MessageKey; vars?: Record<string, number> };
 
-const sectionCls = "space-y-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200";
-const buttonCls =
-  "rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-60";
-const labelCls = "block text-sm font-medium text-neutral-700";
+const sectionCls = `${CARD} space-y-4 p-6`;
 
 function Saved({ children }: { children: React.ReactNode }) {
   return (
@@ -84,20 +85,22 @@ function MyComments({ locale }: { locale: Locale }) {
   );
 }
 
+const PROFILE_ORDER = ["displayName"] as const;
+
 function ProfileForm({ locale }: { locale: Locale }) {
   const { user, request, reload } = useAuth();
   const [name, setName] = useState(user?.displayName ?? "");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Msg | null>(null);
+  const fe = useFormErrors<"displayName">("profile", PROFILE_ORDER);
   const [saved, setSaved] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const clean = cleanDisplayName(name);
     setSaved(false);
-    if (!clean) return setError({ key: "auth.error.displayName" });
+    if (!clean) return fe.failField("displayName", { key: "auth.error.displayName" });
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await request(UPDATE_PROFILE, { input: { displayName: clean } });
       setName(clean);
@@ -105,13 +108,8 @@ function ProfileForm({ locale }: { locale: Locale }) {
       setSaved(true);
     } catch (err) {
       const e2 = toApiError(err);
-      setError(
-        e2.code === "BAD_USER_INPUT"
-          ? { key: "auth.error.displayName" }
-          : e2.code === "UNAVAILABLE"
-            ? { key: "auth.error.unavailable" }
-            : { key: "account.error.generic" },
-      );
+      if (e2.code === "BAD_USER_INPUT") fe.failField("displayName", { key: "auth.error.displayName" });
+      else fe.fail({ fields: {}, form: { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.generic" } });
     } finally {
       setBusy(false);
     }
@@ -119,26 +117,34 @@ function ProfileForm({ locale }: { locale: Locale }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className={sectionCls}>
-      <h2 className="text-lg font-semibold text-ink">{t(locale, "account.profile")}</h2>
-      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
-      <p className="text-sm text-neutral-600">
+      <SectionTitle>{t(locale, "account.profile")}</SectionTitle>
+      <FormSummary formId="profile" locale={locale} errors={fe.errors} order={PROFILE_ORDER} />
+      <p className="text-sm text-muted">
         {t(locale, "account.email")}: <span className="font-medium text-ink">{user?.email}</span>
       </p>
-      <label className={labelCls}>
-        {t(locale, "auth.displayName")}
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={50}
-          autoComplete="nickname"
-          className={inputCls}
-        />
-        <span className="mt-1 block text-xs font-normal text-neutral-500">{t(locale, "auth.displayNameHint")}</span>
-      </label>
+      <Field
+        id={fe.id("displayName")}
+        label={t(locale, "auth.displayName")}
+        hint={t(locale, "auth.displayNameHint")}
+        error={fieldMessage(locale, fe.errors, "displayName")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              fe.clearField("displayName");
+            }}
+            maxLength={50}
+            autoComplete="nickname"
+          />
+        )}
+      </Field>
       <div className="flex items-center gap-4">
-        <button type="submit" disabled={busy} className={buttonCls}>
+        <Button type="submit" disabled={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.save")}
-        </button>
+        </Button>
         {saved && <Saved>{t(locale, "account.saved")}</Saved>}
       </div>
     </form>
@@ -152,10 +158,20 @@ const PROBLEM_KEY = {
   mismatch: "account.error.mismatch",
 } as const satisfies Record<string, MessageKey>;
 
+type PasswordField = "currentPassword" | "newPassword" | "confirmPassword";
+const PASSWORD_ORDER: readonly PasswordField[] = ["currentPassword", "newPassword", "confirmPassword"];
+/** Which field each client-side problem belongs to. */
+const PROBLEM_FIELD = {
+  current: "currentPassword",
+  password: "newPassword",
+  same: "newPassword",
+  mismatch: "confirmPassword",
+} as const satisfies Record<keyof typeof PROBLEM_KEY, PasswordField>;
+
 function PasswordForm({ locale }: { locale: Locale }) {
   const { user, changePassword } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<Msg | null>(null);
+  const fe = useFormErrors<PasswordField>("password", PASSWORD_ORDER);
   const [done, setDone] = useState(false);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -167,16 +183,24 @@ function PasswordForm({ locale }: { locale: Locale }) {
     const confirm = String(fd.get("confirmPassword") ?? "");
     setDone(false);
     const problem = passwordChangeProblem(current, next, confirm);
-    if (problem) return setError({ key: PROBLEM_KEY[problem] });
+    if (problem) return fe.failField(PROBLEM_FIELD[problem], { key: PROBLEM_KEY[problem] });
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await changePassword(current, next);
       form.reset();
       setDone(true);
     } catch (err) {
       const e2 = toApiError(err);
-      setError(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : { key: passwordErrorKey(e2.code, e2.field) });
+      fe.fail(
+        e2.code === "RATE_LIMITED"
+          ? { fields: {}, form: rateLimitMessage(e2.retryAfter) }
+          : placeError(
+              e2.code === "BAD_USER_INPUT" ? e2.field : undefined,
+              { key: passwordErrorKey(e2.code, e2.field) },
+              PASSWORD_ORDER,
+            ),
+      );
     } finally {
       setBusy(false);
     }
@@ -184,28 +208,65 @@ function PasswordForm({ locale }: { locale: Locale }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className={sectionCls}>
-      <h2 className="text-lg font-semibold text-ink">{t(locale, "account.password")}</h2>
-      <p className="text-sm text-neutral-600">{t(locale, "account.passwordHint")}</p>
-      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+      <SectionTitle>{t(locale, "account.password")}</SectionTitle>
+      <p className="text-sm text-muted">{t(locale, "account.passwordHint")}</p>
+      <FormSummary formId="password" locale={locale} errors={fe.errors} order={PASSWORD_ORDER} />
       {/* Lets password managers attach the new password to the right account. */}
       <input type="hidden" name="username" autoComplete="username" value={user?.email ?? ""} readOnly />
-      <label className={labelCls}>
-        {t(locale, "account.currentPassword")}
-        <input name="currentPassword" type="password" required autoComplete="current-password" className={inputCls} />
-      </label>
-      <label className={labelCls}>
-        {t(locale, "account.newPassword")}
-        <input name="newPassword" type="password" required minLength={8} autoComplete="new-password" className={inputCls} />
-        <span className="mt-1 block text-xs font-normal text-neutral-500">{t(locale, "auth.passwordHint")}</span>
-      </label>
-      <label className={labelCls}>
-        {t(locale, "account.confirmPassword")}
-        <input name="confirmPassword" type="password" required autoComplete="new-password" className={inputCls} />
-      </label>
+      <Field
+        id={fe.id("currentPassword")}
+        label={t(locale, "account.currentPassword")}
+        error={fieldMessage(locale, fe.errors, "currentPassword")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            name="currentPassword"
+            type="password"
+            required
+            autoComplete="current-password"
+            onChange={() => fe.clearField("currentPassword")}
+          />
+        )}
+      </Field>
+      <Field
+        id={fe.id("newPassword")}
+        label={t(locale, "account.newPassword")}
+        hint={t(locale, "auth.passwordHint")}
+        error={fieldMessage(locale, fe.errors, "newPassword")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            name="newPassword"
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            onChange={() => fe.clearField("newPassword")}
+          />
+        )}
+      </Field>
+      <Field
+        id={fe.id("confirmPassword")}
+        label={t(locale, "account.confirmPassword")}
+        error={fieldMessage(locale, fe.errors, "confirmPassword")}
+      >
+        {(p) => (
+          <Input
+            {...p}
+            name="confirmPassword"
+            type="password"
+            required
+            autoComplete="new-password"
+            onChange={() => fe.clearField("confirmPassword")}
+          />
+        )}
+      </Field>
       <div className="flex items-center gap-4">
-        <button type="submit" disabled={busy} className={buttonCls}>
+        <Button type="submit" disabled={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.changePassword")}
-        </button>
+        </Button>
         {done && <Saved>{t(locale, "account.passwordChanged")}</Saved>}
       </div>
     </form>
@@ -235,35 +296,36 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
 
   return (
     <section className={sectionCls} aria-labelledby="sessions-title">
-      <h2 id="sessions-title" className="text-lg font-semibold text-ink">
+      <SectionTitle id="sessions-title">
         {t(locale, "account.sessions")}
-      </h2>
-      <p className="text-sm text-neutral-600">{t(locale, "account.sessionsHint")}</p>
+      </SectionTitle>
+      <p className="text-sm text-muted">{t(locale, "account.sessionsHint")}</p>
       {error && <FormError>{t(locale, error)}</FormError>}
       {confirming ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-ink">{t(locale, "account.logoutAllConfirm")}</span>
-          <button
+          <Button
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+            variant="danger"
           >
             {busy ? t(locale, "account.loggingOut") : t(locale, "account.logoutAllYes")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setConfirming(false)}
             disabled={busy}
-            className="text-sm font-medium text-neutral-600 underline-offset-2 hover:underline"
+            variant="quiet"
+            size="sm"
           >
             {t(locale, "account.cancel")}
-          </button>
+          </Button>
         </div>
       ) : (
-        <button type="button" onClick={() => setConfirming(true)} className={buttonCls}>
+        <Button type="button" onClick={() => setConfirming(true)}>
           {t(locale, "account.logoutAll")}
-        </button>
+        </Button>
       )}
     </section>
   );
@@ -297,13 +359,13 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
   }
 
   return (
-    <section className={`${sectionCls} ring-red-200`} aria-labelledby="delete-title">
-      <h2 id="delete-title" className="text-lg font-semibold text-red-800">
+    <section className={`${sectionCls} ring-danger/30`} aria-labelledby="delete-title">
+      <h2 id="delete-title" className="text-lg font-semibold text-danger">
         {t(locale, "account.delete.title")}
       </h2>
-      <p className="text-sm text-neutral-600">{t(locale, "account.delete.hint")}</p>
+      <p className="text-sm text-muted">{t(locale, "account.delete.hint")}</p>
       {block ? (
-        <p className="rounded-xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
+        <p className="rounded-box bg-paper px-4 py-3 text-sm text-ink">
           {t(locale, block === "shop" ? "account.delete.blockedShop" : "account.delete.blockedAdmin")}
         </p>
       ) : (
@@ -315,10 +377,10 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
           }}
         >
           <div>
-            <label htmlFor="delete-password" className={labelCls}>
+            <label htmlFor="delete-password" className={FIELD_LABEL}>
               {t(locale, "account.delete.password")}
             </label>
-            <input
+            <Input
               id="delete-password"
               type="password"
               autoComplete="current-password"
@@ -327,38 +389,39 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
                 setPassword(e.target.value);
                 setConfirming(false);
               }}
-              className={inputCls}
+              className="mt-1"
             />
           </div>
           {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
           {confirming ? (
             <div className="flex flex-wrap items-center gap-3">
               <span className="text-sm font-medium text-ink">{t(locale, "account.delete.confirm")}</span>
-              <button
+              <Button
                 type="button"
                 onClick={onConfirm}
                 disabled={busy}
-                className="rounded-full bg-red-700 px-5 py-2 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                variant="danger"
               >
                 {busy ? t(locale, "account.delete.deleting") : t(locale, "account.delete.yes")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setConfirming(false)}
                 disabled={busy}
-                className="text-sm font-medium text-neutral-600 underline-offset-2 hover:underline"
+                variant="quiet"
+                size="sm"
               >
                 {t(locale, "account.cancel")}
-              </button>
+              </Button>
             </div>
           ) : (
-            <button
+            <Button
               type="submit"
               disabled={!password}
-              className="rounded-full px-5 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-300 hover:bg-red-50 disabled:opacity-60"
+              variant="danger"
             >
               {t(locale, "account.delete.button")}
-            </button>
+            </Button>
           )}
         </form>
       )}

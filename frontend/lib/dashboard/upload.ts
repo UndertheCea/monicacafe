@@ -15,6 +15,13 @@ export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 /** Quality for re-encoded JPEG / WebP photos. */
 export const RESIZE_QUALITY = 0.85;
 
+/** Message key for a failed createImageUpload (RATE_LIMITED is handled by the caller with its wait time). */
+export function uploadSignErrorKey(code: string): "img.error.quota" | "img.error.unavailable" | "img.error.upload" {
+  if (code === "UPLOAD_QUOTA") return "img.error.quota";
+  if (code === "BAD_USER_INPUT") return "img.error.unavailable";
+  return "img.error.upload";
+}
+
 export type ImageProblem = "type" | "size";
 
 const allowedType = (type: string) => (IMAGE_TYPES as readonly string[]).includes(type.toLowerCase());

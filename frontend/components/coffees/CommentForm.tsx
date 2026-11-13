@@ -6,8 +6,15 @@ import { useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
-import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button, ConfirmButton, Field, Textarea, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { placeError } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
+import { CARD } from "@/lib/ui";
+
+const ORDER = ["body"] as const;
 
 /** Rune count, matching the backend's utf8.RuneCountInString. */
 const runeLength = (s: string) => [...s].length;
@@ -17,14 +24,14 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   const pathname = usePathname();
   const router = useRouter();
   const [body, setBody] = useState("");
-  const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
+  const fe = useFormErrors<"body">("comment", ORDER);
   const [busy, setBusy] = useState(false);
   const [, startTransition] = useTransition();
 
   if (status === "loading") return null;
   if (status === "anonymous") {
     return (
-      <p className="mt-4 text-sm text-neutral-600">
+      <p className="mt-4 text-sm text-muted">
         <Link
           href={`/login?next=${encodeURIComponent(pathname)}`}
           className="font-semibold text-ink underline-offset-4 hover:underline"
@@ -43,54 +50,56 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
     e.preventDefault();
     if (len === 0 || tooLong || busy) return;
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await request(ADD_COMMENT, { input: { coffeeId, body: body.trim() } });
       setBody("");
       startTransition(() => router.refresh());
     } catch (err) {
       const e2 = toApiError(err);
-      if (e2.code === "RATE_LIMITED") setError(rateLimitMessage(e2.retryAfter));
-      else setError({ key: e2.code === "BAD_USER_INPUT" ? "comments.tooLong" : "comments.error" });
+      if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
+      else if (isContactInfoError(e2.code)) fe.fail(placeError(e2.field, { key: "contact.error" }, ORDER));
+      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX } });
+      else fe.fail(placeError(undefined, { key: "comments.error" }, ORDER));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-neutral-200">
-      <label htmlFor="comment-body" className="text-sm font-semibold text-neutral-700">
-        {t(locale, "comments.label")}
-      </label>
-      <textarea
-        id="comment-body"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        rows={3}
-        placeholder={t(locale, "comments.placeholder")}
-        aria-invalid={tooLong}
-        aria-describedby="comment-count"
-        className="mt-2 w-full resize-y rounded-xl border border-neutral-300 px-3 py-2 text-ink outline-none focus:border-ink focus:ring-2 focus:ring-neutral-300"
-      />
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <span id="comment-count" className={tooLong ? "text-xs text-red-600" : "text-xs text-neutral-500"}>
+    <form onSubmit={onSubmit} noValidate className={`${CARD} mt-4 space-y-2 p-4`}>
+      <FormSummary formId="comment" locale={locale} errors={fe.errors} order={ORDER} />
+      <Field
+        id={fe.id("body")}
+        label={t(locale, "comments.label")}
+        hint={t(locale, "contact.hint")}
+        error={fieldMessage(locale, fe.errors, "body")}
+      >
+        {(p) => (
+          <Textarea
+            {...p}
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              fe.clearField("body");
+            }}
+            rows={3}
+            placeholder={t(locale, "comments.placeholder")}
+            aria-invalid={tooLong || p["aria-invalid"]}
+            aria-describedby={`comment-count${p["aria-describedby"] ? ` ${p["aria-describedby"]}` : ""}`}
+          />
+        )}
+      </Field>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span id="comment-count" className={tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
           {tooLong
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX })
             : t(locale, "comments.remaining", { n: COMMENT_MAX - len })}
         </span>
-        <button
-          type="submit"
-          disabled={busy || len === 0 || tooLong}
-          className="rounded-full bg-ink px-4 py-1.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={busy || len === 0 || tooLong}>
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
-        </button>
+        </Button>
       </div>
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
-          {t(locale, error.key, { max: COMMENT_MAX, ...error.vars })}
-        </p>
-      )}
     </form>
   );
 }
@@ -116,29 +125,31 @@ export function DeleteCommentButton({
 
   if (!user || (user.id !== authorId && user.role !== "ADMIN")) return null;
 
+  async function remove() {
+    setBusy(true);
+    setFailed(false);
+    try {
+      await request(DELETE_COMMENT_DOC, { id: commentId });
+      onDeleted?.(commentId);
+      startTransition(() => router.refresh());
+    } catch {
+      setFailed(true);
+      setBusy(false);
+    }
+  }
+
   return (
     <span className="inline-flex items-center gap-2">
-      {failed && <span className="text-xs text-red-600">{t(locale, "comments.deleteError")}</span>}
-      <button
-        type="button"
-        disabled={busy}
-        onClick={async () => {
-          if (!window.confirm(t(locale, "comments.deleteConfirm"))) return;
-          setBusy(true);
-          setFailed(false);
-          try {
-            await request(DELETE_COMMENT_DOC, { id: commentId });
-            onDeleted?.(commentId);
-            startTransition(() => router.refresh());
-          } catch {
-            setFailed(true);
-            setBusy(false);
-          }
-        }}
-        className="text-xs font-medium text-neutral-500 hover:text-red-700 disabled:opacity-50"
+      {failed && <span className="text-xs text-danger">{t(locale, "comments.deleteError")}</span>}
+      <ConfirmButton
+        question={t(locale, "comments.deleteConfirm")}
+        confirmLabel={t(locale, "comments.delete")}
+        cancelLabel={t(locale, "confirm.cancel")}
+        busy={busy}
+        onConfirm={() => void remove()}
       >
         {t(locale, "comments.delete")}
-      </button>
+      </ConfirmButton>
     </span>
   );
 }

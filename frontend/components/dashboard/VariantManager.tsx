@@ -22,10 +22,25 @@ import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { GRINDS } from "./NewCoffeeForm";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
-import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
+import { LoginNeeded, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
+import { Badge, Button, Card, ConfirmButton, ErrorSummary, Input, SectionTitle, Select, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { CARD } from "@/lib/ui";
 
 type Load = { state: "loading" } | { state: "missing" } | { state: "error" } | { state: "ready"; coffee: EditableCoffee };
+
+/** One problem's message under an option row, named by the control's `aria-describedby` (see useFormErrors.control). */
+function RowProblem({ id, children }: { id: string; children?: string }) {
+  return children ? (
+    <p id={`${id}-error`} className="mt-2 text-xs text-danger">
+      {children}
+    </p>
+  ) : null;
+}
+
+const ROW_ORDER = ["price", "stock"] as const;
+const ADD_ORDER = ["weight", "price", "stock"] as const;
 
 function errKey(code: string): MessageKey {
   if (code === "CONFLICT") return "cf.error.duplicate";
@@ -79,10 +94,8 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
       {/* Session ended with the page open (#228): everything stays mounted, disabled, until signed in again. */}
       <fieldset disabled={view === "locked"} className="m-0 min-w-0 space-y-6 border-0 p-0">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-xl font-bold text-ink">{coffee.name}</h2>
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600 ring-1 ring-neutral-200">
-            {t(locale, coffee.isPublished ? "dash.published" : "dash.draft")}
-          </span>
+          <SectionTitle>{coffee.name}</SectionTitle>
+          <Badge tone="soft">{t(locale, coffee.isPublished ? "dash.published" : "dash.draft")}</Badge>
           {coffee.isPublished && (
             <Link href={`/coffees/${coffee.id}`} className="text-sm text-ink underline-offset-4 hover:underline">
               {t(locale, "dash.view")}
@@ -110,11 +123,11 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
         />
 
-        <section className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+        <Card as="section" className="p-4 sm:p-6">
           <h3 className="font-bold text-ink">{t(locale, "cf.variants")}</h3>
-          <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
+          <p className="mt-1 text-sm text-muted">{t(locale, "cf.variantsHint")}</p>
           {coffee.variants.length === 0 ? (
-            <p className="mt-4 text-sm text-neutral-500">{t(locale, "dash.noVariants")}</p>
+            <p className="mt-4 text-sm text-muted">{t(locale, "dash.noVariants")}</p>
           ) : (
             <ul className="mt-4 space-y-3">
               {coffee.variants.map((v) => (
@@ -129,7 +142,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
               ))}
             </ul>
           )}
-        </section>
+        </Card>
 
         {coffee.variants.length < LIMITS.variants ? (
           <AddVariantForm
@@ -141,9 +154,9 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           />
         ) : (
           // At the limit the add form goes away; say why instead of leaving a gap (#196).
-          <p role="note" className="rounded-2xl bg-white p-4 text-sm text-neutral-500 ring-1 ring-neutral-200 sm:p-6">
+          <Card as="p" role="note" className="p-4 text-sm text-muted sm:p-6">
             {t(locale, "cf.error.tooManyVariants", { max: LIMITS.variants })}
-          </p>
+          </Card>
         )}
       </fieldset>
     </div>
@@ -172,7 +185,8 @@ function VariantRow({
   const initialOnSale = v.isAvailable || v.stock === 0;
   const [onSale, setOnSale] = useState(initialOnSale);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; key: MessageKey } | null>(null);
+  const fe = useFormErrors<"price" | "stock">(`variant-${v.id}`, ROW_ORDER);
+  const [saved, setSaved] = useState(false);
 
   const p = parseWhole(price, 0, LIMITS.priceTwd);
   const s = parseWhole(stock, 0, LIMITS.stock);
@@ -180,78 +194,106 @@ function VariantRow({
   useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
 
   async function save() {
-    if (p === null) return setMsg({ ok: false, key: "cf.error.price" });
-    if (s === null) return setMsg({ ok: false, key: "cf.error.stock" });
+    setSaved(false);
+    if (p === null) return fe.failField("price", { key: "cf.error.price" });
+    if (s === null) return fe.failField("stock", { key: "cf.error.stock" });
     setBusy(true);
-    setMsg(null);
+    fe.clear();
     try {
       // Send isAvailable only when toggled: for out-of-stock rows the API
       // can't tell us the stored flag, so don't overwrite it by accident.
       const input = { priceTwd: p, stock: s, ...(onSale !== initialOnSale ? { isAvailable: onSale } : {}) };
       const r = await request(UPDATE_VARIANT, { id: v.id, input });
       onSaved(r.updateVariant);
-      setMsg({ ok: true, key: "cf.saved" });
+      setSaved(true);
     } catch (err) {
-      setMsg({ ok: false, key: errKey(toApiError(err).code) });
+      fe.fail({ fields: {}, form: { key: errKey(toApiError(err).code) } });
     } finally {
       setBusy(false);
     }
   }
 
   async function remove() {
-    if (!window.confirm(t(locale, "cf.deleteConfirm"))) return;
     setBusy(true);
-    setMsg(null);
+    setSaved(false);
+    fe.clear();
     try {
       await request(DELETE_VARIANT, { id: v.id });
       onDeleted();
     } catch (err) {
       const e = toApiError(err);
-      setMsg({ ok: false, key: e.code === "BAD_USER_INPUT" ? "cf.error.lastVariant" : "cf.error.generic" });
+      fe.fail({ fields: {}, form: { key: e.code === "BAD_USER_INPUT" ? "cf.error.lastVariant" : "cf.error.generic" } });
       setBusy(false);
     }
   }
 
   return (
-    <li className="rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
+    <li className="rounded-box bg-paper p-3 ring-1 ring-line">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.2fr_1fr_1fr_auto_auto] sm:items-end">
-        <div className="col-span-2 text-sm font-semibold text-neutral-800 sm:col-span-1 sm:pb-2">
+        <div className="col-span-2 text-sm font-semibold text-ink sm:col-span-1 sm:pb-2">
           {t(locale, `grind.${v.grind}`)} · {v.weightG} g
         </div>
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.priceTwd")}
-          <input inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} className={inputCls} />
+          <Input
+            {...fe.control("price")}
+            inputMode="numeric"
+            value={price}
+            onChange={(e) => {
+              setPrice(e.target.value);
+              fe.clearField("price");
+              setSaved(false);
+            }}
+            className="mt-1"
+          />
         </label>
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.stock")}
-          <input inputMode="numeric" value={stock} onChange={(e) => setStock(e.target.value)} className={inputCls} />
+          <Input
+            {...fe.control("stock")}
+            inputMode="numeric"
+            value={stock}
+            onChange={(e) => {
+              setStock(e.target.value);
+              fe.clearField("stock");
+              setSaved(false);
+            }}
+            className="mt-1"
+          />
         </label>
-        <label className="flex items-center gap-2 text-sm text-neutral-700 sm:pb-2">
+        <label className="flex items-center gap-2 text-sm text-ink sm:pb-2">
           <input type="checkbox" checked={onSale} onChange={(e) => setOnSale(e.target.checked)} className="h-4 w-4 accent-ink" />
           {t(locale, "cf.available")}
         </label>
         <div className="flex gap-2 justify-self-end">
-          <button
+          <Button
             type="button"
             disabled={busy || !dirty}
             onClick={() => void save()}
-            className="rounded-full bg-ink px-3 py-1.5 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-40"
+            size="sm"
           >
             {t(locale, "cf.saveRow")}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void remove()}
-            className="rounded-full px-3 py-1.5 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40"
+          </Button>
+          <ConfirmButton
+            question={t(locale, "cf.deleteConfirm")}
+            confirmLabel={t(locale, "cf.deleteRow")}
+            cancelLabel={t(locale, "confirm.cancel")}
+            busy={busy}
+            onConfirm={() => void remove()}
           >
             {t(locale, "cf.deleteRow")}
-          </button>
+          </ConfirmButton>
         </div>
       </div>
-      {msg && (
-        <p role={msg.ok ? "status" : "alert"} className={`mt-2 text-xs ${msg.ok ? "text-ink" : "text-red-600"}`}>
-          {t(locale, msg.key)}
+      <RowProblem id={fe.id(fe.first ?? "price")}>{fe.first && fieldMessage(locale, fe.errors, fe.first)}</RowProblem>
+      {fe.errors.form && (
+        <div className="mt-2">
+          <ErrorSummary formId={`variant-${v.id}`} message={t(locale, fe.errors.form.key as MessageKey)} />
+        </div>
+      )}
+      {saved && (
+        <p role="status" className="mt-2 text-xs text-ink">
+          {t(locale, "cf.saved")}
         </p>
       )}
     </li>
@@ -273,7 +315,7 @@ function AddVariantForm({
 }) {
   const [row, setRow] = useState<VariantDraft>({ grind: "WHOLE_BEAN", weightG: "", priceTwd: "", stock: "0" });
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const fe = useFormErrors<"weight" | "price" | "stock">("variant-add", ADD_ORDER);
   useUnsavedChanges((row.weightG !== "" || row.priceTwd !== "" || row.stock !== "0") && !busy, t(locale, "dash.unsavedConfirm"));
 
   async function add(e: React.FormEvent) {
@@ -284,9 +326,12 @@ function AddVariantForm({
       row,
     ];
     const problem = variantProblems(all).get(all.length - 1);
-    if (problem) return setError(VARIANT_PROBLEM_KEY[problem]);
+    if (problem) {
+      // A duplicate grind + weight is shown under the weight.
+      return fe.failField(problem === "price" || problem === "stock" ? problem : "weight", { key: VARIANT_PROBLEM_KEY[problem] });
+    }
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await request(ADD_VARIANT, {
         coffeeId,
@@ -300,51 +345,79 @@ function AddVariantForm({
       setRow({ grind: row.grind, weightG: "", priceTwd: "", stock: "0" });
       onAdded();
     } catch (err) {
-      setError(errKey(toApiError(err).code));
+      const code = toApiError(err).code;
+      if (code === "CONFLICT") fe.failField("weight", { key: "cf.error.duplicate" });
+      else fe.fail({ fields: {}, form: { key: errKey(code) } });
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={add} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+    <form onSubmit={add} noValidate className={`${CARD} p-4 sm:p-6`}>
       <h3 className="font-bold text-ink">{t(locale, "cf.addVariant")}</h3>
+      <div className="mt-3 empty:hidden">
+        <FormSummary formId="variant-add" locale={locale} errors={fe.errors} order={ADD_ORDER} />
+      </div>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.grind")}
-          <select value={row.grind} onChange={(e) => setRow({ ...row, grind: e.target.value })} className={inputCls}>
+          <Select value={row.grind} onChange={(e) => setRow({ ...row, grind: e.target.value })} className="mt-1">
             {GRINDS.map((g) => (
               <option key={g} value={g}>
                 {t(locale, `grind.${g}`)}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.weightG")}
-          <input inputMode="numeric" value={row.weightG} onChange={(e) => setRow({ ...row, weightG: e.target.value })} className={inputCls} />
+          <Input
+            {...fe.control("weight")}
+            inputMode="numeric"
+            value={row.weightG}
+            onChange={(e) => {
+              setRow({ ...row, weightG: e.target.value });
+              fe.clearField("weight");
+            }}
+            className="mt-1"
+          />
         </label>
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.priceTwd")}
-          <input inputMode="numeric" value={row.priceTwd} onChange={(e) => setRow({ ...row, priceTwd: e.target.value })} className={inputCls} />
+          <Input
+            {...fe.control("price")}
+            inputMode="numeric"
+            value={row.priceTwd}
+            onChange={(e) => {
+              setRow({ ...row, priceTwd: e.target.value });
+              fe.clearField("price");
+            }}
+            className="mt-1"
+          />
         </label>
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-medium text-muted">
           {t(locale, "cf.stock")}
-          <input inputMode="numeric" value={row.stock} onChange={(e) => setRow({ ...row, stock: e.target.value })} className={inputCls} />
+          <Input
+            {...fe.control("stock")}
+            inputMode="numeric"
+            value={row.stock}
+            onChange={(e) => {
+              setRow({ ...row, stock: e.target.value });
+              fe.clearField("stock");
+            }}
+            className="mt-1"
+          />
         </label>
-        <button
+        <Button
           type="submit"
           disabled={busy}
-          className="col-span-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-50 sm:col-span-1"
+          className="col-span-2 sm:col-span-1"
         >
           {t(locale, "cf.addVariant")}
-        </button>
+        </Button>
       </div>
-      {error && (
-        <div className="mt-3">
-          <FormError>{t(locale, error)}</FormError>
-        </div>
-      )}
+      <RowProblem id={fe.id(fe.first ?? "weight")}>{fe.first && fieldMessage(locale, fe.errors, fe.first)}</RowProblem>
     </form>
   );
 }

@@ -13,6 +13,7 @@ import {
   pickUpload,
   removeAt,
   scaledSize,
+  uploadSignErrorKey,
 } from "../lib/dashboard/upload.ts";
 
 test("imageFileProblem", () => {
@@ -97,4 +98,14 @@ test("moveItem and removeAt", () => {
   assert.deepEqual(xs, ["a", "b", "c", "d"], "input untouched");
   assert.deepEqual(removeAt(xs, 1), ["a", "c", "d"]);
   assert.deepEqual(removeAt(xs, 7), xs);
+});
+
+test("uploadSignErrorKey", () => {
+  const cases = [
+    ["UPLOAD_QUOTA", "img.error.quota"],
+    ["BAD_USER_INPUT", "img.error.unavailable"],
+    ["INTERNAL_SERVER_ERROR", "img.error.upload"],
+    ["UNAVAILABLE", "img.error.upload"],
+  ];
+  for (const [code, want] of cases) assert.equal(uploadSignErrorKey(code), want, code);
 });

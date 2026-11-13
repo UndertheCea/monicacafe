@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { buildCsp, buildPermissionsPolicy } from "@/lib/csp";
+import { REPORTING_ENDPOINTS, buildCsp, buildPermissionsPolicy } from "@/lib/csp";
 import { DEV_GRAPHQL_URL } from "@/lib/endpoint";
 
 // Next 16 "proxy" (formerly middleware). Sets a per-request nonce'd Content-Security-Policy. Next reads the policy
@@ -16,6 +16,7 @@ export function proxy(request: NextRequest) {
     // Read per request, not at build time (#210): only needed when images come
     // from another origin (a CDN; = the API's MEDIA_PUBLIC_URL). Unset, uploads
     // and images are same-origin under /media/ and 'self' covers them.
+    siteUrl: process.env.SITE_URL,
     mediaUrl: process.env.MEDIA_URL || (dev ? "http://localhost/media" : ""),
   });
 
@@ -24,6 +25,7 @@ export function proxy(request: NextRequest) {
   headers.set("Content-Security-Policy", csp);
   const response = NextResponse.next({ request: { headers } });
   response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("Reporting-Endpoints", REPORTING_ENDPOINTS);
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", buildPermissionsPolicy());

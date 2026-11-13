@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -111,7 +112,7 @@ func (r *Resolver) issueTokens(ctx context.Context, u *store.User) (*model.AuthP
 
 // authPayload pairs a fresh access token with an already-recorded refresh token.
 func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthPayload, error) {
-	access, err := r.Auth.IssueAccessToken(u.ID, u.Role)
+	access, err := r.Auth.IssueAccessToken(u.ID, u.Role, u.TokenVersion)
 	if err != nil {
 		return nil, fmt.Errorf("issue access token: %w", err)
 	}
@@ -125,7 +126,7 @@ func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthP
 func toUser(u *store.User) *model.User {
 	return &model.User{
 		ID: u.ID, EmailAddr: u.Email, DisplayName: u.DisplayName,
-		Role: model.UserRole(u.Role), CreatedAt: u.CreatedAt,
+		Role: model.UserRole(u.Role), CreatedAt: u.CreatedAt, SuspendedAt: u.SuspendedAt,
 	}
 }
 
@@ -133,7 +134,7 @@ func toShop(s *store.Shop) *model.Shop {
 	return &model.Shop{
 		ID: s.ID, OwnerID: s.OwnerID, Slug: s.Slug, Name: s.Name, Description: s.Description,
 		LogoURL: s.LogoURL, BannerURL: s.BannerURL, City: s.City, Lat: s.Lat, Lng: s.Lng,
-		CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
+		CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt, SuspendedAt: s.SuspendedAt,
 	}
 }
 
@@ -281,9 +282,46 @@ func requireUUID(field, s string) error {
 	return nil
 }
 
-// cleanText trims s and checks its length in characters is within [min, max].
+// cleanText trims s, rejects control and invisible formatting characters, and
+// checks its length in characters is within [min, max]. It is for single-line
+// fields; cleanMultiline also allows line breaks.
 func cleanText(field, s string, minLen, maxLen int) (string, error) {
+	return cleanTextMode(field, s, minLen, maxLen, false)
+}
+
+// cleanMultiline is cleanText for free-text fields (descriptions, comments):
+// "\n" is allowed and "\r\n" is normalised to it.
+func cleanMultiline(field, s string, minLen, maxLen int) (string, error) {
+	return cleanTextMode(field, s, minLen, maxLen, true)
+}
+
+// badTextRune reports whether r is a Unicode control (Cc) or format (Cf)
+// character: NUL, bidi overrides, zero-width spaces and the like. The
+// zero-width joiner stays because emoji sequences need it; a newline stays
+// when multiline.
+func badTextRune(r rune, multiline bool) bool {
+	switch {
+	case r == '\n':
+		return !multiline
+	case r == '\u200d':
+		return false
+	}
+	return unicode.Is(unicode.Cc, r) || unicode.Is(unicode.Cf, r)
+}
+
+func cleanTextMode(field, s string, minLen, maxLen int, multiline bool) (string, error) {
+	if multiline {
+		s = strings.ReplaceAll(s, "\r\n", "\n")
+	}
 	s = strings.TrimSpace(s)
+	if !utf8.ValidString(s) {
+		return "", errBadInput(field, field+" is not valid text")
+	}
+	for _, r := range s {
+		if badTextRune(r, multiline) {
+			return "", errBadInput(field, field+" contains characters that are not allowed")
+		}
+	}
 	n := utf8.RuneCountInString(s)
 	if n < minLen || n > maxLen {
 		if minLen > 0 {
@@ -292,6 +330,17 @@ func cleanText(field, s string, minLen, maxLen int) (string, error) {
 		return "", errBadInput(field, fmt.Sprintf("%s must be at most %d characters", field, maxLen))
 	}
 	return s, nil
+}
+
+func cleanOptMultiline(field string, s *string, minLen, maxLen int) (*string, error) {
+	if s == nil {
+		return nil, nil
+	}
+	v, err := cleanMultiline(field, *s, minLen, maxLen)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
 }
 
 func cleanOptText(field string, s *string, minLen, maxLen int) (*string, error) {
@@ -501,7 +550,8 @@ func (r *Resolver) checkMediaURL(field, v, keyPrefix string) error {
 	if r.Media == nil {
 		return errBadInput(field, "image uploads are not configured on this server")
 	}
-	if len(v) > 2048 || !strings.HasPrefix(r.Media.KeyOf(v), keyPrefix) {
+	// Thumbnails (…thumb.webp) are derived from an original and never saved.
+	if len(v) > 2048 || !strings.HasPrefix(r.Media.KeyOf(v), keyPrefix) || storage.IsThumbKey(r.Media.KeyOf(v)) {
 		return errBadInput(field, field+" must be an image uploaded for this listing")
 	}
 	return nil

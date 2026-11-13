@@ -61,13 +61,14 @@ browser ──► nginx :80 ──┬─► frontend (Next.js 16, :3000) ──�
                         │        └─ /api/auth/* route handlers (hold the refresh token in an httpOnly cookie)
                         ├─► backend (Go, :4000) /graphql, /health
                         └─► /media/ ─► S3 store (SeaweedFS :8333 in compose; browsers PUT via presigned URLs)
-backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) · Meilisearch (Stage 3, idle)
+backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved) · Meilisearch (profile `search`, reserved, Stage 3)
 ```
 
 | Path | What lives there |
 |---|---|
 | `backend/cmd/server` | HTTP server: chi, gqlgen, JWT middleware, slog, graceful shutdown |
 | `backend/cmd/worker` | River job-queue skeleton (Stage 2) |
+| `backend/cmd/admin` | `admin grant <email>` / `admin revoke <email>` set the ADMIN role (audited); in compose: `docker compose exec backend /app/admin grant <email>` |
 | `backend/graph/` | `schema.graphqls`, resolvers, hand-written models, dataloaders, input validation, integration tests |
 | `backend/graph/errors.go` + `frontend/lib/errors.ts` | The error contract: `extensions.code` (+ `field`, `retryAfter`); a Go test keeps the code lists in sync |
 | `backend/internal/store` | All SQL (hand-written pgx v5), transactions, sentinel errors |
@@ -83,6 +84,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (reserved: cart / cache) �
 | `frontend/tests/*.test.mjs` | `npm test` (Node's built-in runner) |
 | `scripts/smoke.sh` | Hits every demo route, sitemap, the auth cookie flow, GraphQL and an image upload after `docker compose up` (CI job `stack`) |
 | `scripts/seed_reference.sql` | Dev-only reference shops (`SEED_REFERENCE_SHOPS=true`); `reference_gaps.sh` reports values our dropdowns lack, `remove_reference_shops.sql` deletes them |
+| `scripts/backup.sh` | Nightly `pg_dump` + age encryption → S3 or a directory, 7 daily + 4 weekly (compose `backup`, profile `prod`, loop in `backup_loop.sh`); `restore.sh` restores into an empty DB. Runbook: [`docs/BACKUP.md`](docs/BACKUP.md); CI `stack` runs a restore drill |
 | `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |

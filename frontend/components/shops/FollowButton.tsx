@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -9,9 +8,7 @@ import { rateLimitMessage } from "@/lib/errors";
 import { followControl, settleFollow, toggleFollow, type FollowState } from "@/lib/follows";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-
-const pillCls =
-  "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold ring-1 transition disabled:opacity-60";
+import { Button } from "@/components/ui";
 
 /**
  * "追蹤 / Follow" toggle with the follower count. Like SaveButton, the page is
@@ -55,19 +52,16 @@ export function FollowButton({
   }, [status, request, slug]);
 
   const count = (
-    <span className="text-xs font-normal text-neutral-500">{t(locale, "follow.count", { n: state.count })}</span>
+    <span className="text-xs font-normal text-muted">{t(locale, "follow.count", { n: state.count })}</span>
   );
 
   if (control !== "toggle") {
     return (
       <p className="mt-3 flex flex-wrap items-center gap-3">
         {control === "login" && (
-          <Link
-            href={`/login?next=${encodeURIComponent(pathname)}`}
-            className={`${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`}
-          >
+          <Button href={`/login?next=${encodeURIComponent(pathname)}`} variant="secondary">
             <span aria-hidden>＋</span> {t(locale, "follow.loginToFollow")}
-          </Link>
+          </Button>
         )}
         {count}
       </p>
@@ -98,24 +92,19 @@ export function FollowButton({
   return (
     <div className="mt-3">
       <p className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
+        <Button
           onClick={onToggle}
           disabled={busy || !loaded}
           aria-pressed={state.following}
-          className={
-            state.following
-              ? `${pillCls} bg-white text-ink ring-neutral-300 hover:bg-neutral-100`
-              : `${pillCls} bg-ink text-white ring-ink hover:bg-neutral-700`
-          }
+          variant={state.following ? "secondary" : "primary"}
         >
           <span aria-hidden>{state.following ? "✓" : "＋"}</span>
           {t(locale, state.following ? "follow.following" : "follow.follow")}
-        </button>
+        </Button>
         {count}
       </p>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {t(locale, error.key, error.vars)}
         </p>
       )}

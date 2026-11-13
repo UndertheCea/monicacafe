@@ -6,11 +6,9 @@ import { useState, useSyncExternalStore } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Drawer } from "./Drawer";
 import { NavMenuList } from "./NavMenuList";
+import { ICON_BUTTON } from "@/lib/ui";
 
 const noSubscribe = () => () => {};
-
-const buttonCls =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-ink hover:border-ink";
 
 function MenuIcon() {
   return (
@@ -43,7 +41,7 @@ export function NavDrawer({ locale }: { locale: Locale }) {
 
   if (!hydrated) {
     return (
-      <Link href="/menu" className={buttonCls} aria-label={t(locale, "nav.menuOpen")}>
+      <Link href="/menu" className={ICON_BUTTON} aria-label={t(locale, "nav.menuOpen")}>
         <MenuIcon />
       </Link>
     );
@@ -53,7 +51,7 @@ export function NavDrawer({ locale }: { locale: Locale }) {
     <>
       <button
         type="button"
-        className={buttonCls}
+        className={ICON_BUTTON}
         aria-label={t(locale, "nav.menuOpen")}
         aria-haspopup="dialog"
         aria-expanded={open}

@@ -15,6 +15,124 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 35 — 2026-11-12 — Design system, forms, observability, reports, images (six stage-1 slices)
+PR: #256 (also carries #255, session 34)
+
+Session 34's PR #255 had two CI runs stuck in "queued" since 2026-11-11 20:31 UTC with no jobs; GitHub refused to cancel
+or re-run them. Rather than push an empty commit, I verified #255 locally (backend `-race` with `TEST_DATABASE_URL` on
+PostgreSQL 16, frontend tsc / lint / 219 tests / build), started this branch from its head and opened #256. Its first
+CI run (#255 + #230) was green, incl. the full-stack smoke and restore drill. Merging #256 lands #255's commits and closes
+#215, #217, #220, #222, #224, #229 and #231 via their `Closes` lines. No owner answers on any question. I built #230's primitives and
+#232's helpers myself; Sonnet / Opus sub-agents did #230's sweep, #232's form wiring, #221, #225, #235 and #236 (worktrees,
+then cherry-picked; #221 and #225 rebased by their agents onto the design system).
+
+### Shipped (one line per slice: area — what — key files)
+- #230 frontend — `lib/ui.ts` recipes + `components/ui/` (Button primary / secondary / quiet / danger, md 44 px / sm
+  36 px, Link or button, pending; Field + Input / Select / Textarea with `aria-describedby` / `aria-invalid`; Card,
+  PageTitle, SectionTitle, Label, Badge); `rounded-box` radius token; focus = the global ink outline; every hand-rolled
+  copy replaced, `dashboard/ui.tsx` re-exports. `tests/ui.test.mjs` bans hand-rolled pill buttons, `outline-none` /
+  focus rings, stray radii. Solid red buttons became the outlined `danger` variant.
+- #232 frontend — `lib/formErrors.ts` (API `field` → form field, aliases), `useFormErrors` (focus + scroll to the first
+  problem, no smooth scroll under reduced motion), `ErrorSummary`, `FormSummary`; login, register, display name,
+  password, new coffee (opens "More details" when needed), coffee details, option rows, shop profile, open a shop,
+  comments. `ConfirmButton` replaces every destructive `window.confirm` and guards unpublish; the leave-without-saving
+  guard (#228) keeps its synchronous confirm. `lib/dashboard/coffeeFields.ts`, `tests/confirm.test.mjs`.
+- #221 backend — `internal/metrics` (`/metrics` on `METRICS_ADDR`, compose `:9100` exposed only): GraphQL operation
+  count / duration (bounded names), HTTP routes, pool stats, rate-limit rejections per bucket, sweeps, panics;
+  `/health/live`, `/health/ready` (DB + `health.ExpectedMigration`, S3 reported only), `/health` alias; frontend
+  `/api/health`; `internal/errreport` Sentry envelope sender when `SENTRY_DSN` is set (scrubbed; Next `onRequestError`);
+  `internal/sweep` runner (WaitGroup, `pg_try_advisory_lock`); `docs/DEPLOY.md` "Monitoring".
+- #225 cross-cutting — migration 019 `reports` (one open per reporter + target, `ON DELETE SET NULL`); `report`,
+  admin `reports` / `resolveReport` (DISMISS / ACTIONED / REMOVE, audited); `RATE_LIMIT_REPORT_USER` 10/1h;
+  `twfmt.ContainsContactInfo` (62 cases) → `CONTACT_INFO_NOT_ALLOWED` on new / changed comments and descriptions;
+  Report drawer on comments, shops and coffees; `/admin` (reports, user / shop search + suspend, audit log); hint under
+  every comment / description field.
+- #235 cross-cutting — `createImageUpload(thumbnailByteSize)` presigns `<key>.thumb.webp` (640 px WebP made in the
+  browser), counted in one quota reservation; sweep keeps a thumb while its original is referenced; thumbs can't be
+  saved as URLs; `components/ui/Picture` replaces all 11 `<img>` (lazy / `fetchPriority`, width / height, thumb →
+  original fallback); filter options, home and sitemap data cached 60 s (`lib/catalogueCache.ts`) with no per-viewer
+  headers.
+- #236 frontend — map overlay only after hydration; one-finger drag off on touch + hint, 50vh on phones; ErrorState
+  retry + home; first / last pagination links (`lib/pagination.ts`); header search submit button; "歡迎，{name}" after
+  registering (`lib/welcome.ts`, `WelcomeNotice`); "load more" comments survive Back via `history.state`.
+- smoke — the #156 check now asserts the cards are in the shell and none are streamed; the header search's own
+  Suspense boundary started streaming in CI (same form as its fallback, so no change without JS).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, migrations 001–019) incl.
+  `TestReports`, `TestContactInfoRefused`, the advisory-lock and readiness tests.
+- Frontend: tsc, lint, `npm test` (264), `next build`. `docker compose config` (also with all profiles), `check_brief.sh`.
+- Local stack (API binary + `next start`, no nginx): login error focus lands on the field (Playwright); screenshots of
+  login, a coffee page and /shops on a phone looked right (sort label wrap fixed). The smoke run against my local DB
+  fails on seed-dependent checks only, because integration tests had filled it; CI runs it on a fresh stack.
+- Not tested: docker compose here (CI covers it); a real Sentry; the thumbnail PUT / WebP encoding and `<Picture>`
+  fallback in a real browser; the map touch behaviour on a device; "load more" restore across Back in a browser;
+  `/admin` by hand.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Reports and contact-details rule: see the brief's Decisions. Grant the first admin with `cmd/admin grant <email>`.
+- With dragging off on touch, two fingers pinch-zoom the map rather than pan it; revisit with a device if it annoys.
+- Every unblocked `stage-1` slice is now done; what's left waits on #199 / #200 / #201 and the roasters' domains (#168).
+
+## Session 34 — 2026-11-11 — Moderation, backups, design tokens, accessibility (eight stage-1 slices)
+PR: #255
+
+Session 33's PR (#240) was still open and green against master, so I merged it first. No question had a new answer
+from the owner; #170–#174, #219, #223 and #226 stay blocked. I built #224 myself; Sonnet sub-agents built #215,
+#217, #220 / #222, #229 and #231 in git worktrees (#231 on top of #229), which I reviewed, cherry-picked and
+re-verified together.
+
+### Shipped (one line per slice: area — what — key files)
+- #224 backend — migration 017 (`users.suspended_at` + `token_version`, `shops.suspended_at`, `audit_log` with an
+  append-only trigger); `publicCoffee` / `hasPublishedCoffee` hide suspended shops and their coffees from every public
+  query, `Coffee.Public()` for lookups, `suspendedUserIDs` hides comments; admin-only `suspendUser` / `unsuspendUser` /
+  `suspendShop` / `unsuspendShop` / `adminUnpublishCoffee` (reason required) and `adminUsers` / `adminShops` / `auditLog`
+  (role re-read from the DB); `deleteComment(reason)` audited for admins; `deleteAccount` / `changePassword` audited;
+  `tokenGate` (gqlgen interceptor) drops a mutation's claims when the token version is behind or the user suspended;
+  suspended login → FORBIDDEN (`auth.error.suspended`), refresh refused; `Shop.suspended` / `User.suspended` (owner /
+  self / admin) + dashboard notice; `cmd/admin grant|revoke <email>` in the backend image. `graph/moderation.go`,
+  `internal/store/moderation.go`.
+- #215 frontend — refresh cookie `__Host-mc_rt` (Secure, Path /) when `SITE_URL` is https, old `mc_rt` read and cleared
+  for one release; Origin checked against `SITE_URL` (+ localhost:3000 in dev) and `Sec-Fetch-Site`; CSP
+  `upgrade-insecure-requests` on https, `report-to` / `report-uri` → `app/api/csp-report` (logs one JSON line).
+  `lib/auth/cookie.ts`, `lib/csp.ts`, `lib/cspReport.ts`.
+- #222 cross-cutting — Redis (profile `cache`) and Meilisearch (profile `search`) no longer start by default; the backend
+  doesn't wait for Redis; `MEILI_ENV`.
+- #220 cross-cutting — `scripts/backup.sh` (`pg_dump -Fc`, `age`, S3 via aws-cli or a directory, 7 daily + 4 Sunday
+  dumps, one JSON line), `scripts/restore.sh`, `backup_loop.sh` + `backup.Dockerfile`, compose `backup` (profile
+  `prod`, 03:00 Taipei); CI `stack` backs up, wipes `public`, restores and smokes again; `docs/BACKUP.md`.
+- #229 frontend — tokens `ink` #111 / `muted` #595959 / `faint` / `line` / `paper` #f7f7f7 / `danger` #b91c1c in
+  `globals.css`; no raw `neutral-` / `red-` / shadows / blur (palette test); `components/Page.tsx` (max-w-6xl) on every
+  route; `lib/contrast.ts` + test.
+- #231 frontend — archive greys only the image; 44 px header / drawer / reorder / comment / chip / pagination targets;
+  `lang` spans on the language toggle and wordmark; `aria-live` only on the /coffees count; `.label-caps` 12 px, no
+  letter-spacing for zh; `tests/a11y.test.mjs`.
+- #217 backend — `cleanText` refuses Cc / Cf characters and invalid UTF-8 (ZWJ allowed), `cleanMultiline` allows `\n`
+  in descriptions and comments; migration 018: length CHECKs (display name 50, shop name 80 / description 2000 / city
+  40, coffee name 120 / description 5000) + `upload_grants`; `UPLOAD_DAILY_BYTES_PER_SHOP` (200 MiB, advisory-locked
+  reserve) → `UPLOAD_QUOTA`; `Sweep` pages the bucket and asks the DB per page (`ReferencedImageKeys`). Magic-number
+  check not done.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` on local PostgreSQL 16 — all pass, incl. the new
+  `TestModeration` (24 authorisation subtests: anonymous / buyer / seller on every admin field; suspended shop invisible
+  on shop, coffee, shops, coffees, popular, map; owner still sees it; suspended user's comments hidden, login / refresh /
+  writes refused; old access token refused after a password change; audit log order + actors; DELETE on audit_log
+  fails), `TestTokenCurrent`, `TestParseArgs`. `cmd/admin` run against the DB (grant, unknown email, no-op).
+- Frontend: tsc, lint, `npm test`, `npm run build` on the combined branch.
+- Local stack (API binary + `next start`, fresh migrate + seed): `smoke.sh` 55 ok, only the three `/media/` checks fail
+  (they need nginx, as in sessions 32–33). axe-core (WCAG 2.2 AA tags) on home, /coffees, a coffee page, a shop page,
+  /login, /dashboard at 390 and 1280 px: **0 violations**. Screenshots of the shop and coffee pages look as intended.
+- Not run here (docker can't build images in this environment): the compose stack, the `backup` image and the CI
+  restore drill, the S3 path of `backup.sh`. CI runs all but the S3 path.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Token version: mutations only (queries keep the 15-minute window); the role isn't compared, because opening a shop
+  promotes a buyer without a new token. Admin fields re-read the role from the database.
+- Admins can't suspend themselves or another admin (revoke with `cmd/admin` first).
+- #232 (forms) and #230 (design system part 2) are next; #225 can now build the report flow and admin screen on #224.
+- Reference-shop slices still blocked (#168). Owner: secret scanning + a branch rule on `master` (#216) still pending.
+
 ## Session 33 — 2026-11-11 — Abuse limits, nginx and CI hardening, seller work that survives (seven stage-1 slices)
 PR: #240
 

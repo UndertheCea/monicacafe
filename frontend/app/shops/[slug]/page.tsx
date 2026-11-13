@@ -13,9 +13,12 @@ import { siteBase } from "@/lib/sitemap";
 import { parseShopPagePages, shopPageHref } from "@/lib/shopQuery";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
 import { FollowButton } from "@/components/shops/FollowButton";
+import { ReportButton } from "@/components/ReportButton";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
+import { Page } from "@/components/Page";
+import { Card, PageTitle, Picture, SectionTitle } from "@/components/ui";
 
 type Params = Promise<{ slug: string }>;
 
@@ -96,37 +99,37 @@ export default async function ShopPage({
       {/* No banner: no block at all, just white space (#112). */}
       {shop.bannerUrl && (
         <div className="relative h-48 border-b border-line md:h-64">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={shop.bannerUrl} alt="" className="h-full w-full object-cover" />
+          <Picture src={shop.bannerUrl} priority width={1200} height={256} alt="" />
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl px-4">
+      <Page>
         <div className={`relative flex flex-col gap-4 sm:flex-row ${shop.bannerUrl ? "-mt-12 sm:items-start" : "pt-10 sm:items-center"}`}>
-          <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-paper" />
+          <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="lg" className="outline-4 outline-white" />
           <div className={shop.bannerUrl ? "sm:pt-14" : ""}>
-            <h1 className="text-3xl font-bold text-ink">{shop.name}</h1>
-            {shop.city && <p className="text-sm text-neutral-500">{shop.city}</p>}
+            <PageTitle>{shop.name}</PageTitle>
+            {shop.city && <p className="text-sm text-muted">{shop.city}</p>}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
+            <ReportButton targetType="SHOP" targetId={shop.id} shopId={shop.id} locale={locale} />
           </div>
         </div>
 
         {shop.description && (
-          <p className="mt-6 max-w-3xl whitespace-pre-line leading-relaxed text-neutral-700">{shop.description}</p>
+          <p className="mt-6 max-w-3xl whitespace-pre-line leading-relaxed text-ink">{shop.description}</p>
         )}
 
         <section className="mt-10 pb-12" aria-labelledby="shop-coffees">
           <div className="mb-4 flex flex-wrap items-baseline gap-3">
-            <h2 id="shop-coffees" className="text-xl font-bold text-ink">
+            <SectionTitle id="shop-coffees">
               {t(locale, "shops.coffees")}
-            </h2>
-            <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
+            </SectionTitle>
+            <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
           </div>
 
           {shop.coffees.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
+            <Card className="p-10 text-center text-muted">
               <p>{t(locale, archive.total > 0 ? "shops.allSoldOut" : "shops.noCoffees")}</p>
-            </div>
+            </Card>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {shop.coffees.nodes.map((c) => (
@@ -147,13 +150,13 @@ export default async function ShopPage({
           {archive.total > 0 && (
             <section id="archive" className="mt-14 scroll-mt-20 border-t border-line pt-8" aria-labelledby="shop-archive">
               <div className="mb-4 flex flex-wrap items-baseline gap-3">
-                <h2 id="shop-archive" className="text-xl font-bold text-ink">
+                <SectionTitle id="shop-archive">
                   {t(locale, "shops.archive")}
-                </h2>
-                <span className="text-sm text-neutral-500">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
+                </SectionTitle>
+                <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
               </div>
-              {/* Muted, still black and white: greyscale photos and tiles, softer text. */}
-              <div className="grid gap-5 opacity-70 grayscale sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {/* Greyscale on the photo / tile only (.archive-grid, globals.css): text keeps full contrast (#231). */}
+              <div className="archive-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {archive.nodes.map((c) => (
                   <CoffeeCard key={c.id} coffee={c} locale={locale} />
                 ))}
@@ -173,7 +176,7 @@ export default async function ShopPage({
             {t(locale, "shops.back")}
           </Link>
         </section>
-      </div>
+      </Page>
     </div>
   );
 }

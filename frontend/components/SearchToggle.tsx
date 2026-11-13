@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { HeaderSearch, HeaderSearchForm } from "./HeaderSearch";
+import { ICON_BUTTON } from "@/lib/ui";
 
 /**
  * The header's search icon (#175; every width since #185): it unfolds the
@@ -33,14 +34,14 @@ export function SearchToggle({ locale }: { locale: Locale }) {
     >
       <summary
         aria-label={t(locale, "nav.searchOpen")}
-        className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full border border-neutral-300 text-ink hover:border-ink [&::-webkit-details-marker]:hidden"
+        className={`${ICON_BUTTON} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}
       >
         <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75">
           <circle cx="8.5" cy="8.5" r="5.25" />
           <path d="M12.5 12.5 17 17" strokeLinecap="round" />
         </svg>
       </summary>
-      <div className="absolute inset-x-0 top-full border-b border-neutral-200 bg-white px-4 py-3">
+      <div className="absolute inset-x-0 top-full border-b border-line bg-white px-4 py-3">
         <div className="mx-auto max-w-xl">
         <Suspense fallback={<HeaderSearchForm locale={locale} />}>
           <HeaderSearch locale={locale} onDone={() => setOpen(false)} />

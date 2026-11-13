@@ -1,6 +1,7 @@
 "use client";
 
 import { t, type Locale } from "@/lib/i18n/dict";
+import { CARD } from "@/lib/ui";
 
 /**
  * The "More details (optional)" fold on the coffee forms (#182): a native
@@ -27,11 +28,11 @@ export function MoreDetails({
     <details
       open={open}
       onToggle={(e) => onOpenChange(e.currentTarget.open)}
-      className={`group rounded-2xl bg-white ring-1 ring-neutral-200 ${className}`}
+      className={`${CARD} group ${className}`}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-4 font-bold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-box px-4 py-4 font-bold text-ink sm:px-6 [&::-webkit-details-marker]:hidden">
         <span>{filled > 0 ? t(locale, "cf.moreDetailsFilled", { n: filled }) : t(locale, "cf.moreDetails")}</span>
-        <span aria-hidden="true" className="text-neutral-500 transition-transform group-open:rotate-180">
+        <span aria-hidden="true" className="text-muted transition-transform group-open:rotate-180">
           ▾
         </span>
       </summary>

@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BREW_METHODS, FILTER_OPTIONS, ROAST_LEVELS, type BrewMethod, type GrindOption, type RoastLevel } from "@/lib/api";
 import { CREATE_COFFEE } from "@/lib/dashboard/queries";
 import {
   LIMITS,
-  apiDetailsProblem,
   coffeeDetailsProblem,
   filledOptionalCount,
-  isOptionalProblem,
   parseAltitude,
   parseHarvestYear,
   parseFlavorNotes,
@@ -23,14 +21,20 @@ import { query, toApiError } from "@/lib/graphql";
 import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
 import { draftKey, isEmptyDraft, makeDraft, parseDraft } from "@/lib/dashboard/session";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { brewOptions, detailsErrorKey } from "./CoffeeDetailsForm";
+import { brewOptions, coffeeBadInput, detailsMessage } from "./CoffeeDetailsForm";
+import { COFFEE_API_ALIASES, COFFEE_ORDER, OPTIONAL_ORDER, isOptionalField, problemField, variantField } from "@/lib/dashboard/coffeeFields";
+import type { CoffeeFieldKey } from "./coffeeFormErrors";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { placeError, type FormErrors } from "@/lib/formErrors";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
-import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
+import { LoginNeeded, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
+import { Button, Card, Field, Input, SectionTitle, Select, Textarea, useFormErrors } from "@/components/ui";
+import { isContactInfoError } from "@/lib/moderation";
 
 export const GRINDS: GrindOption[] = ["WHOLE_BEAN", "COARSE", "MEDIUM", "FINE", "ESPRESSO"];
 
@@ -72,7 +76,6 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   const [opts, setOpts] = useState<Options | null>(null);
   const [optsFailed, setOptsFailed] = useState(false);
   const [rows, setRows] = useState<VariantDraft[]>([emptyRow()]);
-  const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
   const [busy, setBusy] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [filled, setFilled] = useState(0);
@@ -81,6 +84,16 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   const [fieldsDirty, setFieldsDirty] = useState(false);
   const [restored, setRestored] = useState(false);
   const key = user ? draftKey(user.id) : null;
+  // Focus order: the essentials, then each option row's weight / price / stock, then "More details".
+  const order = useMemo<readonly CoffeeFieldKey[]>(
+    () => [
+      ...COFFEE_ORDER,
+      ...rows.flatMap((_, i) => (["weight", "price", "stock"] as const).map((c) => variantField(i, c))),
+      ...OPTIONAL_ORDER,
+    ],
+    [rows],
+  );
+  const fe = useFormErrors<CoffeeFieldKey>("new-coffee", order);
 
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
@@ -182,17 +195,28 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       ROAST_LEVELS,
     );
     if (detailsProblem) {
-      if (isOptionalProblem(detailsProblem)) setMoreOpen(true);
-      return setError({ key: detailsErrorKey(detailsProblem), vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
+      const field = problemField(detailsProblem, { name, originCountryId, processingMethodId, altitudeMin });
+      if (isOptionalField(field)) setMoreOpen(true);
+      return fe.failField(field, detailsMessage(detailsProblem));
     }
     const altitude = parseAltitude(altitudeMin, altitudeMax);
-    if (altitude === "invalid" || altitude.minM === null) return setError({ key: "cf.error.altitude" });
-    if (rows.length === 0) return setError({ key: "cf.error.noVariants" });
-    const firstProblem = problems.values().next();
-    if (!firstProblem.done) return setError({ key: VARIANT_PROBLEM_KEY[firstProblem.value] });
+    if (altitude === "invalid" || altitude.minM === null) {
+      return fe.failField(problemField("altitude", { name, originCountryId, processingMethodId, altitudeMin }), {
+        key: "cf.error.altitude",
+      });
+    }
+    if (rows.length === 0) return fe.fail({ fields: {}, form: { key: "cf.error.noVariants" } });
+    if (problems.size > 0) {
+      // Every row with a problem, each under the control that is wrong (a duplicate points at the weight).
+      const fields: FormErrors<CoffeeFieldKey>["fields"] = {};
+      for (const [i, p] of problems) {
+        fields[variantField(i, p === "price" || p === "stock" ? p : "weight")] = { key: VARIANT_PROBLEM_KEY[p] };
+      }
+      return fe.fail({ fields });
+    }
 
     setBusy(true);
-    setError(null);
+    fe.clear();
     try {
       await request(CREATE_COFFEE, {
         input: {
@@ -224,36 +248,39 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       router.push("/dashboard");
     } catch (err) {
       const e2 = toApiError(err);
-      const detailsField =
-        e2.code === "BAD_USER_INPUT" && [
-          "flavorNotes", "altitudeMinM", "altitudeMaxM", "producer", "region", "harvestYear", "varietyId",
-        ].includes(e2.field ?? "");
-      const problem = detailsField ? apiDetailsProblem(e2.field, notes.length) : null;
-      if (isOptionalProblem(problem)) setMoreOpen(true);
       if (e2.code === "LIMIT_REACHED") {
-        setError({ key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } });
-        setBusy(false);
-        return;
+        fe.fail({ fields: {}, form: { key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } } });
+      } else {
+        const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(e2.code)
+          ? placeError(e2.field ?? "description", { key: "contact.error" }, order, COFFEE_API_ALIASES)
+          : e2.code === "BAD_USER_INPUT"
+            ? coffeeBadInput(e2.field, notes.length, order)
+            : { fields: {}, form: { key: "cf.error.generic" } };
+        const placed = Object.keys(failed.fields)[0];
+        if (placed && isOptionalField(placed)) setMoreOpen(true);
+        fe.fail(failed);
       }
-      const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
-      setError({ key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } });
       setBusy(false);
     }
   }
 
-  const select = (name: string, label: MessageKey, items: { id: string; label: string }[], required = true) => (
-    <label className="block text-sm font-medium text-neutral-700">
-      {t(locale, label)}
-      {required && " *"}
-      <select name={name} required={required} defaultValue="" className={inputCls}>
-        <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
-        {items.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+  const select = (name: CoffeeFieldKey, label: MessageKey, items: { id: string; label: string }[], required = true) => (
+    <Field
+      id={fe.id(name)}
+      label={`${t(locale, label)}${required ? " *" : ""}`}
+      error={fieldMessage(locale, fe.errors, name)}
+    >
+      {(p) => (
+        <Select {...p} name={name} required={required} defaultValue="">
+          <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
+          {items.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+      )}
+    </Field>
   );
 
   const locked = view === "locked";
@@ -266,29 +293,38 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         onChange={(e) => {
           setFilled(filledOptionalCount(optionalFromForm(new FormData(e.currentTarget))));
           setFieldsDirty(persist(e.currentTarget, rows));
+          // The named inputs share the details fields' names: editing one clears its error.
+          const name = (e.target as unknown as { name?: string }).name;
+          if (name) fe.clearField(name as CoffeeFieldKey);
         }}
         noValidate
       >
         <fieldset disabled={locked} className="m-0 min-w-0 space-y-6 border-0 p-0">
           {restored && (
-            <p role="status" className="flex flex-wrap items-center gap-3 rounded-xl bg-neutral-50 px-3 py-2 text-sm text-ink ring-1 ring-neutral-200">
+            <p role="status" className="flex flex-wrap items-center gap-3 rounded-box bg-paper px-3 py-2 text-sm text-ink ring-1 ring-line">
               {t(locale, "dash.draftRestored")}
               <button type="button" onClick={discardDraft} className="font-semibold underline underline-offset-4">
                 {t(locale, "dash.draftDiscard")}
               </button>
             </p>
           )}
-          {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+          <FormSummary formId="new-coffee" locale={locale} errors={fe.errors} order={order} />
 
-          <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
+          <Card as="section" className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <h2 className="text-lg font-bold text-ink">{t(locale, "cf.essentials")}</h2>
-              <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
+              <SectionTitle>{t(locale, "cf.essentials")}</SectionTitle>
+              <p className="mt-1 text-sm text-muted">{t(locale, "cf.essentialsHint")}</p>
             </div>
-            <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-              {t(locale, "cf.name")} *
-              <input name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} className={inputCls} />
-            </label>
+            <Field
+              id={fe.id("name")}
+              label={`${t(locale, "cf.name")} *`}
+              error={fieldMessage(locale, fe.errors, "name")}
+              className="sm:col-span-2"
+            >
+              {(p) => (
+                <Input {...p} name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} />
+              )}
+            </Field>
             {select(
               "origin",
               "cf.origin",
@@ -301,88 +337,131 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
             )}
             {select("variety", "cf.variety", opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })))}
             {select("roast", "cf.roast", ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })), false)}
-            <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
-            <ProvenanceFields locale={locale} />
-            <FlavorNotesField locale={locale} error={error?.key} />
-          </section>
+            <p className="-mt-2 text-xs text-muted sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
+            <ProvenanceFields locale={locale} fe={fe} />
+            <FlavorNotesField locale={locale} fe={fe} />
+          </Card>
 
-          <section className="rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
-            <h2 className="text-lg font-bold text-ink">{t(locale, "cf.variants")} *</h2>
-            <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.variantsHint")}</p>
+          <Card as="section" className="p-6">
+            <SectionTitle>{t(locale, "cf.variants")} *</SectionTitle>
+            <p className="mt-1 text-sm text-muted">{t(locale, "cf.variantsHint")}</p>
             <ul className="mt-4 space-y-3">
               {rows.map((r, i) => {
                 const problem = problems.get(i);
+                // The control the submitted problem is under (its message below carries the id the control names).
+                const bad = (["weight", "price", "stock"] as const).find((c) => fe.errors.fields[variantField(i, c)]);
+                const ctl = (c: "weight" | "price" | "stock") => fe.control(variantField(i, c));
+                const clear = (c: "weight" | "price" | "stock") => fe.clearField(variantField(i, c));
                 return (
-                  <li key={i} className="rounded-xl bg-neutral-50 p-3 ring-1 ring-neutral-200">
+                  <li key={i} className="rounded-box bg-paper p-3 ring-1 ring-line">
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.4fr_1fr_1fr_1fr_auto] sm:items-end">
-                      <label className="block text-xs font-medium text-neutral-600">
+                      <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.grind")}
-                        <select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className={inputCls}>
+                        <Select value={r.grind} onChange={(e) => setRow(i, { grind: e.target.value })} className="mt-1">
                           {GRINDS.map((g) => (
                             <option key={g} value={g}>
                               {t(locale, `grind.${g}`)}
                             </option>
                           ))}
-                        </select>
+                        </Select>
                       </label>
-                      <label className="block text-xs font-medium text-neutral-600">
+                      <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.weightG")}
-                        <input inputMode="numeric" value={r.weightG} onChange={(e) => setRow(i, { weightG: e.target.value })} className={inputCls} />
+                        <Input
+                          {...ctl("weight")}
+                          inputMode="numeric"
+                          value={r.weightG}
+                          onChange={(e) => {
+                            setRow(i, { weightG: e.target.value });
+                            clear("weight");
+                          }}
+                          className="mt-1"
+                        />
                       </label>
-                      <label className="block text-xs font-medium text-neutral-600">
+                      <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.priceTwd")}
-                        <input inputMode="numeric" value={r.priceTwd} onChange={(e) => setRow(i, { priceTwd: e.target.value })} className={inputCls} />
+                        <Input
+                          {...ctl("price")}
+                          inputMode="numeric"
+                          value={r.priceTwd}
+                          onChange={(e) => {
+                            setRow(i, { priceTwd: e.target.value });
+                            clear("price");
+                          }}
+                          className="mt-1"
+                        />
                       </label>
-                      <label className="block text-xs font-medium text-neutral-600">
+                      <label className="block text-xs font-medium text-muted">
                         {t(locale, "cf.stock")}
-                        <input inputMode="numeric" value={r.stock} onChange={(e) => setRow(i, { stock: e.target.value })} className={inputCls} />
+                        <Input
+                          {...ctl("stock")}
+                          inputMode="numeric"
+                          value={r.stock}
+                          onChange={(e) => {
+                            setRow(i, { stock: e.target.value });
+                            clear("stock");
+                          }}
+                          className="mt-1"
+                        />
                       </label>
-                      <button
+                      <Button
                         type="button"
                         disabled={rows.length === 1}
-                        onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
-                        className="col-span-2 justify-self-end rounded-full px-3 py-2 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40 sm:col-span-1"
+                        onClick={() => {
+                          setRows((rs) => rs.filter((_, j) => j !== i));
+                          fe.clear(); // errors are keyed by row number, which just shifted
+                        }}
+                        variant="quiet" size="sm" className="col-span-2 justify-self-end sm:col-span-1"
                       >
                         {t(locale, "cf.removeRow")}
-                      </button>
+                      </Button>
                     </div>
-                    {problem && r.priceTwd !== "" && (
-                      <p className="mt-2 text-xs text-red-600">{t(locale, VARIANT_PROBLEM_KEY[problem])}</p>
+                    {bad ? (
+                      <p id={`${fe.id(variantField(i, bad))}-error`} className="mt-2 text-xs text-danger">
+                        {fieldMessage(locale, fe.errors, variantField(i, bad))}
+                      </p>
+                    ) : (
+                      problem &&
+                      r.priceTwd !== "" && <p className="mt-2 text-xs text-danger">{t(locale, VARIANT_PROBLEM_KEY[problem])}</p>
                     )}
                   </li>
                 );
               })}
             </ul>
-            <button
+            <Button
               type="button"
               disabled={rows.length >= LIMITS.variants}
               onClick={() => setRows((rs) => [...rs, { ...emptyRow(), weightG: "" }])}
-              className="mt-3 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:border-neutral-500 disabled:opacity-40"
+              variant="secondary" className="mt-3"
             >
               {t(locale, "cf.addRow")}
-            </button>
-          </section>
+            </Button>
+          </Card>
 
           <MoreDetails locale={locale} filled={filled} open={moreOpen} onOpenChange={setMoreOpen}>
-            <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-              {t(locale, "cf.description")}
-              <textarea name="description" rows={5} maxLength={LIMITS.coffeeDescription} className={inputCls} />
-            </label>
+            <Field
+              id={fe.id("description")}
+              label={t(locale, "cf.description")}
+              hint={t(locale, "contact.hint")}
+              error={fieldMessage(locale, fe.errors, "description")}
+              className="sm:col-span-2"
+            >
+              {(p) => <Textarea {...p} name="description" rows={5} maxLength={LIMITS.coffeeDescription} />}
+            </Field>
             {select("brew", "cf.brew", brewOptions(locale), false)}
-            <HarvestYearField locale={locale} />
+            <HarvestYearField locale={locale} fe={fe} />
           </MoreDetails>
 
           <div className="flex items-center gap-4">
-            <button
+            <Button
               type="submit"
               disabled={busy}
-              className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-60"
             >
               {busy ? t(locale, "cf.saving") : t(locale, "cf.save")}
-            </button>
-            <Link href="/dashboard" className="text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4">
+            </Button>
+            <Button href="/dashboard" variant="quiet" size="sm">
               {t(locale, "cf.back")}
-            </Link>
+            </Button>
           </div>
         </fieldset>
       </form>

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -9,9 +8,7 @@ import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { settleSave, toggleSave, type SaveState } from "@/lib/saved";
-
-const pillCls =
-  "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold ring-1 transition disabled:opacity-60";
+import { Button } from "@/components/ui";
 
 /**
  * "收藏 / Save" toggle with the number of saves. The page is rendered
@@ -43,7 +40,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   }, [status, request, coffeeId]);
 
   const count = (
-    <span className="text-xs font-normal text-neutral-500">
+    <span className="text-xs font-normal text-muted">
       {t(locale, "save.count", { n: state.count })}
     </span>
   );
@@ -52,12 +49,9 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
     return (
       <p className="mt-3 flex flex-wrap items-center gap-3">
         {status === "anonymous" ? (
-          <Link
-            href={`/login?next=${encodeURIComponent(pathname)}`}
-            className={`${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`}
-          >
+          <Button href={`/login?next=${encodeURIComponent(pathname)}`} variant="secondary">
             <span aria-hidden>♡</span> {t(locale, "save.loginToSave")}
-          </Link>
+          </Button>
         ) : null}
         {count}
       </p>
@@ -88,24 +82,19 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   return (
     <div className="mt-3">
       <p className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
+        <Button
           onClick={onToggle}
           disabled={busy || !loaded}
           aria-pressed={state.saved}
-          className={
-            state.saved
-              ? `${pillCls} bg-ink text-white ring-ink hover:bg-neutral-700`
-              : `${pillCls} bg-white text-neutral-700 ring-neutral-300 hover:bg-neutral-50`
-          }
+          variant={state.saved ? "primary" : "secondary"}
         >
           <span aria-hidden>{state.saved ? "♥" : "♡"}</span>
           {t(locale, state.saved ? "save.saved" : "save.save")}
-        </button>
+        </Button>
         {count}
       </p>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {t(locale, error.key, error.vars)}
         </p>
       )}

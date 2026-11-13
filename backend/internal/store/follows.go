@@ -64,7 +64,8 @@ func (s *Store) FollowerCountsByShopIDs(ctx context.Context, shopIDs []string) (
 // FollowedShopsByUser lists a page of the shops a user follows, most recently
 // followed first, plus the total.
 func (s *Store) FollowedShopsByUser(ctx context.Context, userID string, limit, offset int) ([]*Shop, int, error) {
-	const from = ` FROM shop_follows f JOIN shops s ON s.id = f.shop_id WHERE f.user_id = $1`
+	const from = ` FROM shop_follows f JOIN shops s ON s.id = f.shop_id
+		WHERE f.user_id = $1 AND s.suspended_at IS NULL`
 	var total int
 	if err := s.db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)
@@ -91,7 +92,7 @@ func (s *Store) FollowedShopsByUser(ctx context.Context, userID string, limit, o
 // are never included, not even the user's own.
 func (s *Store) FollowingCoffees(ctx context.Context, userID string, limit, offset int) ([]*Coffee, int, error) {
 	const from = ` FROM coffees c JOIN shop_follows f ON f.shop_id = c.shop_id
-		WHERE f.user_id = $1 AND c.is_published`
+		WHERE f.user_id = $1 AND ` + publicCoffee
 	var total int
 	if err := s.db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)

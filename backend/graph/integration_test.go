@@ -227,6 +227,14 @@ func TestMarketplaceFlow(t *testing.T) {
 		t.Fatal("anonymous me should be null")
 	}
 
+	// Reuse detection ended every session, so the access token still in hand
+	// can read but no longer write (#224: the token version was bumped).
+	seller.expectCode(graph.CodeUnauthenticated, `mutation { updateProfile(input: {displayName: "x"}) { id } }`, nil)
+	var relogin struct{ Login authPayload }
+	anon.mustDo(`mutation($in: LoginInput!) { login(input: $in) { `+authFields+` } }`,
+		map[string]any{"in": map[string]any{"email": "seller+" + run + "@example.com", "password": "correct-horse-battery"}}, &relogin)
+	seller.token = relogin.Login.AccessToken
+
 	// ── Shop ────────────────────────────────────────────────────────────────
 	anon.expectCode(graph.CodeUnauthenticated, `mutation { createShop(input: {slug: "x-shop", name: "x", description: "", city: "台北"}) { id } }`, nil)
 	slug := "roastery-" + run

@@ -336,3 +336,30 @@ func TestDBPool(t *testing.T) {
 		t.Fatalf("Load defaults = %q / %q, want 10 / 10s", c.DBMaxConns, c.DBStatementTimeout)
 	}
 }
+
+func TestUploadDailyBytes(t *testing.T) {
+	tests := []struct {
+		in      string
+		want    int64
+		wantErr bool
+	}{
+		{"", 0, false},
+		{"0", 0, false},
+		{"209715200", 209715200, false},
+		{" 5242880 ", 5242880, false},
+		{"-1", 0, true},
+		{"200MiB", 0, true},
+		{"1.5", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, err := Config{UploadDailyBytesPerShop: tt.in}.UploadDailyBytes()
+			if (err != nil) != tt.wantErr || got != tt.want {
+				t.Fatalf("UploadDailyBytes(%q) = %v, %v; want %v, err %v", tt.in, got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+	if err := (Config{AppEnv: "development", UploadDailyBytesPerShop: "lots"}).Validate(); err == nil {
+		t.Fatal("Validate should reject a bad UPLOAD_DAILY_BYTES_PER_SHOP")
+	}
+}

@@ -10,7 +10,7 @@ import (
 
 func TestAccessTokenRoundTrip(t *testing.T) {
 	s := NewService("a-secret", "r-secret")
-	tok, err := s.IssueAccessToken("user-1", "SELLER")
+	tok, err := s.IssueAccessToken("user-1", "SELLER", 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,14 +18,14 @@ func TestAccessTokenRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.UserID != "user-1" || c.Role != "SELLER" {
+	if c.UserID != "user-1" || c.Role != "SELLER" || c.TokenVersion != 3 {
 		t.Fatalf("unexpected claims: %+v", c)
 	}
 }
 
 func TestTokensAreNotInterchangeable(t *testing.T) {
 	s := NewService("a-secret", "r-secret")
-	access, _ := s.IssueAccessToken("u", "BUYER")
+	access, _ := s.IssueAccessToken("u", "BUYER", 0)
 	refresh, err := s.IssueRefreshToken("u")
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestRefreshTokenCarriesHashedJTI(t *testing.T) {
 func TestExpiredTokenRejected(t *testing.T) {
 	s := NewService("a", "r")
 	s.now = func() time.Time { return time.Now().Add(-time.Hour) }
-	tok, _ := s.IssueAccessToken("u", "BUYER")
+	tok, _ := s.IssueAccessToken("u", "BUYER", 0)
 	s.now = time.Now
 	if _, err := s.ParseAccessToken(tok); err == nil {
 		t.Fatal("expired token accepted")
@@ -68,7 +68,7 @@ func TestExpiredTokenRejected(t *testing.T) {
 }
 
 func TestWrongSecretRejected(t *testing.T) {
-	tok, _ := NewService("a", "r").IssueAccessToken("u", "BUYER")
+	tok, _ := NewService("a", "r").IssueAccessToken("u", "BUYER", 0)
 	if _, err := NewService("other", "r").ParseAccessToken(tok); err == nil {
 		t.Fatal("token signed with a different secret accepted")
 	}

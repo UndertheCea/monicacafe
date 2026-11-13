@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_SHOP, type EditableShop } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
+import { Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
 
 /** Logo + banner for the shop profile page. Each change is saved immediately. */
 export function ShopImages({
@@ -26,7 +27,6 @@ export function ShopImages({
   }
 
   async function remove(field: "logoUrl" | "bannerUrl") {
-    if (!window.confirm(t(locale, "img.removeConfirm"))) return;
     setBusy(true);
     setError(null);
     try {
@@ -42,18 +42,22 @@ export function ShopImages({
     const url = shop[field];
     return (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-neutral-800">{t(locale, title)}</h3>
+        <h3 className="text-sm font-semibold text-ink">{t(locale, title)}</h3>
         <div
-          className={`overflow-hidden bg-neutral-100 ring-1 ring-neutral-200 ${
-            field === "logoUrl" ? "h-24 w-24 rounded-2xl" : "aspect-[3/1] w-full rounded-xl"
+          className={`overflow-hidden bg-paper ring-1 ring-line ${
+            field === "logoUrl" ? "h-24 w-24 rounded-box" : "aspect-[3/1] w-full rounded-box"
           }`}
         >
           {url ? (
-            // Images are served from our own bucket (see backend/internal/storage).
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt={t(locale, alt, { name: shop.name })} className="h-full w-full object-cover" />
+            <Picture
+              src={url}
+              thumb
+              width={field === "logoUrl" ? 96 : 640}
+              height={field === "logoUrl" ? 96 : 213}
+              alt={t(locale, alt, { name: shop.name })}
+            />
           ) : (
-            <span className="grid h-full w-full place-items-center text-xs text-neutral-400">{t(locale, "img.none")}</span>
+            <span className="grid h-full w-full place-items-center text-xs text-muted">{t(locale, "img.none")}</span>
           )}
         </div>
         <div className="flex flex-wrap items-start gap-2">
@@ -66,14 +70,15 @@ export function ShopImages({
             onUploaded={(u) => save(field, u)}
           />
           {url && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void remove(field)}
-              className="rounded-full px-3 py-2 text-sm text-neutral-500 hover:text-red-700 disabled:opacity-40"
+            <ConfirmButton
+              question={t(locale, "img.removeConfirm")}
+              confirmLabel={t(locale, "img.remove")}
+              cancelLabel={t(locale, "confirm.cancel")}
+              busy={busy}
+              onConfirm={() => void remove(field)}
             >
               {t(locale, "img.remove")}
-            </button>
+            </ConfirmButton>
           )}
         </div>
       </div>
@@ -81,17 +86,17 @@ export function ShopImages({
   };
 
   return (
-    <section className="space-y-6 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
-      <h2 className="text-lg font-bold text-ink">{t(locale, "img.shopTitle")}</h2>
+    <Card as="section" className="space-y-6 p-6">
+      <SectionTitle>{t(locale, "img.shopTitle")}</SectionTitle>
       <div className="grid gap-6 sm:grid-cols-[auto_1fr]">
         {slot("logoUrl", "SHOP_LOGO", "img.logo", "img.logoAlt")}
         {slot("bannerUrl", "SHOP_BANNER", "img.banner", "img.bannerAlt")}
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger">
           {t(locale, error)}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

@@ -137,7 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - run: cp .env.example .env && docker compose config --quiet
+      - run: cp .env.example .env && docker compose config --quiet && docker compose --profile prod --profile cache --profile search config --quiet
       - name: Project brief stays short and structured
         run: ./scripts/check_brief.sh
 
@@ -160,6 +160,20 @@ jobs:
         run: |
           out=$(docker compose run --rm migrate 2>&1); echo "$out"
           grep -q "up to date" <<<"$out" || { echo "migrate didn't report up to date"; exit 1; }
+      # Restore drill (#220): back the database up with the same image the
+      # `backup` service uses (pg_dump 17), wipe it, restore, and smoke again.
+      - name: Backup, wipe and restore the database, then smoke again
+        run: |
+          run_backup() {
+            docker compose run --rm --no-deps -e BACKUP_TARGET=/backups -e BACKUP_ALLOW_PLAINTEXT=true \
+              backup sh -c "$1"
+          }
+          run_backup 'sh /monicacafe/scripts/backup.sh'
+          docker compose stop nginx frontend backend
+          docker compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"'
+          run_backup 'sh /monicacafe/scripts/restore.sh "/backups/$(ls /backups | sort | tail -n 1)"'
+          docker compose up -d --wait --wait-timeout 300
+          ./scripts/smoke.sh
       - name: Reference-shop gap report
         run: ./scripts/reference_gaps.sh
       - name: Service status and logs (on failure)

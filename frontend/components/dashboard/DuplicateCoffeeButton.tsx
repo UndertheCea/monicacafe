@@ -8,6 +8,7 @@ import { DUPLICATE_COFFEE } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FormError } from "./ui";
+import { Button } from "@/components/ui";
 
 /** "Duplicate": copies the coffee into a new draft and opens its edit page. */
 export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: string; name: string; locale: Locale }) {
@@ -30,15 +31,15 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
 
   return (
     <span className="inline-flex flex-col gap-1">
-      <button
+      <Button
         type="button"
         disabled={busy}
         onClick={() => void duplicate()}
         title={t(locale, "dash.duplicateHint")}
-        className="rounded-full px-3 py-1.5 text-sm text-neutral-600 hover:text-ink hover:underline underline-offset-4 disabled:opacity-50"
+        variant="quiet" size="sm"
       >
         {t(locale, busy ? "dash.duplicating" : "dash.duplicate")}
-      </button>
+      </Button>
       {error && <FormError>{t(locale, error, { max: MAX_COFFEES_PER_SHOP })}</FormError>}
     </span>
   );

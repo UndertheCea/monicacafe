@@ -66,7 +66,7 @@ func (s *Store) SaveCountsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (
 // are left out (and not counted) until they are published again.
 func (s *Store) SavedCoffeesByUser(ctx context.Context, userID string, limit, offset int) ([]*Coffee, int, error) {
 	const from = ` FROM saved_coffees sc JOIN coffees c ON c.id = sc.coffee_id
-		WHERE sc.user_id = $1 AND c.is_published`
+		WHERE sc.user_id = $1 AND ` + publicCoffee
 	var total int
 	if err := s.db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
 		return nil, 0, mapErr(err)

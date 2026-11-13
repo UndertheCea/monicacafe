@@ -19,7 +19,12 @@ import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ShopImages } from "./ShopImages";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
-import { FormError, LoginNeeded, Notice, inputCls } from "./ui";
+import { LoginNeeded, Notice } from "./ui";
+import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } from "@/components/ui";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { placeError } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
+import { FIELD_LABEL } from "@/lib/ui";
 
 // Leaflet touches `window`; load the picker on the client only.
 const LocationPicker = dynamic(() => import("./LocationPicker").then((m) => m.LocationPicker), { ssr: false });
@@ -32,6 +37,25 @@ const PROBLEM_KEY: Record<ShopProfileProblem, MessageKey> = {
   description: "shop.error.description",
   city: "shop.error.city",
   coords: "shop.error.coords",
+};
+
+type ShopField = "name" | "city" | "description" | "lat" | "lng";
+const ORDER: readonly ShopField[] = ["name", "city", "description", "lat", "lng"];
+/** Where each client-side problem is shown. A half-filled pair can't happen (parseCoords calls it invalid). */
+const PROBLEM_FIELD: Record<ShopProfileProblem, ShopField> = {
+  required: "name",
+  name: "name",
+  description: "description",
+  city: "city",
+  coords: "lat",
+};
+/** The API's `field` for a refused updateShop → the message to show (the field itself is the form's own name). */
+const API_KEY: Partial<Record<string, MessageKey>> = {
+  name: "shop.error.name",
+  city: "shop.error.city",
+  description: "shop.error.description",
+  lat: "shop.error.coords",
+  lng: "shop.error.coords",
 };
 
 const profileOf = (s: EditableShop): ShopProfile => ({
@@ -110,7 +134,8 @@ function ProfileEditor({
   const [lat, setLat] = useState(shop.lat === null ? "" : String(shop.lat));
   const [lng, setLng] = useState(shop.lng === null ? "" : String(shop.lng));
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; key: MessageKey } | null>(null);
+  const fe = useFormErrors<ShopField>("shop-profile", ORDER);
+  const [saved, setSaved] = useState(false);
 
   const coords = useMemo(() => parseCoords(lat, lng), [lat, lng]);
   const picked = typeof coords === "object" ? coords : null;
@@ -125,26 +150,38 @@ function ProfileEditor({
   const dirty = Object.keys(patch).length > 0;
   useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
   const outsideTaiwan = picked !== null && !inTaiwan(picked);
-  const clear = () => setMsg(null);
+  const edited = (f: ShopField) => {
+    setSaved(false);
+    fe.clearField(f);
+  };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (coords === "invalid") return setMsg({ ok: false, key: "shop.error.coords" });
+    setSaved(false);
+    if (coords === "invalid") return fe.failField("lat", { key: "shop.error.coords" });
     const problem = shopProfileProblem(draft);
-    if (problem) return setMsg({ ok: false, key: PROBLEM_KEY[problem] });
+    if (problem) {
+      // "required" is the name or the city, whichever is blank.
+      const field = problem === "required" && name.trim() ? "city" : PROBLEM_FIELD[problem];
+      return fe.failField(field, { key: PROBLEM_KEY[problem] });
+    }
     if (!dirty) return;
     setBusy(true);
-    setMsg(null);
+    fe.clear();
     try {
       const r = await request(UPDATE_SHOP, { id: shop.id, input: patch });
       onSaved(r.updateShop);
-      setMsg({ ok: true, key: "cf.saved" });
+      setSaved(true);
     } catch (err) {
       const e2 = toApiError(err);
-      setMsg({
-        ok: false,
-        key: e2.code === "BAD_USER_INPUT" && (e2.field === "lat" || e2.field === "lng") ? "shop.error.coords" : "dash.error.generic",
-      });
+      const key = e2.code === "BAD_USER_INPUT" ? API_KEY[e2.field ?? ""] : undefined;
+      fe.fail(
+        isContactInfoError(e2.code)
+          ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
+          : key
+          ? placeError(e2.field, { key }, ORDER)
+          : { fields: {}, form: { key: "dash.error.generic" } },
+      );
     } finally {
       setBusy(false);
     }
@@ -152,98 +189,124 @@ function ProfileEditor({
 
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-6">
-      <section className="grid gap-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-neutral-700">
-          {t(locale, "dash.shopName")} *
-          <input
-            value={name}
-            onChange={(e) => (setName(e.target.value), clear())}
-            required
-            maxLength={LIMITS.shopName}
-            className={inputCls}
-          />
-        </label>
-        <label className="block text-sm font-medium text-neutral-700">
-          {t(locale, "dash.city")} *
-          <input
-            value={city}
-            onChange={(e) => (setCity(e.target.value), clear())}
-            required
-            maxLength={LIMITS.city}
-            placeholder={t(locale, "dash.cityPlaceholder")}
-            className={inputCls}
-          />
-        </label>
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "dash.description")}
-          <textarea
-            value={description}
-            onChange={(e) => (setDescription(e.target.value), clear())}
-            rows={5}
-            maxLength={LIMITS.shopDescription}
-            className={inputCls}
-          />
-        </label>
-        <p className="text-xs text-neutral-500 sm:col-span-2">
+      <FormSummary formId="shop-profile" locale={locale} errors={fe.errors} order={ORDER} />
+      <Card as="section" className="grid gap-4 p-6 sm:grid-cols-2">
+        <Field id={fe.id("name")} label={`${t(locale, "dash.shopName")} *`} error={fieldMessage(locale, fe.errors, "name")}>
+          {(p) => (
+            <Input
+              {...p}
+              value={name}
+              onChange={(e) => (setName(e.target.value), edited("name"))}
+              required
+              maxLength={LIMITS.shopName}
+            />
+          )}
+        </Field>
+        <Field id={fe.id("city")} label={`${t(locale, "dash.city")} *`} error={fieldMessage(locale, fe.errors, "city")}>
+          {(p) => (
+            <Input
+              {...p}
+              value={city}
+              onChange={(e) => (setCity(e.target.value), edited("city"))}
+              required
+              maxLength={LIMITS.city}
+              placeholder={t(locale, "dash.cityPlaceholder")}
+            />
+          )}
+        </Field>
+        <Field
+          id={fe.id("description")}
+          label={t(locale, "dash.description")}
+          hint={t(locale, "contact.hint")}
+          error={fieldMessage(locale, fe.errors, "description")}
+          className="sm:col-span-2"
+        >
+          {(p) => (
+            <Textarea
+              {...p}
+              value={description}
+              onChange={(e) => (setDescription(e.target.value), edited("description"))}
+              rows={5}
+              maxLength={LIMITS.shopDescription}
+            />
+          )}
+        </Field>
+        <p className="text-xs text-muted sm:col-span-2">
           {t(locale, "shop.slugFixed")} <span className="font-mono">/shops/{shop.slug}</span>
         </p>
-      </section>
+      </Card>
 
-      <section className="space-y-4 rounded-2xl bg-white p-6 ring-1 ring-neutral-200">
+      <Card as="section" className="space-y-4 p-6">
         <div>
-          <h2 className="text-lg font-bold text-ink">{t(locale, "shop.location")}</h2>
-          <p className="mt-1 text-sm text-neutral-500">{t(locale, "shop.locationHint")}</p>
+          <SectionTitle>{t(locale, "shop.location")}</SectionTitle>
+          <p className="mt-1 text-sm text-muted">{t(locale, "shop.locationHint")}</p>
         </div>
         <LocationPicker
           value={picked}
           onPick={(c) => {
             setLat(String(c.lat));
             setLng(String(c.lng));
-            clear();
+            setSaved(false);
+            fe.clearField("lat");
+            fe.clearField("lng");
           }}
           ariaLabel={t(locale, "shop.mapAria")}
           loadingLabel={t(locale, "map.loading")}
           failedLabel={t(locale, "map.loadFailed")}
         />
         <div className="grid grid-cols-2 gap-4">
-          <label className="block text-sm font-medium text-neutral-700">
+          <label className={FIELD_LABEL}>
             {t(locale, "shop.lat")}
-            <input inputMode="decimal" value={lat} onChange={(e) => (setLat(e.target.value), clear())} className={inputCls} />
+            <Input
+              {...fe.control("lat")}
+              inputMode="decimal"
+              value={lat}
+              onChange={(e) => (setLat(e.target.value), edited("lat"))}
+              className="mt-1"
+            />
           </label>
-          <label className="block text-sm font-medium text-neutral-700">
+          <label className={FIELD_LABEL}>
             {t(locale, "shop.lng")}
-            <input inputMode="decimal" value={lng} onChange={(e) => (setLng(e.target.value), clear())} className={inputCls} />
+            <Input
+              {...fe.control("lng")}
+              inputMode="decimal"
+              value={lng}
+              onChange={(e) => (setLng(e.target.value), edited("lng"))}
+              className="mt-1"
+            />
           </label>
         </div>
-        {coords === "invalid" && (lat.trim() !== "" && lng.trim() !== "") && (
-          <p className="text-sm text-red-600">{t(locale, "shop.error.coords")}</p>
+        {(fe.errors.fields.lat || fe.errors.fields.lng) ? (
+          <p id={`${fe.id(fe.errors.fields.lat ? "lat" : "lng")}-error`} className="text-sm text-danger">
+            {fieldMessage(locale, fe.errors, fe.errors.fields.lat ? "lat" : "lng")}
+          </p>
+        ) : (
+          coords === "invalid" &&
+          lat.trim() !== "" &&
+          lng.trim() !== "" && <p className="text-sm text-danger">{t(locale, "shop.error.coords")}</p>
         )}
         {outsideTaiwan && (
-          <p role="status" className="rounded-xl bg-white px-3 py-2 text-sm text-ink ring-1 ring-neutral-300">
+          <Card as="p" role="status" className="px-3 py-2 text-sm text-ink">
             {t(locale, "shop.outsideTaiwan")}
-          </p>
+          </Card>
         )}
         {shop.lat !== null && coords === "empty" && (
-          <p className="text-xs text-neutral-500">{t(locale, "shop.cantClear")}</p>
+          <p className="text-xs text-muted">{t(locale, "shop.cantClear")}</p>
         )}
-      </section>
+      </Card>
 
       <div className="flex flex-wrap items-center gap-4">
-        <button
+        <Button
           type="submit"
           disabled={busy || !dirty}
-          className="rounded-full bg-ink px-6 py-2.5 font-semibold text-white hover:bg-neutral-700 disabled:opacity-40"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
-        </button>
-        {msg &&
-          (msg.ok ? (
-            <p role="status" className="text-sm text-ink">
-              {t(locale, msg.key)}
-            </p>
-          ) : (
-            <FormError>{t(locale, msg.key)}</FormError>
-          ))}
+        </Button>
+        {saved && (
+          <p role="status" className="text-sm text-ink">
+            {t(locale, "cf.saved")}
+          </p>
+        )}
       </div>
     </form>
   );

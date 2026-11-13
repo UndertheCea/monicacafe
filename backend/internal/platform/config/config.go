@@ -4,12 +4,14 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/underthecea/monicacafe/backend/internal/errreport"
 	"github.com/underthecea/monicacafe/backend/internal/ratelimit"
 )
 
@@ -41,6 +43,10 @@ type Config struct {
 	MediaCleanupInterval string
 	MediaCleanupMinAge   string
 
+	// Bytes of images one shop may presign per rolling 24h (0 = unlimited).
+	// Parsed by UploadDailyBytes.
+	UploadDailyBytesPerShop string
+
 	// How often the API deletes expired refresh tokens (Go duration, e.g.
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
 	TokenPruneInterval string
@@ -68,11 +74,21 @@ type Config struct {
 	RateLimitUploadUser   string
 	RateLimitPasswordUser string
 	RateLimitSaveUser     string
+	RateLimitReportUser   string
 	// RateLimitSellerWriteUser covers every shop / coffee / option mutation.
 	RateLimitSellerWriteUser string
 
 	// Every /graphql request, per client IP.
 	RateLimitGraphQLIP string
+
+	// Where the internal /metrics listener binds ("host:port" or ":port";
+	// empty turns it off). Never routed by nginx. Parsed by MetricsListen.
+	MetricsAddr string
+
+	// Error reporting (#221): a Sentry-compatible DSN; empty = no reporting.
+	// SentryRelease tags events with the build (e.g. a git SHA).
+	SentryDSN     string
+	SentryRelease string
 }
 
 func get(k, d string) string {
@@ -82,6 +98,8 @@ func get(k, d string) string {
 	return d
 }
 
+// RedisURL and MeiliURL* are reserved and optional (#222): nothing reads them yet
+// and compose starts those services only under the cache / search profiles.
 func Load() Config {
 	return Config{
 		Port:             get("PORT", "4000"),
@@ -107,6 +125,8 @@ func Load() Config {
 		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
 		MediaCleanupMinAge:   get("MEDIA_CLEANUP_MIN_AGE", "24h"),
 
+		UploadDailyBytesPerShop: get("UPLOAD_DAILY_BYTES_PER_SHOP", "209715200"), // 200 MiB
+
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
 		DBMaxConns:         get("DB_MAX_CONNS", "10"),
 		DBStatementTimeout: get("DB_STATEMENT_TIMEOUT", "10s"),
@@ -121,8 +141,15 @@ func Load() Config {
 		RateLimitUploadUser:      get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
 		RateLimitPasswordUser:    get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
 		RateLimitSaveUser:        get("RATE_LIMIT_SAVE_USER", "60/5m"),
+		RateLimitReportUser:      get("RATE_LIMIT_REPORT_USER", "10/1h"),
 		RateLimitSellerWriteUser: get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
 		RateLimitGraphQLIP:       get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
+
+		// Loopback by default (a bare `go run` must not expose metrics);
+		// compose sets ":9100", reachable on the compose network only.
+		MetricsAddr:   get("METRICS_ADDR", "127.0.0.1:9100"),
+		SentryDSN:     get("SENTRY_DSN", ""),
+		SentryRelease: get("SENTRY_RELEASE", ""),
 	}
 }
 
@@ -165,6 +192,20 @@ func (c Config) TokenPruneEvery() (time.Duration, error) {
 	return d, nil
 }
 
+// UploadDailyBytes parses UPLOAD_DAILY_BYTES_PER_SHOP: a whole number of
+// bytes, 0 meaning no daily budget.
+func (c Config) UploadDailyBytes() (int64, error) {
+	v := strings.TrimSpace(c.UploadDailyBytesPerShop)
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("config: UPLOAD_DAILY_BYTES_PER_SHOP must be a whole number of bytes (0 = unlimited), got %q", v)
+	}
+	return n, nil
+}
+
 // Bounds for the Postgres pool settings. A statement timeout under a second
 // would cancel ordinary queries under load; 1000 connections exceeds any sane
 // Postgres max_connections for one API instance.
@@ -193,6 +234,24 @@ func (c Config) DBPool() (maxConns int32, statementTimeout time.Duration, err er
 	return int32(n), statementTimeout, nil
 }
 
+// MetricsListen validates METRICS_ADDR: "" (disabled) or host:port with a
+// port from 1 to 65535. The metrics port must differ from PORT.
+func (c Config) MetricsListen() (string, error) {
+	v := strings.TrimSpace(c.MetricsAddr)
+	if v == "" {
+		return "", nil
+	}
+	_, port, err := net.SplitHostPort(v)
+	n, perr := strconv.Atoi(port)
+	if err != nil || perr != nil || n < 1 || n > 65535 {
+		return "", fmt.Errorf("config: METRICS_ADDR must be host:port (e.g. :9100) or empty to disable, got %q", c.MetricsAddr)
+	}
+	if port == strings.TrimSpace(c.Port) {
+		return "", fmt.Errorf("config: METRICS_ADDR port %s is the API's own PORT; metrics need a separate port", port)
+	}
+	return v, nil
+}
+
 // DefaultTrustedProxies covers loopback and the private ranges docker
 // networks use. In production set TRUSTED_PROXIES to your proxies only.
 const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fc00::/7"
@@ -202,7 +261,7 @@ type RateLimitRules struct {
 	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
 	LoginEmailIP                               ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
-	SaveUser, SellerWriteUser                  ratelimit.Rule
+	SaveUser, SellerWriteUser, ReportUser      ratelimit.Rule
 	GraphQLIP                                  ratelimit.Rule
 }
 
@@ -222,6 +281,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_UPLOAD_USER", c.RateLimitUploadUser, &r.UploadUser},
 		{"RATE_LIMIT_PASSWORD_USER", c.RateLimitPasswordUser, &r.PasswordUser},
 		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
+		{"RATE_LIMIT_REPORT_USER", c.RateLimitReportUser, &r.ReportUser},
 		{"RATE_LIMIT_SELLER_WRITE_USER", c.RateLimitSellerWriteUser, &r.SellerWriteUser},
 		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {
@@ -334,10 +394,19 @@ func (c Config) Validate() error {
 	if _, err := c.TokenPruneEvery(); err != nil {
 		return err
 	}
+	if _, err := c.UploadDailyBytes(); err != nil {
+		return err
+	}
 	if _, _, err := c.DBPool(); err != nil {
 		return err
 	}
 	if _, err := c.RateLimits(); err != nil {
+		return err
+	}
+	if _, err := c.MetricsListen(); err != nil {
+		return err
+	}
+	if _, err := errreport.ParseDSN(c.SentryDSN); err != nil {
 		return err
 	}
 	if c.AppEnv != "production" {

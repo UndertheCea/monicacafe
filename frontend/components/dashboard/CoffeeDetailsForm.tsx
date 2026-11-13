@@ -11,21 +11,35 @@ import {
   apiDetailsProblem,
   coffeeDetailsProblem,
   filledOptionalCount,
-  isOptionalProblem,
   parseFlavorNotes,
   type CoffeeDetails,
   type CoffeeDetailsProblem,
 } from "@/lib/dashboard/validate";
+import {
+  COFFEE_API_ALIASES,
+  COFFEE_ORDER,
+  OPTIONAL_ORDER,
+  isOptionalField,
+  problemField,
+} from "@/lib/dashboard/coffeeFields";
+import { formFieldFor, placeError, type FormErrors } from "@/lib/formErrors";
+import { isContactInfoError } from "@/lib/moderation";
+import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import type { CoffeeFieldKey } from "./coffeeFormErrors";
 import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
-import { FormError, Notice, inputCls } from "./ui";
+import { Notice } from "./ui";
+import { Button, Field, Input, Select, Textarea, useFormErrors } from "@/components/ui";
+import { CARD } from "@/lib/ui";
 
 type Options = Awaited<ReturnType<typeof loadOptions>>;
 const loadOptions = () => query(FILTER_OPTIONS);
+
+const EDIT_ORDER: readonly CoffeeFieldKey[] = [...COFFEE_ORDER, ...OPTIONAL_ORDER];
 
 type DetailFields =
   | "name" | "description" | "originCountry" | "processingMethod" | "variety" | "roastLevel" | "flavorNotes"
@@ -66,6 +80,32 @@ export function detailsErrorKey(problem: CoffeeDetailsProblem): MessageKey {
   return "cf.error.required";
 }
 
+/** API fields whose BAD_USER_INPUT has a message of its own (the rest read "couldn't save" under their field). */
+const DETAILS_API_FIELDS = [
+  "name", "originCountryId", "processingMethodId", "flavorNotes", "altitudeMinM", "altitudeMaxM",
+  "producer", "region", "harvestYear", "varietyId",
+];
+
+/**
+ * A BAD_USER_INPUT from createCoffee / updateCoffee, placed under the field the API named (aliases in
+ * COFFEE_API_ALIASES); a field the form doesn't have goes to the summary. `notesSent`: see apiDetailsProblem.
+ */
+export function coffeeBadInput(
+  field: string | undefined,
+  notesSent: number,
+  order: readonly CoffeeFieldKey[],
+): FormErrors<CoffeeFieldKey> {
+  const problem = DETAILS_API_FIELDS.includes(field ?? "") ? apiDetailsProblem(field, notesSent) : null;
+  const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
+  return placeError(field, { key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } }, order, COFFEE_API_ALIASES);
+}
+
+/** The message for a client-side details problem. */
+export const detailsMessage = (problem: CoffeeDetailsProblem) => ({
+  key: detailsErrorKey(problem),
+  vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote },
+});
+
 /** Edit form for a coffee's text fields; saves only what changed via updateCoffee. */
 export function CoffeeDetailsForm({
   coffee,
@@ -82,7 +122,8 @@ export function CoffeeDetailsForm({
   const saved = detailsOf(coffee);
   const [draft, setDraft] = useState({ ...saved, notes: saved.flavorNotes.join(", ") });
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; key: MessageKey } | null>(null);
+  const fe = useFormErrors<CoffeeFieldKey>("coffee-edit", EDIT_ORDER);
+  const [saveMsg, setSaveMsg] = useState<MessageKey | null>(null);
   // Folded unless the coffee already has optional details (#182).
   const [moreOpen, setMoreOpen] = useState(() => filledOptionalCount(saved) > 0);
 
@@ -101,112 +142,128 @@ export function CoffeeDetailsForm({
   const dirty = Object.keys(patch).length > 0;
   const set = (p: Partial<typeof draft>) => {
     setDraft((d) => ({ ...d, ...p }));
-    setMsg(null);
+    setSaveMsg(null);
+    for (const k of Object.keys(p)) {
+      const f = formFieldFor(k, EDIT_ORDER, COFFEE_API_ALIASES);
+      if (f) fe.clearField(f);
+    }
   };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const problem = coffeeDetailsProblem(next, ROAST_LEVELS);
     if (problem) {
-      if (isOptionalProblem(problem)) setMoreOpen(true);
-      return setMsg({ ok: false, key: detailsErrorKey(problem) });
+      const field = problemField(problem, next);
+      if (isOptionalField(field)) setMoreOpen(true);
+      return fe.failField(field, detailsMessage(problem));
     }
     if (!dirty) return;
     setBusy(true);
-    setMsg(null);
+    setSaveMsg(null);
+    fe.clear();
     try {
       const r = await request(UPDATE_COFFEE, { id: coffee.id, input: patch });
       onSaved(r.updateCoffee);
       const s = detailsOf(r.updateCoffee);
       setDraft({ ...s, notes: s.flavorNotes.join(", ") });
-      setMsg({ ok: true, key: "cf.saved" });
+      setSaveMsg("cf.saved");
     } catch (err) {
       const { code, field } = toApiError(err);
-      const problem = code === "BAD_USER_INPUT" ? apiDetailsProblem(field, next.flavorNotes.length) : null;
-      if (isOptionalProblem(problem)) setMoreOpen(true);
-      setMsg({
-        ok: false,
-        key:
-          code === "FORBIDDEN"
-            ? "cf.notYours"
-            : problem
-              ? detailsErrorKey(problem)
-              : "cf.error.generic",
-      });
+      const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(code)
+        ? placeError(field ?? "description", { key: "contact.error" }, EDIT_ORDER, COFFEE_API_ALIASES)
+        : code === "BAD_USER_INPUT"
+          ? coffeeBadInput(field, next.flavorNotes.length, EDIT_ORDER)
+          : { fields: {}, form: { key: code === "FORBIDDEN" ? "cf.notYours" : "cf.error.generic" } };
+      const placed = Object.keys(failed.fields)[0];
+      if (placed && isOptionalField(placed)) setMoreOpen(true);
+      fe.fail(failed);
     } finally {
       setBusy(false);
     }
   }
 
   const select = (
+    field: CoffeeFieldKey,
     label: MessageKey,
     value: string,
     onChange: (v: string) => void,
     items: { id: string; label: string }[],
     required = true,
   ) => (
-    <label className="block text-sm font-medium text-neutral-700">
-      {t(locale, label)}
-      {required && " *"}
-      <select value={value} onChange={(e) => onChange(e.target.value)} required={required} className={inputCls}>
-        <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
-        {items.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Field
+      id={fe.id(field)}
+      label={`${t(locale, label)}${required ? " *" : ""}`}
+      error={fieldMessage(locale, fe.errors, field)}
+    >
+      {(p) => (
+        <Select {...p} value={value} onChange={(e) => onChange(e.target.value)} required={required}>
+          <option value="">{t(locale, required ? "cf.choose" : "cf.none")}</option>
+          {items.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+      )}
+    </Field>
   );
 
   return (
-    <form onSubmit={onSubmit} noValidate className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+    <form onSubmit={onSubmit} noValidate className={`${CARD} p-4 sm:p-6`}>
+      <div className="mb-4 empty:hidden">
+        <FormSummary formId="coffee-edit" locale={locale} errors={fe.errors} order={EDIT_ORDER} />
+      </div>
       <h3 className="font-bold text-ink">{t(locale, "cf.essentials")}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{t(locale, "cf.essentialsHint")}</p>
+      <p className="mt-1 text-sm text-muted">{t(locale, "cf.essentialsHint")}</p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.name")} *
-          <input
-            value={draft.name}
-            onChange={(e) => set({ name: e.target.value })}
-            required
-            maxLength={LIMITS.coffeeName}
-            className={inputCls}
-          />
-        </label>
+        <Field
+          id={fe.id("name")}
+          label={`${t(locale, "cf.name")} *`}
+          error={fieldMessage(locale, fe.errors, "name")}
+          className="sm:col-span-2"
+        >
+          {(p) => (
+            <Input
+              {...p}
+              value={draft.name}
+              onChange={(e) => set({ name: e.target.value })}
+              required
+              maxLength={LIMITS.coffeeName}
+            />
+          )}
+        </Field>
         {select(
+          "origin",
           "cf.origin",
           draft.originCountryId,
           (v) => set({ originCountryId: v }),
           opts.originCountries.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
         )}
         {select(
+          "process",
           "cf.process",
           draft.processingMethodId,
           (v) => set({ processingMethodId: v }),
           opts.processingMethods.map((o) => ({ id: o.id, label: pick(locale, o.nameZh, o.nameEn) })),
         )}
         {select(
+          "variety",
           "cf.variety",
           draft.varietyId ?? "",
           (v) => set({ varietyId: v || null }),
           opts.coffeeVarieties.map((o) => ({ id: o.id, label: o.name })),
         )}
         {select(
+          "roast",
           "cf.roast",
           draft.roastLevel,
           (v) => set({ roastLevel: v }),
           ROAST_LEVELS.map((r) => ({ id: r, label: t(locale, `roast.${r}`) })),
           false,
         )}
-        <p className="-mt-2 text-xs text-neutral-500 sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
-        <ProvenanceFields locale={locale} values={draft} onChange={set} />
-        <FlavorNotesField
-          locale={locale}
-          value={draft.notes}
-          onChange={(notes) => set({ notes })}
-          error={msg && !msg.ok ? msg.key : null}
-        />
+        <p className="-mt-2 text-xs text-muted sm:col-span-2">{t(locale, "cf.varietyHint")}</p>
+        <ProvenanceFields locale={locale} fe={fe} values={draft} onChange={set} />
+        <FlavorNotesField locale={locale} fe={fe} value={draft.notes} onChange={(notes) => set({ notes })} />
       </div>
       <MoreDetails
         locale={locale}
@@ -215,35 +272,37 @@ export function CoffeeDetailsForm({
         onOpenChange={setMoreOpen}
         className="mt-4"
       >
-        <label className="block text-sm font-medium text-neutral-700 sm:col-span-2">
-          {t(locale, "cf.description")}
-          <textarea
-            value={draft.description}
-            onChange={(e) => set({ description: e.target.value })}
-            rows={5}
-            maxLength={LIMITS.coffeeDescription}
-            className={inputCls}
-          />
-        </label>
-        {select("cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
-        <HarvestYearField locale={locale} values={draft} onChange={set} />
+        <Field
+          id={fe.id("description")}
+          label={t(locale, "cf.description")}
+          hint={t(locale, "contact.hint")}
+          error={fieldMessage(locale, fe.errors, "description")}
+          className="sm:col-span-2"
+        >
+          {(p) => (
+            <Textarea
+              {...p}
+              value={draft.description}
+              onChange={(e) => set({ description: e.target.value })}
+              rows={5}
+              maxLength={LIMITS.coffeeDescription}
+            />
+          )}
+        </Field>
+        {select("brew", "cf.brew", draft.brewMethod ?? "", (v) => set({ brewMethod: v || null }), brewOptions(locale), false)}
+        <HarvestYearField locale={locale} fe={fe} values={draft} onChange={set} />
       </MoreDetails>
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <button
+        <Button
           type="submit"
           disabled={busy || !dirty}
-          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-neutral-700 disabled:opacity-40"
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
-        </button>
-        {msg && (
-          msg.ok ? (
-            <p role="status" className="text-sm text-ink">
-              {t(locale, msg.key, { max: LIMITS.flavorNotes, len: LIMITS.flavorNote })}
-            </p>
-          ) : (
-            <FormError>{t(locale, msg.key, { max: LIMITS.flavorNotes, len: LIMITS.flavorNote })}</FormError>
-          )
+        </Button>
+        {saveMsg && (
+          <p role="status" className="text-sm text-ink">
+            {t(locale, saveMsg)}
+          </p>
         )}
       </div>
     </form>

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { Page } from "@/components/Page";
+import { PageTitle } from "@/components/ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t(await getLocale(), "dash.title"), robots: { index: false } };
@@ -12,9 +14,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function DashboardPage() {
   const locale = await getLocale();
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <h1 className="mb-6 text-3xl font-bold text-ink">{t(locale, "dash.title")}</h1>
+    <Page className="py-10">
+    <div className="mx-auto max-w-5xl">
+      <PageTitle className="mb-6">{t(locale, "dash.title")}</PageTitle>
       <Dashboard locale={locale} />
     </div>
+    </Page>
   );
 }

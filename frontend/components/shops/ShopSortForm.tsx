@@ -1,9 +1,7 @@
 import { SEARCH_MAX_CHARS } from "@/lib/coffeeQuery";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
-
-const fieldCls =
-  "rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-neutral-800 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink";
+import { Button, Input, Select } from "@/components/ui";
 
 /** Search + sort for the /shops list (newest / name / most coffees). */
 export function ShopListSortForm({ locale, sort, q }: { locale: Locale; sort: ShopSortParam; q?: string }) {
@@ -35,13 +33,14 @@ export function SearchField({
   return (
     <label className="flex items-center gap-2">
       <span className="sr-only">{t(locale, label)}</span>
-      <input
+      <Input
+        search
         type="search"
         name="q"
         defaultValue={q ?? ""}
         placeholder={t(locale, placeholder)}
         maxLength={SEARCH_MAX_CHARS}
-        className={`${fieldCls} w-44 sm:w-56`}
+        className="w-44 sm:w-56"
       />
     </label>
   );
@@ -72,18 +71,18 @@ export function SortForm({
     <form method="get" action={action} className="flex flex-wrap items-center gap-2 text-sm">
       {children}
       <label className="flex items-center gap-2">
-        <span className="text-neutral-500">{t(locale, "sort.label")}</span>
-        <select name="sort" defaultValue={value} className={fieldCls}>
+        <span className="shrink-0 whitespace-nowrap text-muted">{t(locale, "sort.label")}</span>
+        <Select name="sort" defaultValue={value}>
           {options.map((o) => (
             <option key={o.value || "newest"} value={o.value}>
               {o.label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
-      <button type="submit" className="rounded-full border border-neutral-300 px-3 py-1.5 hover:border-neutral-500">
+      <Button type="submit" variant="secondary" size="sm">
         {t(locale, submit)}
-      </button>
+      </Button>
     </form>
   );
 }

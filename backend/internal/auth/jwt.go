@@ -26,6 +26,9 @@ const (
 type Claims struct {
 	UserID string `json:"user_id"`
 	Role   string `json:"role,omitempty"`
+	// TokenVersion (access tokens) is the user's token version when the token
+	// was issued; mutations refuse a token whose version is behind (#224).
+	TokenVersion int `json:"tv,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -53,11 +56,12 @@ func NewService(accessSecret, refreshSecret string) *Service {
 }
 
 // IssueAccessToken signs a short-lived access token.
-func (s *Service) IssueAccessToken(userID, role string) (string, error) {
+func (s *Service) IssueAccessToken(userID, role string, tokenVersion int) (string, error) {
 	now := s.now()
 	claims := Claims{
-		UserID: userID,
-		Role:   role,
+		UserID:       userID,
+		Role:         role,
+		TokenVersion: tokenVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    issuer,
 			Subject:   userID,

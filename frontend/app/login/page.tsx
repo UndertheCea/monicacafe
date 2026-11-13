@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
+import { Page } from "@/components/Page";
+import { PageTitle } from "@/components/ui";
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: t(await getLocale(), "auth.loginTitle"), robots: { index: false } };
@@ -11,9 +13,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function LoginPage() {
   const locale = await getLocale();
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-bold text-ink">{t(locale, "auth.loginTitle")}</h1>
-      <p className="mt-1 text-neutral-600">{t(locale, "auth.loginSub")}</p>
+    <Page className="py-12">
+    <div className="mx-auto max-w-md">
+      <PageTitle>{t(locale, "auth.loginTitle")}</PageTitle>
+      <p className="mt-1 text-muted">{t(locale, "auth.loginSub")}</p>
       <div className="mt-6">
         {/* useSearchParams() needs a Suspense boundary for static rendering. */}
         <Suspense>
@@ -21,5 +24,6 @@ export default async function LoginPage() {
         </Suspense>
       </div>
     </div>
+    </Page>
   );
 }

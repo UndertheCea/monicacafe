@@ -20,7 +20,10 @@ type Resolver struct {
 	Media *storage.Media
 	// Limits throttles the public auth mutations; nil limiters allow all.
 	Limits Limits
-	refs   *refCache
+	// UploadDailyBytes is the bytes of images one shop may presign per rolling
+	// 24 hours (#217); 0 = unlimited.
+	UploadDailyBytes int64
+	refs             *refCache
 }
 
 // Limits are the rate limiters. The *IP ones are keyed by client IP (see
@@ -38,6 +41,8 @@ type Limits struct {
 	UploadUser   *ratelimit.Limiter
 	PasswordUser *ratelimit.Limiter
 	SaveUser     *ratelimit.Limiter
+	// ReportUser counts reports filed (#225).
+	ReportUser *ratelimit.Limiter
 	// SellerWriteUser covers every shop / coffee / option mutation (#213), so
 	// one account can't flood the catalogue or the map.
 	SellerWriteUser *ratelimit.Limiter

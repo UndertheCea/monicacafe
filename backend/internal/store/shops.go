@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at, updated_at`
+const shopColumns = `id, owner_id, slug, name, description, logo_url, banner_url, city, lat, lng, created_at, updated_at, suspended_at`
 
 func scanShop(row interface{ Scan(...any) error }) (*Shop, error) {
 	var sh Shop
 	if err := row.Scan(&sh.ID, &sh.OwnerID, &sh.Slug, &sh.Name, &sh.Description,
-		&sh.LogoURL, &sh.BannerURL, &sh.City, &sh.Lat, &sh.Lng, &sh.CreatedAt, &sh.UpdatedAt); err != nil {
+		&sh.LogoURL, &sh.BannerURL, &sh.City, &sh.Lat, &sh.Lng, &sh.CreatedAt, &sh.UpdatedAt, &sh.SuspendedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	return &sh, nil
@@ -143,7 +143,9 @@ type ShopFilter struct {
 // (#213): a shop appears on /shops, /map and the sitemap from its first
 // published coffee, so creating empty shops can't flood them. The owner still
 // reaches their own shop from the dashboard, and its page stays at its URL.
-const hasPublishedCoffee = `EXISTS (SELECT 1 FROM coffees c WHERE c.shop_id = s.id AND c.is_published)`
+// A suspended shop (#224) is never listed.
+const hasPublishedCoffee = `s.suspended_at IS NULL
+	AND EXISTS (SELECT 1 FROM coffees c WHERE c.shop_id = s.id AND c.is_published)`
 
 func (f ShopFilter) where() (string, []any) {
 	var (
@@ -259,25 +261,36 @@ func (s *Store) ShopPins(ctx context.Context) ([]*ShopPin, error) {
 	return out, mapErr(rows.Err())
 }
 
-// ImageURLs returns every image URL a row still points at: shop logos and
-// banners and coffee galleries (drafts included). Used to find orphaned
-// objects in the media bucket.
-func (s *Store) ImageURLs(ctx context.Context) ([]string, error) {
+// ReferencedImageKeys returns those of keys (media-bucket object keys such as
+// "shops/<id>/logo-….jpg") that a shop logo or banner or a coffee gallery
+// (drafts included) still points at. Used to find orphaned objects page by
+// page. An image is only ever saved on the listing whose ID is in its key, so
+// each key is checked against one row.
+func (s *Store) ReferencedImageKeys(ctx context.Context, keys []string) ([]string, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT logo_url FROM shops WHERE logo_url IS NOT NULL AND logo_url <> ''
-		UNION SELECT banner_url FROM shops WHERE banner_url IS NOT NULL AND banner_url <> ''
-		UNION SELECT unnest(image_urls) FROM coffees`)
+		WITH k AS (
+			SELECT key, split_part(key, '/', 1) AS kind, split_part(key, '/', 2) AS id
+			FROM unnest($1::text[]) AS key
+			WHERE key ~ '^(shops|coffees)/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/'
+		)
+		SELECT key FROM k WHERE kind = 'shops' AND EXISTS (
+			SELECT 1 FROM shops s WHERE s.id = k.id::uuid
+			  AND (position(k.key in COALESCE(s.logo_url, '')) > 0 OR position(k.key in COALESCE(s.banner_url, '')) > 0))
+		UNION ALL
+		SELECT key FROM k WHERE kind = 'coffees' AND EXISTS (
+			SELECT 1 FROM coffees c, unnest(c.image_urls) AS u
+			WHERE c.id = k.id::uuid AND position(k.key in u) > 0)`, keys)
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	defer rows.Close()
 	var out []string
 	for rows.Next() {
-		var u string
-		if err := rows.Scan(&u); err != nil {
+		var k string
+		if err := rows.Scan(&k); err != nil {
 			return nil, mapErr(err)
 		}
-		out = append(out, u)
+		out = append(out, k)
 	}
 	return out, mapErr(rows.Err())
 }

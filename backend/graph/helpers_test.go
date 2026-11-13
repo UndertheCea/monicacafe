@@ -748,3 +748,51 @@ func TestValidateHarvestYear(t *testing.T) {
 		})
 	}
 }
+
+func TestCleanText(t *testing.T) {
+	cases := []struct {
+		name      string
+		in        string
+		multiline bool
+		want      string
+		wantErr   bool
+	}{
+		{"plain", "  Moni  ", false, "Moni", false},
+		{"cjk", "衣索比亞", false, "衣索比亞", false},
+		{"NUL", "a\x00b", false, "", true},
+		{"NUL multiline", "a\x00b", true, "", true},
+		{"RTL override", "abc\u202edef", false, "", true},
+		{"zero-width space", "a\u200bb", false, "", true},
+		{"BOM", "\ufeffabc", false, "", true},
+		{"tab", "a\tb", true, "", true},
+		{"escape", "a\x1bb", true, "", true},
+		{"ZWJ emoji", "👩\u200d👩\u200d👧", false, "👩\u200d👩\u200d👧", false},
+		{"variation selector", "❤\ufe0f", false, "❤\ufe0f", false},
+		{"newline single-line", "a\nb", false, "", true},
+		{"newline multiline", "a\nb", true, "a\nb", false},
+		{"CRLF normalised", "a\r\nb", true, "a\nb", false},
+		{"lone CR", "a\rb", true, "", true},
+		{"invalid UTF-8", "a\xffb", false, "", true},
+		{"too short", "   ", false, "", true},
+		{"too long", "abcdef", false, "", true},
+	}
+	for _, c := range cases {
+		maxLen := 10
+		if c.name == "too long" {
+			maxLen = 3
+		}
+		clean := cleanText
+		if c.multiline {
+			clean = cleanMultiline
+		}
+		got, err := clean("name", c.in, 1, maxLen)
+		if (err != nil) != c.wantErr || got != c.want {
+			t.Errorf("%s: got %q, %v; want %q, err %v", c.name, got, err, c.want, c.wantErr)
+			continue
+		}
+		var ae *apiError
+		if err != nil && (!errors.As(err, &ae) || ae.code != CodeBadInput || ae.field != "name") {
+			t.Errorf("%s: want BAD_USER_INPUT naming the field, got %#v", c.name, err)
+		}
+	}
+}

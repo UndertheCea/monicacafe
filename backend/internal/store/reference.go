@@ -71,8 +71,8 @@ type ReferenceCoffeeCounts struct {
 func (s *Store) PublishedCoffeeCountsByReference(ctx context.Context) (*ReferenceCoffeeCounts, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT origin_country_id::text, variety_id::text, processing_method_id::text, count(*)
-		FROM coffees
-		WHERE is_published
+		FROM coffees c
+		WHERE `+publicCoffee+`
 		GROUP BY GROUPING SETS ((origin_country_id), (variety_id), (processing_method_id))`)
 	if err != nil {
 		return nil, mapErr(err)

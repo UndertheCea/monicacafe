@@ -8,14 +8,24 @@ import (
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
 	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
-	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year`
+	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year,
+	c.shop_id IN (` + suspendedShopIDs + `) AS shop_suspended`
+
+// suspendedShopIDs lists the shops an admin took off the site (#224). Their
+// coffees drop out of every public query, published or not.
+const suspendedShopIDs = `SELECT id FROM shops WHERE suspended_at IS NOT NULL`
+
+// publicCoffee is the condition for a coffee anyone may see: published, in a
+// shop that isn't suspended. Use it with the coffees table aliased as c.
+const publicCoffee = `(c.is_published AND c.shop_id NOT IN (` + suspendedShopIDs + `))`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
 	if err := row.Scan(&c.ID, &c.ShopID, &c.Name, &c.Slug, &c.Description, &c.OriginCountryID,
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
 		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
-		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear); err != nil {
+		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear,
+		&c.ShopSuspended); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {
@@ -110,7 +120,7 @@ func (f CoffeeFilter) where() (string, []any) {
 		conds = append(conds, fmt.Sprintf(cond, len(args)))
 	}
 	if !f.IncludeUnpublished {
-		conds = append(conds, "c.is_published")
+		conds = append(conds, publicCoffee)
 	}
 	if f.ShopID != nil {
 		add("c.shop_id = $%d", *f.ShopID)
@@ -260,7 +270,7 @@ func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error
 	rows, err := s.db.Query(ctx, `
 		SELECT `+coffeeColumns+` FROM coffees c
 		LEFT JOIN (SELECT coffee_id, count(*) AS n FROM comments GROUP BY coffee_id) cc ON cc.coffee_id = c.id
-		WHERE c.is_published
+		WHERE `+publicCoffee+`
 		ORDER BY COALESCE(cc.n, 0) DESC, c.created_at DESC, c.id
 		LIMIT $1`, limit)
 	if err != nil {
@@ -305,7 +315,7 @@ func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) 
 				WHERE lower(n) = ANY(src.notes)))::int AS score) sc
 		CROSS JOIN LATERAL (SELECT EXISTS (SELECT 1 FROM variants v
 			WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) AS ok) st
-		WHERE c.is_published AND c.shop_id <> src.shop_id AND sc.score >= $7
+		WHERE `+publicCoffee+` AND c.shop_id <> src.shop_id AND sc.score >= $7
 		ORDER BY st.ok DESC,
 			sc.score + CASE WHEN c.brew_method = src.brew_method THEN $8::int ELSE 0 END DESC,
 			c.created_at DESC, c.id

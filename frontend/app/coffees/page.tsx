@@ -4,7 +4,8 @@ import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
 import { activeFilterCount, filterChips } from "@/lib/filterChips";
-import { serverQuery } from "@/lib/serverQuery";
+import { cachedServerQuery, serverQuery } from "@/lib/serverQuery";
+import { CACHE_TAGS } from "@/lib/catalogueCache";
 import { pick, t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { listingCanonicalPath, listingRobots, shareMetadata } from "@/lib/seo";
@@ -15,6 +16,8 @@ import { FilterPanel } from "@/components/coffees/FilterPanel";
 import { FilterSidebar } from "@/components/coffees/FilterSidebar";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
+import { Page } from "@/components/Page";
+import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
   const [sp, locale] = await Promise.all([searchParams, getLocale()]);
@@ -42,7 +45,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   let data;
   try {
     const [options, list] = await Promise.all([
-      serverQuery(BROWSE_FILTER_OPTIONS),
+      cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_TAGS.filterOptions]),
       serverQuery(COFFEES, { filter, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     ]);
     data = { options, list: list.coffees };
@@ -63,10 +66,10 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
   ]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <Page className="py-10">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold text-ink">{t(locale, "coffees.title")}</h1>
-        <p className="mt-2 text-neutral-600">{t(locale, "coffees.subtitle")}</p>
+        <PageTitle>{t(locale, "coffees.title")}</PageTitle>
+        <p className="mt-2 text-muted">{t(locale, "coffees.subtitle")}</p>
       </header>
 
       {/* Sidebar from md (768px): tablets and half-width windows keep the desktop layout (#165). */}
@@ -88,13 +91,13 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           </FilterPanel>
         </aside>
 
-        <section aria-live="polite">
-          {q && <h2 className="mb-1 text-lg font-semibold text-ink">{t(locale, "coffees.results", { q })}</h2>}
-          <p className="mb-4 text-sm text-neutral-500">{t(locale, "coffees.count", { n: list.total })}</p>
+        <section>
+          {q && <SectionTitle className="mb-1">{t(locale, "coffees.results", { q })}</SectionTitle>}
+          <p aria-live="polite" className="mb-4 text-sm text-muted">{t(locale, "coffees.count", { n: list.total })}</p>
           <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
           {list.nodes.length === 0 ? (
-            <div className="rounded-2xl bg-white p-10 text-center text-neutral-500 ring-1 ring-neutral-200">
+            <Card className="p-10 text-center text-muted">
               <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
               {(q || filtered) && (
                 <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-2">
@@ -116,7 +119,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {list.nodes.map((c) => (
@@ -128,6 +131,6 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           <Pagination locale={locale} sp={sp} page={page} pages={pages} base="/coffees" />
         </section>
       </div>
-    </div>
+    </Page>
   );
 }

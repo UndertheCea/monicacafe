@@ -31,6 +31,8 @@ export interface DashboardShop {
   city: string;
   description: string;
   followerCount: number;
+  /** An admin took the shop off the site (#224); the dashboard shows a notice. */
+  suspended: boolean;
   coffees: { total: number; nodes: DashboardCoffee[] };
 }
 
@@ -44,7 +46,7 @@ export const MY_SHOP = typed<{ me: { id: string; shop: DashboardShop | null } | 
     me {
       id
       shop {
-        id slug name city description followerCount
+        id slug name city description followerCount suspended
         coffees(limit: ${DASH_COFFEES_PAGE}) { total nodes { ${DASHBOARD_COFFEE_FIELDS} } }
       }
     }
@@ -264,14 +266,19 @@ export interface ImageUpload {
   uploadUrl: string;
   publicUrl: string;
   headers: { name: string; value: string }[];
+  /** The 640 px WebP's upload, when thumbnailByteSize was sent (#235). */
+  thumbnail?: { uploadUrl: string; publicUrl: string; headers: { name: string; value: string }[] } | null;
 }
 
 export const CREATE_IMAGE_UPLOAD = typed<
   { createImageUpload: ImageUpload },
-  { input: { kind: ImageKind; targetId: string; contentType: string; byteSize: number } }
+  { input: { kind: ImageKind; targetId: string; contentType: string; byteSize: number; thumbnailByteSize?: number } }
 >(/* GraphQL */ `
   mutation CreateImageUpload($input: ImageUploadInput!) {
-    createImageUpload(input: $input) { uploadUrl publicUrl headers { name value } }
+    createImageUpload(input: $input) {
+      uploadUrl publicUrl headers { name value }
+      thumbnail { uploadUrl publicUrl headers { name value } }
+    }
   }
 `);
 

@@ -6,6 +6,7 @@ import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
 import { MAX_COFFEE_IMAGES, moveItem, removeAt } from "@/lib/dashboard/upload";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
+import { Badge, Button, Card, ConfirmButton, Picture } from "@/components/ui";
 
 /** Coffee photo gallery: add, remove and reorder (first = cover). Saved on every change. */
 export function CoffeeGallery({
@@ -39,56 +40,55 @@ export function CoffeeGallery({
     }
   }
 
-  const btn =
-    "rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-neutral-700 shadow ring-1 ring-neutral-200 hover:bg-white disabled:opacity-40";
-
   return (
-    <section className="rounded-2xl bg-white p-4 ring-1 ring-neutral-200 sm:p-6">
+    <Card as="section" className="p-4 sm:p-6">
       <h3 className="font-bold text-ink">{t(locale, "img.galleryTitle")}</h3>
-      <p className="mt-1 text-sm text-neutral-500">{t(locale, "img.galleryHint", { max: MAX_COFFEE_IMAGES })}</p>
+      <p className="mt-1 text-sm text-muted">{t(locale, "img.galleryHint", { max: MAX_COFFEE_IMAGES })}</p>
       {urls.length > 0 && (
         <ol className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {urls.map((src, i) => (
-            <li key={src} className="relative aspect-square overflow-hidden rounded-xl bg-neutral-100 ring-1 ring-neutral-200">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={t(locale, "img.photoAlt", { name: coffee.name, n: i + 1 })}
-                className="h-full w-full object-cover"
-              />
-              {i === 0 && (
-                <span className="absolute left-2 top-2 rounded-full bg-ink px-2 py-0.5 text-xs font-semibold text-white">
-                  {t(locale, "img.cover")}
-                </span>
-              )}
-              <div className="absolute inset-x-2 bottom-2 flex justify-between gap-1">
-                <button
+            <li key={src}>
+              <div className="relative aspect-square overflow-hidden rounded-box bg-paper ring-1 ring-line">
+                <Picture src={src} thumb width={320} height={320} alt={t(locale, "img.photoAlt", { name: coffee.name, n: i + 1 })} />
+                {i === 0 && (
+                  <Badge tone="solid" className="absolute left-2 top-2">
+                    {t(locale, "img.cover")}
+                  </Badge>
+                )}
+              </div>
+              {/* Below the photo, not over it: the inline "remove this?" question needs the room. */}
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
+                <Button
                   type="button"
                   disabled={busy || i === 0}
                   onClick={() => void change(moveItem(urls, i, i - 1))}
                   aria-label={t(locale, "img.moveEarlier", { n: i + 1 })}
-                  className={btn}
+                  variant="secondary"
+                  size="sm"
                 >
                   ←
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => window.confirm(t(locale, "img.removeConfirm")) && void change(removeAt(urls, i))}
-                  aria-label={t(locale, "img.removeN", { n: i + 1 })}
-                  className={btn}
+                </Button>
+                <ConfirmButton
+                  question={t(locale, "img.removeConfirm")}
+                  confirmLabel={t(locale, "img.remove")}
+                  cancelLabel={t(locale, "confirm.cancel")}
+                  variant="secondary"
+                  busy={busy}
+                  onConfirm={() => void change(removeAt(urls, i))}
                 >
-                  {t(locale, "img.remove")}
-                </button>
-                <button
+                  <span aria-hidden="true">{t(locale, "img.remove")}</span>
+                  <span className="sr-only">{t(locale, "img.removeN", { n: i + 1 })}</span>
+                </ConfirmButton>
+                <Button
                   type="button"
                   disabled={busy || i === urls.length - 1}
                   onClick={() => void change(moveItem(urls, i, i + 1))}
                   aria-label={t(locale, "img.moveLater", { n: i + 1 })}
-                  className={btn}
+                  variant="secondary"
+                  size="sm"
                 >
                   →
-                </button>
+                </Button>
               </div>
             </li>
           ))}
@@ -105,14 +105,14 @@ export function CoffeeGallery({
             onUploaded={(u) => save([...urls, u])}
           />
         ) : (
-          <p className="text-sm text-neutral-500">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>
+          <p className="text-sm text-muted">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>
         )}
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600">
+        <p role="alert" className="mt-2 text-sm text-danger">
           {t(locale, error)}
         </p>
       )}
-    </section>
+    </Card>
   );
 }

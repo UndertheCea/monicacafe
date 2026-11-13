@@ -36,6 +36,12 @@ func Auth(authSvc *auth.Service) func(http.Handler) http.Handler {
 	}
 }
 
+// WithClaims replaces the request's verified claims; nil makes the request
+// anonymous (used when a mutation's access token is stale, #224).
+func WithClaims(ctx context.Context, c *auth.Claims) context.Context {
+	return context.WithValue(ctx, userClaimsKey, c)
+}
+
 func ClaimsFromContext(ctx context.Context) *auth.Claims {
 	c, _ := ctx.Value(userClaimsKey).(*auth.Claims)
 	return c

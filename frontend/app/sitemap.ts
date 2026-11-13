@@ -1,9 +1,12 @@
 import type { MetadataRoute } from "next";
 import { SITEMAP_COFFEES, SITEMAP_SHOPS } from "@/lib/api";
-import { serverQuery } from "@/lib/serverQuery";
+import { cachedServerQuery } from "@/lib/serverQuery";
+import { CACHE_TAGS } from "@/lib/catalogueCache";
 import { pageOffsets, siteBase, sitemapEntries, type SitemapCoffee, type SitemapShop } from "@/lib/sitemap";
 
-// Built per request from live data (catalogue changes often in Stage 1).
+// Built per request (SITE_URL is read from the runtime environment, not baked
+// in at build time); the catalogue pages it lists come from the 60 s fetch
+// cache (#235), so a crawler costs the database one query a minute.
 export const dynamic = "force-dynamic";
 
 const PAGE = 100; // the API's max page size
@@ -21,8 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let coffees: SitemapCoffee[] = [];
   try {
     [shops, coffees] = await Promise.all([
-      collect(async (offset) => (await serverQuery(SITEMAP_SHOPS, { limit: PAGE, offset })).shops),
-      collect(async (offset) => (await serverQuery(SITEMAP_COFFEES, { limit: PAGE, offset })).coffees),
+      collect(async (offset) => (await cachedServerQuery(SITEMAP_SHOPS, [CACHE_TAGS.sitemap], { limit: PAGE, offset })).shops),
+      collect(async (offset) => (await cachedServerQuery(SITEMAP_COFFEES, [CACHE_TAGS.sitemap], { limit: PAGE, offset })).coffees),
     ]);
   } catch (err) {
     // API down: still serve the static pages rather than an error.

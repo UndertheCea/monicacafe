@@ -67,6 +67,10 @@ func complexityRoot() generated.ComplexityRoot {
 	}
 	c.Query.PopularCoffees = func(child int, limit *int) int { return paged(1)(child, limit, nil) }
 	c.Query.FollowingCoffees = paged(1)
+	c.Query.AdminUsers = func(child int, _ *string, limit, _ *int) int { return paged(1)(child, limit, nil) }
+	c.Query.AdminShops = func(child int, _ *string, limit, _ *int) int { return paged(1)(child, limit, nil) }
+	c.Query.AuditLog = paged(1)
+	c.Query.Reports = func(child int, _ *model.ReportStatus, limit, _ *int) int { return paged(1)(child, limit, nil) }
 
 	c.Shop.Coffees = func(child int, _ *model.CoffeeFilter, _ *model.CoffeeSort, limit, _ *int) int {
 		return paged(perParentQueryCost)(child, limit, nil)
@@ -96,6 +100,7 @@ func NewServer(resolver *Resolver, introspection bool) *handler.Server {
 	srv.SetErrorPresenter(ErrorPresenter)
 	srv.SetRecoverFunc(RecoverFunc)
 	srv.Use(&queryLimits{maxComplexity: MaxQueryComplexity, maxDepth: MaxQueryDepth})
+	srv.Use(tokenGate{users: resolver.Store})
 	srv.Use(extension.AutomaticPersistedQuery{Cache: lru.New[string](100)})
 	if introspection {
 		srv.Use(extension.Introspection{})

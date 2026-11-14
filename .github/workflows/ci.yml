@@ -199,6 +199,27 @@ jobs:
           run_backup 'sh /monicacafe/scripts/restore.sh "/backups/$(ls /backups | sort | tail -n 1)"'
           docker compose up -d --wait --wait-timeout 300
           ./scripts/smoke.sh
+      # Image backup drill (#288): mirror the media bucket, delete one image from
+      # the bucket, check nginx now answers 404 (and tells caches not to keep it),
+      # restore the images from the backup and check the image is served again.
+      - name: Back up images, lose one, restore it
+        run: |
+          run_backup() {
+            docker compose run --rm -T --no-deps -e BACKUP_TARGET=/backups -e BACKUP_ALLOW_PLAINTEXT=true \
+              -e BACKUP_MEDIA=true backup sh -c "$1"
+          }
+          out=$(run_backup 'sh /monicacafe/scripts/backup.sh' | tr -d '\r'); echo "$out"
+          objects=$(tail -n 1 <<<"$out" | grep -o '"media_objects":[0-9]*' | cut -d: -f2)
+          [ "${objects:-0}" -gt 0 ] || { echo "the backup mirrored no images"; exit 1; }
+          key=$(run_backup 'sh /monicacafe/scripts/media_drill.sh' | tail -n 1 | tr -d '\r')
+          [ -n "$key" ] || { echo "no image was removed"; exit 1; }
+          echo "removed $key from the bucket"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost/media/$key")
+          [ "$code" = 404 ] || { echo "GET /media/$key → $code after removing it, want 404"; exit 1; }
+          run_backup 'sh /monicacafe/scripts/restore_media.sh /backups/media'
+          code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost/media/$key")
+          [ "$code" = 200 ] || { echo "GET /media/$key → $code after restoring the images, want 200"; exit 1; }
+          echo "ok   image $key restored from the backup"
       - name: Reference-shop gap report
         run: ./scripts/reference_gaps.sh
       - name: Service status and logs (on failure)

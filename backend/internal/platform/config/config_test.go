@@ -327,6 +327,35 @@ func TestMediaCleanup(t *testing.T) {
 	}
 }
 
+func TestMediaCleanupSafety(t *testing.T) {
+	cases := []struct {
+		fraction, dry string
+		wantFraction  float64
+		wantDry       bool
+		wantErr       bool
+	}{
+		{"", "", 0.2, false, false},
+		{"0.2", "false", 0.2, false, false},
+		{"0.5", "true", 0.5, true, false},
+		{"0", "1", 0, true, false},
+		{"1", "", 1, false, false},
+		{"20%", "", 0, false, true},
+		{"1.5", "", 0, false, true},
+		{"-0.1", "", 0, false, true},
+		{"0.2", "maybe", 0, false, true},
+	}
+	for _, c := range cases {
+		cfg := Config{AppEnv: "development", MediaCleanupMaxFraction: c.fraction, MediaCleanupDryRun: c.dry}
+		f, d, err := cfg.MediaCleanupSafety()
+		if (err != nil) != c.wantErr || f != c.wantFraction || d != c.wantDry {
+			t.Errorf("MediaCleanupSafety(%q, %q) = %v, %v, %v", c.fraction, c.dry, f, d, err)
+		}
+		if verr := cfg.Validate(); c.wantErr && verr == nil {
+			t.Errorf("Validate(%q, %q) accepted a bad value", c.fraction, c.dry)
+		}
+	}
+}
+
 func TestDBPool(t *testing.T) {
 	tests := []struct {
 		name        string

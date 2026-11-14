@@ -51,6 +51,10 @@ type Config struct {
 	// old an unreferenced object must be before it's deleted.
 	MediaCleanupInterval string
 	MediaCleanupMinAge   string
+	// Safety catch (#288): refuse a run that would delete more than this share
+	// of the listed objects ("0" = no share limit); DRY_RUN only counts and logs.
+	MediaCleanupMaxFraction string
+	MediaCleanupDryRun      string
 
 	// Bytes of images one shop may presign per rolling 24h (0 = unlimited).
 	// Parsed by UploadDailyBytes.
@@ -145,6 +149,9 @@ func Load() Config {
 		S3InternalEndpoint:   get("S3_INTERNAL_ENDPOINT", ""),
 		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
 		MediaCleanupMinAge:   get("MEDIA_CLEANUP_MIN_AGE", "24h"),
+
+		MediaCleanupMaxFraction: get("MEDIA_CLEANUP_MAX_FRACTION", "0.2"),
+		MediaCleanupDryRun:      get("MEDIA_CLEANUP_DRY_RUN", "false"),
 
 		UploadDailyBytesPerShop: get("UPLOAD_DAILY_BYTES_PER_SHOP", "209715200"), // 200 MiB
 
@@ -350,6 +357,26 @@ func (c Config) MediaCleanup() (every, minAge time.Duration, err error) {
 	return every, minAge, nil
 }
 
+// MediaCleanupSafety parses MEDIA_CLEANUP_MAX_FRACTION (0..1, default 0.2; 0 =
+// no share limit, the "database references nothing" check always stays on) and
+// MEDIA_CLEANUP_DRY_RUN (true / false) (#288).
+func (c Config) MediaCleanupSafety() (maxFraction float64, dryRun bool, err error) {
+	maxFraction = 0.2
+	if v := strings.TrimSpace(c.MediaCleanupMaxFraction); v != "" {
+		maxFraction, err = strconv.ParseFloat(v, 64)
+		if err != nil || maxFraction < 0 || maxFraction > 1 {
+			return 0, false, fmt.Errorf("config: MEDIA_CLEANUP_MAX_FRACTION must be a number from 0 to 1 (0 = no limit), got %q", v)
+		}
+	}
+	if v := strings.TrimSpace(c.MediaCleanupDryRun); v != "" {
+		dryRun, err = strconv.ParseBool(v)
+		if err != nil {
+			return 0, false, fmt.Errorf("config: MEDIA_CLEANUP_DRY_RUN must be true or false, got %q", v)
+		}
+	}
+	return maxFraction, dryRun, nil
+}
+
 // publishedSecrets are the development values printed in this repository
 // (.env.example, docker-compose.yml, this file). Anyone can read them, so a
 // production server refuses every one of them (#206). A test reads
@@ -419,6 +446,9 @@ func (c Config) Validate() error {
 		return fmt.Errorf("config: APP_ENV must be one of %s, got %q", strings.Join(AppEnvs, " / "), c.AppEnv)
 	}
 	if _, _, err := c.MediaCleanup(); err != nil {
+		return err
+	}
+	if _, _, err := c.MediaCleanupSafety(); err != nil {
 		return err
 	}
 	if _, err := c.TokenPruneEvery(); err != nil {

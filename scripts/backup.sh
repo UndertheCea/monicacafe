@@ -13,11 +13,19 @@
 #   BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY, and optionally
 #   BACKUP_S3_ENDPOINT (non-AWS providers), BACKUP_S3_REGION, BACKUP_S3_PREFIX
 #                        (default "monicacafe/"). Must not be the media bucket.
+#   BACKUP_MEDIA=true    also mirror the image bucket (#288) to <target>/media/ or
+#                        s3://BACKUP_S3_BUCKET/<prefix>media/. Source: S3_BUCKET, S3_ACCESS_KEY,
+#                        S3_SECRET_KEY, S3_REGION and S3_INTERNAL_ENDPOINT (or S3_ENDPOINT),
+#                        the same settings the API uses. Images are NOT age-encrypted (they
+#                        are public already) and are never deleted from the backup when
+#                        removed from the bucket: that is the undo for a bad cleanup. An S3
+#                        target is fed through a local cache, BACKUP_MEDIA_CACHE
+#                        (default /backups/.media-cache, keep it on a volume).
 #
 # File names: monicacafe_YYYYMMDD_HHMMSS_<mon..sun>.dump[.age], in Taipei time.
 # Retention: the newest 7 files, plus the newest 4 taken on a Sunday (Taipei).
 # Exits non-zero on any failure and prints one JSON line at the end:
-#   {"file":"…","bytes":N,"seconds":N,"pruned":N}
+#   {"file":"…","bytes":N,"seconds":N,"pruned":N,"media_objects":N}  (-1 = media not mirrored)
 # POSIX sh (runs in alpine); no tzdata needed, Taipei is a fixed UTC+8.
 set -eu
 
@@ -31,6 +39,14 @@ say() { echo "backup: $*" >&2; }
 recipient="${BACKUP_AGE_RECIPIENT:-}"
 if [ -z "$recipient" ] && [ "${BACKUP_ALLOW_PLAINTEXT:-false}" != "true" ]; then
   die "BACKUP_AGE_RECIPIENT is not set; refusing an unencrypted dump (BACKUP_ALLOW_PLAINTEXT=true allows it, dev/CI only)"
+fi
+
+media="${BACKUP_MEDIA:-false}"
+case "$media" in true|false) ;; *) die "BACKUP_MEDIA must be true or false, got '$media'" ;; esac
+if [ "$media" = true ]; then
+  media_endpoint="${S3_INTERNAL_ENDPOINT:-${S3_ENDPOINT:-}}"
+  [ -n "${S3_BUCKET:-}" ] && [ -n "${S3_ACCESS_KEY:-}" ] && [ -n "${S3_SECRET_KEY:-}" ] && [ -n "$media_endpoint" ] \
+    || die "BACKUP_MEDIA=true needs S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY and S3_INTERNAL_ENDPOINT (or S3_ENDPOINT)"
 fi
 
 target="${BACKUP_TARGET:-}"
@@ -68,7 +84,7 @@ store_list() { # file names, oldest first (names sort by date)
     find "$target" -maxdepth 1 -type f -name 'monicacafe_*.dump*' -exec basename {} \; | sort
   else
     aws_s3 s3api list-objects-v2 --bucket "$BACKUP_S3_BUCKET" --prefix "$prefix" \
-      --query 'Contents[].Key' --output text | tr '\t' '\n' | sed -e '/^None$/d' -e "s|^$prefix||" \
+      --delimiter / --query 'Contents[].Key' --output text | tr '\t' '\n' | sed -e '/^None$/d' -e "s|^$prefix||" \
       | grep '^monicacafe_.*\.dump' | sort || true
   fi
 }
@@ -87,6 +103,32 @@ started=$(date +%s)
 work=$(mktemp -d)
 chmod 700 "$work"
 trap 'rm -rf "$work"' EXIT
+
+# --- the media bucket (#288) ---------------------------------------------------
+# Signed with the media credentials, never the backup ones, and in path style
+# (SeaweedFS and most self-hosted stores have no <bucket>.host names).
+media_aws() {
+  AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY" AWS_SECRET_ACCESS_KEY="$S3_SECRET_KEY" \
+    AWS_DEFAULT_REGION="${S3_REGION:-us-east-1}" AWS_EC2_METADATA_DISABLED=true AWS_PAGER="" AWS_REQUEST_CHECKSUM_CALCULATION=when_required AWS_RESPONSE_CHECKSUM_VALIDATION=when_required \
+    AWS_CONFIG_FILE="$work/aws-media-config" aws --endpoint-url "$media_endpoint" "$@"
+}
+media_objects=-1
+mirror_media() { # sets media_objects
+  printf '[default]\ns3 =\n    addressing_style = path\n' >"$work/aws-media-config"
+  if [ "$mode" = local ]; then
+    dest="$target/media"
+  else
+    dest="${BACKUP_MEDIA_CACHE:-/backups/.media-cache}"
+  fi
+  mkdir -p "$dest" || return 1
+  # No --delete: an image removed from the bucket (by a cleanup gone wrong, say)
+  # stays in the backup.
+  media_aws s3 sync --only-show-errors "s3://$S3_BUCKET" "$dest" || return 1
+  if [ "$mode" = s3 ]; then
+    aws_s3 s3 sync --only-show-errors "$dest" "s3://$BACKUP_S3_BUCKET/${prefix}media" || return 1
+  fi
+  media_objects=$(find "$dest" -type f | wc -l | tr -d ' ')
+}
 
 # Taipei is UTC+8 with no daylight saving: the POSIX zone "UTC-8" needs no tzdata.
 stamp=$(TZ=UTC-8 date +%Y%m%d_%H%M%S)
@@ -122,5 +164,12 @@ for f in $(echo "$all" | grep -vxF "$keep" || true); do
   pruned=$((pruned + 1))
 done
 
+# After the dump is stored and pruned, so a media failure never costs the database backup.
+media_failed=false
+if [ "$media" = true ]; then
+  mirror_media || media_failed=true
+fi
+
 seconds=$(($(date +%s) - started))
-printf '{"file":"%s","bytes":%s,"seconds":%s,"pruned":%s}\n' "$name" "$bytes" "$seconds" "$pruned"
+printf '{"file":"%s","bytes":%s,"seconds":%s,"pruned":%s,"media_objects":%s}\n' "$name" "$bytes" "$seconds" "$pruned" "$media_objects"
+[ "$media_failed" = false ] || die "the database was backed up but mirroring the media bucket FAILED"

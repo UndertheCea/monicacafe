@@ -74,7 +74,7 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
 
   return (
     <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-3">
-      <label className="block min-w-0 flex-1 text-xs font-medium text-muted">
+      <label className="block min-w-0 basis-full text-xs font-medium text-muted sm:basis-0 sm:flex-1">
         {t(locale, "cart.option")}
         <Select
           value={chosen.id}

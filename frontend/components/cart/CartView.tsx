@@ -88,7 +88,7 @@ export function CartView({ locale }: { locale: Locale }) {
             {g.lines.map((l) => (
               <li key={l.id} className="py-3">
                 <div className="flex flex-wrap items-end gap-3">
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
                     <p className="font-semibold text-ink">
                       {l.coffee ? (
                         <Link href={`/coffees/${l.coffee.id}`} className="underline-offset-4 hover:underline">
@@ -121,7 +121,7 @@ export function CartView({ locale }: { locale: Locale }) {
                       ))}
                     </Select>
                   </label>
-                  <p className={`w-24 text-right font-semibold ${l.available ? "text-ink" : "text-muted line-through"}`}>
+                  <p className={`ml-auto w-24 text-right font-semibold ${l.available ? "text-ink" : "text-muted line-through"}`}>
                     NT${formatTWD(l.lineTotalTwd)}
                   </p>
                   <Button size="sm" variant="secondary" pending={busy === l.id} disabled={busy !== null} onClick={() => void remove(l)}>

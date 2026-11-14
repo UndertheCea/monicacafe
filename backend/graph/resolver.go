@@ -46,6 +46,8 @@ type Limits struct {
 	// SellerWriteUser covers every shop / coffee / option mutation (#213), so
 	// one account can't flood the catalogue or the map.
 	SellerWriteUser *ratelimit.Limiter
+	// ExportUser counts "download my data" exports (#270).
+	ExportUser *ratelimit.Limiter
 }
 
 // allowIP spends a token for the request's client IP. Requests whose IP is

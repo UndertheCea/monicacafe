@@ -6,6 +6,12 @@ scalar TWD
 
 type Query {
   me: User
+  # Everything stored about the signed-in user, as one JSON document (#270):
+  # account, active sessions, comments, saved coffees, followed shops, reports
+  # filed, account events and, for a seller, the shop with its coffees and
+  # options. No password or token material. UNAUTHENTICATED when signed out;
+  # rate limited per account (RATE_LIMIT_EXPORT_USER).
+  myDataExport: String!
 
   # Shop discovery
   shop(slug: String!): Shop

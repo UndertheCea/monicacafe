@@ -66,3 +66,17 @@ test("deleteAccountErrorKey maps backend errors to messages", () => {
   ];
   for (const [[code, field], want] of cases) assert.equal(deleteAccountErrorKey(code, field), want);
 });
+
+test("exportFileName uses the Taipei date (#270)", async () => {
+  const { exportFileName } = await import("../lib/auth/account.ts");
+  assert.equal(exportFileName(new Date("2026-11-14T03:00:00Z")), "monicafe-data-2026-11-14.json");
+  // 16:30 UTC is 00:30 the next day in Taipei.
+  assert.equal(exportFileName(new Date("2026-11-14T16:30:00Z")), "monicafe-data-2026-11-15.json");
+  assert.equal(exportFileName(new Date("2026-12-31T15:59:59Z")), "monicafe-data-2026-12-31.json");
+});
+
+test("formatExport pretty-prints and refuses non-JSON", async () => {
+  const { formatExport } = await import("../lib/auth/account.ts");
+  assert.equal(formatExport('{"a":[1],"b":null}'), '{\n  "a": [\n    1\n  ],\n  "b": null\n}\n');
+  assert.throws(() => formatExport("<html>"));
+});

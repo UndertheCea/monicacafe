@@ -195,6 +195,7 @@ type ComplexityRoot struct {
 		Coffees           func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
 		FollowingCoffees  func(childComplexity int, limit *int, offset *int) int
 		Me                func(childComplexity int) int
+		MyDataExport      func(childComplexity int) int
 		OriginCountries   func(childComplexity int) int
 		PopularCoffees    func(childComplexity int, limit *int) int
 		ProcessingMethods func(childComplexity int) int
@@ -367,6 +368,7 @@ type ProcessingMethodResolver interface {
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
+	MyDataExport(ctx context.Context) (string, error)
 	Shop(ctx context.Context, slug string) (*model.Shop, error)
 	Shops(ctx context.Context, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
 	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
@@ -1317,6 +1319,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
+	case "Query.myDataExport":
+		if e.ComplexityRoot.Query.MyDataExport == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyDataExport(childComplexity), true
 	case "Query.originCountries":
 		if e.ComplexityRoot.Query.OriginCountries == nil {
 			break
@@ -1891,6 +1899,12 @@ scalar TWD
 
 type Query {
   me: User
+  # Everything stored about the signed-in user, as one JSON document (#270):
+  # account, active sessions, comments, saved coffees, followed shops, reports
+  # filed, account events and, for a seller, the shop with its coffees and
+  # options. No password or token material. UNAUTHENTICATED when signed out;
+  # rate limited per account (RATE_LIMIT_EXPORT_USER).
+  myDataExport: String!
 
   # Shop discovery
   shop(slug: String!): Shop
@@ -7521,6 +7535,29 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_myDataExport(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_myDataExport(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().MyDataExport(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_myDataExport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Query", field, true, true, "String")
+}
+
 func (ec *executionContext) _Query_shop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -12812,6 +12849,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, false,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_me(ctx, field)
+				})
+		case "myDataExport":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_myDataExport(ctx, field)
 				})
 		case "shop":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,

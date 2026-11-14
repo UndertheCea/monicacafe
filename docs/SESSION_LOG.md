@@ -15,6 +15,62 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 39 — 2026-11-14 — Audit fixes: moderation, query abuse, private reads, privacy, exposure, backups (eight slices)
+PR: #TBD
+
+No open session PR (only dependabot's) and no owner answers on any question. Every pickable slice was from the
+2026-11-14 audit; all `stage-1`, so stage-2 #290 / #291 wait. I built #282–#284 and reviewed / merged #285–#289, which
+Sonnet sub-agents built in worktrees (cherry-picked; conflicts in config / compose / backup.sh resolved by hand).
+
+### Shipped (one line per slice: area — what — key files)
+- #282 backend (+ dashboard) — migration 023 `coffees.removed_at / removed_by` (backfilled from the audit log);
+  `adminUnpublishCoffee` is a takedown, new `adminRestoreCoffee` (`RESTORE_COFFEE`); publish / duplicate / delete answer
+  `TAKEN_DOWN`; delete refuses (CONFLICT, field `reports`) while the coffee or its comments have an open report;
+  `ownedShop` → `SHOP_SUSPENDED` for a suspended shop's owner; `suspendUser` also suspends the user's shop; follow /
+  unfollow NOT_FOUND for suspended shops. Dashboard badge + messages (`lib/dashboard/takedown.ts`), /admin note.
+- #283 backend — `User.shop` via a `ShopByOwner` loader; `TestFieldResolversHittingTheStoreArePriced` (AST scan of
+  `schema.resolvers.go` vs `complexityRoot`); ≤ 20 root fields per operation; scan cost 100 on coffees / shops /
+  popular / following; `checkStringArgs` refuses control characters (NUL) and > 10,000-character strings before SQL;
+  slug / city / flavorNote caps; comment / save / follow / report limiters spent before lookups;
+  `RATE_LIMIT_ACCOUNT_WRITE_USER` (60/5m) for deleteComment, logoutEverywhere and every admin mutation.
+- #284 backend — `tokenGate` checks signed-in queries too (one PK read): a stale token runs as anonymous, `me` answers
+  UNAUTHENTICATED (the client refreshes). Rule 12 in CLAUDE.md. Integration test after changePassword / admin revoke.
+- #285 frontend — `lib/dashboard/stripMetadata.ts` (JPEG APPn / COM, PNG text / eXIf / tIME, WebP EXIF / XMP; a
+  minimal EXIF keeps a non-1 orientation), wired for originals, re-encodes and thumbnails; canvas fallback, else refused;
+  DEPLOY.md: exiftool procedure for existing objects.
+- #286 backend — `twfmt` contact filter normalises (NFKC, Chinese / circled numerals, `[.]`, 小老鼠 …) and knows
+  platform words; runs on shop / coffee name, producer, region, flavour notes, display name; blank-looking letters
+  refused; reserved display names (admins exempt); `RATE_LIMIT_PROFILE_USER` (10/1h); `User.role` nullable, hidden from
+  other viewers.
+- #287 cross-cutting — nginx bound to `${HTTP_BIND:-127.0.0.1}`; `REAL_IP_FROM` template (`real-ip.conf`, included by
+  name: the image's own `default.conf` must not load); production `Validate` refuses localhost / non-https
+  CORS_ORIGIN and SITE_URL, default TRUSTED_PROXIES, published S3 key, SEED_DEMO_DATA, BACKUP_ALLOW_PLAINTEXT; MEILI_KEY
+  passed; DEPLOY.md "before you expose it".
+- #288 cross-cutting — `mediaclean.Decide` refuses a sweep when nothing is referenced or > `MEDIA_CLEANUP_MAX_FRACTION`
+  (0.2) would go, `MEDIA_CLEANUP_DRY_RUN`; nginx long cache only on GET / HEAD 200 / 206 / 304, errors `no-store`;
+  `BACKUP_MEDIA` mirror + `restore_media.sh` + CI image drill; smoke asserts unsigned PUT, wrong type, listing refused.
+- #289 cross-cutting — backup.sh streams pg_dump into age, keeps 7 days + 4 Sundays by date, keeps-but-doesn't-prune a
+  dump < 50 % of the last, `BACKUP_PING_URL` (+ `/fail`), success marker + compose healthcheck (26 h); restore.sh
+  `--single-transaction`; migrate.sh verifies `MIGRATE_BASELINE` markers (001–023) and sets `lock_timeout`; passwords via
+  PGPASSWORD; CI drill runs the encrypted S3 path (`backup_drill.sh`).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, migrations 001–023) after every
+  merge; `migrate.sh` on a fresh database, `migrate_selftest.sh`. Frontend: tsc, lint, `npm test` (295). `docker compose
+  config --quiet`, `check_brief.sh`. Sub-agents: `next build` (#285), backup / restore / healthcheck / baseline in
+  directory mode with age (#289), smoke assertions against a bare SeaweedFS 4.53 (#288), `nginx -t` (#288).
+- NOT run locally: `docker compose up --build` (a Docker daemon started, but image builds fail on `go mod download`
+  through the session proxy), so smoke, e2e, the nginx real-ip include, the cache headers, the aws-cli media / S3 backup
+  paths and both CI drills are proven only in CI's `stack` job. No browser check of the dashboard takedown badge.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- A suspended user's shop is suspended with them (own audit entry); reinstating the user leaves the shop suspended.
+- Duplicating a taken-down coffee is refused outright (rather than copying the flag).
+- Signed-in queries now cost one DB read each (#284); anonymous requests are unchanged.
+- Invalid comment / report / save targets now spend a token (#283); input-validation errors still don't.
+- No admin UI yet for `adminRestoreCoffee` (API only); add a coffee list to /admin with #294 or a new slice.
+- Admins are exempt from the reserved display-name check (#286).
+
 ## Session 38 — 2026-11-14 — Stage 2 opens: groundwork (#237) and the cart (six slices)
 PR: #281
 

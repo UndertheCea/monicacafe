@@ -27,6 +27,15 @@ type Config struct {
 	AppEnv           string
 	Locale           string
 
+	// Public origin of the site (the frontend's SITE_URL). The API only reads
+	// it to refuse an unsafe production setup (#287): an http:// origin means
+	// the refresh cookie is not Secure.
+	SiteURL string
+	// "true" when compose would load demo data / the backup job may write
+	// unencrypted dumps. Strings, parsed by Validate; both refused in production.
+	SeedDemoData         string
+	BackupAllowPlaintext string
+
 	// Object storage for uploaded images (S3-compatible; SeaweedFS in compose).
 	// Uploads are disabled when S3AccessKey is empty.
 	S3Endpoint     string
@@ -115,14 +124,17 @@ func Load() Config {
 		CORSOrigin:       get("CORS_ORIGIN", "http://localhost,http://localhost:3000"),
 		// No default: an unset APP_ENV used to mean "development", which skips
 		// the production checks and turns on introspection (#206).
-		AppEnv:         get("APP_ENV", ""),
-		Locale:         get("LOCALE", "zh-TW"),
-		S3Endpoint:     get("S3_ENDPOINT", "http://localhost"),
-		S3Bucket:       get("S3_BUCKET", "media"),
-		S3Region:       get("S3_REGION", "us-east-1"),
-		S3AccessKey:    get("S3_ACCESS_KEY", ""),
-		S3SecretKey:    get("S3_SECRET_KEY", ""),
-		MediaPublicURL: get("MEDIA_PUBLIC_URL", ""),
+		AppEnv:               get("APP_ENV", ""),
+		Locale:               get("LOCALE", "zh-TW"),
+		SiteURL:              get("SITE_URL", ""),
+		SeedDemoData:         get("SEED_DEMO_DATA", ""),
+		BackupAllowPlaintext: get("BACKUP_ALLOW_PLAINTEXT", ""),
+		S3Endpoint:           get("S3_ENDPOINT", "http://localhost"),
+		S3Bucket:             get("S3_BUCKET", "media"),
+		S3Region:             get("S3_REGION", "us-east-1"),
+		S3AccessKey:          get("S3_ACCESS_KEY", ""),
+		S3SecretKey:          get("S3_SECRET_KEY", ""),
+		MediaPublicURL:       get("MEDIA_PUBLIC_URL", ""),
 
 		S3InternalEndpoint:   get("S3_INTERNAL_ENDPOINT", ""),
 		MediaCleanupInterval: get("MEDIA_CLEANUP_INTERVAL", "6h"),
@@ -438,12 +450,91 @@ func (c Config) Validate() error {
 	if pw := dsnPassword(c.DatabaseURL); published(pw) || strings.Contains(c.DatabaseURL, "monica_secret") {
 		return errors.New("config: DATABASE_URL uses a database password published in the repository; set a new POSTGRES_PASSWORD for production")
 	}
+	if err := c.validateExposure(); err != nil {
+		return err
+	}
 	// Empty S3 / Meilisearch secrets mean "not used" and are fine.
+	if c.S3AccessKey != "" && (published(c.S3AccessKey) || strings.EqualFold(c.S3AccessKey, "monica_s3")) {
+		return errors.New("config: S3_ACCESS_KEY is the development value published in the repository; set a new one for production")
+	}
 	if c.S3SecretKey != "" && published(c.S3SecretKey) {
 		return errors.New("config: S3_SECRET_KEY is a development value published in the repository; set a new one for production")
 	}
 	if c.MeiliKey != "" && published(c.MeiliKey) {
 		return errors.New("config: MEILI_KEY is a development value published in the repository; set a new one for production")
+	}
+	return nil
+}
+
+// localHost reports whether a URL host is this machine ("localhost",
+// "*.localhost", a loopback or unspecified address).
+func localHost(host string) bool {
+	h := strings.ToLower(strings.TrimSuffix(host, "."))
+	if h == "localhost" || strings.HasSuffix(h, ".localhost") {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && (ip.IsLoopback() || ip.IsUnspecified())
+}
+
+// httpsOrigin checks that raw is an https URL on a real host (not localhost).
+func httpsOrigin(env, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return fmt.Errorf("config: %s has an entry that is not a URL: %q", env, raw)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("config: %s must be https:// in production (an http:// origin leaves the refresh cookie without Secure), got %q", env, raw)
+	}
+	if localHost(u.Hostname()) {
+		return fmt.Errorf("config: %s must not point at localhost in production, got %q", env, raw)
+	}
+	return nil
+}
+
+// truthy reads a true/false setting; blank and unparsable values are false.
+func truthy(v string) bool {
+	b, err := strconv.ParseBool(strings.TrimSpace(v))
+	return err == nil && b
+}
+
+// validateExposure holds the production checks that stop a copied dev setup
+// from going public (#287): origins, TLS, proxies, demo data and plaintext backups.
+func (c Config) validateExposure() error {
+	origins := c.CORSOrigins()
+	if len(origins) == 0 {
+		return errors.New("config: CORS_ORIGIN must be set in production to your site's https:// origin")
+	}
+	for _, o := range origins {
+		if o == "*" {
+			return errors.New("config: CORS_ORIGIN must list origins, not *")
+		}
+		if err := httpsOrigin("CORS_ORIGIN", o); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(c.SiteURL) == "" {
+		return errors.New("config: SITE_URL must be set in production to your site's https:// origin")
+	}
+	if err := httpsOrigin("SITE_URL", strings.TrimSpace(c.SiteURL)); err != nil {
+		return err
+	}
+	// TRUSTED_PROXIES: the built-in fallback trusts every private range, so
+	// "unset" is refused; so is trusting the whole internet.
+	tp := strings.TrimSpace(c.TrustedProxies)
+	if tp == "" || tp == DefaultTrustedProxies {
+		return errors.New("config: TRUSTED_PROXIES must be set explicitly in production to your proxies only (the compose default lists loopback and the compose subnet); the built-in default trusts every private range")
+	}
+	for _, p := range strings.Split(tp, ",") {
+		if p = strings.TrimSpace(p); p == "0.0.0.0/0" || p == "::/0" {
+			return fmt.Errorf("config: TRUSTED_PROXIES must not contain %s: anything trusted can claim any client IP", p)
+		}
+	}
+	if truthy(c.SeedDemoData) {
+		return errors.New("config: SEED_DEMO_DATA must be false in production: demo shops and accounts are public in this repository")
+	}
+	if truthy(c.BackupAllowPlaintext) {
+		return errors.New("config: BACKUP_ALLOW_PLAINTEXT must be false in production: set BACKUP_AGE_RECIPIENT so dumps are encrypted")
 	}
 	return nil
 }

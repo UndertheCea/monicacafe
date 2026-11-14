@@ -1,7 +1,41 @@
 # Deploying Moni Cafe
 
 Hosting is not settled yet (see `PROJECT_BRIEF.md`, question #199); this file collects the operational notes that
-hold on any host. For now it covers monitoring.
+hold on any host. For now it covers the pre-exposure checklist and monitoring.
+
+## Before you expose it
+
+`docker compose up` is a development stack. Out of the box it publishes nginx on `127.0.0.1` only (`HTTP_BIND`), with
+published JWT secrets, demo data and plain HTTP. A full production compose file and HTTPS are tracked in #219; until
+then, work through this list before anything listens on a public address.
+
+1. **Terminate TLS in front of nginx.** nginx here speaks plain HTTP on port 80. Put a TLS terminator / load balancer
+   (Caddy, a cloud LB, Cloudflare) in front and point it at nginx. Then set `HTTP_BIND` to the address that proxy
+   reaches (`0.0.0.0` only if nothing else on the host's public interface can reach port 80 directly; a firewall or a
+   private network is better).
+2. **Tell nginx who the proxy is.** Set `REAL_IP_FROM` to the proxy's IP or CIDR (one value; the default `127.0.0.1`
+   trusts nothing real). nginx then takes the visitor's address from `X-Forwarded-For`, so its `limit_req` buckets,
+   `X-Real-IP` and logs are per visitor instead of one bucket for the proxy. The proxy must set `X-Forwarded-For`
+   itself and drop any value the client sent. Several proxies: edit `nginx/real-ip.conf.template` and add one
+   `set_real_ip_from` line each.
+3. **Set `APP_ENV=production`.** This turns GraphQL introspection and `/playground` off and enables the checks below. The
+   API (and worker) refuse to start with a message naming the first setting that is wrong:
+   - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`: at least 32 characters, different from each other, not published.
+   - `POSTGRES_PASSWORD` (checked inside `DATABASE_URL`), `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `MEILI_KEY`: not the values
+     printed in `.env.example` (or containing `dev-` / `change`). Empty S3 / Meilisearch keys mean "not used".
+   - `CORS_ORIGIN`: set, every origin `https://` and not localhost.
+   - `SITE_URL`: set, `https://`, not localhost. (An `http://` value leaves the refresh cookie without `Secure`.)
+   - `TRUSTED_PROXIES`: set explicitly. Empty, the API's built-in default (every private range) and `0.0.0.0/0` are
+     refused. The compose default (loopback plus `COMPOSE_SUBNET`, i.e. nginx and the Next server) is right for the
+     compose stack; do not add the TLS proxy there, nginx has already resolved the client address (step 2).
+   - `SEED_DEMO_DATA=false` and `BACKUP_ALLOW_PLAINTEXT=false` (set `BACKUP_AGE_RECIPIENT`, see `docs/BACKUP.md`).
+4. **Change `POSTGRES_PASSWORD` before the first start.** Postgres only reads it when the volume is created; changing
+   it later needs `ALTER USER` as well.
+5. **Keep the other ports private.** The API (`BACKEND_PORT`), Next server (`FRONTEND_PORT`) and Postgres are bound to
+   `127.0.0.1`, and `/metrics` is on the internal port only. Don't change those binds, and firewall everything except
+   the proxy's port.
+6. **Grant the first admin** with `docker compose exec backend /app/admin grant <email>` and check the nightly backup
+   (`--profile prod`) restores (`docs/BACKUP.md`).
 
 ## Monitoring
 

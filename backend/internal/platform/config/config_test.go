@@ -28,8 +28,13 @@ func goodProd() Config {
 		JWTAccessSecret:  "0123456789abcdef0123456789abcdef-a",
 		JWTRefreshSecret: "0123456789abcdef0123456789abcdef-r",
 		DatabaseURL:      "postgres://monica:Zq8vLr2nXw5tKb7h@db.internal:5432/monicacafe",
+		S3AccessKey:      "Kd3mQ8vXz2",
 		S3SecretKey:      "p4Jm9sQe2Vx7Lt3Bn6Ry",
 		MeiliKey:         "h7Tg2Wq9Nc4Xb8Lm",
+		CORSOrigin:       "https://monicafe.tw,https://www.monicafe.tw",
+		SiteURL:          "https://monicafe.tw",
+		TrustedProxies:   "127.0.0.0/8,::1/128,172.30.89.0/24",
+		SeedDemoData:     "false",
 	}
 }
 
@@ -71,6 +76,31 @@ func TestValidate(t *testing.T) {
 		{"no S3 secret = uploads off", func(c *Config) { c.S3SecretKey = "" }, ""},
 		{"published Meilisearch key", func(c *Config) { c.MeiliKey = "monica_meili_key" }, "MEILI_KEY"},
 		{"no Meilisearch key", func(c *Config) { c.MeiliKey = "" }, ""},
+		{"published S3 access key", func(c *Config) { c.S3AccessKey = "monica_s3" }, "S3_ACCESS_KEY"},
+		{"no S3 access key = uploads off", func(c *Config) { c.S3AccessKey = ""; c.S3SecretKey = "" }, ""},
+		{"CORS_ORIGIN unset", func(c *Config) { c.CORSOrigin = "" }, "CORS_ORIGIN"},
+		{"CORS_ORIGIN dev default", func(c *Config) { c.CORSOrigin = "http://localhost,http://localhost:3000" }, "CORS_ORIGIN"},
+		{"CORS_ORIGIN one localhost among real ones", func(c *Config) { c.CORSOrigin = "https://monicafe.tw,https://localhost:3000" }, "CORS_ORIGIN"},
+		{"CORS_ORIGIN loopback IP", func(c *Config) { c.CORSOrigin = "https://127.0.0.1" }, "CORS_ORIGIN"},
+		{"CORS_ORIGIN http", func(c *Config) { c.CORSOrigin = "http://monicafe.tw" }, "CORS_ORIGIN"},
+		{"CORS_ORIGIN wildcard", func(c *Config) { c.CORSOrigin = "*" }, "CORS_ORIGIN"},
+		{"CORS_ORIGIN not a URL", func(c *Config) { c.CORSOrigin = "monicafe.tw" }, "CORS_ORIGIN"},
+		{"SITE_URL unset", func(c *Config) { c.SiteURL = "" }, "SITE_URL"},
+		{"SITE_URL http", func(c *Config) { c.SiteURL = "http://monicafe.tw" }, "SITE_URL"},
+		{"SITE_URL localhost", func(c *Config) { c.SiteURL = "https://localhost" }, "SITE_URL"},
+		{"TRUSTED_PROXIES unset", func(c *Config) { c.TrustedProxies = "" }, "TRUSTED_PROXIES"},
+		{"TRUSTED_PROXIES built-in default", func(c *Config) { c.TrustedProxies = DefaultTrustedProxies }, "TRUSTED_PROXIES"},
+		{"TRUSTED_PROXIES everyone", func(c *Config) { c.TrustedProxies = "10.0.0.1, 0.0.0.0/0" }, "TRUSTED_PROXIES"},
+		{"TRUSTED_PROXIES one load balancer", func(c *Config) { c.TrustedProxies = "203.0.113.7/32" }, ""},
+		{"SEED_DEMO_DATA true", func(c *Config) { c.SeedDemoData = "true" }, "SEED_DEMO_DATA"},
+		{"SEED_DEMO_DATA 1", func(c *Config) { c.SeedDemoData = "1" }, "SEED_DEMO_DATA"},
+		{"SEED_DEMO_DATA unset", func(c *Config) { c.SeedDemoData = "" }, ""},
+		{"BACKUP_ALLOW_PLAINTEXT true", func(c *Config) { c.BackupAllowPlaintext = "true" }, "BACKUP_ALLOW_PLAINTEXT"},
+		{"BACKUP_ALLOW_PLAINTEXT false", func(c *Config) { c.BackupAllowPlaintext = "false" }, ""},
+		{"development ignores all of these", func(c *Config) {
+			*c = Config{AppEnv: "development", CORSOrigin: "http://localhost", SiteURL: "http://localhost", SeedDemoData: "true",
+				BackupAllowPlaintext: "true", S3AccessKey: "monica_s3", TrustedProxies: DefaultTrustedProxies}
+		}, ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -297,6 +327,35 @@ func TestMediaCleanup(t *testing.T) {
 	}
 }
 
+func TestMediaCleanupSafety(t *testing.T) {
+	cases := []struct {
+		fraction, dry string
+		wantFraction  float64
+		wantDry       bool
+		wantErr       bool
+	}{
+		{"", "", 0.2, false, false},
+		{"0.2", "false", 0.2, false, false},
+		{"0.5", "true", 0.5, true, false},
+		{"0", "1", 0, true, false},
+		{"1", "", 1, false, false},
+		{"20%", "", 0, false, true},
+		{"1.5", "", 0, false, true},
+		{"-0.1", "", 0, false, true},
+		{"0.2", "maybe", 0, false, true},
+	}
+	for _, c := range cases {
+		cfg := Config{AppEnv: "development", MediaCleanupMaxFraction: c.fraction, MediaCleanupDryRun: c.dry}
+		f, d, err := cfg.MediaCleanupSafety()
+		if (err != nil) != c.wantErr || f != c.wantFraction || d != c.wantDry {
+			t.Errorf("MediaCleanupSafety(%q, %q) = %v, %v, %v", c.fraction, c.dry, f, d, err)
+		}
+		if verr := cfg.Validate(); c.wantErr && verr == nil {
+			t.Errorf("Validate(%q, %q) accepted a bad value", c.fraction, c.dry)
+		}
+	}
+}
+
 func TestDBPool(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -361,5 +420,65 @@ func TestUploadDailyBytes(t *testing.T) {
 	}
 	if err := (Config{AppEnv: "development", UploadDailyBytesPerShop: "lots"}).Validate(); err == nil {
 		t.Fatal("Validate should reject a bad UPLOAD_DAILY_BYTES_PER_SHOP")
+	}
+}
+
+// envExample reads .env.example into name → value (commented assignments too,
+// like the published-secrets test above).
+func envExample(t *testing.T) map[string]string {
+	t.Helper()
+	raw, err := os.ReadFile("../../../../.env.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assignment := regexp.MustCompile(`^\s*#?\s*([A-Z][A-Z0-9_]*)=(\S*)`)
+	out := map[string]string{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		if m := assignment.FindStringSubmatch(line); m != nil {
+			if _, seen := out[m[1]]; !seen {
+				out[m[1]] = m[2]
+			}
+		}
+	}
+	return out
+}
+
+// Copying .env.example to a server and only setting APP_ENV=production must
+// not start: each exposure setting in the file is refused on its own (#287).
+// TRUSTED_PROXIES is the exception: its example is the tight compose list.
+func TestEnvExampleExposureSettingsRefusedInProduction(t *testing.T) {
+	env := envExample(t)
+	apply := map[string]func(*Config, string){
+		"CORS_ORIGIN":            func(c *Config, v string) { c.CORSOrigin = v },
+		"SITE_URL":               func(c *Config, v string) { c.SiteURL = v },
+		"S3_ACCESS_KEY":          func(c *Config, v string) { c.S3AccessKey = v },
+		"SEED_DEMO_DATA":         func(c *Config, v string) { c.SeedDemoData = v },
+		"MEILI_KEY":              func(c *Config, v string) { c.MeiliKey = v },
+		"POSTGRES_PASSWORD":      func(c *Config, v string) { c.DatabaseURL = "postgres://monica:" + v + "@db.internal:5432/monicacafe" },
+		"BACKUP_ALLOW_PLAINTEXT": func(c *Config, v string) { c.BackupAllowPlaintext = "true" }, // example is false; prove true is refused
+	}
+	for name, set := range apply {
+		v, ok := env[name]
+		if !ok {
+			t.Errorf(".env.example no longer documents %s", name)
+			continue
+		}
+		c := goodProd()
+		set(&c, v)
+		if err := c.Validate(); err == nil {
+			t.Errorf("production accepted .env.example's %s=%s", name, v)
+		}
+	}
+	// The example's other values must not trip the new checks by themselves.
+	c := goodProd()
+	c.TrustedProxies = env["TRUSTED_PROXIES"]
+	c.BackupAllowPlaintext = env["BACKUP_ALLOW_PLAINTEXT"]
+	if err := c.Validate(); err != nil {
+		t.Errorf(".env.example's TRUSTED_PROXIES / BACKUP_ALLOW_PLAINTEXT should pass production: %v", err)
+	}
+	for _, name := range []string{"HTTP_BIND", "REAL_IP_FROM"} {
+		if env[name] == "" {
+			t.Errorf(".env.example must document %s", name)
+		}
 	}
 }

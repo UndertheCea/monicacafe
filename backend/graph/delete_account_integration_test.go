@@ -109,11 +109,8 @@ func TestDeleteAccount(t *testing.T) {
 	buyer.expectCode(graph.CodeUnauthenticated, `mutation($in: AddCommentInput!) { addComment(input: $in) { id } }`,
 		map[string]any{"in": map[string]any{"coffeeId": coffeeID, "body": "還在嗎"}})
 	buyer.expectCode(graph.CodeUnauthenticated, del, pw)
-	var me struct{ Me *struct{ ID string } }
-	buyer.mustDo(`{ me { id } }`, nil, &me)
-	if me.Me != nil {
-		t.Fatalf("me after delete = %+v", me.Me)
-	}
+	// Reads too (#284): the token speaks for no account any more.
+	buyer.expectCode(graph.CodeUnauthenticated, `{ me { id } }`, nil)
 
 	// The email is free again.
 	register(t, url, buyerEmail)

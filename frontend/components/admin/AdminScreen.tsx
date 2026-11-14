@@ -411,6 +411,7 @@ function UsersSection({ locale }: { locale: Locale }) {
 
   return (
     <Section title={t(locale, "admin.users")} count={list.state === "ready" ? list.total : undefined} locale={locale}>
+      <p className="mb-3 text-sm text-muted">{t(locale, "admin.suspendUserNote")}</p>
       <SearchForm
         locale={locale}
         placeholder="admin.searchUsers"

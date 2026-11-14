@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-14 (after Session 38)
+Last updated: 2026-11-14 (after Session 39)
 
 ---
 
@@ -67,20 +67,20 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
 | Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
-| Moderation: suspend users / shops, admin unpublish, audit log, token version per mutation, `cmd/admin` (#224); report comments / shops / coffees, `/admin`, contact details refused in new text (#225) | Done |
+| Moderation: suspend users / shops, audit log, `cmd/admin` (#224); reports + `/admin` (#225); takedowns stick until `adminRestoreCoffee`, suspended shops read-only (#282); token version checked on queries too (#284); contact filter normalises and covers names / notes, reserved display names, role private (#286) | Done |
 | Observability: `/metrics` on an internal port, `/health/live` + `/health/ready`, `/api/health`, Sentry-compatible reporting when `SENTRY_DSN` is set, sweeps awaited + advisory-locked, `docs/DEPLOY.md` | Done (#221) |
-| Backups: nightly `age`-encrypted `pg_dump` to S3 or a directory (compose profile `prod`), `restore.sh`, restore drill in CI; Redis / Meilisearch behind profiles | Done (#220, #222) |
+| Backups: nightly `age`-encrypted `pg_dump` streamed to S3 or a directory, days-based retention, shrink guard, `BACKUP_PING_URL` + healthcheck, all-or-nothing `restore.sh`, encrypted S3 drill in CI (#289); images mirrored (`BACKUP_MEDIA`), guarded sweep, no cached errors (#288) | Done (#220, #222, #288, #289) |
 | Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
-| Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep | Done (#217) |
+| Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep; photo metadata (EXIF / GPS) stripped in the browser (#285) | Done (#217, #285) |
+| Exposure: nginx on 127.0.0.1 unless `HTTP_BIND`, `REAL_IP_FROM`, production refuses dev CORS / http SITE_URL / seed / default S3 keys (#287); ≤ 20 root fields, scan costs, control chars refused before SQL (#283) | Done |
 | **Stage 2 groundwork (#237)**: `money.TWD` refuses fractions / negatives / > NT$10M (#276); `ReserveStock` / `ReleaseStock` + `expectedStock` → `STOCK_CHANGED` on seller edits (#277); `variants.updated_at`, archive instead of delete when referenced (#278, migration 020); River worker with graceful stop + no-op job (#279, migration 021); ECPay test vector still missing (docs unreachable) | Done |
 | **Cart (#21, #280)**: `cart_items` (migration 022), `cart` / `addToCart` / `updateCartItem` / `removeFromCart`, price snapshot + "price changed", /cart grouped by shop, Add to cart on the coffee page, drawer link | Done; checkout next |
 
 ## Last session
 
-**Session 38**: the owner opened Stage 2 on #197. Shipped #237's groundwork as four slices (#276 TWD scalar, #277 atomic
-stock + `STOCK_CHANGED`, #278 `updated_at` / archive-on-reference, #279 River worker) and the cart: API (#21) and UI (#280).
-The order-table design for the next slices is in the PR (#237 note) and the Decisions below. ECPay's official CheckMacValue
-example couldn't be fetched (proxy blocks developers.ecpay.com.tw), so that test stays skipped.
+**Session 39**: eight audit slices (#282–#289): takedowns stick, aliases / NUL refused, queries check the token version,
+EXIF stripped, stronger contact filter, fail-safe exposure, image backup + sweep guard, backup monitoring. Sonnet
+sub-agents built #285–#289; compose image builds still can't run here, so the stack / drills are proven only in CI.
 
 ## Current focus
 
@@ -89,14 +89,12 @@ example couldn't be fetched (proxy blocks developers.ecpay.com.tw), so that test
    RESTRICT` on variants) / `payments` (unique `merchant_trade_no`) / `payment_events` (idempotent on ECPay's trade number),
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
-2. **Hosting waits on #199** (no safe default): production compose with HTTPS is #219 (blocked). Compose has no `worker`
-   service yet; add it with the first real job. Add ECPay's documented CheckMacValue example when the docs are reachable.
-3. Blocked `stage-1` slices stay in the queue (owner, #197): #170–#174 (roaster domains), #223 / #226 (#200 / #201).
-   Open dependabot majors: TypeScript 7, Postgres 18 (volume dump / restore), Redis 8.
+2. **Hosting waits on #199**: HTTPS compose is #219 (blocked); `docs/DEPLOY.md` has the pre-exposure checklist (#287).
+   Add a `worker` service with the first real job, and ECPay's CheckMacValue example when its docs are reachable.
+3. Left in stage-1: #294 (UI polish), #295 (low-severity batch), then #290 / #291 (stage 2). Blocked: #170–#174, #219, #223, #226.
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
-   `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
-   turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
-   Grant the first admin with `cmd/admin grant <email>` so reports reach someone.
+   `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
+   rule on `master` requiring CI (#216). Grant the first admin with `cmd/admin grant <email>`.
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -113,6 +111,8 @@ Open questions for the owner (answer by commenting on the issue):
 | #203 | UI tidy-up proposals | 3, 5, 6, 7 | yes |
 | #204 | English URLs (/en/…), bilingual seller text | keep cookie, one field | yes |
 | #205 | Multi-shop orders, shipping, stock (Stage 2) | one checkout, order per shop | **no** |
+| #292 | Small Stage 2 rules (stock shown, NT$0, own shop, cart age) | recommended options | 2–5 yes, 1 **no** |
+| #293 | Home roaster's exact map pin | warning text only | yes |
 
 ## Decisions (why it looks like this)
 
@@ -243,8 +243,8 @@ Open questions for the owner (answer by commenting on the issue):
   15 s, then each minute). A form whose session ends stays mounted, disabled, under an inline sign-in. The `mc_s` hint
   cookie (readable, no secret) lets signed-out visitors skip the refresh call (#234).
 - **Reports go to `/admin`; contact details refused only in new text (#225)**: one open report per person per target;
-  "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks comments and descriptions when
-  written or changed, never stored rows, so old text can still be saved back unchanged.
+  "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks every seller text field, comments
+  and display names when written or changed, never stored rows. Filters only raise the cost (#286); the report is the backstop.
 - **Thumbnails are derived, never stored (#235)**: `<key>.thumb.webp` sits next to its original, is kept exactly while the
   original is referenced and can't be saved as a URL; cards fall back to the original. Only anonymous catalogue data (filter
   options, home, sitemap) is cached for 60 s; anything carrying a viewer's cookie or IP is not.

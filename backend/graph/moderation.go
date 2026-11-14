@@ -22,14 +22,18 @@ type tokenStateReader interface {
 	UserTokenState(ctx context.Context, userID string) (store.TokenState, error)
 }
 
-// tokenGate checks the access token of every mutation against the database
-// (#224): a token whose version is behind (password changed, signed out
-// everywhere, suspended, role changed) or whose account is suspended or gone
-// is dropped, and the mutation runs as anonymous. Resolvers then refuse it
-// with UNAUTHENTICATED, which clients answer by refreshing; the refresh fails
-// for a suspended or signed-out account. Queries aren't checked: they cost one
-// lookup each and expose nothing a 15-minute-old token couldn't already read
-// (admin fields check the database themselves, see requireAdmin).
+// tokenGate checks the access token of every operation that carries one
+// against the database (#224 for mutations, #284 for queries): a token whose
+// version is behind (password changed, signed out everywhere, suspended, role
+// changed) or whose account is suspended or gone is dropped, and the operation
+// runs as anonymous, marked stale. Resolvers then refuse private data with
+// UNAUTHENTICATED (`me` too, see staleToken), which clients answer by
+// refreshing; the refresh fails for a suspended or signed-out account.
+//
+// So every resolver that reads viewer(ctx) / requireViewer / isAdmin sees
+// claims the database confirmed in this request: the role in a checked token
+// is the stored one (grants and revokes bump the version). The cost is one
+// primary-key read per signed-in operation; anonymous ones pay nothing.
 type tokenGate struct{ users tokenStateReader }
 
 var _ interface {
@@ -45,21 +49,35 @@ func (g tokenGate) InterceptOperation(ctx context.Context, next graphql.Operatio
 		return next(ctx)
 	}
 	op := graphql.GetOperationContext(ctx).Operation
-	if op == nil || op.Operation != ast.Mutation {
+	if op == nil || (op.Operation != ast.Mutation && op.Operation != ast.Query) {
 		return next(ctx)
 	}
 	st, err := g.users.UserTokenState(ctx, c.UserID)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		return next(middleware.WithClaims(ctx, nil))
+		return next(withStaleToken(middleware.WithClaims(ctx, nil)))
 	case err != nil:
-		// Fail closed: a write with an unverifiable token runs as anonymous.
+		// Fail closed: an unverifiable token runs as anonymous.
 		slog.ErrorContext(ctx, "token state lookup failed", "err", err)
-		return next(middleware.WithClaims(ctx, nil))
+		return next(withStaleToken(middleware.WithClaims(ctx, nil)))
 	case !tokenCurrent(c, st):
-		return next(middleware.WithClaims(ctx, nil))
+		return next(withStaleToken(middleware.WithClaims(ctx, nil)))
 	}
 	return next(ctx)
+}
+
+type staleTokenKey struct{}
+
+func withStaleToken(ctx context.Context) context.Context {
+	return context.WithValue(ctx, staleTokenKey{}, true)
+}
+
+// staleToken reports whether the request carried an access token that
+// tokenGate dropped. `me` answers UNAUTHENTICATED for it rather than null, so
+// the client refreshes (or signs out) instead of showing a stale session.
+func staleToken(ctx context.Context) bool {
+	v, _ := ctx.Value(staleTokenKey{}).(bool)
+	return v
 }
 
 // tokenCurrent reports whether claims still speak for the account: same token
@@ -93,6 +111,19 @@ func (r *Resolver) requireAdmin(ctx context.Context) (*auth.Claims, error) {
 	return c, nil
 }
 
+// requireAdminWrite is requireAdmin for admin mutations: it also spends the
+// admin's AccountWriteUser token (#283).
+func (r *Resolver) requireAdminWrite(ctx context.Context) (*auth.Claims, error) {
+	c, err := r.requireAdmin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := allowKey(r.Limits.AccountWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // moderationReason validates the reason every admin action needs.
 func moderationReason(reason string) (string, error) {
 	return cleanText("reason", reason, 1, maxReasonLen)
@@ -107,7 +138,7 @@ func noChange(err error, msg string) error {
 }
 
 func (r *Resolver) setUserSuspended(ctx context.Context, id, reason string, suspended bool) (*model.User, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +178,7 @@ func (r *Resolver) setUserSuspended(ctx context.Context, id, reason string, susp
 }
 
 func (r *Resolver) setShopSuspended(ctx context.Context, id, reason string, suspended bool) (*model.Shop, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +199,7 @@ func (r *Resolver) setShopSuspended(ctx context.Context, id, reason string, susp
 }
 
 func (r *Resolver) adminUnpublishCoffee(ctx context.Context, id, reason string) (*model.Coffee, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -183,7 +214,28 @@ func (r *Resolver) adminUnpublishCoffee(ctx context.Context, id, reason string) 
 		return nil, errNotFound("coffee")
 	}
 	if err != nil {
-		return nil, noChange(err, "the coffee is already a draft")
+		return nil, noChange(err, "the coffee is already taken down")
+	}
+	return toCoffee(co), nil
+}
+
+func (r *Resolver) adminRestoreCoffee(ctx context.Context, id, reason string) (*model.Coffee, error) {
+	c, err := r.requireAdminWrite(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, errNotFound("coffee")
+	}
+	if reason, err = moderationReason(reason); err != nil {
+		return nil, err
+	}
+	co, err := r.Store.AdminRestoreCoffee(ctx, c.UserID, id, reason)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee")
+	}
+	if err != nil {
+		return nil, noChange(err, "the coffee isn't taken down")
 	}
 	return toCoffee(co), nil
 }

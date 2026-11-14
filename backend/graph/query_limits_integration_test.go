@@ -1,6 +1,7 @@
 package graph_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -62,7 +63,41 @@ func TestAbusiveQueriesAreRefused(t *testing.T) {
 	// A document with more tokens than the limit is refused, not cut short and run.
 	big := "{" + strings.Repeat(" shopsForMap { id }", graph.ParserTokenLimit/4+1) + " }"
 	anon.expectCode(graph.CodeQueryTooComplex, big, nil)
-	anon.mustDo("{"+strings.Repeat(" shopsForMap { id }", graph.ParserTokenLimit/4-1)+" }", nil, nil)
+	anon.mustDo("{ shopsForMap {"+strings.Repeat(" id", graph.ParserTokenLimit-10)+" } }", nil, nil)
+
+	// Aliases can't multiply root fields (#283): 200 catalogue searches in one
+	// request are refused, the site's widest operation (5) isn't.
+	var many strings.Builder
+	many.WriteString("{")
+	for i := range 200 {
+		fmt.Fprintf(&many, ` a%d: coffees(filter: {search: "aa bb cc dd ee ff gg hh"}, limit: 1) { total }`, i)
+	}
+	many.WriteString(" }")
+	anon.expectCode(graph.CodeQueryTooComplex, many.String(), nil)
+
+	// One comment list asking every author's shop 37 times over runs as one
+	// batched query per level, so it is allowed and cheap (#283).
+	var aliases strings.Builder
+	for i := range 37 {
+		fmt.Fprintf(&aliases, " s%d: shop { id }", i)
+	}
+	anon.mustDo(`query($id: ID!) { coffee(id: $id) { comments(limit: 100) { user {`+aliases.String()+` } } } }`,
+		map[string]any{"id": list.Coffees.Nodes[0].ID}, nil)
+
+	// A NUL (or another control character) in any string argument is
+	// BAD_USER_INPUT before SQL, not a 500 (#283).
+	for _, q := range []string{
+		`{ coffees(filter: {search: "a\u0000b"}) { total } }`,
+		`{ shop(slug: "a\u0000b") { id } }`,
+		`query($s: String!) { shops(search: $s) { total } }`,
+	} {
+		r := anon.do(q, map[string]any{"s": "x\x01y"}, nil)
+		if len(r.Errors) == 0 || r.Errors[0].Extensions["code"] != graph.CodeBadInput {
+			t.Fatalf("%s: %+v", q, r.Errors)
+		}
+	}
+	anon.expectCode(graph.CodeBadInput, `{ shops(city: "`+strings.Repeat("台", 41)+`") { total } }`, nil)
+	anon.expectCode(graph.CodeBadInput, `{ coffees(filter: {flavorNote: "`+strings.Repeat("x", 31)+`"}) { total } }`, nil)
 }
 
 func TestIPRateLimit(t *testing.T) {

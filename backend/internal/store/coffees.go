@@ -12,7 +12,7 @@ import (
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
 	c.processing_method_id, c.roast_level, c.flavor_notes, c.image_urls, c.is_published, c.created_at, c.updated_at,
 	c.producer, c.region, c.altitude_min_m, c.altitude_max_m, c.brew_method, c.harvest_year,
-	c.shop_id IN (` + suspendedShopIDs + `) AS shop_suspended`
+	c.shop_id IN (` + suspendedShopIDs + `) AS shop_suspended, c.removed_at`
 
 // suspendedShopIDs lists the shops an admin took off the site (#224). Their
 // coffees drop out of every public query, published or not.
@@ -28,7 +28,7 @@ func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 		&c.VarietyID, &c.ProcessingMethodID, &c.RoastLevel, &c.FlavorNotes, &c.ImageURLs,
 		&c.IsPublished, &c.CreatedAt, &c.UpdatedAt,
 		&c.Producer, &c.Region, &c.AltitudeMinM, &c.AltitudeMaxM, &c.BrewMethod, &c.HarvestYear,
-		&c.ShopSuspended); err != nil {
+		&c.ShopSuspended, &c.RemovedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	if c.FlavorNotes == nil {

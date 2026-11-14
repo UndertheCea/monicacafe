@@ -461,6 +461,28 @@ fi
 # and listing the bucket must be refused.
 check_status "$BASE_URL/media/shops/__no-such-image__.png" 404
 check_status "$BASE_URL/media/" 403
+check_status "$BASE_URL/media/?list-type=2" 403
+check_status "$BASE_URL/media/?list-type=2&prefix=shops/" 403
+
+# An error is never cached as if it were the image (#288): the year-long header
+# is for a 200 / 206 only, a 404 (say a thumbnail asked for before its upload
+# finished) carries no-store.
+miss_hdrs=$(curl -s -o /dev/null -D - --max-time 15 "$BASE_URL/media/shops/__no-such-image__.png") || miss_hdrs=""
+if grep -qi '^cache-control: no-store' <<<"$miss_hdrs" && ! grep -qi '^cache-control:.*immutable' <<<"$miss_hdrs"; then
+  echo "ok   /media/ 404 is Cache-Control: no-store"
+else
+  echo "FAIL /media/ 404 should be no-store, not cached: $(grep -i '^cache-control' <<<"$miss_hdrs" || echo 'no Cache-Control header')"; fail=1
+fi
+
+# Writes need a presigned URL: a PUT with no signature is refused and leaves no object.
+unsigned_key="shops/__unsigned-$$-$RANDOM.png"
+unsigned_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X PUT -H 'Content-Type: image/png' --data-binary 'unsigned' "$BASE_URL/media/$unsigned_key") || unsigned_code="000"
+unsigned_get=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$BASE_URL/media/$unsigned_key") || unsigned_get="000"
+if [[ "$unsigned_code" == 40[0-9] && "$unsigned_get" == "404" ]]; then
+  echo "ok   unsigned PUT to /media/ refused ($unsigned_code), nothing stored"
+else
+  echo "FAIL unsigned PUT to /media/ → $unsigned_code, GET afterwards → $unsigned_get (want 4xx and 404)"; fail=1
+fi
 
 # End to end: a throwaway seller opens a shop, gets a presigned URL, uploads a
 # file through nginx and reads it back from the public URL. This leaves a
@@ -513,13 +535,31 @@ if [[ "${SMOKE_UPLOAD:-1}" != "0" ]]; then
       echo "FAIL upload: thumbnail PUT → $tcode, GET $thumb_pub → ${tgot:0:100} (original $orig_pub)"; fail=1
     fi
 
-    # Informational: does the S3 store refuse a presigned PUT sent with another
-    # Content-Type than the one signed (image/png)? A fresh URL, same size.
-    upload2=$(gql "$token" "$(printf '{"query":"mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { uploadUrl } }","variables":{"in":{"kind":"SHOP_LOGO","targetId":"%s","contentType":"image/png","byteSize":%d}}}' "$shop_id" "$size")")
+    # A good read carries the year-long cache header (#288: only a 200 / 206 does).
+    if grep -qi '^cache-control: public, max-age=31536000, immutable' <<<"$media_hdrs"; then
+      echo "ok   /media/ 200 is cached for a year"
+    else
+      echo "FAIL /media/ 200 should carry the year-long Cache-Control: $(grep -i '^cache-control' <<<"$media_hdrs" || echo none)"; fail=1
+    fi
+
+    # The signature covers Content-Type: a presigned PUT sent with another type
+    # than the one signed (image/png) is refused (SeaweedFS answers 403) and
+    # stores nothing. If a different S3 store ever accepts it, the sandbox CSP +
+    # nosniff above still keep a text/html body from running, but this check
+    # should then become an "info" again.
+    upload2=$(gql "$token" "$(printf '{"query":"mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { uploadUrl publicUrl } }","variables":{"in":{"kind":"SHOP_LOGO","targetId":"%s","contentType":"image/png","byteSize":%d}}}' "$shop_id" "$size")")
     upload_url2=$(field uploadUrl <<<"$upload2" | sed 's/\\u0026/\&/g')
+    public_url2=$(field publicUrl <<<"$upload2")
     if [[ -n "$upload_url2" ]]; then
       ct_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X PUT -H 'Content-Type: text/html' --data-binary "$payload" "$upload_url2") || ct_code="000"
-      echo "info upload: presigned PUT with a different Content-Type (text/html, signed image/png) → $ct_code (4xx = store enforces the signed type, 200 = it does not)"
+      ct_get=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$public_url2") || ct_get="000"
+      if [[ "$ct_code" == 40[0-9] && "$ct_get" == "404" ]]; then
+        echo "ok   presigned PUT with another Content-Type refused ($ct_code), nothing stored"
+      else
+        echo "FAIL presigned PUT with Content-Type text/html (signed image/png) → $ct_code, GET afterwards → $ct_get (want 4xx and 404)"; fail=1
+      fi
+    else
+      echo "FAIL upload: couldn't get a second presigned URL: ${upload2:0:300}"; fail=1
     fi
   fi
 fi

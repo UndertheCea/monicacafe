@@ -17,6 +17,8 @@ export interface DashboardCoffee {
   id: string;
   name: string;
   isPublished: boolean;
+  /** An admin took it down (#282): it can't be published, duplicated or deleted until restored. */
+  takenDown: boolean;
   commentCount: number;
   saveCount: number;
   createdAt: string;
@@ -39,7 +41,7 @@ export interface DashboardShop {
 
 const VARIANT_FIELDS = `id grind weightG priceTwd stock isAvailable`;
 
-const DASHBOARD_COFFEE_FIELDS = `id name isPublished commentCount saveCount createdAt imageUrls variants { ${VARIANT_FIELDS} }`;
+const DASHBOARD_COFFEE_FIELDS = `id name isPublished takenDown commentCount saveCount createdAt imageUrls variants { ${VARIANT_FIELDS} }`;
 
 /** The signed-in seller's shop with its first page of coffees, drafts included (owner-only). */
 export const MY_SHOP = typed<{ me: { id: string; shop: DashboardShop | null } | null }>(/* GraphQL */ `

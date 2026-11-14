@@ -104,8 +104,10 @@ func run() error {
 		CartUser:     lim("cart_user", rules.CartUser),
 		ReportUser:   lim("report_user", rules.ReportUser),
 
-		SellerWriteUser: lim("seller_write_user", rules.SellerWriteUser),
-		ExportUser:      lim("export_user", rules.ExportUser),
+		SellerWriteUser:  lim("seller_write_user", rules.SellerWriteUser),
+		ExportUser:       lim("export_user", rules.ExportUser),
+		AccountWriteUser: lim("account_write_user", rules.AccountWriteUser),
+		ProfileUser:      lim("profile_user", rules.ProfileUser),
 	}
 	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
 	if err != nil {
@@ -120,9 +122,11 @@ func run() error {
 	if pruneEvery > 0 {
 		sweeps.Start(sweepCtx, pruneJob(st, pruneEvery))
 	}
-	cleanEvery, cleanAge, _ := cfg.MediaCleanup() // checked by cfg.Validate
+	cleanEvery, cleanAge, _ := cfg.MediaCleanup()             // checked by cfg.Validate
+	cleanFraction, cleanDryRun, _ := cfg.MediaCleanupSafety() // checked by cfg.Validate
 	if media != nil && cleanEvery > 0 {
-		sweeps.Start(sweepCtx, mediaJob(media, st, cleanEvery, mediaclean.Options{MinAge: cleanAge, MaxDeletes: maxMediaDeletes}))
+		sweeps.Start(sweepCtx, mediaJob(media, st, cleanEvery, mediaclean.Options{
+			MinAge: cleanAge, MaxDeletes: maxMediaDeletes, MaxFraction: cleanFraction, DryRun: cleanDryRun}))
 	}
 
 	// Complexity, depth, parser and cache limits live in graph.NewServer (#207).
@@ -260,8 +264,16 @@ func mediaJob(media *storage.Media, st *store.Store, every time.Duration, opts m
 	return sweep.Job{Name: "media_cleanup", Key: lockKeyMedia, Every: every,
 		Run: func(ctx context.Context) (int, error) {
 			res, err := mediaclean.Sweep(ctx, media, st.ReferencedImageKeys, time.Now(), opts)
-			if err == nil && res.Deleted > 0 {
-				slog.Info("deleted orphaned images", "scanned", res.Scanned, "orphans", res.Orphans, "deleted", res.Deleted)
+			attrs := []any{"scanned", res.Scanned, "referenced", res.Referenced, "orphans", res.Orphans, "deleted", res.Deleted, "dry_run", res.DryRun}
+			switch {
+			case errors.Is(err, mediaclean.ErrRefused):
+				// Loud on purpose (#288): the numbers look like a wrong or empty
+				// database, so nothing was deleted. The sweep metric records "error".
+				slog.Error("media cleanup refused, nothing deleted", append(attrs, "reason", res.Refused)...)
+			case err == nil && res.DryRun:
+				slog.Info("media cleanup dry run, nothing deleted", attrs...)
+			case err == nil && (res.Deleted > 0 || res.Orphans > 0):
+				slog.Info("deleted orphaned images", attrs...)
 			}
 			return res.Deleted, err
 		}}

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/graph/model"
@@ -212,6 +213,9 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	if err != nil {
 		return nil, err
 	}
+	if err := checkDisplayName(nil, name); err != nil {
+		return nil, err
+	}
 	hash, err := auth.HashPassword(input.Password)
 	if errors.Is(err, auth.ErrWeakPassword) || errors.Is(err, auth.ErrCommonPassword) {
 		return nil, errBadInput("password", err.Error())
@@ -345,6 +349,9 @@ func (r *mutationResolver) LogoutEverywhere(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if err := allowKey(r.Limits.AccountWriteUser, c.UserID); err != nil {
+		return false, err
+	}
 	if err := r.Store.RevokeUserRefreshTokens(ctx, c.UserID); err != nil {
 		return false, err
 	}
@@ -357,9 +364,25 @@ func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.Update
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.ProfileUser, c.UserID); err != nil {
+		return nil, err
+	}
 	name, err := cleanText("displayName", input.DisplayName, 1, 50)
 	if err != nil {
 		return nil, err
+	}
+	// Only a changed name is checked, so saving the same one never fails.
+	cur, err := r.Store.UserByID(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if name != cur.DisplayName {
+		if err := checkDisplayName(c, name); err != nil {
+			return nil, err
+		}
 	}
 	u, err := r.Store.UpdateDisplayName(ctx, c.UserID, name)
 	if errors.Is(err, store.ErrNotFound) {
@@ -468,6 +491,9 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("name", name); err != nil {
+		return nil, err
+	}
 	desc, err := cleanMultiline("description", input.Description, 0, 2000)
 	if err != nil {
 		return nil, err
@@ -521,6 +547,9 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	}
 	var p store.UpdateShopParams
 	if p.Name, err = cleanOptText("name", input.Name, 1, 80); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
 		return nil, err
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 2000); err != nil {
@@ -608,6 +637,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("name", name); err != nil {
+		return nil, err
+	}
 	desc, err := cleanMultiline("description", input.Description, 0, 5000)
 	if err != nil {
 		return nil, err
@@ -626,8 +658,17 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := noNewContactInfoNotes(notes, nil); err != nil {
+		return nil, err
+	}
 	producer, region, err := cleanProvenance(input.Producer, input.Region)
 	if err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfoText("producer", producer, ""); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfoText("region", region, ""); err != nil {
 		return nil, err
 	}
 	if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
@@ -701,6 +742,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Name, err = cleanOptText("name", input.Name, 1, maxCoffeeName); err != nil {
 		return nil, err
 	}
+	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
+		return nil, err
+	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 5000); err != nil {
 		return nil, err
 	}
@@ -722,6 +766,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.FlavorNotes, err = requireFlavorNotes(input.FlavorNotes, input.FlavorNotes != nil); err != nil {
 		return nil, err
 	}
+	if err := noNewContactInfoNotes(p.FlavorNotes, current.FlavorNotes); err != nil {
+		return nil, err
+	}
 	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
 		return nil, err
 	}
@@ -730,6 +777,12 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	if p.Region, err = cleanOptText("region", input.Region, 1, maxProvenanceText); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("producer", p.Producer, current.Producer); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("region", p.Region, current.Region); err != nil {
 		return nil, err
 	}
 	if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
@@ -793,6 +846,12 @@ func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model
 		if _, err := tx.LockCoffee(ctx, id); err != nil {
 			return err
 		}
+		// Read under the lock, so a takedown can't slip in after the check (#282).
+		if cur, err := tx.CoffeeByID(ctx, id); err != nil {
+			return err
+		} else if cur.RemovedAt != nil {
+			return errTakenDown()
+		}
 		n, err := tx.CountVariants(ctx, id)
 		if err != nil {
 			return err
@@ -851,6 +910,20 @@ func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, e
 		if published {
 			return errConflict("isPublished", "unpublish the coffee before deleting it")
 		}
+		// Deleting would erase the comments, saves and reports an admin acts
+		// on (#282): not while it is taken down or a report is open.
+		cur, err := tx.CoffeeByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if cur.RemovedAt != nil {
+			return errTakenDown()
+		}
+		if open, err := tx.CoffeeHasOpenReports(ctx, id); err != nil {
+			return err
+		} else if open {
+			return errConflict("reports", "a report on this coffee is waiting for an admin; try again later")
+		}
 		_, err = tx.DeleteCoffee(ctx, id)
 		return err
 	})
@@ -876,12 +949,19 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 	if err != nil {
 		return nil, err
 	}
+	if src.RemovedAt != nil {
+		// A copy would be a clean listing an admin never reviewed (#282).
+		return nil, errTakenDown()
+	}
 	if err := r.checkCoffeeCap(ctx, src.ShopID); err != nil {
 		return nil, err
 	}
 	newName := copyName(src.Name, " (copy)")
 	if name != nil {
 		if newName, err = cleanText("name", *name, 1, maxCoffeeName); err != nil {
+			return nil, err
+		}
+		if err := noContactInfo("name", newName); err != nil {
 			return nil, err
 		}
 	}
@@ -1119,6 +1199,11 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	if err := noContactInfo("body", body); err != nil {
 		return nil, err
 	}
+	// Spent before any lookup (#283), so invalid targets aren't free; input
+	// mistakes above still cost nothing.
+	if err := allowKey(r.Limits.CommentUser, c.UserID); err != nil {
+		return nil, err
+	}
 	co, err := r.Store.CoffeeByID(ctx, input.CoffeeID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("coffee")
@@ -1128,10 +1213,6 @@ func (r *mutationResolver) AddComment(ctx context.Context, input model.AddCommen
 	}
 	if !co.Public() {
 		return nil, errNotFound("coffee")
-	}
-	// Spent only by valid comments, so a typo doesn't cost a token.
-	if err := allowKey(r.Limits.CommentUser, c.UserID); err != nil {
-		return nil, err
 	}
 	cm, err := r.Store.CreateComment(ctx, c.UserID, co.ID, body)
 	if errors.Is(err, store.ErrInvalidReference) {
@@ -1154,6 +1235,10 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body st
 	}
 	text, err := cleanMultiline("body", body, 1, 500)
 	if err != nil {
+		return nil, err
+	}
+	// Same bucket as addComment, spent before any lookup (#283).
+	if err := allowKey(r.Limits.CommentUser, c.UserID); err != nil {
 		return nil, err
 	}
 	cm, err := r.Store.CommentByID(ctx, id)
@@ -1184,10 +1269,6 @@ func (r *mutationResolver) UpdateComment(ctx context.Context, id string, body st
 	if !co.Public() {
 		return nil, errNotFound("coffee")
 	}
-	// Same bucket as addComment: an edit is new public text.
-	if err := allowKey(r.Limits.CommentUser, c.UserID); err != nil {
-		return nil, err
-	}
 	updated, err := r.Store.UpdateCommentBody(ctx, id, text)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("comment")
@@ -1206,6 +1287,9 @@ func (r *mutationResolver) DeleteComment(ctx context.Context, id string, reason 
 	}
 	if !isUUID(id) {
 		return false, errNotFound("comment")
+	}
+	if err := allowKey(r.Limits.AccountWriteUser, c.UserID); err != nil {
+		return false, err
 	}
 	cm, err := r.Store.CommentByID(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
@@ -1249,6 +1333,10 @@ func (r *mutationResolver) SaveCoffee(ctx context.Context, id string) (*model.Co
 	if !isUUID(id) {
 		return nil, errNotFound("coffee")
 	}
+	// Spent before the lookup (#283).
+	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
+		return nil, err
+	}
 	co, err := r.Store.CoffeeByID(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("coffee")
@@ -1260,9 +1348,6 @@ func (r *mutationResolver) SaveCoffee(ctx context.Context, id string) (*model.Co
 	// people can actually look at.
 	if !co.Public() {
 		return nil, errNotFound("coffee")
-	}
-	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
-		return nil, err
 	}
 	if err := r.Store.SaveCoffee(ctx, c.UserID, co.ID); err != nil {
 		if errors.Is(err, store.ErrInvalidReference) {
@@ -1316,8 +1401,13 @@ func (r *mutationResolver) FollowShop(ctx context.Context, id string) (*model.Sh
 	if !isUUID(id) {
 		return nil, errNotFound("shop")
 	}
+	// Spent before the lookup (#283).
+	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
+		return nil, err
+	}
 	sh, err := r.Store.ShopByID(ctx, id)
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) || (err == nil && sh.SuspendedAt != nil) {
+		// A suspended shop is unreachable for everyone (#282).
 		return nil, errNotFound("shop")
 	}
 	if err != nil {
@@ -1325,9 +1415,6 @@ func (r *mutationResolver) FollowShop(ctx context.Context, id string) (*model.Sh
 	}
 	if sh.OwnerID == c.UserID {
 		return nil, errBadInput("id", "you can't follow your own shop")
-	}
-	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
-		return nil, err
 	}
 	if err := r.Store.FollowShop(ctx, c.UserID, sh.ID); err != nil {
 		if errors.Is(err, store.ErrInvalidReference) {
@@ -1361,6 +1448,10 @@ func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.
 	if err != nil {
 		return nil, err
 	}
+	if sh.SuspendedAt != nil {
+		// The follow is gone, but a suspended shop's profile isn't returned (#282).
+		return nil, errNotFound("shop")
+	}
 	return toShop(sh), nil
 }
 
@@ -1387,6 +1478,11 @@ func (r *mutationResolver) UnsuspendShop(ctx context.Context, id string, reason 
 // AdminUnpublishCoffee is the resolver for the adminUnpublishCoffee field.
 func (r *mutationResolver) AdminUnpublishCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error) {
 	return r.adminUnpublishCoffee(ctx, id, reason)
+}
+
+// AdminRestoreCoffee is the resolver for the adminRestoreCoffee field.
+func (r *mutationResolver) AdminRestoreCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error) {
+	return r.adminRestoreCoffee(ctx, id, reason)
 }
 
 // Report is the resolver for the report field.
@@ -1421,6 +1517,9 @@ func (r *processingMethodResolver) CoffeeCount(ctx context.Context, obj *model.P
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	c := viewer(ctx)
 	if c == nil {
+		if staleToken(ctx) {
+			return nil, errUnauthenticated() // revoked / outdated token (#284)
+		}
 		return nil, nil
 	}
 	u, err := r.Store.UserByID(ctx, c.UserID)
@@ -1464,6 +1563,9 @@ func (r *queryResolver) Cart(ctx context.Context) (*model.Cart, error) {
 
 // Shop is the resolver for the shop field.
 func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, error) {
+	if utf8.RuneCountInString(slug) > maxSlugLen {
+		return nil, nil // no shop has such a slug (#283)
+	}
 	sh, err := r.Store.ShopBySlug(ctx, slug)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, nil
@@ -1482,6 +1584,9 @@ func (r *queryResolver) Shops(ctx context.Context, city *string, search *string,
 	so, err := storeShopSort(sort)
 	if err != nil {
 		return nil, err
+	}
+	if city != nil && utf8.RuneCountInString(*city) > maxCityLen {
+		return nil, errBadInput("city", fmt.Sprintf("city must be at most %d characters", maxCityLen))
 	}
 	f := store.ShopFilter{City: city}
 	if search != nil {
@@ -1737,10 +1842,22 @@ func (r *userResolver) Email(ctx context.Context, obj *model.User) (*string, err
 	return &email, nil
 }
 
+// Role is the resolver for the role field.
+func (r *userResolver) Role(ctx context.Context, obj *model.User) (*model.UserRole, error) {
+	// Like email: only the user themself (RevealEmail marks a user returned to
+	// its owner) and admins see it, so a comment's author doesn't reveal admins.
+	c := viewer(ctx)
+	if !obj.RevealEmail && (c == nil || (c.UserID != obj.ID && !isAdmin(c))) {
+		return nil, nil
+	}
+	role := obj.RoleValue
+	return &role, nil
+}
+
 // Shop is the resolver for the shop field.
 func (r *userResolver) Shop(ctx context.Context, obj *model.User) (*model.Shop, error) {
-	sh, err := r.Store.ShopByOwner(ctx, obj.ID)
-	if errors.Is(err, store.ErrNotFound) {
+	sh, err := r.loadersFor(ctx).ShopByOwner.Load(ctx, obj.ID)
+	if isLoaderNotFound(err) {
 		return nil, nil
 	}
 	if err != nil {

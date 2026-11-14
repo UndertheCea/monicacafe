@@ -30,7 +30,8 @@ export function DeleteCoffeeButton({
       await request(DELETE_COFFEE, { id: coffeeId });
       onDeleted();
     } catch (err) {
-      setError(deleteCoffeeErrorKey(toApiError(err).code));
+      const e = toApiError(err);
+      setError(deleteCoffeeErrorKey(e.code, e.field));
       setBusy(false);
     }
   }

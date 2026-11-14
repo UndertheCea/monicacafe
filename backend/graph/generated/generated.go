@@ -111,6 +111,7 @@ type ComplexityRoot struct {
 		Shop             func(childComplexity int) int
 		Similar          func(childComplexity int, limit *int) int
 		Slug             func(childComplexity int) int
+		TakenDown        func(childComplexity int) int
 		UpdatedAt        func(childComplexity int) int
 		Variants         func(childComplexity int) int
 		Variety          func(childComplexity int) int
@@ -155,6 +156,7 @@ type ComplexityRoot struct {
 		AddComment           func(childComplexity int, input model.AddCommentInput) int
 		AddToCart            func(childComplexity int, variantID string, quantity int) int
 		AddVariant           func(childComplexity int, coffeeID string, input model.VariantInput) int
+		AdminRestoreCoffee   func(childComplexity int, id string, reason string) int
 		AdminUnpublishCoffee func(childComplexity int, id string, reason string) int
 		ChangePassword       func(childComplexity int, input model.ChangePasswordInput) int
 		CreateCoffee         func(childComplexity int, input model.CreateCoffeeInput) int
@@ -387,6 +389,7 @@ type MutationResolver interface {
 	SuspendShop(ctx context.Context, id string, reason string) (*model.Shop, error)
 	UnsuspendShop(ctx context.Context, id string, reason string) (*model.Shop, error)
 	AdminUnpublishCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error)
+	AdminRestoreCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error)
 	Report(ctx context.Context, targetType model.ReportTargetType, targetID string, reason model.ReportReason, note *string) (bool, error)
 	ResolveReport(ctx context.Context, id string, action model.ReportResolution, reason *string) (*model.Report, error)
 }
@@ -436,6 +439,7 @@ type ShopResolver interface {
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
 
+	Role(ctx context.Context, obj *model.User) (*model.UserRole, error)
 	Shop(ctx context.Context, obj *model.User) (*model.Shop, error)
 	Comments(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CommentConnection, error)
 	SavedCoffees(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CoffeeConnection, error)
@@ -758,6 +762,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Coffee.Slug(childComplexity), true
+	case "Coffee.takenDown":
+		if e.ComplexityRoot.Coffee.TakenDown == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Coffee.TakenDown(childComplexity), true
 	case "Coffee.updatedAt":
 		if e.ComplexityRoot.Coffee.UpdatedAt == nil {
 			break
@@ -935,6 +945,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AddVariant(childComplexity, args["coffeeId"].(string), args["input"].(model.VariantInput)), true
+	case "Mutation.adminRestoreCoffee":
+		if e.ComplexityRoot.Mutation.AdminRestoreCoffee == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_adminRestoreCoffee_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AdminRestoreCoffee(childComplexity, args["id"].(string), args["reason"].(string)), true
 	case "Mutation.adminUnpublishCoffee":
 		if e.ComplexityRoot.Mutation.AdminUnpublishCoffee == nil {
 			break
@@ -2203,12 +2224,21 @@ type Mutation {
   # tokens stop working for writes) and hides their comments; a suspended shop
   # and its coffees disappear from every public page, the sitemap and the map.
   # Admins can't suspend themselves or another admin. Repeating an action
-  # (suspending a suspended user) is BAD_USER_INPUT.
+  # (suspending a suspended user) is BAD_USER_INPUT. Suspending a user also
+  # suspends their shop (its own audit entry); reinstating the user doesn't
+  # reinstate the shop (#282). A suspended shop is read-only for its owner:
+  # every seller mutation on it answers SHOP_SUSPENDED.
   suspendUser(id: ID!, reason: String!): User!
   unsuspendUser(id: ID!, reason: String!): User!
   suspendShop(id: ID!, reason: String!): Shop!
   unsuspendShop(id: ID!, reason: String!): Shop!
+  # Takes a coffee down (#282): it becomes a draft with takenDown = true, and
+  # its seller can't publish, duplicate or delete it (TAKEN_DOWN) until an
+  # admin restores it. Already taken down: BAD_USER_INPUT.
   adminUnpublishCoffee(id: ID!, reason: String!): Coffee!
+  # Lifts a takedown; the coffee stays a draft for its seller to publish.
+  # Not taken down: BAD_USER_INPUT.
+  adminRestoreCoffee(id: ID!, reason: String!): Coffee!
 
   # Report a comment, shop or coffee to the admins (#225). Signed in only
   # (UNAUTHENTICATED otherwise); 10 an hour per account (RATE_LIMITED). A
@@ -2234,7 +2264,9 @@ type User {
   # Only visible to the user themself and to admins; null for everyone else.
   email: String
   displayName: String!
-  role: UserRole!
+  # Only visible to the user themself and to admins; null for everyone else, so
+  # a comment's author never reveals who the admins are (#286).
+  role: UserRole
   shop: Shop
   # The user's own comments, newest first. Only for the user themself or an
   # admin; for anyone else it is empty (never an error: User appears on every
@@ -2266,6 +2298,7 @@ enum AuditAction {
   SUSPEND_SHOP
   UNSUSPEND_SHOP
   UNPUBLISH_COFFEE
+  RESTORE_COFFEE
   DELETE_COMMENT
   DELETE_ACCOUNT
   CHANGE_PASSWORD
@@ -2464,6 +2497,9 @@ type Coffee {
   # How many people saved it.
   saveCount: Int!
   isPublished: Boolean!
+  # An admin took the coffee down (#282); only its seller and admins can see
+  # such a coffee (it is a draft), so this is false for everyone else.
+  takenDown: Boolean!
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).
   updatedAt: Time!
@@ -2940,6 +2976,8 @@ func (ec *executionContext) childFields_Coffee(ctx context.Context, field graphq
 		return ec.fieldContext_Coffee_saveCount(ctx, field)
 	case "isPublished":
 		return ec.fieldContext_Coffee_isPublished(ctx, field)
+	case "takenDown":
+		return ec.fieldContext_Coffee_takenDown(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Coffee_createdAt(ctx, field)
 	case "updatedAt":
@@ -3433,6 +3471,28 @@ func (ec *executionContext) field_Mutation_addVariant_args(ctx context.Context, 
 		return nil, err
 	}
 	args["input"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_adminRestoreCoffee_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "reason",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["reason"] = arg1
 	return args, nil
 }
 
@@ -5789,6 +5849,29 @@ func (ec *executionContext) fieldContext_Coffee_isPublished(_ context.Context, f
 	return graphql.NewScalarFieldContext("Coffee", field, false, false, "Boolean")
 }
 
+func (ec *executionContext) _Coffee_takenDown(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Coffee_takenDown(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TakenDown, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Coffee_takenDown(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Coffee", field, false, false, "Boolean")
+}
+
 func (ec *executionContext) _Coffee_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7906,6 +7989,50 @@ func (ec *executionContext) fieldContext_Mutation_adminUnpublishCoffee(ctx conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_adminUnpublishCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_adminRestoreCoffee(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_adminRestoreCoffee(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AdminRestoreCoffee(ctx, fc.Args["id"].(string), fc.Args["reason"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Coffee) graphql.Marshaler {
+			return ec.marshalNCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_adminRestoreCoffee(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Coffee(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_adminRestoreCoffee_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -10154,18 +10281,18 @@ func (ec *executionContext) _User_role(ctx context.Context, field graphql.Collec
 			return ec.fieldContext_User_role(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Role, nil
+			return ec.Resolvers.User().Role(ctx, obj)
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.UserRole) graphql.Marshaler {
-			return ec.marshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.UserRole) graphql.Marshaler {
+			return ec.marshalOUserRole2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
 func (ec *executionContext) fieldContext_User_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("User", field, false, false, "UserRole")
+	return graphql.NewScalarFieldContext("User", field, true, true, "UserRole")
 }
 
 func (ec *executionContext) _User_shop(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
@@ -13072,6 +13199,11 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "takenDown":
+			out.Values[i] = ec._Coffee_takenDown(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "createdAt":
 			out.Values[i] = ec._Coffee_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -13609,6 +13741,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "adminUnpublishCoffee":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_adminUnpublishCoffee(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "adminRestoreCoffee":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_adminRestoreCoffee(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -14327,10 +14466,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "role":
-			out.Values[i] = ec._User_role(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
+			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
+				true, false,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._User_role(ctx, field, obj)
+				})
 		case "shop":
 			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
 				true, false,
@@ -15508,16 +15648,6 @@ func (ec *executionContext) marshalNUserConnection2ᚖgithubᚗcomᚋunderthecea
 	return ec._UserConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, v any) (model.UserRole, error) {
-	var res model.UserRole
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, sel ast.SelectionSet, v model.UserRole) graphql.Marshaler {
-	return v
-}
-
 func (ec *executionContext) marshalNVariant2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Variant) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -15990,6 +16120,22 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋundertheceaᚋmonicac
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOUserRole2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, v any) (*model.UserRole, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.UserRole)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUserRole2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, sel ast.SelectionSet, v *model.UserRole) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

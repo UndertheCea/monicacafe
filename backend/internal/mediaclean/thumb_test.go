@@ -28,9 +28,9 @@ func TestSweepThumbnails(t *testing.T) {
 		{"thumbnail of a referenced original stays",
 			[]storage.Object{{Key: kept, LastModified: old}, {Key: keptThumb, LastModified: old}}, nil},
 		{"thumbnail of an orphan goes with it",
-			[]storage.Object{{Key: gone, LastModified: old}, {Key: goneThumb, LastModified: old}}, []string{gone, goneThumb}},
+			[]storage.Object{{Key: kept, LastModified: old}, {Key: gone, LastModified: old}, {Key: goneThumb, LastModified: old}}, []string{gone, goneThumb}},
 		{"thumbnail whose original is missing is an orphan",
-			[]storage.Object{{Key: goneThumb, LastModified: old}}, []string{goneThumb}},
+			[]storage.Object{{Key: kept, LastModified: old}, {Key: goneThumb, LastModified: old}}, []string{goneThumb}},
 		{"thumbnail of a referenced original stays even when the original is not listed",
 			[]storage.Object{{Key: keptThumb, LastModified: old}}, nil},
 	}

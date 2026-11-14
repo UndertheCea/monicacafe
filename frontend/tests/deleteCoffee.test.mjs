@@ -10,8 +10,13 @@ test("deleteCoffeeErrorKey maps API codes", () => {
     ["FORBIDDEN", "cf.notYours"],
     ["UNAVAILABLE", "dash.error.generic"],
     ["", "dash.error.generic"],
+    ["SHOP_SUSPENDED", "dash.error.shopSuspended"],
+    ["TAKEN_DOWN", "dash.error.takenDown"],
   ];
   for (const [code, want] of cases) assert.equal(deleteCoffeeErrorKey(code), want, code);
+  // An open report blocks deletion (#282): its own message, by field.
+  assert.equal(deleteCoffeeErrorKey("CONFLICT", "reports"), "dash.error.deleteReported");
+  assert.equal(deleteCoffeeErrorKey("CONFLICT", "isPublished"), "dash.error.deletePublished");
 });
 
 test("withoutCoffee drops the coffee and keeps the total in step", () => {

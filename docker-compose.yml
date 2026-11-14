@@ -24,7 +24,7 @@ services:
       - ./scripts/seed_reference.sql:/monicacafe/scripts/seed_reference.sql:ro
     ports:
       # Loopback only (#211): reachable from this machine's tools, never from
-      # the network. Only nginx is published on every interface.
+      # the network. nginx is the only service meant to be opened (HTTP_BIND, #287).
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       # Over TCP: during first-start initialisation Postgres listens on its
@@ -46,6 +46,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
       MIGRATIONS_DIR: /monicacafe/migrations
       MIGRATE_BASELINE: ${MIGRATE_BASELINE:-}
+      MIGRATE_LOCK_TIMEOUT: ${MIGRATE_LOCK_TIMEOUT:-10s}
     volumes:
       - ./scripts/migrate.sh:/monicacafe/scripts/migrate.sh:ro
       - ./migrations:/monicacafe/migrations:ro
@@ -130,6 +131,10 @@ services:
       PORT: "4000"
       APP_ENV: ${APP_ENV:-development}
       LOCALE: ${LOCALE:-zh-TW}
+      # Read only so config.Validate can refuse an unsafe production setup (#287).
+      SITE_URL: ${SITE_URL:-http://localhost}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-true}
+      BACKUP_ALLOW_PLAINTEXT: ${BACKUP_ALLOW_PLAINTEXT:-false}
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
@@ -155,6 +160,8 @@ services:
       RATE_LIMIT_REPORT_USER: ${RATE_LIMIT_REPORT_USER:-10/1h}
       RATE_LIMIT_SELLER_WRITE_USER: ${RATE_LIMIT_SELLER_WRITE_USER:-60/5m}
       RATE_LIMIT_EXPORT_USER: ${RATE_LIMIT_EXPORT_USER:-10/1h}
+      RATE_LIMIT_ACCOUNT_WRITE_USER: ${RATE_LIMIT_ACCOUNT_WRITE_USER:-60/5m}
+      RATE_LIMIT_PROFILE_USER: ${RATE_LIMIT_PROFILE_USER:-10/1h}
       RATE_LIMIT_GRAPHQL_IP: ${RATE_LIMIT_GRAPHQL_IP:-600/1m}
       # Comma-separated. Browsers reach the API via nginx (http://localhost)
       # or `next dev` on :3000.
@@ -167,10 +174,14 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-monica_s3}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-monica_s3_secret}
       MEDIA_PUBLIC_URL: ${MEDIA_PUBLIC_URL:-}
+      # Reserved (Stage 3); passed so production refuses the published key.
+      MEILI_KEY: ${MEILI_KEY:-}
       # The API lists / deletes objects itself (orphan cleanup) on the compose network.
       S3_INTERNAL_ENDPOINT: ${S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
       MEDIA_CLEANUP_INTERVAL: ${MEDIA_CLEANUP_INTERVAL:-6h}
       MEDIA_CLEANUP_MIN_AGE: ${MEDIA_CLEANUP_MIN_AGE:-24h}
+      MEDIA_CLEANUP_MAX_FRACTION: ${MEDIA_CLEANUP_MAX_FRACTION:-0.2}
+      MEDIA_CLEANUP_DRY_RUN: ${MEDIA_CLEANUP_DRY_RUN:-false}
       # Prometheus /metrics on its own port, reachable from the compose network
       # only: not published below and not routed by nginx (#221).
       METRICS_ADDR: ${METRICS_ADDR:-:9100}
@@ -217,12 +228,34 @@ services:
       BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-monicacafe/}
       BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-}
       BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      # Images (#288): BACKUP_MEDIA=true mirrors the media bucket (the S3_* values
+      # below, the same ones the API uses) to the backup target; restore_media.sh
+      # copies them back. S3_BUCKET also lets backup.sh refuse the media bucket as
+      # a backup target.
+      BACKUP_MEDIA: ${BACKUP_MEDIA:-false}
+      BACKUP_MEDIA_CACHE: ${BACKUP_MEDIA_CACHE:-/backups/.media-cache}
+      # Dead-man's switch (healthchecks.io style): GET on success, GET <url>/fail on failure (#289).
+      BACKUP_PING_URL: ${BACKUP_PING_URL:-}
+      # backup.sh writes the time of each success here; the healthcheck below reads it.
+      BACKUP_MARKER: /backups/.last_success
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-26}
       # Only so backup.sh can refuse the media bucket as a backup target.
       S3_BUCKET: ${S3_BUCKET:-media}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-monica_s3}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-monica_s3_secret}
+      S3_INTERNAL_ENDPOINT: ${S3_INTERNAL_ENDPOINT:-http://seaweedfs:8333}
     volumes:
       - ./scripts:/monicacafe/scripts:ro
       - ./migrations:/monicacafe/migrations:ro
       - backup_data:/backups
+    # Unhealthy when the last successful dump is older than BACKUP_MAX_AGE_HOURS (26).
+    healthcheck:
+      test: ["CMD", "sh", "/monicacafe/scripts/backup_healthcheck.sh"]
+      interval: 10m
+      timeout: 10s
+      retries: 1
+      start_period: 1m
     depends_on:
       postgres:
         condition: service_healthy
@@ -254,6 +287,14 @@ services:
     image: nginx:1.31.8-alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # The official image renders /etc/nginx/templates/*.template with the
+      # container's environment into /etc/nginx/conf.d/ at start; nginx.conf
+      # includes that directory.
+      - ./nginx/real-ip.conf.template:/etc/nginx/templates/real-ip.conf.template:ro
+    environment:
+      # The proxy / load balancer in front of nginx whose X-Forwarded-For is
+      # believed (one IP or CIDR). Default 127.0.0.1 trusts nothing real.
+      REAL_IP_FROM: ${REAL_IP_FROM:-127.0.0.1}
     depends_on:
       frontend:
         condition: service_healthy
@@ -264,7 +305,9 @@ services:
       seaweedfs-init:
         condition: service_completed_successfully
     ports:
-      - "${HTTP_PORT:-80}:80"
+      # Loopback only by default (#287): a dev stack must not be reachable from
+      # the network. HTTP_BIND=0.0.0.0 opens it (see docs/DEPLOY.md first).
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-80}:80"
     restart: unless-stopped
 
 # A fixed subnet, so TRUSTED_PROXIES can name exactly the compose network.

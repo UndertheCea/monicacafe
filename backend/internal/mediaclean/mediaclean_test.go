@@ -85,13 +85,13 @@ func TestSweep(t *testing.T) {
 		wantErr     bool
 	}{
 		{"deletes old unreferenced across pages", Options{MinAge: 24 * time.Hour}, "", nil,
-			[]string{s0, c0}, Result{Scanned: 4, Orphans: 2, Deleted: 2}, false},
+			[]string{s0, c0}, Result{Scanned: 4, Orphans: 2, Deleted: 2, Referenced: 1}, false},
 		{"cap per run: stops at the next orphan", Options{MinAge: 24 * time.Hour, MaxDeletes: 1}, "", nil,
-			[]string{s0}, Result{Scanned: 4, Orphans: 2, Deleted: 1}, false},
+			[]string{s0}, Result{Scanned: 4, Orphans: 2, Deleted: 1, Referenced: 1}, false},
 		{"one failed delete doesn't stop the rest", Options{MinAge: 24 * time.Hour}, s0, nil,
-			[]string{c0}, Result{Scanned: 4, Orphans: 2, Deleted: 1}, true},
-		{"narrowed prefixes", Options{MinAge: 24 * time.Hour, Prefixes: []string{"coffees/"}}, "", nil,
-			[]string{c0}, Result{Scanned: 2, Orphans: 1, Deleted: 1}, false},
+			[]string{c0}, Result{Scanned: 4, Orphans: 2, Deleted: 1, Referenced: 1}, true},
+		{"narrowed prefixes", Options{MinAge: 24 * time.Hour, Prefixes: []string{"shops/"}}, "", nil,
+			[]string{s0}, Result{Scanned: 2, Orphans: 1, Deleted: 1, Referenced: 1}, false},
 		{"listing error deletes nothing", Options{}, "", errors.New("down"), nil, Result{}, true},
 	}
 	for _, c := range cases {
@@ -136,7 +136,7 @@ func TestSweepPagesThroughALargeBucket(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Result{Scanned: nPages * perPage, Orphans: nPages*perPage - 1, Deleted: nPages*perPage - 1}
+	want := Result{Scanned: nPages * perPage, Orphans: nPages*perPage - 1, Deleted: nPages*perPage - 1, Referenced: 1}
 	if got != want {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
@@ -164,5 +164,85 @@ func TestSweepReferenceErrorDeletesNothing(t *testing.T) {
 	_, err := Sweep(context.Background(), b, func(context.Context, []string) ([]string, error) { return nil, errors.New("db down") }, time.Now(), Options{})
 	if err == nil || len(b.deleted) != 0 {
 		t.Fatalf("err %v, deleted %v", err, b.deleted)
+	}
+}
+
+// TestDecide: the safety catch as a pure function of the listing's counts.
+func TestDecide(t *testing.T) {
+	cases := []struct {
+		name                         string
+		scanned, candidates, orphans int
+		maxFraction                  float64
+		refuse                       bool
+	}{
+		{"nothing to delete", 100, 80, 0, 0.2, false},
+		{"empty bucket", 0, 0, 0, 0.2, false},
+		{"a few orphans of many", 1000, 900, 50, 0.2, false},
+		{"exactly at the limit", 100, 100, 20, 0.2, false},
+		{"just over the limit", 100, 100, 21, 0.2, true},
+		{"over the limit but a small run", 20, 20, 8, 0.2, false},
+		{"limit off", 1000, 1000, 600, 0, false},
+		{"database references nothing", 500, 500, 500, 0, true},
+		{"database references nothing, one old object", 3, 1, 1, 0.2, true},
+		{"nothing referenced, young objects not counted", 500, 400, 400, 0.2, true},
+		{"most references gone", 1000, 1000, 900, 0.2, true},
+		{"few old orphans, young objects keep the share low", 1000, 100, 15, 0.2, false},
+	}
+	for _, c := range cases {
+		got := Decide(c.scanned, c.candidates, c.orphans, c.maxFraction)
+		if (got != "") != c.refuse {
+			t.Errorf("%s: Decide(%d, %d, %d, %v) = %q, refuse = %v", c.name, c.scanned, c.candidates, c.orphans, c.maxFraction, got, c.refuse)
+		}
+	}
+}
+
+// TestSweepSafety: a refused run deletes nothing and says why; a dry run
+// counts what would go and deletes nothing.
+func TestSweepSafety(t *testing.T) {
+	now := time.Date(2026, 11, 5, 12, 0, 0, 0, time.UTC)
+	old := now.Add(-48 * time.Hour)
+	var objs []storage.Object
+	for i := range 30 {
+		objs = append(objs, storage.Object{Key: key("shops/", i), LastModified: old})
+	}
+	first := func(n int) []string {
+		var r []string
+		for i := range n {
+			r = append(r, key("shops/", i))
+		}
+		return r
+	}
+	cases := []struct {
+		name        string
+		opts        Options
+		refd        []string
+		wantRefused bool
+		wantDeleted int
+		want        Result
+	}{
+		{"empty database", Options{MinAge: time.Hour, MaxFraction: 0.2}, nil, true, 0,
+			Result{Scanned: 30, Orphans: 30}},
+		{"too large a share", Options{MinAge: time.Hour, MaxFraction: 0.2}, first(2), true, 0,
+			Result{Scanned: 30, Orphans: 28, Referenced: 2}},
+		{"within the share", Options{MinAge: time.Hour, MaxFraction: 0.2}, first(25), false, 5,
+			Result{Scanned: 30, Orphans: 5, Deleted: 5, Referenced: 25}},
+		{"dry run still refuses a bad run", Options{MinAge: time.Hour, MaxFraction: 0.2, DryRun: true}, first(1), true, 0,
+			Result{Scanned: 30, Orphans: 29, Referenced: 1, DryRun: true}},
+		{"dry run of a good run deletes nothing", Options{MinAge: time.Hour, MaxFraction: 0.2, DryRun: true}, first(28), false, 0,
+			Result{Scanned: 30, Orphans: 2, Referenced: 28, DryRun: true}},
+	}
+	for _, c := range cases {
+		var events []string
+		var calls [][]string
+		b := &fakeBucket{pages: map[string][][]storage.Object{"shops/": {objs}}, events: &events}
+		c.opts.Prefixes = []string{"shops/"}
+		got, err := Sweep(context.Background(), b, refsFrom(&events, &calls, c.refd...), now, c.opts)
+		if errors.Is(err, ErrRefused) != c.wantRefused || (got.Refused != "") != c.wantRefused {
+			t.Errorf("%s: err %v, refused %q, want refused = %v", c.name, err, got.Refused, c.wantRefused)
+		}
+		got.Refused = ""
+		if got != c.want || len(b.deleted) != c.wantDeleted {
+			t.Errorf("%s: got %+v deleted %d; want %+v deleted %d", c.name, got, len(b.deleted), c.want, c.wantDeleted)
+		}
 	}
 }

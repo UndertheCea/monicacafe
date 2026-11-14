@@ -20,6 +20,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
+	"github.com/underthecea/monicacafe/backend/internal/platform/twfmt"
 	"github.com/underthecea/monicacafe/backend/internal/platform/tz"
 	"github.com/underthecea/monicacafe/backend/internal/search"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
@@ -38,6 +39,9 @@ func requireViewer(ctx context.Context) (*auth.Claims, error) {
 	return c, nil
 }
 
+// isAdmin reads the role in the claims. tokenGate has already checked them
+// against the database for this operation (queries and mutations, #284), and
+// every role change bumps the token version, so this is the stored role.
 func isAdmin(c *auth.Claims) bool { return c != nil && c.Role == string(model.UserRoleAdmin) }
 
 // ownedShop loads a shop and checks the viewer may manage it.
@@ -54,6 +58,11 @@ func (r *Resolver) ownedShop(ctx context.Context, c *auth.Claims, shopID string)
 	}
 	if sh.OwnerID != c.UserID && !isAdmin(c) {
 		return nil, errForbidden("you do not manage this shop")
+	}
+	// A suspended shop is read-only for its owner (#282); admins may still
+	// act on it. Every caller is a mutation.
+	if sh.SuspendedAt != nil && !isAdmin(c) {
+		return nil, errShopSuspended()
 	}
 	return sh, nil
 }
@@ -127,7 +136,7 @@ func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthP
 func toUser(u *store.User) *model.User {
 	return &model.User{
 		ID: u.ID, EmailAddr: u.Email, DisplayName: u.DisplayName,
-		Role: model.UserRole(u.Role), CreatedAt: u.CreatedAt, SuspendedAt: u.SuspendedAt,
+		RoleValue: model.UserRole(u.Role), CreatedAt: u.CreatedAt, SuspendedAt: u.SuspendedAt,
 	}
 }
 
@@ -145,6 +154,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
 		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: toRoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
+		TakenDown: c.RemovedAt != nil,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
 		BrewMethod: toBrewMethod(c.BrewMethod), HarvestYear: c.HarvestYear,
@@ -307,6 +317,10 @@ func badTextRune(r rune, multiline bool) bool {
 		return !multiline
 	case r == '\u200d':
 		return false
+	case twfmt.HasBlankLookingRune(string(r)):
+		// Hangul fillers, the Braille blank: letters that render as nothing,
+		// so a name or comment made of them looks empty (#286).
+		return true
 	}
 	return unicode.Is(unicode.Cc, r) || unicode.Is(unicode.Cf, r)
 }
@@ -602,6 +616,11 @@ func cleanFlavorNotes(notes []string) ([]string, error) {
 		if n == "" {
 			continue
 		}
+		for _, r := range n {
+			if badTextRune(r, false) {
+				return nil, errBadInput("flavorNotes", "flavorNotes contain characters that are not allowed")
+			}
+		}
 		if utf8.RuneCountInString(n) > maxFlavorNoteLen {
 			return nil, errBadInput("flavorNotes", fmt.Sprintf("each flavor note must be at most %d characters", maxFlavorNoteLen))
 		}
@@ -842,7 +861,11 @@ func storeShopSort(s *model.ShopSort) (store.ShopSort, error) {
 }
 
 const (
-	maxSearchLen   = 100
+	maxSearchLen = 100
+	// maxSlugLen / maxCityLen: the longest slug and city the API stores, so
+	// longer lookups are refused before SQL (#283).
+	maxSlugLen     = 48
+	maxCityLen     = 40
 	maxSearchTerms = 8
 )
 
@@ -907,6 +930,9 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		out.RoastLevel = &rl
 	}
 	if f.FlavorNote != nil {
+		if utf8.RuneCountInString(*f.FlavorNote) > maxFlavorNoteLen {
+			return out, errBadInput("flavorNote", fmt.Sprintf("flavorNote must be at most %d characters", maxFlavorNoteLen))
+		}
 		if note := strings.TrimSpace(*f.FlavorNote); note != "" {
 			out.FlavorNote = &note
 		}

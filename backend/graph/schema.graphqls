@@ -160,12 +160,21 @@ type Mutation {
   # tokens stop working for writes) and hides their comments; a suspended shop
   # and its coffees disappear from every public page, the sitemap and the map.
   # Admins can't suspend themselves or another admin. Repeating an action
-  # (suspending a suspended user) is BAD_USER_INPUT.
+  # (suspending a suspended user) is BAD_USER_INPUT. Suspending a user also
+  # suspends their shop (its own audit entry); reinstating the user doesn't
+  # reinstate the shop (#282). A suspended shop is read-only for its owner:
+  # every seller mutation on it answers SHOP_SUSPENDED.
   suspendUser(id: ID!, reason: String!): User!
   unsuspendUser(id: ID!, reason: String!): User!
   suspendShop(id: ID!, reason: String!): Shop!
   unsuspendShop(id: ID!, reason: String!): Shop!
+  # Takes a coffee down (#282): it becomes a draft with takenDown = true, and
+  # its seller can't publish, duplicate or delete it (TAKEN_DOWN) until an
+  # admin restores it. Already taken down: BAD_USER_INPUT.
   adminUnpublishCoffee(id: ID!, reason: String!): Coffee!
+  # Lifts a takedown; the coffee stays a draft for its seller to publish.
+  # Not taken down: BAD_USER_INPUT.
+  adminRestoreCoffee(id: ID!, reason: String!): Coffee!
 
   # Report a comment, shop or coffee to the admins (#225). Signed in only
   # (UNAUTHENTICATED otherwise); 10 an hour per account (RATE_LIMITED). A
@@ -191,7 +200,9 @@ type User {
   # Only visible to the user themself and to admins; null for everyone else.
   email: String
   displayName: String!
-  role: UserRole!
+  # Only visible to the user themself and to admins; null for everyone else, so
+  # a comment's author never reveals who the admins are (#286).
+  role: UserRole
   shop: Shop
   # The user's own comments, newest first. Only for the user themself or an
   # admin; for anyone else it is empty (never an error: User appears on every
@@ -223,6 +234,7 @@ enum AuditAction {
   SUSPEND_SHOP
   UNSUSPEND_SHOP
   UNPUBLISH_COFFEE
+  RESTORE_COFFEE
   DELETE_COMMENT
   DELETE_ACCOUNT
   CHANGE_PASSWORD
@@ -421,6 +433,9 @@ type Coffee {
   # How many people saved it.
   saveCount: Int!
   isPublished: Boolean!
+  # An admin took the coffee down (#282); only its seller and admins can see
+  # such a coffee (it is a draft), so this is false for everyone else.
+  takenDown: Boolean!
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).
   updatedAt: Time!

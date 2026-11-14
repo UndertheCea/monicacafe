@@ -53,7 +53,10 @@ every `Closes #N` in the PR body) so merging the PR closes the issue. If you sto
 10. Seller-supplied text is never inserted as HTML (use `textContent` / JSX).
 11. Visual style is white + black only (see the brief's "Look and feel"): no amber / yellow accents, no gradients,
     no dark hero blocks. Colour appears only in the soft Radix tiles behind coffees without a photo.
-12. Never push to `master` directly. Work on a branch, open a PR, and merge only when CI is green.
+12. Private data (own account, cart, orders, admin views) is read only through `requireViewer` / `viewer` /
+    `isAdmin` / `requireAdmin`: `tokenGate` checks those claims against the database for every signed-in query and
+    mutation (#284). Never decode a token or trust a role some other way.
+13. Never push to `master` directly. Work on a branch, open a PR, and merge only when CI is green.
 
 ## Architecture
 
@@ -87,7 +90,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved
 | `scripts/smoke.sh` | Hits every demo route, sitemap, the auth cookie flow, GraphQL and an image upload after `docker compose up` (CI job `stack`) |
 | `e2e/` | Playwright journeys (seller with photo, buyer, no-JS), axe on 13 pages, report → `/admin`; own `package.json`, runs after smoke in `stack` |
 | `scripts/seed_reference.sql` | Dev-only reference shops (`SEED_REFERENCE_SHOPS=true`); `reference_gaps.sh` reports values our dropdowns lack, `remove_reference_shops.sql` deletes them |
-| `scripts/backup.sh` | Nightly `pg_dump` + age encryption → S3 or a directory, 7 daily + 4 weekly (compose `backup`, profile `prod`, loop in `backup_loop.sh`); `restore.sh` restores into an empty DB. Runbook: [`docs/BACKUP.md`](docs/BACKUP.md); CI `stack` runs a restore drill |
+| `scripts/backup.sh` | Nightly `pg_dump` + age encryption → S3 or a directory, 7 daily + 4 weekly (compose `backup`, profile `prod`, loop in `backup_loop.sh`); `BACKUP_MEDIA=true` also mirrors the image bucket; `restore.sh` restores into an empty DB, `restore_media.sh` the images. Runbook: [`docs/BACKUP.md`](docs/BACKUP.md); CI `stack` runs a restore drill |
 | `scripts/seaweedfs.sh` | Starts the dev S3 store and creates the bucket (compose and CI) |
 | `scripts/check_brief.sh` | CI guard: the brief stays short and keeps its sections |
 | `.github/workflows/` | `ci.yml` (all checks incl. full-stack compose + smoke), `branch-cleanup.yml` (deletes merged PR branches) |

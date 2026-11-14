@@ -240,6 +240,7 @@ const (
 	AuditActionSuspendShop     AuditAction = "SUSPEND_SHOP"
 	AuditActionUnsuspendShop   AuditAction = "UNSUSPEND_SHOP"
 	AuditActionUnpublishCoffee AuditAction = "UNPUBLISH_COFFEE"
+	AuditActionRestoreCoffee   AuditAction = "RESTORE_COFFEE"
 	AuditActionDeleteComment   AuditAction = "DELETE_COMMENT"
 	AuditActionDeleteAccount   AuditAction = "DELETE_ACCOUNT"
 	AuditActionChangePassword  AuditAction = "CHANGE_PASSWORD"
@@ -255,6 +256,7 @@ var AllAuditAction = []AuditAction{
 	AuditActionSuspendShop,
 	AuditActionUnsuspendShop,
 	AuditActionUnpublishCoffee,
+	AuditActionRestoreCoffee,
 	AuditActionDeleteComment,
 	AuditActionDeleteAccount,
 	AuditActionChangePassword,
@@ -266,7 +268,7 @@ var AllAuditAction = []AuditAction{
 
 func (e AuditAction) IsValid() bool {
 	switch e {
-	case AuditActionSuspendUser, AuditActionUnsuspendUser, AuditActionSuspendShop, AuditActionUnsuspendShop, AuditActionUnpublishCoffee, AuditActionDeleteComment, AuditActionDeleteAccount, AuditActionChangePassword, AuditActionGrantAdmin, AuditActionRevokeAdmin, AuditActionDismissReport, AuditActionActionReport:
+	case AuditActionSuspendUser, AuditActionUnsuspendUser, AuditActionSuspendShop, AuditActionUnsuspendShop, AuditActionUnpublishCoffee, AuditActionRestoreCoffee, AuditActionDeleteComment, AuditActionDeleteAccount, AuditActionChangePassword, AuditActionGrantAdmin, AuditActionRevokeAdmin, AuditActionDismissReport, AuditActionActionReport:
 		return true
 	}
 	return false

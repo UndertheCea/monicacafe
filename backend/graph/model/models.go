@@ -17,10 +17,11 @@ type User struct {
 	EmailAddr string `json:"-"` // exposed via the access-controlled email resolver
 	// RevealEmail is set when the value is returned to its own (just
 	// authenticated) owner, e.g. in an AuthPayload, before a token is attached.
-	RevealEmail bool      `json:"-"`
-	DisplayName string    `json:"displayName"`
-	Role        UserRole  `json:"role"`
-	CreatedAt   time.Time `json:"createdAt"`
+	RevealEmail bool   `json:"-"`
+	DisplayName string `json:"displayName"`
+	// RoleValue is exposed through the access-controlled role resolver.
+	RoleValue UserRole  `json:"-"`
+	CreatedAt time.Time `json:"createdAt"`
 	// SuspendedAt is exposed through the access-controlled suspended resolver.
 	SuspendedAt *time.Time `json:"-"`
 }
@@ -61,6 +62,7 @@ type Coffee struct {
 	HarvestYear        *int        `json:"harvestYear,omitempty"`
 	ImageUrls          []string    `json:"imageUrls"`
 	IsPublished        bool        `json:"isPublished"`
+	TakenDown          bool        `json:"takenDown"`
 	CreatedAt          time.Time   `json:"createdAt"`
 	UpdatedAt          time.Time   `json:"updatedAt"`
 }

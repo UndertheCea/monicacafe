@@ -24,7 +24,7 @@ services:
       - ./scripts/seed_reference.sql:/monicacafe/scripts/seed_reference.sql:ro
     ports:
       # Loopback only (#211): reachable from this machine's tools, never from
-      # the network. Only nginx is published on every interface.
+      # the network. nginx is the only service meant to be opened (HTTP_BIND, #287).
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       # Over TCP: during first-start initialisation Postgres listens on its

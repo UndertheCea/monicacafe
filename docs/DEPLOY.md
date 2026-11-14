@@ -120,3 +120,31 @@ git SHA) tags events with the build.
 The token-prune and orphaned-image sweeps take a Postgres advisory lock before each run, so with more than one API
 instance only one runs a given sweep at a time. On shutdown the API stops the sweeps and waits for them before it
 closes the database pool. Rate limits are still per instance (in memory).
+
+## Stripping metadata from existing images (one-off, before launch)
+
+Since #285 the browser removes EXIF / XMP / GPS before every upload (`frontend/lib/dashboard/stripMetadata.ts`).
+Images uploaded before that may still carry a seller's GPS position and phone model. Strip them once, before launch.
+The API never sees image bytes, so this runs against the bucket with any S3 client and `exiftool`
+(<https://exiftool.org>). Take a backup of the bucket first.
+
+```bash
+# 1. Mirror the bucket (use the S3_* values from .env; in dev S3_ENDPOINT is http://localhost)
+export AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY AWS_DEFAULT_REGION=$S3_REGION
+mkdir media-mirror && aws s3 sync "s3://$S3_BUCKET" media-mirror --endpoint-url "$S3_ENDPOINT"
+
+# 2. See what is there (any GPS* line is a leak), then strip every tag in place.
+#    -all= removes everything; -tagsfromfile @ -Orientation:all keeps the rotation so photos stay upright;
+#    -overwrite_original keeps the file name, so the stored URLs stay valid.
+exiftool -r -ext jpg -ext jpeg -ext png -ext webp -if '$GPSLatitude' -p '$Directory/$FileName' media-mirror
+exiftool -r -ext jpg -ext jpeg -ext png -ext webp -overwrite_original \
+  -all= -tagsfromfile @ -Orientation media-mirror
+
+# 3. Check nothing is left, then upload back with the same content types.
+exiftool -r -ext jpg -ext jpeg -ext png -ext webp -if '$GPSLatitude or $Make or $Model or $XMP:all' -p '$Directory/$FileName' media-mirror
+aws s3 sync media-mirror "s3://$S3_BUCKET" --endpoint-url "$S3_ENDPOINT"
+```
+
+Step 3's check should print nothing. The stripped files have a newer modified time, so `sync` re-uploads them
+(content types come from the extension). Thumbnails (`*.thumb.webp`) are made by a canvas and carry no metadata, but
+the same commands cover them. Delete the local mirror afterwards: it holds the originals' copies.

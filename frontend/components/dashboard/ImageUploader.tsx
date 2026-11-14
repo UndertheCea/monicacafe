@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_IMAGE_UPLOAD, type ImageKind } from "@/lib/dashboard/queries";
 import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent, uploadSignErrorKey } from "@/lib/dashboard/upload";
-import { makeThumbnail, shrinkImage } from "./shrinkImage";
+import { makeThumbnail, shrinkImage, stripImage, stripThumbnail } from "./shrinkImage";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -61,11 +61,14 @@ export function ImageUploader({
     if (problem) return setError({ key: "img.error.size", vars: { mb: MAX_SOURCE_BYTES / MB } });
     setError(null);
     setShrinking(true);
-    const file = await shrinkImage(chosen).finally(() => setShrinking(false));
+    const shrunk = await shrinkImage(chosen);
+    // Drop EXIF / XMP / GPS from whatever bytes will be uploaded, original or re-encoded (#285).
+    const file = await stripImage(shrunk).finally(() => setShrinking(false));
+    if (!file) return setError({ key: "img.error.metadata" });
     // The API takes at most MAX_IMAGE_BYTES; a large file that couldn't shrink enough stops here.
     if (imageFileProblem(file)) return setError({ key: "img.error.tooBig", vars: { mb: MAX_IMAGE_BYTES / MB } });
     // A 640 px WebP stored beside the original, for cards and lists (#235); none if the browser can't make one.
-    const thumb = await makeThumbnail(file);
+    const thumb = await stripThumbnail(await makeThumbnail(file));
     setProgress(0);
     let step: "sign" | "put" | "save" = "sign";
     try {

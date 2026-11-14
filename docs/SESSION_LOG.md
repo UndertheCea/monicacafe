@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 39 — 2026-11-14 — Audit fixes: moderation, query abuse, private reads, privacy, exposure, backups (eight slices)
-PR: #TBD
+PR: #296
 
 No open session PR (only dependabot's) and no owner answers on any question. Every pickable slice was from the
 2026-11-14 audit; all `stage-1`, so stage-2 #290 / #291 wait. I built #282–#284 and reviewed / merged #285–#289, which

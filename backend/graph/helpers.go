@@ -848,7 +848,11 @@ func storeShopSort(s *model.ShopSort) (store.ShopSort, error) {
 }
 
 const (
-	maxSearchLen   = 100
+	maxSearchLen = 100
+	// maxSlugLen / maxCityLen: the longest slug and city the API stores, so
+	// longer lookups are refused before SQL (#283).
+	maxSlugLen     = 48
+	maxCityLen     = 40
 	maxSearchTerms = 8
 )
 
@@ -913,6 +917,9 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		out.RoastLevel = &rl
 	}
 	if f.FlavorNote != nil {
+		if utf8.RuneCountInString(*f.FlavorNote) > maxFlavorNoteLen {
+			return out, errBadInput("flavorNote", fmt.Sprintf("flavorNote must be at most %d characters", maxFlavorNoteLen))
+		}
 		if note := strings.TrimSpace(*f.FlavorNote); note != "" {
 			out.FlavorNote = &note
 		}

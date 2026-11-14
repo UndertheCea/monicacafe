@@ -89,6 +89,10 @@ type Config struct {
 	RateLimitSellerWriteUser string
 	// RateLimitExportUser caps "download my data" exports (#270).
 	RateLimitExportUser string
+	// RateLimitAccountWriteUser covers the account writes with no bucket of
+	// their own: deleting a comment, signing out everywhere and every admin
+	// action (#283).
+	RateLimitAccountWriteUser string
 
 	// Every /graphql request, per client IP.
 	RateLimitGraphQLIP string
@@ -147,20 +151,21 @@ func Load() Config {
 		DBStatementTimeout: get("DB_STATEMENT_TIMEOUT", "10s"),
 		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
 
-		RateLimitLoginIP:         get("RATE_LIMIT_LOGIN_IP", "20/1m"),
-		RateLimitLoginEmail:      get("RATE_LIMIT_LOGIN_EMAIL", "50/10m"),
-		RateLimitLoginEmailIP:    get("RATE_LIMIT_LOGIN_EMAIL_IP", "10/10m"),
-		RateLimitRegisterIP:      get("RATE_LIMIT_REGISTER_IP", "10/1h"),
-		RateLimitRefreshIP:       get("RATE_LIMIT_REFRESH_IP", "60/1m"),
-		RateLimitCommentUser:     get("RATE_LIMIT_COMMENT_USER", "5/5m"),
-		RateLimitUploadUser:      get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
-		RateLimitPasswordUser:    get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
-		RateLimitSaveUser:        get("RATE_LIMIT_SAVE_USER", "60/5m"),
-		RateLimitCartUser:        get("RATE_LIMIT_CART_USER", "120/5m"),
-		RateLimitReportUser:      get("RATE_LIMIT_REPORT_USER", "10/1h"),
-		RateLimitSellerWriteUser: get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
-		RateLimitExportUser:      get("RATE_LIMIT_EXPORT_USER", "10/1h"),
-		RateLimitGraphQLIP:       get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
+		RateLimitLoginIP:          get("RATE_LIMIT_LOGIN_IP", "20/1m"),
+		RateLimitLoginEmail:       get("RATE_LIMIT_LOGIN_EMAIL", "50/10m"),
+		RateLimitLoginEmailIP:     get("RATE_LIMIT_LOGIN_EMAIL_IP", "10/10m"),
+		RateLimitRegisterIP:       get("RATE_LIMIT_REGISTER_IP", "10/1h"),
+		RateLimitRefreshIP:        get("RATE_LIMIT_REFRESH_IP", "60/1m"),
+		RateLimitCommentUser:      get("RATE_LIMIT_COMMENT_USER", "5/5m"),
+		RateLimitUploadUser:       get("RATE_LIMIT_UPLOAD_USER", "30/10m"),
+		RateLimitPasswordUser:     get("RATE_LIMIT_PASSWORD_USER", "5/15m"),
+		RateLimitSaveUser:         get("RATE_LIMIT_SAVE_USER", "60/5m"),
+		RateLimitCartUser:         get("RATE_LIMIT_CART_USER", "120/5m"),
+		RateLimitReportUser:       get("RATE_LIMIT_REPORT_USER", "10/1h"),
+		RateLimitSellerWriteUser:  get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
+		RateLimitExportUser:       get("RATE_LIMIT_EXPORT_USER", "10/1h"),
+		RateLimitAccountWriteUser: get("RATE_LIMIT_ACCOUNT_WRITE_USER", "60/5m"),
+		RateLimitGraphQLIP:        get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 
 		// Loopback by default (a bare `go run` must not expose metrics);
 		// compose sets ":9100", reachable on the compose network only.
@@ -279,7 +284,7 @@ type RateLimitRules struct {
 	LoginEmailIP                               ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
 	SaveUser, SellerWriteUser, ReportUser      ratelimit.Rule
-	ExportUser, CartUser                       ratelimit.Rule
+	ExportUser, CartUser, AccountWriteUser     ratelimit.Rule
 	GraphQLIP                                  ratelimit.Rule
 }
 
@@ -303,6 +308,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_SELLER_WRITE_USER", c.RateLimitSellerWriteUser, &r.SellerWriteUser},
 		{"RATE_LIMIT_EXPORT_USER", c.RateLimitExportUser, &r.ExportUser},
 		{"RATE_LIMIT_CART_USER", c.RateLimitCartUser, &r.CartUser},
+		{"RATE_LIMIT_ACCOUNT_WRITE_USER", c.RateLimitAccountWriteUser, &r.AccountWriteUser},
 		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)

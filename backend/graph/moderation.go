@@ -93,6 +93,19 @@ func (r *Resolver) requireAdmin(ctx context.Context) (*auth.Claims, error) {
 	return c, nil
 }
 
+// requireAdminWrite is requireAdmin for admin mutations: it also spends the
+// admin's AccountWriteUser token (#283).
+func (r *Resolver) requireAdminWrite(ctx context.Context) (*auth.Claims, error) {
+	c, err := r.requireAdmin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := allowKey(r.Limits.AccountWriteUser, c.UserID); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // moderationReason validates the reason every admin action needs.
 func moderationReason(reason string) (string, error) {
 	return cleanText("reason", reason, 1, maxReasonLen)
@@ -107,7 +120,7 @@ func noChange(err error, msg string) error {
 }
 
 func (r *Resolver) setUserSuspended(ctx context.Context, id, reason string, suspended bool) (*model.User, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +160,7 @@ func (r *Resolver) setUserSuspended(ctx context.Context, id, reason string, susp
 }
 
 func (r *Resolver) setShopSuspended(ctx context.Context, id, reason string, suspended bool) (*model.Shop, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +181,7 @@ func (r *Resolver) setShopSuspended(ctx context.Context, id, reason string, susp
 }
 
 func (r *Resolver) adminUnpublishCoffee(ctx context.Context, id, reason string) (*model.Coffee, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +202,7 @@ func (r *Resolver) adminUnpublishCoffee(ctx context.Context, id, reason string) 
 }
 
 func (r *Resolver) adminRestoreCoffee(ctx context.Context, id, reason string) (*model.Coffee, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}

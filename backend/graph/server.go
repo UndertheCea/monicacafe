@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/99designs/gqlgen/complexity"
 	"github.com/99designs/gqlgen/graphql"
@@ -38,6 +39,13 @@ const (
 	// MaxRequestBytes bounds the /graphql body. The largest legitimate
 	// request is a coffee with ten options: a few kilobytes.
 	MaxRequestBytes = 100 << 10
+	// MaxRootFields bounds the top-level fields of one operation, aliases
+	// included (#283): 200 aliased catalogue searches in one request were
+	// accepted before. The site's widest operation has 5.
+	MaxRootFields = 20
+	// MaxStringArg bounds any one string argument, in characters; each field
+	// has its own, smaller limit, this is the backstop before SQL (#283).
+	MaxStringArg = 10000
 )
 
 // Costs of fields that run their own SQL query for every parent object (no
@@ -47,6 +55,9 @@ const (
 const (
 	perParentQueryCost = 10
 	similarQueryCost   = 400
+	// scanQueryCost: a root list that filters or sorts the whole catalogue
+	// (ILIKE search, counts) is priced as the scan, not only its rows (#283).
+	scanQueryCost = 100
 )
 
 // complexityRoot prices every list field as its (clamped) limit times the
@@ -61,13 +72,13 @@ func complexityRoot() generated.ComplexityRoot {
 		}
 	}
 	c.Query.Shops = func(child int, _, _ *string, _ *model.ShopSort, limit, _ *int) int {
-		return paged(1)(child, limit, nil)
+		return paged(scanQueryCost)(child, limit, nil)
 	}
 	c.Query.Coffees = func(child int, _ *model.CoffeeFilter, _ *model.CoffeeSort, limit, _ *int) int {
-		return paged(1)(child, limit, nil)
+		return paged(scanQueryCost)(child, limit, nil)
 	}
-	c.Query.PopularCoffees = func(child int, limit *int) int { return paged(1)(child, limit, nil) }
-	c.Query.FollowingCoffees = paged(1)
+	c.Query.PopularCoffees = func(child int, limit *int) int { return paged(scanQueryCost)(child, limit, nil) }
+	c.Query.FollowingCoffees = paged(scanQueryCost)
 	c.Query.AdminUsers = func(child int, _ *string, limit, _ *int) int { return paged(1)(child, limit, nil) }
 	c.Query.AdminShops = func(child int, _ *string, limit, _ *int) int { return paged(1)(child, limit, nil) }
 	c.Query.AuditLog = paged(1)
@@ -141,6 +152,12 @@ func (q *queryLimits) MutateOperationContext(ctx context.Context, opCtx *graphql
 	// future version does that again.
 	if tooManyTokens(opCtx.RawQuery, ParserTokenLimit) {
 		return errQueryTooComplex(fmt.Sprintf("query document has more than %d tokens", ParserTokenLimit))
+	}
+	if n := rootFieldCount(op.SelectionSet); n > MaxRootFields {
+		return errQueryTooComplex(fmt.Sprintf("operation has %d top-level fields; the limit is %d", n, MaxRootFields))
+	}
+	if err := checkStringArgs(op.SelectionSet, opCtx.Variables); err != nil {
+		return err
 	}
 	shape := shapeOf(op.SelectionSet)
 	switch {
@@ -216,4 +233,93 @@ func shapeOf(set ast.SelectionSet) queryShape {
 	}
 	walk(set, 0, false)
 	return out
+}
+
+// rootFieldCount counts the top-level fields of an operation, each alias
+// separately, following fragments; __typename is free.
+func rootFieldCount(set ast.SelectionSet) int {
+	n := 0
+	for _, sel := range set {
+		switch s := sel.(type) {
+		case *ast.Field:
+			if s.Name != "__typename" {
+				n++
+			}
+		case *ast.InlineFragment:
+			n += rootFieldCount(s.SelectionSet)
+		case *ast.FragmentSpread:
+			if s.Definition != nil {
+				n += rootFieldCount(s.Definition.SelectionSet)
+			}
+		}
+	}
+	return n
+}
+
+// checkStringArgs refuses, before any resolver or SQL runs (#283), a string
+// argument (literal or variable, at any depth of an input object or list) that
+// holds a control character other than tab / newline / carriage return
+// (Postgres refuses NUL, which used to surface as a 500) or is longer than
+// MaxStringArg. Resolvers still apply their own, stricter rules.
+func checkStringArgs(set ast.SelectionSet, vars map[string]any) *gqlerror.Error {
+	var bad *gqlerror.Error
+	var walk func(set ast.SelectionSet)
+	walk = func(set ast.SelectionSet) {
+		for _, sel := range set {
+			if bad != nil {
+				return
+			}
+			switch s := sel.(type) {
+			case *ast.Field:
+				for _, a := range s.Arguments {
+					v, err := a.Value.Value(vars)
+					if err != nil {
+						continue // validation reports it
+					}
+					if msg := badString(v); msg != "" {
+						bad = &gqlerror.Error{Message: a.Name + " " + msg,
+							Extensions: map[string]any{"code": CodeBadInput, "field": a.Name}}
+						return
+					}
+				}
+				walk(s.SelectionSet)
+			case *ast.InlineFragment:
+				walk(s.SelectionSet)
+			case *ast.FragmentSpread:
+				if s.Definition != nil {
+					walk(s.Definition.SelectionSet)
+				}
+			}
+		}
+	}
+	walk(set)
+	return bad
+}
+
+// badString describes what is wrong with the first bad string in v, or "".
+func badString(v any) string {
+	switch x := v.(type) {
+	case string:
+		if utf8.RuneCountInString(x) > MaxStringArg {
+			return fmt.Sprintf("must be at most %d characters", MaxStringArg)
+		}
+		for _, r := range x {
+			if r < 0x20 && r != '\t' && r != '\n' && r != '\r' || r == 0x7f {
+				return "contains a control character"
+			}
+		}
+	case []any:
+		for _, e := range x {
+			if msg := badString(e); msg != "" {
+				return msg
+			}
+		}
+	case map[string]any:
+		for _, e := range x {
+			if msg := badString(e); msg != "" {
+				return msg
+			}
+		}
+	}
+	return ""
 }

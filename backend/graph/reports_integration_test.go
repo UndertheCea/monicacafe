@@ -19,7 +19,8 @@ import (
 // limited, and deleting the reporter's account keeps the report. Requires
 // TEST_DATABASE_URL.
 func TestReports(t *testing.T) {
-	const perHour = 5
+	// 4 probes of unknown targets spend tokens too (#283), then 5 real reports.
+	const perHour = 9
 	url, pool := newTestServerWith(t, func(r *graph.Resolver) {
 		r.Limits.ReportUser = ratelimit.New(ratelimit.Rule{Burst: perHour, Per: time.Hour})
 	})

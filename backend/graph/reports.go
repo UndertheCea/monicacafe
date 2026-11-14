@@ -78,16 +78,16 @@ func (r *Resolver) report(ctx context.Context, targetType model.ReportTargetType
 	if !isUUID(targetID) {
 		return false, errNotFound(lowerTarget(targetType))
 	}
+	// Spent before the lookup (#283), so probing ids isn't free.
+	if err := allowKey(r.Limits.ReportUser, c.UserID); err != nil {
+		return false, err
+	}
 	visible, err := r.reportTargetVisible(ctx, targetType, targetID)
 	if err != nil {
 		return false, err
 	}
 	if !visible {
 		return false, errNotFound(lowerTarget(targetType))
-	}
-	// Spent only by valid reports, like comments.
-	if err := allowKey(r.Limits.ReportUser, c.UserID); err != nil {
-		return false, err
 	}
 	err = r.Store.CreateReport(ctx, c.UserID, string(targetType), targetID, string(reason), text)
 	if errors.Is(err, store.ErrInvalidReference) {
@@ -185,7 +185,7 @@ func (r *Resolver) reports(ctx context.Context, status *model.ReportStatus, limi
 }
 
 func (r *Resolver) resolveReport(ctx context.Context, id string, action model.ReportResolution, reason *string) (*model.Report, error) {
-	c, err := r.requireAdmin(ctx)
+	c, err := r.requireAdminWrite(ctx)
 	if err != nil {
 		return nil, err
 	}

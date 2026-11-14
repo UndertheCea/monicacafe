@@ -50,6 +50,9 @@ type Limits struct {
 	ExportUser *ratelimit.Limiter
 	// CartUser counts cart writes (add / change / remove, #21).
 	CartUser *ratelimit.Limiter
+	// AccountWriteUser covers writes with no bucket of their own: deleteComment,
+	// logoutEverywhere and every admin mutation (#283).
+	AccountWriteUser *ratelimit.Limiter
 }
 
 // allowIP spends a token for the request's client IP. Requests whose IP is

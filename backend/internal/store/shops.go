@@ -77,6 +77,24 @@ func (s *Store) ShopByOwner(ctx context.Context, ownerID string) (*Shop, error) 
 	return scanShop(s.db.QueryRow(ctx, `SELECT `+shopColumns+` FROM shops WHERE owner_id = $1`, ownerID))
 }
 
+// ShopsByOwnerIDs batch-fetches shops keyed by owner ID (User.shop, #283).
+func (s *Store) ShopsByOwnerIDs(ctx context.Context, ownerIDs []string) (map[string]*Shop, error) {
+	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops WHERE owner_id = ANY($1::uuid[])`, ownerIDs)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	out := make(map[string]*Shop, len(ownerIDs))
+	for rows.Next() {
+		sh, err := scanShop(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[sh.OwnerID] = sh
+	}
+	return out, mapErr(rows.Err())
+}
+
 // ShopsByIDs batch-fetches shops keyed by ID.
 func (s *Store) ShopsByIDs(ctx context.Context, ids []string) (map[string]*Shop, error) {
 	rows, err := s.db.Query(ctx, `SELECT `+shopColumns+` FROM shops WHERE id = ANY($1::uuid[])`, ids)

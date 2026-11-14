@@ -2,8 +2,12 @@ package graph
 
 import (
 	"context"
+	goast "go/ast"
+	goparser "go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -37,12 +41,12 @@ func TestQueryShapeAndCost(t *testing.T) {
 		refused       bool
 	}{
 		{name: "one field", query: `{ shopsForMap { id } }`, depth: 2, cost: 2},
-		{name: "list cost follows the limit", query: `{ coffees(limit: 10) { nodes { id name } } }`, depth: 3, cost: 1 + 10*(1+2)},
-		{name: "default page size is priced", query: `{ coffees { nodes { id } } }`, depth: 3, cost: 1 + 20*2},
-		{name: "limit above the maximum is clamped like the resolver", query: `{ coffees(limit: 100000) { nodes { id } } }`, depth: 3, cost: 1 + 100*2},
-		{name: "limit from a variable", query: `query($n: Int) { coffees(limit: $n) { nodes { id } } }`, vars: map[string]any{"n": int64(50)}, depth: 3, cost: 1 + 50*2},
+		{name: "list cost follows the limit", query: `{ coffees(limit: 10) { nodes { id name } } }`, depth: 3, cost: scanQueryCost + 10*(1+2)},
+		{name: "default page size is priced", query: `{ coffees { nodes { id } } }`, depth: 3, cost: scanQueryCost + 20*2},
+		{name: "limit above the maximum is clamped like the resolver", query: `{ coffees(limit: 100000) { nodes { id } } }`, depth: 3, cost: scanQueryCost + 100*2},
+		{name: "limit from a variable", query: `query($n: Int) { coffees(limit: $n) { nodes { id } } }`, vars: map[string]any{"n": int64(50)}, depth: 3, cost: scanQueryCost + 50*2},
 		{name: "similar prices its scan", query: `query { coffee(id: "x") { similar(limit: 4) { id } } }`, depth: 3, cost: 1 + similarQueryCost + 4},
-		{name: "fragments are followed", query: `{ coffees(limit: 2) { nodes { ...C } } } fragment C on Coffee { id ... on Coffee { shop { name } } }`, depth: 4, cost: 1 + 2*(1+1+2)},
+		{name: "fragments are followed", query: `{ coffees(limit: 2) { nodes { ...C } } } fragment C on Coffee { id ... on Coffee { shop { name } } }`, depth: 4, cost: scanQueryCost + 2*(1+1+2)},
 		{
 			name:  "the issue's query: similar of similar of similar across 100 coffees",
 			query: `{ coffees(limit:100) { nodes { similar(limit:12) { similar(limit:12) { similar(limit:12) { id } } } } } }`,
@@ -57,7 +61,7 @@ func TestQueryShapeAndCost(t *testing.T) {
 			name:    "similar for a whole page of coffees",
 			query:   `{ coffees(limit: 100) { nodes { similar(limit: 1) { id } } } }`,
 			depth:   4,
-			cost:    1 + 100*(1+similarQueryCost+1),
+			cost:    scanQueryCost + 100*(1+similarQueryCost+1),
 			refused: true,
 		},
 		{
@@ -262,5 +266,101 @@ func TestTokenLimitErrorIsQueryTooComplex(t *testing.T) {
 				t.Fatalf("code = %v, want %s", got.Extensions["code"], tt.want)
 			}
 		})
+	}
+}
+
+func TestRootFieldsAndStringArgs(t *testing.T) {
+	_, schema := limitedSchema()
+	tests := []struct {
+		name  string
+		query string
+		vars  map[string]any
+		roots int
+		bad   string // "" = no bad string argument
+	}{
+		{name: "one root", query: `{ shopsForMap { id } }`, roots: 1},
+		{name: "aliases count", query: `{ a: shopsForMap { id } b: shopsForMap { id } __typename }`, roots: 2},
+		{name: "fragments are followed", query: `{ ...Q } fragment Q on Query { a: shopsForMap { id } b: shopsForMap { id } }`, roots: 2},
+		{name: "NUL literal", query: `{ shop(slug: "a\u0000b") { id } }`, roots: 1, bad: "slug"},
+		{name: "control char in a variable inside an input", query: `query($f: CoffeeFilter) { coffees(filter: $f) { total } }`,
+			vars: map[string]any{"f": map[string]any{"search": "a\x07b"}}, roots: 1, bad: "filter"},
+		{name: "newline and tab are fine", query: `query($s: String) { shops(search: $s) { total } }`,
+			vars: map[string]any{"s": "a\tb\nc"}, roots: 1},
+		{name: "too long", query: `query($s: String) { shops(search: $s) { total } }`,
+			vars: map[string]any{"s": strings.Repeat("x", MaxStringArg+1)}, roots: 1, bad: "search"},
+		{name: "nested field arguments too", query: `{ coffee(id: "x") { comments(limit: 1) { id } similar(limit: 1) { id } } shop(slug: "ok\u007f") { id } }`,
+			roots: 2, bad: "slug"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc, errs := gqlparser.LoadQuery(schema, tt.query)
+			if errs != nil {
+				t.Fatalf("query doesn't validate: %v", errs)
+			}
+			op := doc.Operations[0]
+			if n := rootFieldCount(op.SelectionSet); n != tt.roots {
+				t.Errorf("roots = %d, want %d", n, tt.roots)
+			}
+			err := checkStringArgs(op.SelectionSet, tt.vars)
+			switch {
+			case tt.bad == "" && err != nil:
+				t.Errorf("unexpected refusal: %v", err)
+			case tt.bad != "" && (err == nil || err.Extensions["field"] != tt.bad || err.Extensions["code"] != CodeBadInput):
+				t.Errorf("err = %v, want BAD_USER_INPUT on %s", err, tt.bad)
+			}
+		})
+	}
+}
+
+// Every field resolver (not Query / Mutation) that runs its own SQL for each
+// parent must be priced in complexityRoot (#283); one that goes through a
+// dataloader doesn't call r.Store at all. User.shop ran a query per author and
+// per alias, unpriced, before it got its loader.
+func TestFieldResolversHittingTheStoreArePriced(t *testing.T) {
+	fset := token.NewFileSet()
+	f, err := goparser.ParseFile(fset, "schema.resolvers.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := reflect.ValueOf(complexityRoot())
+	checked := 0
+	for _, decl := range f.Decls {
+		fn, ok := decl.(*goast.FuncDecl)
+		if !ok || fn.Recv == nil || len(fn.Recv.List) != 1 {
+			continue
+		}
+		star, ok := fn.Recv.List[0].Type.(*goast.StarExpr)
+		if !ok {
+			continue
+		}
+		recv := star.X.(*goast.Ident).Name
+		if recv == "queryResolver" || recv == "mutationResolver" || !strings.HasSuffix(recv, "Resolver") {
+			continue
+		}
+		hits := false
+		goast.Inspect(fn.Body, func(n goast.Node) bool {
+			if sel, ok := n.(*goast.SelectorExpr); ok && sel.Sel.Name == "Store" {
+				if id, ok := sel.X.(*goast.Ident); ok && id.Name == "r" {
+					hits = true
+				}
+			}
+			return !hits
+		})
+		if !hits {
+			continue
+		}
+		checked++
+		typ := strings.ToUpper(recv[:1]) + strings.TrimSuffix(recv[1:], "Resolver")
+		obj := root.FieldByName(typ)
+		if !obj.IsValid() {
+			t.Errorf("%s.%s calls r.Store but ComplexityRoot has no %s", typ, fn.Name.Name, typ)
+			continue
+		}
+		if field := obj.FieldByName(fn.Name.Name); !field.IsValid() || field.IsNil() {
+			t.Errorf("%s.%s runs SQL per parent without a dataloader or a price in complexityRoot", typ, fn.Name.Name)
+		}
+	}
+	if checked < 5 {
+		t.Fatalf("found only %d field resolvers using the store; the scan no longer matches the source", checked)
 	}
 }

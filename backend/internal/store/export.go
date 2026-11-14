@@ -6,7 +6,7 @@ import (
 )
 
 // exportSQL builds one JSON document with everything stored about a user
-// (#270): the account, active sessions, comments, saves, follows, reports
+// (#270): the account, active sessions, comments, saves, follows, cart (#21), reports
 // filed, account events from the audit log and, for a seller, the shop with
 // its coffees and options. Secrets (password hash, token hashes, token
 // version) and other people's data (who handled a report, who acted in the
@@ -35,6 +35,12 @@ SELECT jsonb_build_object(
       'shopSlug', s.slug, 'shopName', s.name, 'followedAt', f.created_at) ORDER BY f.created_at, f.id)
     FROM shop_follows f JOIN shops s ON s.id = f.shop_id
     WHERE f.user_id = u.id), '[]'::jsonb),
+  'cart', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+      'coffeeId', c.id, 'coffeeName', c.name, 'grind', v.grind, 'weightG', v.weight_g,
+      'quantity', ci.quantity, 'priceTwdWhenAdded', ci.price_twd, 'addedAt', ci.created_at,
+      'updatedAt', ci.updated_at) ORDER BY ci.created_at, ci.id)
+    FROM cart_items ci JOIN variants v ON v.id = ci.variant_id JOIN coffees c ON c.id = v.coffee_id
+    WHERE ci.user_id = u.id), '[]'::jsonb),
   'reports', COALESCE((SELECT jsonb_agg(jsonb_build_object(
       'targetType', r.target_type, 'targetId', r.target_id, 'reason', r.reason, 'note', r.note,
       'status', r.status, 'createdAt', r.created_at, 'handledAt', r.handled_at) ORDER BY r.created_at, r.id)

@@ -16,6 +16,7 @@ import { CommentList } from "@/components/coffees/CommentList";
 import { AlsoLike } from "@/components/coffees/AlsoLike";
 import { MoreFromShop } from "@/components/coffees/MoreFromShop";
 import { SaveButton } from "@/components/coffees/SaveButton";
+import { AddToCart } from "@/components/cart/AddToCart";
 import { ErrorState } from "@/components/ErrorState";
 import { Page } from "@/components/Page";
 
@@ -86,6 +87,7 @@ export default async function CoffeeDetailPage({ params }: { params: Params }) {
         coffee={coffee}
         locale={locale}
         actions={<SaveButton coffeeId={coffee.id} saveCount={coffee.saveCount} locale={locale} />}
+        purchase={<AddToCart variants={coffee.variants} locale={locale} />}
       />
 
       <CommentList

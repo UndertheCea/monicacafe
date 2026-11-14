@@ -29,6 +29,9 @@ export const API_ERROR_CODES = [
   // New comment or description text with a phone number, email, link or
   // LINE / IG / FB ID (#225); `field` names the input. See lib/moderation.ts.
   "CONTACT_INFO_NOT_ALLOWED",
+  // A stock edit carried the stock last seen (expectedStock) and an order
+  // changed it meanwhile (#277). See lib/dashboard/variantSave.ts.
+  "STOCK_CHANGED",
   "INTERNAL_SERVER_ERROR",
 ] as const;
 

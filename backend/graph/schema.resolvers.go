@@ -34,6 +34,23 @@ func (r *auditEntryResolver) Actor(ctx context.Context, obj *model.AuditEntry) (
 	return toUser(u), nil
 }
 
+// Coffee is the resolver for the coffee field.
+func (r *cartItemResolver) Coffee(ctx context.Context, obj *model.CartItem) (*model.Coffee, error) {
+	co, err := r.loadersFor(ctx).CoffeeByID.Load(ctx, obj.CoffeeID)
+	if err != nil {
+		if isLoaderNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("load coffee %s of cart item %s: %w", obj.CoffeeID, obj.ID, err)
+	}
+	// The cart shows only public coffees; a line whose coffee went away
+	// stays (marked unavailable) so the buyer can remove it.
+	if !co.Public() {
+		return nil, nil
+	}
+	return toCoffee(co), nil
+}
+
 // Shop is the resolver for the shop field.
 func (r *coffeeResolver) Shop(ctx context.Context, obj *model.Coffee) (*model.Shop, error) {
 	sh, err := r.loadersFor(ctx).ShopByID.Load(ctx, obj.ShopID)
@@ -165,6 +182,21 @@ func (r *commentResolver) Coffee(ctx context.Context, obj *model.Comment) (*mode
 		}
 	}
 	return toCoffee(co), nil
+}
+
+// AddToCart is the resolver for the addToCart field.
+func (r *mutationResolver) AddToCart(ctx context.Context, variantID string, quantity int) (*model.Cart, error) {
+	return r.addToCart(ctx, variantID, quantity)
+}
+
+// UpdateCartItem is the resolver for the updateCartItem field.
+func (r *mutationResolver) UpdateCartItem(ctx context.Context, id string, quantity int) (*model.Cart, error) {
+	return r.updateCartItem(ctx, id, quantity)
+}
+
+// RemoveFromCart is the resolver for the removeFromCart field.
+func (r *mutationResolver) RemoveFromCart(ctx context.Context, id string) (*model.Cart, error) {
+	return r.removeFromCart(ctx, id)
 }
 
 // Register is the resolver for the register field.
@@ -819,7 +851,8 @@ func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, e
 		if published {
 			return errConflict("isPublished", "unpublish the coffee before deleting it")
 		}
-		return tx.DeleteCoffee(ctx, id)
+		_, err = tx.DeleteCoffee(ctx, id)
+		return err
 	})
 	if errors.Is(err, store.ErrNotFound) {
 		return false, errNotFound("coffee")
@@ -1022,6 +1055,9 @@ func (r *mutationResolver) UpdateVariant(ctx context.Context, id string, input m
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("variant")
 	}
+	if errors.Is(err, store.ErrStockChanged) {
+		return nil, errStockChanged()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -1055,7 +1091,8 @@ func (r *mutationResolver) DeleteVariant(ctx context.Context, id string) (bool, 
 				return errBadInput("variants", "a published coffee needs at least one variant; unpublish it first")
 			}
 		}
-		return tx.DeleteVariant(ctx, id)
+		_, err = tx.DeleteVariant(ctx, id)
+		return err
 	})
 	if errors.Is(err, store.ErrNotFound) {
 		return false, errNotFound("variant")
@@ -1416,6 +1453,15 @@ func (r *queryResolver) MyDataExport(ctx context.Context) (string, error) {
 	return string(doc), nil
 }
 
+// Cart is the resolver for the cart field.
+func (r *queryResolver) Cart(ctx context.Context) (*model.Cart, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return r.loadCart(ctx, c.UserID)
+}
+
 // Shop is the resolver for the shop field.
 func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, error) {
 	sh, err := r.Store.ShopBySlug(ctx, slug)
@@ -1760,6 +1806,9 @@ func (r *userResolver) Suspended(ctx context.Context, obj *model.User) (bool, er
 // AuditEntry returns generated.AuditEntryResolver implementation.
 func (r *Resolver) AuditEntry() generated.AuditEntryResolver { return &auditEntryResolver{r} }
 
+// CartItem returns generated.CartItemResolver implementation.
+func (r *Resolver) CartItem() generated.CartItemResolver { return &cartItemResolver{r} }
+
 // Coffee returns generated.CoffeeResolver implementation.
 func (r *Resolver) Coffee() generated.CoffeeResolver { return &coffeeResolver{r} }
 
@@ -1794,6 +1843,7 @@ func (r *Resolver) User() generated.UserResolver { return &userResolver{r} }
 
 type (
 	auditEntryResolver       struct{ *Resolver }
+	cartItemResolver         struct{ *Resolver }
 	coffeeResolver           struct{ *Resolver }
 	coffeeVarietyResolver    struct{ *Resolver }
 	commentResolver          struct{ *Resolver }

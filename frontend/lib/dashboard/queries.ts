@@ -2,6 +2,7 @@
 import type { BrewMethod, GrindOption, RoastLevel } from "../api";
 import { typed } from "../graphql";
 import { DASH_COFFEES_PAGE } from "./coffeePages";
+import type { VariantUpdateInput } from "./variantSave";
 
 export interface DashboardVariant {
   id: string;
@@ -211,7 +212,7 @@ export const ADD_VARIANT = typed<{ addVariant: DashboardVariant }, { coffeeId: s
 
 export const UPDATE_VARIANT = typed<
   { updateVariant: DashboardVariant },
-  { id: string; input: { priceTwd?: number; stock?: number; isAvailable?: boolean } }
+  { id: string; input: VariantUpdateInput }
 >(/* GraphQL */ `
   mutation UpdateVariant($id: ID!, $input: UpdateVariantInput!) {
     updateVariant(id: $id, input: $input) { ${VARIANT_FIELDS} }

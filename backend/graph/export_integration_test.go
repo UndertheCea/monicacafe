@@ -34,6 +34,12 @@ func TestMyDataExport(t *testing.T) {
 	}
 	buyer.mustDo(`mutation($id: ID!) { saveCoffee(id: $id) { id } }`, map[string]any{"id": coffeeID}, nil)
 	buyer.mustDo(`mutation($id: ID!) { followShop(id: $id) { id } }`, map[string]any{"id": shop.CreateShop.ID}, nil)
+	var variantID string
+	if err := pool.QueryRow(t.Context(), `INSERT INTO variants (coffee_id, grind, weight_g, price_twd, stock)
+		VALUES ($1, 'WHOLE_BEAN', 200, 450, 5) RETURNING id`, coffeeID).Scan(&variantID); err != nil {
+		t.Fatal(err)
+	}
+	buyer.mustDo(`mutation($v: ID!) { addToCart(variantId: $v) { itemCount } }`, map[string]any{"v": variantID}, nil)
 	buyer.mustDo(`mutation($in: AddCommentInput!) { addComment(input: $in) { id } }`,
 		map[string]any{"in": map[string]any{"coffeeId": coffeeID, "body": "買家留言 " + run}}, nil)
 	seller.mustDo(`mutation($in: AddCommentInput!) { addComment(input: $in) { id } }`,
@@ -67,6 +73,9 @@ func TestMyDataExport(t *testing.T) {
 	}
 	if saves := doc["savedCoffees"].([]any); len(saves) != 1 || saves[0].(map[string]any)["coffeeId"] != coffeeID {
 		t.Errorf("savedCoffees: %v", saves)
+	}
+	if cart := doc["cart"].([]any); len(cart) != 1 || cart[0].(map[string]any)["coffeeId"] != coffeeID {
+		t.Errorf("cart: %v", cart)
 	}
 	if follows := doc["followedShops"].([]any); len(follows) != 1 || follows[0].(map[string]any)["shopSlug"] != "ex-"+run {
 		t.Errorf("followedShops: %v", follows)

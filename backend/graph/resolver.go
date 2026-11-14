@@ -48,6 +48,8 @@ type Limits struct {
 	SellerWriteUser *ratelimit.Limiter
 	// ExportUser counts "download my data" exports (#270).
 	ExportUser *ratelimit.Limiter
+	// CartUser counts cart writes (add / change / remove, #21).
+	CartUser *ratelimit.Limiter
 }
 
 // allowIP spends a token for the request's client IP. Requests whose IP is

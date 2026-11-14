@@ -227,6 +227,7 @@ func toVariant(v *store.Variant) *model.Variant {
 	return &model.Variant{
 		ID: v.ID, Grind: model.GrindOption(v.Grind), WeightG: v.WeightG,
 		PriceTwd: money.TWD(v.PriceTWD), Stock: v.Stock, IsAvailable: v.IsAvailable && v.Stock > 0,
+		UpdatedAt: v.UpdatedAt,
 	}
 }
 
@@ -701,6 +702,15 @@ func validateVariantUpdate(in model.UpdateVariantInput) (store.UpdateVariantPara
 	var p store.UpdateVariantParams
 	if in.PriceTwd == nil && in.Stock == nil && in.IsAvailable == nil {
 		return p, errBadInput("input", "nothing to update")
+	}
+	if in.ExpectedStock != nil {
+		if in.Stock == nil {
+			return p, errBadInput("expectedStock", "expectedStock only goes with a new stock")
+		}
+		if err := checkStock(*in.ExpectedStock); err != nil {
+			return p, errBadInput("expectedStock", "expectedStock out of range")
+		}
+		p.ExpectedStock = in.ExpectedStock
 	}
 	if in.PriceTwd != nil {
 		if err := checkPrice(*in.PriceTwd); err != nil {

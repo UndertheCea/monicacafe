@@ -15,6 +15,63 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 38 — 2026-11-14 — Stage 2 opens: groundwork (#237) and the cart (six slices)
+PR: #281
+
+The owner answered #197: start Stage 2 now and keep the blocked stage-1 slices in the queue. Recorded in the brief and closed
+#197. No other question had owner answers; no open session PR (only dependabot's). #237 (groundwork) was one large issue, so
+I split it into four slices (#276–#279) and closed it with the order-table design note in the PR; then the cart API (#21)
+and a new UI slice (#280). A Sonnet sub-agent built #279 in a worktree (cherry-picked and reviewed); the rest I did.
+
+### Shipped (one line per slice: area — what — key files)
+- #276 backend — `money.TWD.UnmarshalGQL` refuses fractions, negatives, NaN / Inf and amounts above `money.Max`
+  (NT$10,000,000), accepts whole json.Number / strings; table test (`platform/money`).
+- #278 backend — migration 020: `variants.updated_at` (trigger, `clock_timestamp()`, only on a real change),
+  `variants.archived_at` / `coffees.archived_at` with CHECKs (archived ⇒ unavailable / unpublished), live-only unique
+  grind + weight, `delete_or_archive_variant()` / `delete_or_archive_coffee()` (archive when a foreign key refuses the
+  delete). Every read skips archived rows (`publicCoffee`, owner lists, variant reads, duplicate). `Variant.updatedAt`.
+- #279 backend — River v0.51.2 (`internal/jobs`: `NoopArgs` / `NoopWorker` / `NewClient`), `cmd/worker` with
+  `signal.NotifyContext`, 25 s drain then `StopAndCancel`; migration 021 = River's own SQL v1–8 (the `pending` enum value
+  moved into `CREATE TYPE`, since one transaction can't use a value it just added) + `river_migration` rows. ECPay vector
+  test added but skipped: developers.ecpay.com.tw is blocked by the session proxy.
+- #277 cross-cutting — `store.ReserveStock` / `ReleaseStock`; `UpdateVariantInput.expectedStock` → `STOCK_CHANGED` (Go +
+  `lib/errors.ts`); dashboard option row sends stock only when changed, with the stock it loaded, and on STOCK_CHANGED
+  reloads and asks to save again (`lib/dashboard/variantSave.ts`). 50-goroutine test: exactly 10 of the last 10 bags sold.
+- #21 backend — migration 022 `cart_items` (1–20, price snapshot, unique per buyer + option, cascades); `cart`,
+  `addToCart`, `updateCartItem`, `removeFromCart` (`graph/cart.go`, `store/cart.go`); 50-line cap under an advisory lock;
+  `RATE_LIMIT_CART_USER` (120/5m); cart in the data export; `Cart.items` priced at 50 × child.
+- #280 frontend — `AddToCart` on the coffee page (option + quantity, sign-in link when signed out), `/cart` (`CartView`:
+  grouped by shop, quantity, remove, price-changed / unavailable flags, totals, "checkout coming"), drawer link
+  (`lib/navMenu.ts`); helpers in `lib/cart.ts`, queries in `lib/cartQueries.ts`; `tests/cart.test.mjs`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` and `-race` on store / jobs with `TEST_DATABASE_URL` (PostgreSQL 16,
+  migrations 001–022); `migrate.sh` on a fresh database and `migrate_selftest.sh` (sub-agent, with 021).
+- Frontend: `npm ci`, tsc, lint, `npm test` (284), `next build`. The Go query-limit test validates the four cart operations
+  against the schema (cost 954 each).
+- Browser (API binary + `next start`, Playwright at 390 px): register → coffee page → add 2 → /cart → change to 1 → remove;
+  no page errors. Fixed the phone layout it showed (line details and option picker squeezed).
+- Not tested locally: `docker compose up --build` (image builds can't verify the session proxy's TLS certificate), so
+  `smoke.sh` and the e2e suite run only in CI's `stack` job. ECPay's official vector (docs unreachable).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Order tables (design note on #237, built after #205 is answered): `orders` one per shop per checkout (if #205 (a)),
+  `order_items` with snapshots of coffee name, grind, weight and unit price and `variant_id … ON DELETE RESTRICT` (so
+  #278's archive path kicks in), `payments` (unique `merchant_trade_no`, amount, status), `payment_events` (raw ECPay
+  callback log, unique on ECPay's trade number + type, idempotent), status enums `order_status` (PENDING_PAYMENT, PAID,
+  SHIPPED, COMPLETED, CANCELLED, REFUNDED) and `payment_status` (PENDING, PAID, FAILED, REFUNDED).
+- Cart lines cascade with a deleted option (a cart isn't history); order lines will not.
+- Compose has no `worker` service; add it with the first real job (payment callbacks or hold expiry).
+- Moved from the brief to keep it under 250 lines (still true):
+  - **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
+    colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).
+  - **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
+    `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).
+  - **Revoked ≠ reused refresh tokens** — only a *rotated* token presented again means a copy exists (theft); a token
+    revoked by logout or password change is just invalid, so old devices can't end the session that revoked them.
+  - **Orphan cleanup matches keys by shape after listing first** — a CDN / `MEDIA_PUBLIC_URL` change can't make saved
+    images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
+
 ## Session 37 — 2026-11-14 — Search synonyms, data export, toolchain majors (six stage-1 slices)
 PR: #275
 

@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-14 (after Session 37)
+Last updated: 2026-11-14 (after Session 38)
 
 ---
 
@@ -19,8 +19,8 @@ auto-generated bilingual storefront; buyers browse, filter and discuss coffees, 
 
 | Stage | Goal | Done when |
 |---|---|---|
-| **1 — Discovery** (current) | Browse shops / coffees / map, accounts, comments, seller dashboard, image uploads | `docker compose up` gives a complete demo on `http://localhost`; sellers manage everything (incl. images) from the UI; no open `stage-1` slices |
-| 2 — Transactions | Cart, orders, ECPay (綠界) payment + CVS pickup / home delivery, order status webhooks | A buyer pays with ECPay sandbox and the seller sees the order |
+| **1 — Discovery** (unblocked work done) | Browse shops / coffees / map, accounts, comments, seller dashboard, image uploads | `docker compose up` gives a complete demo on `http://localhost`; sellers manage everything (incl. images) from the UI; no open `stage-1` slices |
+| **2 — Transactions** (current, owner on #197) | Cart, orders, ECPay (綠界) payment + CVS pickup / home delivery, order status webhooks | A buyer pays with ECPay sandbox and the seller sees the order |
 | 3 — Growth | Meilisearch search, seller analytics, curated collections, email notifications | — |
 
 Product rules that never change: Taiwan only, ships within Taiwan, no green beans; prices in whole NT$;
@@ -54,8 +54,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments; draft preview (owner, #8 (b)) | Done (#99) |
 | Seller-curated shop pages: no buyer filters (#160), seller's order via `reorderShopCoffees` + dashboard ↑ / ↓ (#161, #162), sold-out archive section (#163) | Done |
 | Image uploads: presigned API, S3 store (SeaweedFS) behind nginx `/media/`, uploader UI; photos scaled to 2000 px in the browser first; 6-hourly orphan sweep; 640 px thumbnails, one `<Picture>`, 60 s catalogue cache | Done (#29, #212, #235) |
-| Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff | Done (#100) |
-| Frontend on Next.js 16; sitemap.xml (with lastmod) + robots.txt (`SITE_URL`) | Done (#35) |
+| Content-Security-Policy (nonce'd, from the Next 16 proxy), Permissions-Policy, no X-Powered-By, API nosniff; Next.js 16 sitemap + robots | Done (#100, #35) |
 | Rate limiting: login / register / refresh per IP (+ failed logins per email and per email + IP); comments, uploads, password, seller writes per user; every `/graphql` request per IP; IPv6 by /64, ≤ 100k keys | Done (#207, #213) |
 | Abuse caps: 200 coffees per shop (`LIMIT_REACHED`); empty shops hidden from /shops, /map, sitemap; bcrypt 12 + rehash; 1,000 common passwords refused | Done (#213) |
 | Seller work survives session loss: forms stay mounted under an inline sign-in, new-coffee draft in sessionStorage, leave-without-saving prompts | Done (#228) |
@@ -73,20 +72,27 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Backups: nightly `age`-encrypted `pg_dump` to S3 or a directory (compose profile `prod`), `restore.sh`, restore drill in CI; Redis / Meilisearch behind profiles | Done (#220, #222) |
 | Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
 | Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep | Done (#217) |
+| **Stage 2 groundwork (#237)**: `money.TWD` refuses fractions / negatives / > NT$10M (#276); `ReserveStock` / `ReleaseStock` + `expectedStock` → `STOCK_CHANGED` on seller edits (#277); `variants.updated_at`, archive instead of delete when referenced (#278, migration 020); River worker with graceful stop + no-op job (#279, migration 021); ECPay test vector still missing (docs unreachable) | Done |
+| **Cart (#21, #280)**: `cart_items` (migration 022), `cart` / `addToCart` / `updateCartItem` / `removeFromCart`, price snapshot + "price changed", /cart grouped by shop, Add to cart on the coffee page, drawer link | Done; checkout next |
 
 ## Last session
 
-**Session 37**: still no owner answers and no pickable slice, so six new `stage-1` gaps were filed and built: search synonyms
-(耶加雪菲 ↔ Yirgacheffe, 瑰夏 ↔ Geisha, mainland names; #269) and a "Matched: …" line on results (#274); "Download my data"
-JSON export on /account (#270, PDPA access); Go 1.27.4 + Playwright 1.65 (#271), Node 26 LTS (#272), ESLint 10 (#273).
+**Session 38**: the owner opened Stage 2 on #197. Shipped #237's groundwork as four slices (#276 TWD scalar, #277 atomic
+stock + `STOCK_CHANGED`, #278 `updated_at` / archive-on-reference, #279 River worker) and the cart: API (#21) and UI (#280).
+The order-table design for the next slices is in the PR (#237 note) and the Decisions below. ECPay's official CheckMacValue
+example couldn't be fetched (proxy blocks developers.ecpay.com.tw), so that test stays skipped.
 
 ## Current focus
 
-1. **Hosting waits on #199** (no safe default): a production compose file with HTTPS and real secrets is the next big
-   step (#219, blocked). Backups (#220), cookie / Origin rules (#215) and monitoring (#221, `docs/DEPLOY.md`) are ready.
-2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still unreachable on 2026-11-13).
-3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205. Every unblocked `stage-1` slice is done;
-   #223 / #226 wait on #200 / #201. Open dependabot majors left: TypeScript 7, Postgres 18 (volume dump / restore), Redis 8.
+1. **Orders need #205 answered** (no safe default): one checkout split per shop or one shop per checkout, shipping fee, delivery
+   methods, when stock is taken, guest checkout, roast-to-order. Then: `orders` / `order_items` (snapshots, `ON DELETE
+   RESTRICT` on variants) / `payments` (unique `merchant_trade_no`) / `payment_events` (idempotent on ECPay's trade number),
+   using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
+   payouts and launch.
+2. **Hosting waits on #199** (no safe default): production compose with HTTPS is #219 (blocked). Compose has no `worker`
+   service yet; add it with the first real job. Add ECPay's documented CheckMacValue example when the docs are reachable.
+3. Blocked `stage-1` slices stay in the queue (owner, #197): #170–#174 (roaster domains), #223 / #226 (#200 / #201).
+   Open dependabot majors: TypeScript 7, Postgres 18 (volume dump / restore), Redis 8.
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
    turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
@@ -100,7 +106,6 @@ Open questions for the owner (answer by commenting on the issue):
 | #12 | Commission + payouts (Stage 2) | none | **no** |
 | #93 | Seller closes shop / deletes account | manual (contact us) | yes |
 | #158 | Shop page curation details | manual order, new at end, archive by stock (built) | yes |
-| #197 | Start Stage 2 while #170–#174 wait for network? | no, keep the stage rule | yes |
 | #199 | Hosting and domain | one VPS running compose + HTTPS | **no** |
 | #200 | Email service (password reset, verification) | Resend | **no** |
 | #201 | Legal / business basics (company, invoices, returns, terms) | none | **no** |
@@ -138,10 +143,6 @@ Open questions for the owner (answer by commenting on the issue):
 - **Delete is drafts-only** — public links (and Stage 2 orders) never point at a coffee that silently vanished.
 - **Rate limits in memory, keyed by trusted client IP / email / user** — no extra infra for one API instance;
   X-Forwarded-For is believed only from `TRUSTED_PROXIES`, and the BFF forwards nginx's. Redis when scaling out.
-- **Revoked ≠ reused refresh tokens** — only a *rotated* token presented again means a copy exists (theft); a token
-  revoked by logout or password change is just invalid, so old devices can't end the session that revoked them.
-- **Orphan cleanup matches keys by shape after listing first** — a CDN / `MEDIA_PUBLIC_URL` change can't make saved
-  images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.
 - **No loading boundaries (#156)** — a `loading.tsx` makes Next stream the page into hidden placeholders that only an
   inline script reveals, so without JavaScript /coffees and /shops showed a skeleton forever. Header and pagination links
@@ -169,8 +170,6 @@ Open questions for the owner (answer by commenting on the issue):
   it but can still be unsaved; saving a draft is NOT_FOUND, even for its owner (#87).
 - **Account deletion deletes comments, refuses shop owners and admins** — personal data goes with the account
   (PDPA); a shop's coffees and links depend on its owner, so seller closure waits on #93 (#90).
-- **JSON-LD via one escaped `dangerouslySetInnerHTML`** — React would HTML-escape script text and break the JSON;
-  `serializeJsonLd` escapes `< > &` so seller text can't leave the script (#63).
 - **"Roaster" badge derived from shop ownership, not stored** — `Comment.fromShop` is an `EXISTS` on every read, so
   there is no flag to forge or keep in sync (#95).
 - **White + black visual style, no amber or gradients** — the owner's call (2026-11-08) after comparing with SEY /
@@ -187,8 +186,6 @@ Open questions for the owner (answer by commenting on the issue):
 - **Filter options = values with published coffees, counted catalogue-wide; chips are plain links** — hidden, not greyed,
   and the selected one always stays; counts ignore the other filters (no per-combination facet queries); the phone
   toggle is CSS-only (checkbox + label) so nothing depends on hydration (#151–#153).
-- **Coffee tile colour from the coffee id; Radix hex values copied, not a dependency** — the same coffee is the same
-  colour everywhere and a rename doesn't change it; 85 MIT-licensed constants need no package (#111).
 - **/coffees filters = origin / variety / process / price / in stock (owner, #166; built #167)**: each shop rates cup
   profile, roast and brew by its own standard, so filtering across shops on them misleads. Old links with the removed
   params show the unfiltered list; cards show only the roast. Keyword search and sort stay.
@@ -216,7 +213,10 @@ Open questions for the owner (answer by commenting on the issue):
 - **The brand is "Moni Cafe" and nothing else (owner, #159 (a))**: 台灣精品咖啡市集 is never displayed, not in the header
   (#164) and not in the home tab title (#194); a test keeps the phrase out of the frontend.
 - **Cart lives in Postgres (owner, #9 (a))**: durable across logout and devices, one source of truth with orders. Redis
-  stays reserved for caching.
+  stays reserved for caching. **Stage 2 opened while blocked stage-1 slices wait (owner, #197).** Cart lines (#21) hold 1–20
+  bags (≤ stock), ≤ 50 lines, a price snapshot refreshed on every write; unbuyable lines stay, flagged, out of the subtotal.
+- **Stock is taken by one conditional UPDATE (#277)**; seller edits carry `expectedStock`, so they never undo an order's
+  decrement. Options / coffees an order references are **archived, never deleted** (#278, `delete_or_archive_*()`).
 - **Listing canonicals keep only `page` (#195)**: filters, sort and search all point at one URL per page, and `?q=` results
   are `noindex, follow`, so crawlers don't index every combination.
 - **Production refuses the repo's own secrets (#206)**: anything printed in `.env.example` / compose, or containing `dev-` /

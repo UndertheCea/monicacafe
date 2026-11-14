@@ -198,6 +198,10 @@ type UpdateVariantInput struct {
 	PriceTwd    *int  `json:"priceTwd,omitempty"`
 	Stock       *int  `json:"stock,omitempty"`
 	IsAvailable *bool `json:"isAvailable,omitempty"`
+	// The stock the seller last saw. With it, a new stock is saved only if the
+	// stored stock is still this number; otherwise STOCK_CHANGED (an order took
+	// some meanwhile, #277). Only valid together with stock.
+	ExpectedStock *int `json:"expectedStock,omitempty"`
 }
 
 type UploadHeader struct {
@@ -217,6 +221,8 @@ type Variant struct {
 	PriceTwd    money.TWD   `json:"priceTwd"`
 	Stock       int         `json:"stock"`
 	IsAvailable bool        `json:"isAvailable"`
+	// Last change to price, stock or availability (#278).
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type VariantInput struct {

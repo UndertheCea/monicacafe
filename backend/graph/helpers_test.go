@@ -423,8 +423,13 @@ func TestValidateVariantUpdate(t *testing.T) {
 		wantPrice *int64
 		wantStock *int
 		wantAvail *bool
+		wantExp   *int
 	}{
 		{name: "empty", in: model.UpdateVariantInput{}, wantErr: true},
+		{name: "expected stock with stock", in: model.UpdateVariantInput{Stock: ip(5), ExpectedStock: ip(7)}, wantStock: ip(5), wantExp: ip(7)},
+		{name: "expected stock alone", in: model.UpdateVariantInput{ExpectedStock: ip(7)}, wantErr: true},
+		{name: "expected stock with price only", in: model.UpdateVariantInput{PriceTwd: ip(500), ExpectedStock: ip(7)}, wantErr: true},
+		{name: "negative expected stock", in: model.UpdateVariantInput{Stock: ip(5), ExpectedStock: ip(-1)}, wantErr: true},
 		{name: "price only", in: model.UpdateVariantInput{PriceTwd: ip(520)}, wantPrice: ptr64(520)},
 		{name: "free coffee allowed", in: model.UpdateVariantInput{PriceTwd: ip(0)}, wantPrice: ptr64(0)},
 		{name: "negative price", in: model.UpdateVariantInput{PriceTwd: ip(-1)}, wantErr: true},
@@ -448,7 +453,7 @@ func TestValidateVariantUpdate(t *testing.T) {
 			if tc.wantErr {
 				return
 			}
-			if !eqp(got.PriceTWD, tc.wantPrice) || !eqp(got.Stock, tc.wantStock) || !eqp(got.IsAvailable, tc.wantAvail) {
+			if !eqp(got.PriceTWD, tc.wantPrice) || !eqp(got.Stock, tc.wantStock) || !eqp(got.IsAvailable, tc.wantAvail) || !eqp(got.ExpectedStock, tc.wantExp) {
 				t.Errorf("got %+v", got)
 			}
 		})

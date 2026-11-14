@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/underthecea/monicacafe/backend/internal/platform/money"
+)
 
 // Hand-written GraphQL models. Relationship fields (User.shop, Shop.coffees,
 // Coffee.shop/variants/comments/…, Comment.user) are deliberately absent so that
@@ -95,4 +99,25 @@ type AuditEntry struct {
 	TargetID   string          `json:"targetId"`
 	Reason     string          `json:"reason"`
 	CreatedAt  time.Time       `json:"createdAt"`
+}
+
+// Cart is the signed-in buyer's cart (#21).
+type Cart struct {
+	Items       []*CartItem `json:"items"`
+	SubtotalTwd money.TWD   `json:"subtotalTwd"`
+	ItemCount   int         `json:"itemCount"`
+}
+
+// CartItem is one cart line; coffee resolves from CoffeeID with the usual
+// visibility check.
+type CartItem struct {
+	ID            string    `json:"id"`
+	Quantity      int       `json:"quantity"`
+	Variant       *Variant  `json:"variant"`
+	CoffeeID      string    `json:"-"`
+	AddedPriceTwd money.TWD `json:"addedPriceTwd"`
+	PriceTwd      money.TWD `json:"priceTwd"`
+	PriceChanged  bool      `json:"priceChanged"`
+	Available     bool      `json:"available"`
+	LineTotalTwd  money.TWD `json:"lineTotalTwd"`
 }

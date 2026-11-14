@@ -31,7 +31,10 @@ const (
 	// CodeContactInfo: new comment or description text carries a phone
 	// number, email, link or LINE / IG / FB ID (#225); field names the input.
 	CodeContactInfo = "CONTACT_INFO_NOT_ALLOWED"
-	CodeInternal    = "INTERNAL_SERVER_ERROR"
+	// CodeStockChanged: a stock edit carried the stock the seller last saw
+	// (expectedStock) and an order changed it meanwhile (#277).
+	CodeStockChanged = "STOCK_CHANGED"
+	CodeInternal     = "INTERNAL_SERVER_ERROR"
 )
 
 // apiError is a client-safe error with a machine-readable code.
@@ -47,6 +50,10 @@ func (e *apiError) Error() string { return e.message }
 
 func errLimitReached(field, msg string) error {
 	return &apiError{code: CodeLimitReached, message: msg, field: field}
+}
+
+func errStockChanged() error {
+	return &apiError{code: CodeStockChanged, message: "stock changed since it was loaded; reload and try again", field: "stock"}
 }
 
 func errUploadQuota() error {

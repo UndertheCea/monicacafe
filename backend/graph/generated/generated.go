@@ -31,6 +31,7 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
 	AuditEntry() AuditEntryResolver
+	CartItem() CartItemResolver
 	Coffee() CoffeeResolver
 	CoffeeVariety() CoffeeVarietyResolver
 	Comment() CommentResolver
@@ -66,6 +67,24 @@ type ComplexityRoot struct {
 		AccessToken  func(childComplexity int) int
 		RefreshToken func(childComplexity int) int
 		User         func(childComplexity int) int
+	}
+
+	Cart struct {
+		ItemCount   func(childComplexity int) int
+		Items       func(childComplexity int) int
+		SubtotalTwd func(childComplexity int) int
+	}
+
+	CartItem struct {
+		AddedPriceTwd func(childComplexity int) int
+		Available     func(childComplexity int) int
+		Coffee        func(childComplexity int) int
+		ID            func(childComplexity int) int
+		LineTotalTwd  func(childComplexity int) int
+		PriceChanged  func(childComplexity int) int
+		PriceTwd      func(childComplexity int) int
+		Quantity      func(childComplexity int) int
+		Variant       func(childComplexity int) int
 	}
 
 	Coffee struct {
@@ -134,6 +153,7 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddComment           func(childComplexity int, input model.AddCommentInput) int
+		AddToCart            func(childComplexity int, variantID string, quantity int) int
 		AddVariant           func(childComplexity int, coffeeID string, input model.VariantInput) int
 		AdminUnpublishCoffee func(childComplexity int, id string, reason string) int
 		ChangePassword       func(childComplexity int, input model.ChangePasswordInput) int
@@ -152,6 +172,7 @@ type ComplexityRoot struct {
 		PublishCoffee        func(childComplexity int, id string) int
 		RefreshToken         func(childComplexity int, token string) int
 		Register             func(childComplexity int, input model.RegisterInput) int
+		RemoveFromCart       func(childComplexity int, id string) int
 		ReorderShopCoffees   func(childComplexity int, shopID string, coffeeIds []string) int
 		Report               func(childComplexity int, targetType model.ReportTargetType, targetID string, reason model.ReportReason, note *string) int
 		ResolveReport        func(childComplexity int, id string, action model.ReportResolution, reason *string) int
@@ -163,6 +184,7 @@ type ComplexityRoot struct {
 		UnsaveCoffee         func(childComplexity int, id string) int
 		UnsuspendShop        func(childComplexity int, id string, reason string) int
 		UnsuspendUser        func(childComplexity int, id string, reason string) int
+		UpdateCartItem       func(childComplexity int, id string, quantity int) int
 		UpdateCoffee         func(childComplexity int, id string, input model.UpdateCoffeeInput) int
 		UpdateComment        func(childComplexity int, id string, body string) int
 		UpdateProfile        func(childComplexity int, input model.UpdateProfileInput) int
@@ -190,6 +212,7 @@ type ComplexityRoot struct {
 		AdminShops        func(childComplexity int, search *string, limit *int, offset *int) int
 		AdminUsers        func(childComplexity int, search *string, limit *int, offset *int) int
 		AuditLog          func(childComplexity int, limit *int, offset *int) int
+		Cart              func(childComplexity int) int
 		Coffee            func(childComplexity int, id string) int
 		CoffeeVarieties   func(childComplexity int) int
 		Coffees           func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
@@ -290,6 +313,7 @@ type ComplexityRoot struct {
 		IsAvailable func(childComplexity int) int
 		PriceTwd    func(childComplexity int) int
 		Stock       func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
 		WeightG     func(childComplexity int) int
 	}
 }
@@ -300,6 +324,9 @@ type ComplexityRoot struct {
 
 type AuditEntryResolver interface {
 	Actor(ctx context.Context, obj *model.AuditEntry) (*model.User, error)
+}
+type CartItemResolver interface {
+	Coffee(ctx context.Context, obj *model.CartItem) (*model.Coffee, error)
 }
 type CoffeeResolver interface {
 	Shop(ctx context.Context, obj *model.Coffee) (*model.Shop, error)
@@ -324,6 +351,9 @@ type CommentResolver interface {
 	Coffee(ctx context.Context, obj *model.Comment) (*model.Coffee, error)
 }
 type MutationResolver interface {
+	AddToCart(ctx context.Context, variantID string, quantity int) (*model.Cart, error)
+	UpdateCartItem(ctx context.Context, id string, quantity int) (*model.Cart, error)
+	RemoveFromCart(ctx context.Context, id string) (*model.Cart, error)
 	Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error)
@@ -369,6 +399,7 @@ type ProcessingMethodResolver interface {
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	MyDataExport(ctx context.Context) (string, error)
+	Cart(ctx context.Context) (*model.Cart, error)
 	Shop(ctx context.Context, slug string) (*model.Shop, error)
 	Shops(ctx context.Context, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
 	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
@@ -504,6 +535,80 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AuthPayload.User(childComplexity), true
+
+	case "Cart.itemCount":
+		if e.ComplexityRoot.Cart.ItemCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Cart.ItemCount(childComplexity), true
+	case "Cart.items":
+		if e.ComplexityRoot.Cart.Items == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Cart.Items(childComplexity), true
+	case "Cart.subtotalTwd":
+		if e.ComplexityRoot.Cart.SubtotalTwd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Cart.SubtotalTwd(childComplexity), true
+
+	case "CartItem.addedPriceTwd":
+		if e.ComplexityRoot.CartItem.AddedPriceTwd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.AddedPriceTwd(childComplexity), true
+	case "CartItem.available":
+		if e.ComplexityRoot.CartItem.Available == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.Available(childComplexity), true
+	case "CartItem.coffee":
+		if e.ComplexityRoot.CartItem.Coffee == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.Coffee(childComplexity), true
+	case "CartItem.id":
+		if e.ComplexityRoot.CartItem.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.ID(childComplexity), true
+	case "CartItem.lineTotalTwd":
+		if e.ComplexityRoot.CartItem.LineTotalTwd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.LineTotalTwd(childComplexity), true
+	case "CartItem.priceChanged":
+		if e.ComplexityRoot.CartItem.PriceChanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.PriceChanged(childComplexity), true
+	case "CartItem.priceTwd":
+		if e.ComplexityRoot.CartItem.PriceTwd == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.PriceTwd(childComplexity), true
+	case "CartItem.quantity":
+		if e.ComplexityRoot.CartItem.Quantity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.Quantity(childComplexity), true
+	case "CartItem.variant":
+		if e.ComplexityRoot.CartItem.Variant == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CartItem.Variant(childComplexity), true
 
 	case "Coffee.altitudeMaxM":
 		if e.ComplexityRoot.Coffee.AltitudeMaxM == nil {
@@ -808,6 +913,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AddComment(childComplexity, args["input"].(model.AddCommentInput)), true
+	case "Mutation.addToCart":
+		if e.ComplexityRoot.Mutation.AddToCart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addToCart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AddToCart(childComplexity, args["variantId"].(string), args["quantity"].(int)), true
 	case "Mutation.addVariant":
 		if e.ComplexityRoot.Mutation.AddVariant == nil {
 			break
@@ -1001,6 +1117,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.Register(childComplexity, args["input"].(model.RegisterInput)), true
+	case "Mutation.removeFromCart":
+		if e.ComplexityRoot.Mutation.RemoveFromCart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeFromCart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RemoveFromCart(childComplexity, args["id"].(string)), true
 	case "Mutation.reorderShopCoffees":
 		if e.ComplexityRoot.Mutation.ReorderShopCoffees == nil {
 			break
@@ -1122,6 +1249,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.UnsuspendUser(childComplexity, args["id"].(string), args["reason"].(string)), true
+	case "Mutation.updateCartItem":
+		if e.ComplexityRoot.Mutation.UpdateCartItem == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateCartItem_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UpdateCartItem(childComplexity, args["id"].(string), args["quantity"].(int)), true
 	case "Mutation.updateCoffee":
 		if e.ComplexityRoot.Mutation.UpdateCoffee == nil {
 			break
@@ -1273,6 +1411,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AuditLog(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
+	case "Query.cart":
+		if e.ComplexityRoot.Query.Cart == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Cart(childComplexity), true
 	case "Query.coffee":
 		if e.ComplexityRoot.Query.Coffee == nil {
 			break
@@ -1786,6 +1930,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Variant.Stock(childComplexity), true
+	case "Variant.updatedAt":
+		if e.ComplexityRoot.Variant.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Variant.UpdatedAt(childComplexity), true
 	case "Variant.weightG":
 		if e.ComplexityRoot.Variant.WeightG == nil {
 			break
@@ -1906,6 +2056,9 @@ type Query {
   # rate limited per account (RATE_LIMIT_EXPORT_USER).
   myDataExport: String!
 
+  # The signed-in buyer's cart (#21; Stage 2). UNAUTHENTICATED when signed out.
+  cart: Cart!
+
   # Shop discovery
   shop(slug: String!): Shop
   # sort defaults to NEWEST. search: keywords (≤ 100 characters, ≤ 8 words);
@@ -1952,6 +2105,16 @@ type Query {
 # ─── Mutations ────────────────────────────────────────────────────────────────
 
 type Mutation {
+  # Cart (#21). Each returns the whole cart. addToCart adds to the line's
+  # quantity if the option is already there. Only public, available options
+  # with enough stock can be added; a line holds 1–20 bags (never more than the
+  # stock) and a cart at most 50 lines (LIMIT_REACHED). Each write refreshes
+  # the line's price snapshot. Rate limited per account (RATE_LIMIT_CART_USER).
+  addToCart(variantId: ID!, quantity: Int! = 1): Cart!
+  # quantity 1–20; raising it past the stock is refused, lowering always works.
+  updateCartItem(id: ID!, quantity: Int!): Cart!
+  removeFromCart(id: ID!): Cart!
+
   # Auth
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
@@ -2332,6 +2495,8 @@ type Variant {
   priceTwd: TWD!
   stock: Int!
   isAvailable: Boolean!
+  "Last change to price, stock or availability (#278)."
+  updatedAt: Time!
 }
 
 # EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176.
@@ -2567,6 +2732,12 @@ input UpdateVariantInput {
   priceTwd: Int
   stock: Int
   isAvailable: Boolean
+  """
+  The stock the seller last saw. With it, a new stock is saved only if the
+  stored stock is still this number; otherwise STOCK_CHANGED (an order took
+  some meanwhile, #277). Only valid together with stock.
+  """
+  expectedStock: Int
 }
 
 # The site's /coffees page uses only originCountryId, varietyId,
@@ -2607,6 +2778,31 @@ input CoffeeFilter {
 input AddCommentInput {
   coffeeId: ID!
   body: String!
+}
+
+type Cart {
+  items: [CartItem!]!
+  "Sum of the lines that can be bought now, at today's prices."
+  subtotalTwd: TWD!
+  "Bags in the lines that can be bought now."
+  itemCount: Int!
+}
+
+type CartItem {
+  id: ID!
+  quantity: Int!
+  variant: Variant!
+  "Null when the coffee is no longer public (unpublished, archived, shop suspended)."
+  coffee: Coffee
+  "Price per bag when the line was added or last changed."
+  addedPriceTwd: TWD!
+  "Today's price per bag."
+  priceTwd: TWD!
+  priceChanged: Boolean!
+  "False when the option or coffee is gone, off sale, or has fewer bags than the line."
+  available: Boolean!
+  "priceTwd × quantity."
+  lineTotalTwd: TWD!
 }
 `, BuiltIn: false},
 }
@@ -2656,6 +2852,42 @@ func (ec *executionContext) childFields_AuthPayload(ctx context.Context, field g
 		return ec.fieldContext_AuthPayload_user(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type AuthPayload", field.Name)
+}
+
+func (ec *executionContext) childFields_Cart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "items":
+		return ec.fieldContext_Cart_items(ctx, field)
+	case "subtotalTwd":
+		return ec.fieldContext_Cart_subtotalTwd(ctx, field)
+	case "itemCount":
+		return ec.fieldContext_Cart_itemCount(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Cart", field.Name)
+}
+
+func (ec *executionContext) childFields_CartItem(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_CartItem_id(ctx, field)
+	case "quantity":
+		return ec.fieldContext_CartItem_quantity(ctx, field)
+	case "variant":
+		return ec.fieldContext_CartItem_variant(ctx, field)
+	case "coffee":
+		return ec.fieldContext_CartItem_coffee(ctx, field)
+	case "addedPriceTwd":
+		return ec.fieldContext_CartItem_addedPriceTwd(ctx, field)
+	case "priceTwd":
+		return ec.fieldContext_CartItem_priceTwd(ctx, field)
+	case "priceChanged":
+		return ec.fieldContext_CartItem_priceChanged(ctx, field)
+	case "available":
+		return ec.fieldContext_CartItem_available(ctx, field)
+	case "lineTotalTwd":
+		return ec.fieldContext_CartItem_lineTotalTwd(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CartItem", field.Name)
 }
 
 func (ec *executionContext) childFields_Coffee(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2988,6 +3220,8 @@ func (ec *executionContext) childFields_Variant(ctx context.Context, field graph
 		return ec.fieldContext_Variant_stock(ctx, field)
 	case "isAvailable":
 		return ec.fieldContext_Variant_isAvailable(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_Variant_updatedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Variant", field.Name)
 }
@@ -3155,6 +3389,28 @@ func (ec *executionContext) field_Mutation_addComment_args(ctx context.Context, 
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_addToCart_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "variantId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["variantId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "quantity",
+		func(ctx context.Context, v any) (int, error) {
+			return ec.unmarshalNInt2int(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["quantity"] = arg1
 	return args, nil
 }
 
@@ -3428,6 +3684,20 @@ func (ec *executionContext) field_Mutation_register_args(ctx context.Context, ra
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_removeFromCart_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_reorderShopCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -3659,6 +3929,28 @@ func (ec *executionContext) field_Mutation_unsuspendUser_args(ctx context.Contex
 		return nil, err
 	}
 	args["reason"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_updateCartItem_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "quantity",
+		func(ctx context.Context, v any) (int, error) {
+			return ec.unmarshalNInt2int(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["quantity"] = arg1
 	return args, nil
 }
 
@@ -4553,6 +4845,309 @@ func (ec *executionContext) fieldContext_AuthPayload_user(_ context.Context, fie
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Cart_items(ctx context.Context, field graphql.CollectedField, obj *model.Cart) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Cart_items(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Items, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.CartItem) graphql.Marshaler {
+			return ec.marshalNCartItem2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCartItemᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Cart_items(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Cart",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CartItem(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Cart_subtotalTwd(ctx context.Context, field graphql.CollectedField, obj *model.Cart) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Cart_subtotalTwd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubtotalTwd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v money.TWD) graphql.Marshaler {
+			return ec.marshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Cart_subtotalTwd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Cart", field, false, false, "TWD")
+}
+
+func (ec *executionContext) _Cart_itemCount(ctx context.Context, field graphql.CollectedField, obj *model.Cart) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Cart_itemCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ItemCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Cart_itemCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Cart", field, false, false, "Int")
+}
+
+func (ec *executionContext) _CartItem_id(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "ID")
+}
+
+func (ec *executionContext) _CartItem_quantity(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_quantity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Quantity, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_quantity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "Int")
+}
+
+func (ec *executionContext) _CartItem_variant(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_variant(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Variant, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Variant) graphql.Marshaler {
+			return ec.marshalNVariant2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariant(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_variant(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CartItem",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Variant(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CartItem_coffee(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_coffee(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.CartItem().Coffee(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Coffee) graphql.Marshaler {
+			return ec.marshalOCoffee2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffee(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_coffee(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CartItem",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Coffee(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CartItem_addedPriceTwd(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_addedPriceTwd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AddedPriceTwd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v money.TWD) graphql.Marshaler {
+			return ec.marshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_addedPriceTwd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "TWD")
+}
+
+func (ec *executionContext) _CartItem_priceTwd(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_priceTwd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PriceTwd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v money.TWD) graphql.Marshaler {
+			return ec.marshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_priceTwd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "TWD")
+}
+
+func (ec *executionContext) _CartItem_priceChanged(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_priceChanged(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PriceChanged, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_priceChanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "Boolean")
+}
+
+func (ec *executionContext) _CartItem_available(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_available(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Available, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_available(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "Boolean")
+}
+
+func (ec *executionContext) _CartItem_lineTotalTwd(ctx context.Context, field graphql.CollectedField, obj *model.CartItem) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CartItem_lineTotalTwd(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LineTotalTwd, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v money.TWD) graphql.Marshaler {
+			return ec.marshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CartItem_lineTotalTwd(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CartItem", field, false, false, "TWD")
 }
 
 func (ec *executionContext) _Coffee_id(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
@@ -5750,6 +6345,138 @@ func (ec *executionContext) fieldContext_ImageUpload_thumbnail(_ context.Context
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_ImageUpload(ctx, field)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_addToCart(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_addToCart(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AddToCart(ctx, fc.Args["variantId"].(string), fc.Args["quantity"].(int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Cart) graphql.Marshaler {
+			return ec.marshalNCart2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCart(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_addToCart(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Cart(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addToCart_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateCartItem(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_updateCartItem(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().UpdateCartItem(ctx, fc.Args["id"].(string), fc.Args["quantity"].(int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Cart) graphql.Marshaler {
+			return ec.marshalNCart2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCart(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_updateCartItem(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Cart(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateCartItem_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_removeFromCart(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_removeFromCart(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().RemoveFromCart(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Cart) graphql.Marshaler {
+			return ec.marshalNCart2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCart(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_removeFromCart(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Cart(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_removeFromCart_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -7556,6 +8283,38 @@ func (ec *executionContext) _Query_myDataExport(ctx context.Context, field graph
 }
 func (ec *executionContext) fieldContext_Query_myDataExport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Query", field, true, true, "String")
+}
+
+func (ec *executionContext) _Query_cart(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_cart(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().Cart(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Cart) graphql.Marshaler {
+			return ec.marshalNCart2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCart(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_cart(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Cart(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Query_shop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -9812,6 +10571,29 @@ func (ec *executionContext) fieldContext_Variant_isAvailable(_ context.Context, 
 	return graphql.NewScalarFieldContext("Variant", field, false, false, "Boolean")
 }
 
+func (ec *executionContext) _Variant_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Variant_updatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Variant_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Variant", field, false, false, "Time")
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11764,7 +12546,7 @@ func (ec *executionContext) unmarshalInputUpdateVariantInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"priceTwd", "stock", "isAvailable"}
+	fieldsInOrder := [...]string{"priceTwd", "stock", "isAvailable", "expectedStock"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -11792,6 +12574,13 @@ func (ec *executionContext) unmarshalInputUpdateVariantInput(ctx context.Context
 				return it, err
 			}
 			it.IsAvailable = data
+		case "expectedStock":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedStock"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedStock = data
 		}
 	}
 	return it, nil
@@ -12007,6 +12796,123 @@ func (ec *executionContext) _AuthPayload(ctx context.Context, sel ast.SelectionS
 			out.Values[i] = ec._AuthPayload_user(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var cartImplementors = []string{"Cart"}
+
+func (ec *executionContext) _Cart(ctx context.Context, sel ast.SelectionSet, obj *model.Cart) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cartImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Cart")
+		case "items":
+			out.Values[i] = ec._Cart_items(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subtotalTwd":
+			out.Values[i] = ec._Cart_subtotalTwd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "itemCount":
+			out.Values[i] = ec._Cart_itemCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var cartItemImplementors = []string{"CartItem"}
+
+func (ec *executionContext) _CartItem(ctx context.Context, sel ast.SelectionSet, obj *model.CartItem) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, cartItemImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CartItem")
+		case "id":
+			out.Values[i] = ec._CartItem_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "quantity":
+			out.Values[i] = ec._CartItem_quantity(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "variant":
+			out.Values[i] = ec._CartItem_variant(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "coffee":
+			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
+				true, false,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._CartItem_coffee(ctx, field, obj)
+				})
+		case "addedPriceTwd":
+			out.Values[i] = ec._CartItem_addedPriceTwd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "priceTwd":
+			out.Values[i] = ec._CartItem_priceTwd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "priceChanged":
+			out.Values[i] = ec._CartItem_priceChanged(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "available":
+			out.Values[i] = ec._CartItem_available(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "lineTotalTwd":
+			out.Values[i] = ec._CartItem_lineTotalTwd(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
@@ -12455,6 +13361,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "addToCart":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addToCart(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateCartItem":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateCartItem(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "removeFromCart":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_removeFromCart(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "register":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_register(ctx, field)
@@ -12855,6 +13782,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_myDataExport(ctx, field)
+				})
+		case "cart":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_cart(ctx, field)
 				})
 		case "shop":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
@@ -13529,6 +14462,11 @@ func (ec *executionContext) _Variant(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "updatedAt":
+			out.Values[i] = ec._Variant_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -13985,6 +14923,38 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 		graphql.AddInvalidNullFromMarshaler(ctx, "Boolean!")
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNCart2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCart(ctx context.Context, sel ast.SelectionSet, v *model.Cart) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "Cart!")
+		return graphql.Null
+	}
+	return ec._Cart(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCartItem2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCartItemᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.CartItem) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNCartItem2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCartItem(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNCartItem2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCartItem(ctx context.Context, sel ast.SelectionSet, v *model.CartItem) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "CartItem!")
+		return graphql.Null
+	}
+	return ec._CartItem(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNChangePasswordInput2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐChangePasswordInput(ctx context.Context, v any) (model.ChangePasswordInput, error) {

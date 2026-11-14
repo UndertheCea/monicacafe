@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 38 — 2026-11-14 — Stage 2 opens: groundwork (#237) and the cart (six slices)
-PR: #PRNUM
+PR: #281
 
 The owner answered #197: start Stage 2 now and keep the blocked stage-1 slices in the queue. Recorded in the brief and closed
 #197. No other question had owner answers; no open session PR (only dependabot's). #237 (groundwork) was one large issue, so

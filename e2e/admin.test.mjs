@@ -10,7 +10,8 @@ const GRANT = process.env.E2E_GRANT_ADMIN;
 // Locally the check is skipped without a grant command; in CI it must run.
 if (!GRANT && process.env.CI) throw new Error("E2E_GRANT_ADMIN is not set");
 const seller = { name: `Mod Seller ${RUN}`, email: `e2e-mod-seller-${RUN}@example.com` };
-const admin = { name: `Mod Admin ${RUN}`, email: `e2e-mod-admin-${RUN}@example.com` };
+// Not "Admin": display names with platform / staff words are reserved (#286).
+const admin = { name: `Mod Reviewer ${RUN}`, email: `e2e-mod-admin-${RUN}@example.com` };
 const coffeeName = `Mod Natural ${RUN}`;
 const badText = `Cheap knock-off beans at another site ${RUN}`;
 let browser, coffeeUrl;

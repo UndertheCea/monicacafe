@@ -44,7 +44,8 @@ every `Closes #N` in the PR body) so merging the PR closes the issue. If you sto
 2. Prices are `INTEGER` NT$ in Postgres and `money.TWD` (int64) in Go. No float math on prices.
 3. Every user-facing string goes through `t()` (`frontend/lib/i18n/dict.ts`) with zh-TW and English.
 4. UUID primary keys (`gen_random_uuid()`), never serial.
-5. Stage 1 has no cart, payment or order code. Payments are ECPay (綠界) only: never Stripe, never USD.
+5. Cart, order and payment code is Stage 2 (opened by the owner on #197). Payments are ECPay (綠界) only: never Stripe,
+   never USD. Take stock only with `store.ReserveStock` inside the order's transaction.
 6. Config comes from env via `config.Load()`. Never hardcode secrets or ports; add new vars to `.env.example`.
 7. Schema changes are allowed when a slice needs them; regenerate with `go tool gqlgen generate`.
 8. New Go logic gets a table-driven test. New frontend logic gets a pure helper and an `npm test` case.
@@ -67,7 +68,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved
 | Path | What lives there |
 |---|---|
 | `backend/cmd/server` | HTTP server: chi, gqlgen, JWT middleware, slog, graceful shutdown |
-| `backend/cmd/worker` | River job-queue skeleton (Stage 2) |
+| `backend/cmd/worker` + `internal/jobs` | River worker (graceful SIGTERM); job kinds and workers live in `internal/jobs`, River's tables in migration 021 |
 | `backend/cmd/admin` | `admin grant <email>` / `admin revoke <email>` set the ADMIN role (audited); in compose: `docker compose exec backend /app/admin grant <email>` |
 | `backend/graph/` | `schema.graphqls`, resolvers, hand-written models, dataloaders, input validation, integration tests |
 | `backend/graph/errors.go` + `frontend/lib/errors.ts` | The error contract: `extensions.code` (+ `field`, `retryAfter`); a Go test keeps the code lists in sync |

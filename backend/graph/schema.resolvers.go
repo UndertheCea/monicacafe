@@ -1396,6 +1396,26 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	return toUser(u), nil
 }
 
+// MyDataExport is the resolver for the myDataExport field.
+func (r *queryResolver) MyDataExport(ctx context.Context) (string, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return "", err
+	}
+	if err := allowKey(r.Limits.ExportUser, c.UserID); err != nil {
+		return "", err
+	}
+	doc, err := r.Store.ExportUserData(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		// A valid token for an account deleted since: same as signed out.
+		return "", errUnauthenticated()
+	}
+	if err != nil {
+		return "", err
+	}
+	return string(doc), nil
+}
+
 // Shop is the resolver for the shop field.
 func (r *queryResolver) Shop(ctx context.Context, slug string) (*model.Shop, error) {
 	sh, err := r.Store.ShopBySlug(ctx, slug)
@@ -1539,6 +1559,15 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 		return nil, err
 	}
 	return refs.methods, nil
+}
+
+// SearchTerms is the resolver for the searchTerms field.
+func (r *queryResolver) SearchTerms(ctx context.Context, q string) ([][]string, error) {
+	words, err := searchTerms(q)
+	if err != nil {
+		return nil, err
+	}
+	return expandSearch(words), nil
 }
 
 // AdminUsers is the resolver for the adminUsers field.

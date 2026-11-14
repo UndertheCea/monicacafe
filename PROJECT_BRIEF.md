@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-13 (after Session 36)
+Last updated: 2026-11-14 (after Session 37)
 
 ---
 
@@ -42,14 +42,14 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
 | Coffee listing details: provenance (#116–#120), brew method (#122–#127), harvest year (#129–#134) on the API, forms, coffee page + JSON-LD; cup profile removed (#189); `minAltitudeM` / brew / harvest filters in the API only (#167) | Done |
 | Filter UX: origin / variety / process lists show only values with coffees + counts (`coffeeCount` in the API); removable chips for active filters on /coffees; sidebar from tablet width, filter drawer below it (#165) | Done (#150–#153, #165) |
+| Search: zh-TW ↔ English synonyms + simplified → traditional (`internal/search`); "Matched: …" line on results (`searchTerms`) | Done (#269, #274) |
 | Pages: home, /coffees (+keyword search with a removable chip, filters, sort, in-stock), header search, /coffees/[id] (+price / sold-out under the name, flavour notes link to search, paged comments, more from shop, similar from other shops, NT$/100 g, photo gallery), /shops (+search, sort, coffee counts), /shops/[slug], /map | Done |
 | Branded zh/en 404 + error boundary, Open Graph / canonical on detail pages, home and listings (search results `noindex`), Product + Store JSON-LD | Done (#92, #195) |
-| /login, /register, account menu, /account (display name, change password, saved coffees, my comments, delete account) | Done |
+| /login, /register, account menu, /account (display name, change password, saved coffees, my comments, download my data (#270), delete account) | Done |
 | Comments: add, delete, edit own (with "edited" marker), "店家 / Roaster" badge on the shop owner's replies | Done (#81, #82, #95, #96) |
 | Accessibility: skip link, one `main`; text ≥ 4.5:1 (tested from the tokens), 44 px tap targets, `lang` spans, count-only live region; axe clean on six pages | Done (#85, #231) |
 | Design system: tokens, flat cards, one `<Page>` width (#229); `components/ui` Button / Field / Card / headings / Badge / Picture, one box radius (#230); errors under each field + focus, `ConfirmButton` (#232) | Done |
-| Saved coffees: save toggle + count on coffee pages, list on /account, "Most saved" sort | Done (#87–#89, #97, #98) |
-| Followed shops: follow toggle + count on shop pages, list on /account, home "From roasters you follow", "Most followed" sort, follower count on cards + dashboard | Done (#102–#107) |
+| Saved coffees + followed shops: toggles + counts, lists on /account, "Most saved" / "Most followed" sorts, home "From roasters you follow", follower count on cards + dashboard | Done (#87–#89, #97, #98, #102–#107) |
 | Account deletion for buyers (password re-check; comments, saves, sessions removed) | Done (#90, #91); sellers: #93 |
 | Seller dashboard: open shop, coffees (new / edit / options / publish / duplicate / delete draft, paged, stock badges, comments + saves per coffee), shop profile + location, recent comments; draft preview (owner, #8 (b)) | Done (#99) |
 | Seller-curated shop pages: no buyer filters (#160), seller's order via `reorderShopCoffees` + dashboard ↑ / ↓ (#161, #162), sold-out archive section (#163) | Done |
@@ -62,7 +62,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | Request limits: list fields priced by their limit, depth ≤ 8, no similar-of-similar, ≤ 5000 tokens, 100 KB body | Done (#207) |
 | Hardening: production refuses published secrets and needs `APP_ENV` (#206); safe `?next=` (#208); only nginx reachable, BFF forwards nginx's X-Real-IP (#211); one frontend image for any host (#210) | Done |
 | Error contract (`graph/errors.go` ↔ `lib/errors.ts`, Go test); JSON access + panic logs with request id (#48, #53); Postgres pool cap + statement timeout (#52) | Done |
-| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke + browser checks** (Playwright journeys, axe on 13 pages, report → /admin; `e2e/`), `security`, dependabot, actions pinned by SHA | Done (#216, #263–#265) |
+| CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke + browser checks** (Playwright journeys, axe on 13 pages, report → /admin; `e2e/`), `security`, dependabot, actions pinned by SHA. Go 1.27, Node 26, ESLint 10 (#271–#273) | Done (#216, #263–#265) |
 | nginx: gzip, no server version, `/media/` sandboxed (GET / HEAD / PUT only), per-IP `limit_req` on /graphql and /api/, timeouts + body caps, exact `/graphql`, JSON access log with request ids | Done (#64, #214) |
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
@@ -76,9 +76,9 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 36**: no answers on the open questions and no pickable slice, so six new `stage-1` gaps were filed and built: unused
-packages removed (#260); dependency minor / patch + Actions majors, gqlgen 0.17.98 (#261); the API router under test (#262);
-Playwright journeys (#263), axe on 13 pages (#264) and report → `/admin` (#265) in CI. axe found the wordmark's name mismatch.
+**Session 37**: still no owner answers and no pickable slice, so six new `stage-1` gaps were filed and built: search synonyms
+(耶加雪菲 ↔ Yirgacheffe, 瑰夏 ↔ Geisha, mainland names; #269) and a "Matched: …" line on results (#274); "Download my data"
+JSON export on /account (#270, PDPA access); Go 1.27.4 + Playwright 1.65 (#271), Node 26 LTS (#272), ESLint 10 (#273).
 
 ## Current focus
 
@@ -86,7 +86,7 @@ Playwright journeys (#263), axe on 13 pages (#264) and report → `/admin` (#265
    step (#219, blocked). Backups (#220), cookie / Origin rules (#215) and monitoring (#221, `docs/DEPLOY.md`) are ready.
 2. **#170–#173**, then **#174**: blocked until the roasters' domains are reachable (#168; still unreachable on 2026-11-13).
 3. **Stage 2 waits on #197** (default: keep the stage rule) and on #12 / #205. Every unblocked `stage-1` slice is done;
-   #223 / #226 wait on #200 / #201. Open dependabot majors (TS 7, ESLint 10, Node 26, Postgres 18, Redis 8) need real work.
+   #223 / #226 wait on #200 / #201. Open dependabot majors left: TypeScript 7, Postgres 18 (volume dump / restore), Redis 8.
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
    turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
@@ -143,7 +143,6 @@ Open questions for the owner (answer by commenting on the issue):
 - **Orphan cleanup matches keys by shape after listing first** — a CDN / `MEDIA_PUBLIC_URL` change can't make saved
   images look unreferenced; 24 h minimum age protects uploads not saved yet; ≤1000 deletes per run.
 - **CSP with per-request nonces** — no `'unsafe-inline'` scripts; styles keep `'unsafe-inline'` for React/Leaflet.
-- **Next.js 16 after Stage 1** — owner's answer on #11; done in Session 10 (#35).
 - **No loading boundaries (#156)** — a `loading.tsx` makes Next stream the page into hidden placeholders that only an
   inline script reveals, so without JavaScript /coffees and /shops showed a skeleton forever. Header and pagination links
   show a pending dot (`useLinkStatus`) instead; a test keeps `loading.*` out of `app/`.
@@ -152,6 +151,8 @@ Open questions for the owner (answer by commenting on the issue):
 - **Price sort = cheapest available, in-stock variant; sold-out last** — matches the "from NT$…" on cards (#44).
 - **Duplicate copies details + options, never photos or comments** — image keys are scoped to the source coffee,
   so sharing them would let the orphan sweep or a later edit of one break the other (#54).
+- **Search synonyms = a curated Go table (#269)**: each word ORs its group (≤ 8 patterns, one `ILIKE ANY`), words AND; the
+  frontend reads the same expansion from `searchTerms` (#274). **Data export (#270)** = one SQL snapshot of own rows, no secrets.
 - **Keyword search = Postgres ILIKE per word (AND), wildcards escaped** — enough for Stage 1's catalogue with no
   new infra; Meilisearch (Stage 3) can replace it behind the same `CoffeeFilter.search` field (#66).
 - **`Comment.coffee` is nullable** — a comment can outlive its coffee's publication; non-owners get null rather

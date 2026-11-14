@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -68,6 +69,31 @@ func TestCoffeeFilterWhere(t *testing.T) {
 				t.Errorf("where() = %q (%d args), want %q (%d args)", got, len(args), tc.want, tc.wantArgs)
 			}
 		})
+	}
+}
+
+// TestSearchPatterns: a search word becomes the escaped patterns for itself
+// and its synonyms (#269), all passed as one array argument.
+func TestSearchPatterns(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{"50%", []string{`%50\%%`}},
+		{"Yirgacheffe", []string{"%Yirgacheffe%", "%Yirgachefe%", "%耶加雪菲%", "%耶加雪啡%"}},
+		{"瑰夏", []string{"%瑰夏%", "%Geisha%", "%Gesha%", "%藝伎%", "%藝妓%"}},
+	}
+	for _, tc := range cases {
+		if got := searchPatterns(tc.in); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("searchPatterns(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+	_, args := CoffeeFilter{SearchTerms: []string{"耶加雪菲", "Natural"}}.where()
+	if len(args) != 2 {
+		t.Fatalf("two words → %d args, want 2", len(args))
+	}
+	if _, ok := args[0].([]string); !ok {
+		t.Errorf("search arg is %T, want []string (ILIKE ANY)", args[0])
 	}
 }
 

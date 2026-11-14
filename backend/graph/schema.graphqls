@@ -6,6 +6,12 @@ scalar TWD
 
 type Query {
   me: User
+  # Everything stored about the signed-in user, as one JSON document (#270):
+  # account, active sessions, comments, saved coffees, followed shops, reports
+  # filed, account events and, for a seller, the shop with its coffees and
+  # options. No password or token material. UNAUTHENTICATED when signed out;
+  # rate limited per account (RATE_LIMIT_EXPORT_USER).
+  myDataExport: String!
 
   # Shop discovery
   shop(slug: String!): Shop
@@ -30,6 +36,11 @@ type Query {
   originCountries: [OriginCountry!]!
   coffeeVarieties: [CoffeeVariety!]!
   processingMethods: [ProcessingMethod!]!
+
+  # How the coffee keyword search reads q (#269, #274): one list per word, the
+  # word first, then its traditional-character form and synonyms (耶加雪菲 for
+  # Yirgacheffe). Same validation as CoffeeFilter.search; blank gives [].
+  searchTerms(q: String!): [[String!]!]!
 
   # Moderation (#224). Admin only: UNAUTHENTICATED when signed out, FORBIDDEN
   # for everyone else. The role is checked against the database on every call,

@@ -52,3 +52,22 @@ export function deleteAccountErrorKey(
   if (code === "UNAVAILABLE") return "auth.error.unavailable";
   return "account.error.generic";
 }
+
+/**
+ * File name for "download my data" (#270): the Taipei calendar date, so a
+ * download just after midnight in Taiwan isn't dated the day before.
+ */
+export function exportFileName(now: Date): string {
+  const day = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  return `monicafe-data-${day}.json`;
+}
+
+/** Pretty-prints the export (the API sends compact JSON); throws on bad JSON. */
+export function formatExport(raw: string): string {
+  return JSON.stringify(JSON.parse(raw), null, 2) + "\n";
+}

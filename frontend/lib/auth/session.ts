@@ -71,6 +71,11 @@ export const UPDATE_PROFILE = typed<{ updateProfile: { displayName: string } }, 
   `,
 );
 
+/** Everything stored about the signed-in user, as a JSON string (#270). */
+export const MY_DATA_EXPORT = typed<{ myDataExport: string }>(/* GraphQL */ `
+  query MyDataExport { myDataExport }
+`);
+
 export const CHANGE_PASSWORD = typed<
   { changePassword: AuthPayload },
   { input: { currentPassword: string; newPassword: string } }

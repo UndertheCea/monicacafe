@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/underthecea/monicacafe/backend/internal/search"
 )
 
 const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_country_id, c.variety_id,
@@ -89,7 +91,7 @@ type CoffeeFilter struct {
 	// SearchTerms: every term must appear (case-insensitive substring) in the
 	// coffee's name, description, a flavor note, its producer, region or
 	// harvest year, its shop's name, or its origin / variety / process names. Terms are matched
-	// literally.
+	// literally; each also matches through its synonyms (search.Expand, #269).
 	SearchTerms []string
 	MinPriceTWD *int64
 	MaxPriceTWD *int64
@@ -142,7 +144,7 @@ func (f CoffeeFilter) where() (string, []any) {
 		add("EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE lower(n) = lower($%d))", *f.FlavorNote)
 	}
 	for _, term := range f.SearchTerms {
-		add(searchCond, LikePattern(term))
+		add(searchCond, searchPatterns(term))
 	}
 	if f.MinPriceTWD != nil || f.MaxPriceTWD != nil {
 		// A coffee matches when at least one in-stock, available variant is within range.
@@ -182,15 +184,28 @@ func (f CoffeeFilter) where() (string, []any) {
 // buyableCond: the coffee has at least one available, in-stock variant.
 const buyableCond = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
 
-// searchCond matches one search term (a LIKE pattern, $N) against every text
-// a buyer might type: names in both languages, notes, provenance, the shop.
-const searchCond = `(c.name ILIKE $%[1]d OR c.description ILIKE $%[1]d
-		OR c.producer ILIKE $%[1]d OR c.region ILIKE $%[1]d OR c.harvest_year::text ILIKE $%[1]d
-		OR EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE n ILIKE $%[1]d)
-		OR EXISTS (SELECT 1 FROM shops s WHERE s.id = c.shop_id AND s.name ILIKE $%[1]d)
-		OR EXISTS (SELECT 1 FROM origin_countries o WHERE o.id = c.origin_country_id AND (o.name_en ILIKE $%[1]d OR o.name_zh ILIKE $%[1]d))
-		OR EXISTS (SELECT 1 FROM coffee_varieties cv WHERE cv.id = c.variety_id AND cv.name ILIKE $%[1]d)
-		OR EXISTS (SELECT 1 FROM processing_methods pm WHERE pm.id = c.processing_method_id AND (pm.name_en ILIKE $%[1]d OR pm.name_zh ILIKE $%[1]d)))`
+// searchCond matches one search word against every text a buyer might type:
+// names in both languages, notes, provenance, the shop. $N is an array of
+// LIKE patterns, the word and its synonyms (search.Expand, #269); any of them
+// matching is enough.
+const searchCond = `(c.name ILIKE ANY($%[1]d) OR c.description ILIKE ANY($%[1]d)
+		OR c.producer ILIKE ANY($%[1]d) OR c.region ILIKE ANY($%[1]d) OR c.harvest_year::text ILIKE ANY($%[1]d)
+		OR EXISTS (SELECT 1 FROM unnest(c.flavor_notes) n WHERE n ILIKE ANY($%[1]d))
+		OR EXISTS (SELECT 1 FROM shops s WHERE s.id = c.shop_id AND s.name ILIKE ANY($%[1]d))
+		OR EXISTS (SELECT 1 FROM origin_countries o WHERE o.id = c.origin_country_id AND (o.name_en ILIKE ANY($%[1]d) OR o.name_zh ILIKE ANY($%[1]d)))
+		OR EXISTS (SELECT 1 FROM coffee_varieties cv WHERE cv.id = c.variety_id AND cv.name ILIKE ANY($%[1]d))
+		OR EXISTS (SELECT 1 FROM processing_methods pm WHERE pm.id = c.processing_method_id AND (pm.name_en ILIKE ANY($%[1]d) OR pm.name_zh ILIKE ANY($%[1]d))))`
+
+// searchPatterns returns the LIKE patterns for one search word: the word and
+// its synonyms, each matched as a literal substring.
+func searchPatterns(word string) []string {
+	alts := search.Expand(word)
+	out := make([]string, len(alts))
+	for i, a := range alts {
+		out[i] = LikePattern(a)
+	}
+	return out
+}
 
 // LikePattern turns a search term into a LIKE pattern that matches it as a
 // literal substring: the wildcards % and _ and the escape character \ are

@@ -1,6 +1,7 @@
 // #263: the main Stage 1 journeys in a real browser, through nginx, on every PR.
 // Steps share state (the seller's coffee is what the buyer saves), so they run in order.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
 import { addCoffee, launch, loaded, makePng, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
 
@@ -108,6 +109,20 @@ describe("buyer", () => {
       await page.goto("/account");
       await page.getByRole("link", { name: coffeeName }).first().waitFor();
       await page.getByRole("link", { name: shopName }).first().waitFor();
+    });
+    await step(page, "download-my-data", async () => {
+      await page.goto("/account");
+      const [download] = await Promise.all([
+        page.waitForEvent("download"),
+        page.getByRole("button", { name: "Download data" }).click(),
+      ]);
+      assert.match(download.suggestedFilename(), /^monicafe-data-\d{4}-\d{2}-\d{2}\.json$/);
+      const raw = readFileSync(await download.path(), "utf8");
+      const doc = JSON.parse(raw);
+      assert.equal(doc.account.email, buyer.email);
+      assert.deepEqual(doc.savedCoffees.map((c) => c.coffeeName), [coffeeName]);
+      assert.deepEqual(doc.followedShops.map((f) => f.shopName), [shopName]);
+      assert.ok(!/password|token|hash/i.test(raw), "no secrets in the export");
     });
   });
 

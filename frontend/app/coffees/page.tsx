@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { BROWSE_FILTER_OPTIONS, COFFEES } from "@/lib/api";
+import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
+import { cardSearchFields, findSearchMatch } from "@/lib/searchMatch";
 import Link from "next/link";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
@@ -44,16 +45,24 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
   let data;
   try {
-    const [options, list] = await Promise.all([
+    const searching = Boolean(filter.search);
+    const [options, list, terms] = await Promise.all([
       cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_TAGS.filterOptions]),
-      serverQuery(COFFEES, { filter, sort: sortForApi(sort), limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
+      serverQuery(COFFEES, {
+        filter,
+        sort: sortForApi(sort),
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+        withDescription: searching,
+      }),
+      searching ? serverQuery(SEARCH_TERMS, { q: filter.search ?? "" }) : null,
     ]);
-    data = { options, list: list.coffees };
+    data = { options, list: list.coffees, terms: terms?.searchTerms ?? [] };
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }
 
-  const { options, list } = data;
+  const { options, list, terms } = data;
   const pages = Math.max(1, Math.ceil(list.total / PAGE_SIZE));
   const q = filter.search;
   const filtered = hasFiltersBesidesSearch(filter);
@@ -123,7 +132,12 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {list.nodes.map((c) => (
-                <CoffeeCard key={c.id} coffee={c} locale={locale} />
+                <CoffeeCard
+                  key={c.id}
+                  coffee={c}
+                  locale={locale}
+                  match={terms.length > 0 ? findSearchMatch(cardSearchFields(c, locale), terms) : null}
+                />
               ))}
             </div>
           )}

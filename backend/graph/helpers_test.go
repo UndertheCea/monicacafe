@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"strings"
@@ -273,6 +274,32 @@ func TestSearchTerms(t *testing.T) {
 	f, err := storeFilter(&model.CoffeeFilter{Search: strPtr(" a  b ")})
 	if err != nil || !reflect.DeepEqual(f.SearchTerms, []string{"a", "b"}) {
 		t.Errorf("storeFilter search: %+v %v", f.SearchTerms, err)
+	}
+}
+
+// TestSearchTermsQuery: the searchTerms query (#274) returns each word with
+// its synonyms, validated like the coffee search.
+func TestSearchTermsQuery(t *testing.T) {
+	r := &queryResolver{&Resolver{}}
+	cases := []struct {
+		q       string
+		want    [][]string
+		wantErr bool
+	}{
+		{"  ", [][]string{}, false},
+		{"ristretto", [][]string{{"ristretto"}}, false},
+		{"瑰夏 bourbon", [][]string{{"瑰夏", "Geisha", "Gesha", "藝伎", "藝妓"}, {"bourbon", "波旁"}}, false},
+		{"a b c d e f g h i", nil, true},
+	}
+	for _, tc := range cases {
+		got, err := r.SearchTerms(context.Background(), tc.q)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("SearchTerms(%q) error %v, wantErr %v", tc.q, err, tc.wantErr)
+			continue
+		}
+		if !tc.wantErr && !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("SearchTerms(%q) = %q, want %q", tc.q, got, tc.want)
+		}
 	}
 }
 

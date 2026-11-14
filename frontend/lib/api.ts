@@ -107,14 +107,24 @@ const CARD_FIELDS = `
 `;
 
 export const COFFEES = typed<
-  { coffees: { total: number; nodes: CoffeeCardData[] } },
-  { filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number }
+  { coffees: { total: number; nodes: (CoffeeCardData & { description?: string })[] } },
+  { filter?: CoffeeFilter; sort?: CoffeeSort; limit?: number; offset?: number; withDescription?: boolean }
 >(/* GraphQL */ `
-  query Coffees($filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int) {
+  query Coffees($filter: CoffeeFilter, $sort: CoffeeSort, $limit: Int, $offset: Int, $withDescription: Boolean! = false) {
     coffees(filter: $filter, sort: $sort, limit: $limit, offset: $offset) {
       total
-      nodes { ${CARD_FIELDS} }
+      nodes { ${CARD_FIELDS} description @include(if: $withDescription) }
     }
+  }
+`);
+
+/**
+ * How the keyword search reads a query: per word, the word and its synonyms
+ * (#269). /coffees uses it to say why a result matched (#274).
+ */
+export const SEARCH_TERMS = typed<{ searchTerms: string[][] }, { q: string }>(/* GraphQL */ `
+  query SearchTerms($q: String!) {
+    searchTerms(q: $q)
   }
 `);
 

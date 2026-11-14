@@ -16,7 +16,8 @@ import {
   passwordChangeProblem,
   passwordErrorKey,
 } from "@/lib/auth/account";
-import { UPDATE_PROFILE } from "@/lib/auth/session";
+import { MY_DATA_EXPORT, UPDATE_PROFILE } from "@/lib/auth/session";
+import { exportFileName, formatExport } from "@/lib/auth/account";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -58,6 +59,7 @@ export function AccountSettings({ locale }: { locale: Locale }) {
       <FollowedShops locale={locale} />
       <MyComments locale={locale} />
       <Sessions locale={locale} onLeave={onLeave} />
+      <DownloadData locale={locale} />
       <DeleteAccount locale={locale} onLeave={onLeave} />
     </div>
   );
@@ -327,6 +329,48 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
           {t(locale, "account.logoutAll")}
         </Button>
       )}
+    </section>
+  );
+}
+
+function DownloadData({ locale }: { locale: Locale }) {
+  const { request } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<Msg | null>(null);
+
+  async function onDownload() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { myDataExport } = await request(MY_DATA_EXPORT);
+      const blob = new Blob([formatExport(myDataExport)], { type: "application/json" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = exportFileName(new Date());
+      a.click();
+      // Revoke after the click has been handled, or some browsers cancel it.
+      setTimeout(() => URL.revokeObjectURL(href), 0);
+    } catch (err) {
+      const e2 = toApiError(err);
+      setError(
+        e2.code === "RATE_LIMITED"
+          ? rateLimitMessage(e2.retryAfter)
+          : { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.export" },
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className={sectionCls} aria-labelledby="export-title">
+      <SectionTitle id="export-title">{t(locale, "account.export")}</SectionTitle>
+      <p className="text-sm text-muted">{t(locale, "account.exportHint")}</p>
+      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
+      <Button type="button" variant="secondary" onClick={onDownload} disabled={busy} pending={busy}>
+        {busy ? t(locale, "account.exporting") : t(locale, "account.exportButton")}
+      </Button>
     </section>
   );
 }

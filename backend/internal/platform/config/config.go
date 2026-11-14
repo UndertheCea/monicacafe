@@ -77,6 +77,8 @@ type Config struct {
 	RateLimitReportUser   string
 	// RateLimitSellerWriteUser covers every shop / coffee / option mutation.
 	RateLimitSellerWriteUser string
+	// RateLimitExportUser caps "download my data" exports (#270).
+	RateLimitExportUser string
 
 	// Every /graphql request, per client IP.
 	RateLimitGraphQLIP string
@@ -143,6 +145,7 @@ func Load() Config {
 		RateLimitSaveUser:        get("RATE_LIMIT_SAVE_USER", "60/5m"),
 		RateLimitReportUser:      get("RATE_LIMIT_REPORT_USER", "10/1h"),
 		RateLimitSellerWriteUser: get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
+		RateLimitExportUser:      get("RATE_LIMIT_EXPORT_USER", "10/1h"),
 		RateLimitGraphQLIP:       get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 
 		// Loopback by default (a bare `go run` must not expose metrics);
@@ -262,6 +265,7 @@ type RateLimitRules struct {
 	LoginEmailIP                               ratelimit.Rule
 	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
 	SaveUser, SellerWriteUser, ReportUser      ratelimit.Rule
+	ExportUser                                 ratelimit.Rule
 	GraphQLIP                                  ratelimit.Rule
 }
 
@@ -283,6 +287,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_SAVE_USER", c.RateLimitSaveUser, &r.SaveUser},
 		{"RATE_LIMIT_REPORT_USER", c.RateLimitReportUser, &r.ReportUser},
 		{"RATE_LIMIT_SELLER_WRITE_USER", c.RateLimitSellerWriteUser, &r.SellerWriteUser},
+		{"RATE_LIMIT_EXPORT_USER", c.RateLimitExportUser, &r.ExportUser},
 		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},
 	} {
 		rule, err := ratelimit.ParseRule(f.val)

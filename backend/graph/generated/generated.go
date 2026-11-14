@@ -195,10 +195,12 @@ type ComplexityRoot struct {
 		Coffees           func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
 		FollowingCoffees  func(childComplexity int, limit *int, offset *int) int
 		Me                func(childComplexity int) int
+		MyDataExport      func(childComplexity int) int
 		OriginCountries   func(childComplexity int) int
 		PopularCoffees    func(childComplexity int, limit *int) int
 		ProcessingMethods func(childComplexity int) int
 		Reports           func(childComplexity int, status *model.ReportStatus, limit *int, offset *int) int
+		SearchTerms       func(childComplexity int, q string) int
 		Shop              func(childComplexity int, slug string) int
 		Shops             func(childComplexity int, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) int
 		ShopsForMap       func(childComplexity int) int
@@ -366,6 +368,7 @@ type ProcessingMethodResolver interface {
 }
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
+	MyDataExport(ctx context.Context) (string, error)
 	Shop(ctx context.Context, slug string) (*model.Shop, error)
 	Shops(ctx context.Context, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) (*model.ShopConnection, error)
 	ShopsForMap(ctx context.Context) ([]*model.ShopPin, error)
@@ -376,6 +379,7 @@ type QueryResolver interface {
 	OriginCountries(ctx context.Context) ([]*model.OriginCountry, error)
 	CoffeeVarieties(ctx context.Context) ([]*model.CoffeeVariety, error)
 	ProcessingMethods(ctx context.Context) ([]*model.ProcessingMethod, error)
+	SearchTerms(ctx context.Context, q string) ([][]string, error)
 	AdminUsers(ctx context.Context, search *string, limit *int, offset *int) (*model.UserConnection, error)
 	AdminShops(ctx context.Context, search *string, limit *int, offset *int) (*model.ShopConnection, error)
 	AuditLog(ctx context.Context, limit *int, offset *int) (*model.AuditEntryConnection, error)
@@ -1315,6 +1319,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
+	case "Query.myDataExport":
+		if e.ComplexityRoot.Query.MyDataExport == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyDataExport(childComplexity), true
 	case "Query.originCountries":
 		if e.ComplexityRoot.Query.OriginCountries == nil {
 			break
@@ -1349,6 +1359,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Reports(childComplexity, args["status"].(*model.ReportStatus), args["limit"].(*int), args["offset"].(*int)), true
+	case "Query.searchTerms":
+		if e.ComplexityRoot.Query.SearchTerms == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchTerms_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.SearchTerms(childComplexity, args["q"].(string)), true
 	case "Query.shop":
 		if e.ComplexityRoot.Query.Shop == nil {
 			break
@@ -1878,6 +1899,12 @@ scalar TWD
 
 type Query {
   me: User
+  # Everything stored about the signed-in user, as one JSON document (#270):
+  # account, active sessions, comments, saved coffees, followed shops, reports
+  # filed, account events and, for a seller, the shop with its coffees and
+  # options. No password or token material. UNAUTHENTICATED when signed out;
+  # rate limited per account (RATE_LIMIT_EXPORT_USER).
+  myDataExport: String!
 
   # Shop discovery
   shop(slug: String!): Shop
@@ -1902,6 +1929,11 @@ type Query {
   originCountries: [OriginCountry!]!
   coffeeVarieties: [CoffeeVariety!]!
   processingMethods: [ProcessingMethod!]!
+
+  # How the coffee keyword search reads q (#269, #274): one list per word, the
+  # word first, then its traditional-character form and synonyms (耶加雪菲 for
+  # Yirgacheffe). Same validation as CoffeeFilter.search; blank gives [].
+  searchTerms(q: String!): [[String!]!]!
 
   # Moderation (#224). Admin only: UNAUTHENTICATED when signed out, FORBIDDEN
   # for everyone else. The role is checked against the database on every call,
@@ -3943,6 +3975,20 @@ func (ec *executionContext) field_Query_reports_args(ctx context.Context, rawArg
 		return nil, err
 	}
 	args["offset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_searchTerms_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "q",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["q"] = arg0
 	return args, nil
 }
 
@@ -7489,6 +7535,29 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_myDataExport(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_myDataExport(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().MyDataExport(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_myDataExport(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Query", field, true, true, "String")
+}
+
 func (ec *executionContext) _Query_shop(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -7877,6 +7946,50 @@ func (ec *executionContext) fieldContext_Query_processingMethods(_ context.Conte
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_ProcessingMethod(ctx, field)
 		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_searchTerms(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_searchTerms(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().SearchTerms(ctx, fc.Args["q"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v [][]string) graphql.Marshaler {
+			return ec.marshalNString2ᚕᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_searchTerms(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchTerms_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
@@ -12737,6 +12850,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_me(ctx, field)
 				})
+		case "myDataExport":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_myDataExport(ctx, field)
+				})
 		case "shop":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
 				true, false,
@@ -12796,6 +12915,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_processingMethods(ctx, field)
+				})
+		case "searchTerms":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_searchTerms(ctx, field)
 				})
 		case "adminUsers":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
@@ -14273,6 +14398,35 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	ret := make(graphql.Array, len(v))
 	for i := range v {
 		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNString2ᚕᚕstringᚄ(ctx context.Context, v any) ([][]string, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([][]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2ᚕstringᚄ(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNString2ᚕᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v [][]string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2ᚕstringᚄ(ctx, sel, v[i])
 	}
 
 	for _, e := range ret {

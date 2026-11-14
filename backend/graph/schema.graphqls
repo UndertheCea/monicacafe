@@ -31,6 +31,11 @@ type Query {
   coffeeVarieties: [CoffeeVariety!]!
   processingMethods: [ProcessingMethod!]!
 
+  # How the coffee keyword search reads q (#269, #274): one list per word, the
+  # word first, then its traditional-character form and synonyms (耶加雪菲 for
+  # Yirgacheffe). Same validation as CoffeeFilter.search; blank gives [].
+  searchTerms(q: String!): [[String!]!]!
+
   # Moderation (#224). Admin only: UNAUTHENTICATED when signed out, FORBIDDEN
   # for everyone else. The role is checked against the database on every call,
   # so a revoked admin loses access at once. search: every word must appear in

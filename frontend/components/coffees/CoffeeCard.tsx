@@ -2,11 +2,21 @@ import Link from "next/link";
 import { fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { originLine } from "@/lib/provenance";
+import type { SearchMatch } from "@/lib/searchMatch";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { Badge, Card, Picture } from "@/components/ui";
 
-export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale: Locale }) {
+export function CoffeeCard({
+  coffee,
+  locale,
+  match,
+}: {
+  coffee: CoffeeCardData;
+  locale: Locale;
+  /** Why a keyword-search result matched, when the card doesn't show it (#274). */
+  match?: SearchMatch | null;
+}) {
   const price = fromPrice(coffee);
   const img = coffee.imageUrls[0];
   const country = pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn);
@@ -61,6 +71,15 @@ export function CoffeeCard({ coffee, locale }: { coffee: CoffeeCardData; locale:
               </li>
             ))}
           </ul>
+        )}
+
+        {match && (
+          <p className="mt-3 line-clamp-2 text-xs text-muted">
+            {t(locale, "search.matched", { field: t(locale, `search.field.${match.field}`) })}{" "}
+            {match.before}
+            <mark className="bg-transparent font-semibold text-ink underline underline-offset-2">{match.match}</mark>
+            {match.after}
+          </p>
         )}
 
         <div className="mt-auto flex items-end justify-between pt-4">

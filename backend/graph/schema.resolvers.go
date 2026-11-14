@@ -1541,6 +1541,15 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 	return refs.methods, nil
 }
 
+// SearchTerms is the resolver for the searchTerms field.
+func (r *queryResolver) SearchTerms(ctx context.Context, q string) ([][]string, error) {
+	words, err := searchTerms(q)
+	if err != nil {
+		return nil, err
+	}
+	return expandSearch(words), nil
+}
+
 // AdminUsers is the resolver for the adminUsers field.
 func (r *queryResolver) AdminUsers(ctx context.Context, search *string, limit *int, offset *int) (*model.UserConnection, error) {
 	return r.adminUsers(ctx, search, limit, offset)

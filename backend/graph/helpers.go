@@ -21,6 +21,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
 	"github.com/underthecea/monicacafe/backend/internal/platform/tz"
+	"github.com/underthecea/monicacafe/backend/internal/search"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
@@ -857,6 +858,16 @@ func searchTerms(s string) ([]string, error) {
 		return nil, errBadInput("search", fmt.Sprintf("search may have at most %d words", maxSearchTerms))
 	}
 	return out, nil
+}
+
+// expandSearch returns each search word's alternatives as the coffee search
+// matches them (search.Expand); never nil, so a blank query is [].
+func expandSearch(words []string) [][]string {
+	out := make([][]string, 0, len(words))
+	for _, w := range words {
+		out = append(out, search.Expand(w))
+	}
+	return out
 }
 
 // storeFilter converts and validates the public coffee filter. Only published

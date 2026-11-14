@@ -185,18 +185,33 @@ jobs:
         run: |
           out=$(docker compose run --rm migrate 2>&1); echo "$out"
           grep -q "up to date" <<<"$out" || { echo "migrate didn't report up to date"; exit 1; }
-      # Restore drill (#220): back the database up with the same image the
-      # `backup` service uses (pg_dump 17), wipe it, restore, and smoke again.
-      - name: Backup, wipe and restore the database, then smoke again
+      # Restore drill (#220, #289): the real path. An age key made for this run, a
+      # dump into the dev SeaweedFS (a second bucket, so not the media one) through
+      # the same image the `backup` service uses (pg_dump 17, age, aws-cli): upload,
+      # list, retention by date and the success marker are checked
+      # (scripts/backup_drill.sh), then the database is wiped, the dump is fetched,
+      # decrypted and restored with restore.sh, and smoke runs again.
+      - name: Backup (age + S3), wipe and restore the database, then smoke again
         run: |
-          run_backup() {
-            docker compose run --rm --no-deps -e BACKUP_TARGET=/backups -e BACKUP_ALLOW_PLAINTEXT=true \
-              backup sh -c "$1"
+          keys=$(docker compose run --rm --no-deps -T backup age-keygen)
+          recipient=$(echo "$keys" | grep -o 'age1[a-z0-9]*' | head -n 1)
+          secret=$(echo "$keys" | grep -o 'AGE-SECRET-KEY-[A-Z0-9]*' | head -n 1)
+          [ -n "$recipient" ] && [ -n "$secret" ] || { echo "age-keygen gave no key"; exit 1; }
+          s3_key=$(grep '^S3_ACCESS_KEY=' .env | cut -d= -f2)
+          s3_secret=$(grep '^S3_SECRET_KEY=' .env | cut -d= -f2)
+          docker compose run --rm --no-deps -e S3_BUCKET=backups seaweedfs-init
+          drill() {
+            docker compose run --rm --no-deps -T \
+              -e BACKUP_TARGET= -e BACKUP_ALLOW_PLAINTEXT=false \
+              -e BACKUP_S3_ENDPOINT=http://seaweedfs:8333 -e BACKUP_S3_BUCKET=backups \
+              -e BACKUP_S3_ACCESS_KEY="$s3_key" -e BACKUP_S3_SECRET_KEY="$s3_secret" \
+              -e BACKUP_AGE_RECIPIENT="$recipient" -e AGE_SECRET_KEY="$secret" \
+              backup sh /monicacafe/scripts/backup_drill.sh "$1"
           }
-          run_backup 'sh /monicacafe/scripts/backup.sh'
+          drill backup
           docker compose stop nginx frontend backend
           docker compose exec -T postgres sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"'
-          run_backup 'sh /monicacafe/scripts/restore.sh "/backups/$(ls /backups | sort | tail -n 1)"'
+          drill restore
           docker compose up -d --wait --wait-timeout 300
           ./scripts/smoke.sh
       # Image backup drill (#288): mirror the media bucket, delete one image from

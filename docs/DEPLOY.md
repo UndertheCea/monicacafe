@@ -88,9 +88,11 @@ service (many have a free tier) and point it at the internal `:9100/metrics`.
    / sum(rate(moni_http_requests_total{route="graphql"}[5m]))
    > 0.02
    ```
-3. **Backup job failed.** The nightly backup (#220) must report success or failure to a dead-man's-switch style
-   check (for example a healthchecks.io URL pinged at the end of the job: "no ping in 26 hours" alerts). An alert on
-   a missing success is the only kind that also catches a job that never ran.
+3. **Backup job failed.** The nightly backup (#220) reports to a dead-man's-switch style check: set
+   `BACKUP_PING_URL` (for example a healthchecks.io URL with a 1-day period; `backup.sh` pings it on success and
+   `$BACKUP_PING_URL/fail` on failure, #289) and alert on "no ping in 26 hours". An alert on a missing success is the
+   only kind that also catches a job that never ran. The compose `backup` service is also `unhealthy` when its newest
+   success is older than 26 hours (`docker compose ps backup`). Setup: [BACKUP.md](BACKUP.md#knowing-it-failed).
 
 ### Free external uptime check
 

@@ -46,6 +46,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
       MIGRATIONS_DIR: /monicacafe/migrations
       MIGRATE_BASELINE: ${MIGRATE_BASELINE:-}
+      MIGRATE_LOCK_TIMEOUT: ${MIGRATE_LOCK_TIMEOUT:-10s}
     volumes:
       - ./scripts/migrate.sh:/monicacafe/scripts/migrate.sh:ro
       - ./migrations:/monicacafe/migrations:ro
@@ -233,6 +234,12 @@ services:
       # a backup target.
       BACKUP_MEDIA: ${BACKUP_MEDIA:-false}
       BACKUP_MEDIA_CACHE: ${BACKUP_MEDIA_CACHE:-/backups/.media-cache}
+      # Dead-man's switch (healthchecks.io style): GET on success, GET <url>/fail on failure (#289).
+      BACKUP_PING_URL: ${BACKUP_PING_URL:-}
+      # backup.sh writes the time of each success here; the healthcheck below reads it.
+      BACKUP_MARKER: /backups/.last_success
+      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-26}
+      # Only so backup.sh can refuse the media bucket as a backup target.
       S3_BUCKET: ${S3_BUCKET:-media}
       S3_REGION: ${S3_REGION:-us-east-1}
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-monica_s3}
@@ -242,6 +249,13 @@ services:
       - ./scripts:/monicacafe/scripts:ro
       - ./migrations:/monicacafe/migrations:ro
       - backup_data:/backups
+    # Unhealthy when the last successful dump is older than BACKUP_MAX_AGE_HOURS (26).
+    healthcheck:
+      test: ["CMD", "sh", "/monicacafe/scripts/backup_healthcheck.sh"]
+      interval: 10m
+      timeout: 10s
+      retries: 1
+      start_period: 1m
     depends_on:
       postgres:
         condition: service_healthy

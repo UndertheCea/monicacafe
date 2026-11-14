@@ -1,7 +1,9 @@
 #!/bin/sh
 # Runs scripts/backup.sh every night at BACKUP_HOUR (default 3) Taipei time;
 # the compose `backup` service's command (#220). A failed run is logged and
-# retried the next night; the container keeps running. BACKUP_RUN_NOW=true also
+# retried the next night (a failure also pings BACKUP_PING_URL/fail from backup.sh,
+# and the compose healthcheck goes unhealthy after 26 h without a success); the
+# container keeps running. BACKUP_RUN_NOW=true also
 # runs one backup at start (to check the setup).
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
@@ -13,6 +15,10 @@ run() { sh "$here/backup.sh" || echo "backup_loop: backup FAILED, trying again t
 # Strip a leading zero so arithmetic never reads "08" as octal.
 num() { n="${1#0}"; echo "${n:-0}"; }
 
+# Tells scripts/backup_healthcheck.sh when this container began (a new container gets a full window).
+if [ -n "${BACKUP_MARKER:-}" ]; then
+  mkdir -p "$(dirname "$BACKUP_MARKER")" && date +%s >"$(dirname "$BACKUP_MARKER")/.loop_started"
+fi
 if [ "${BACKUP_RUN_NOW:-false}" = "true" ]; then run; fi
 while :; do
   # Seconds since Taipei midnight (UTC+8, no DST), then until the next HH:00.

@@ -3,12 +3,18 @@
 #
 #   DATABASE_URL=postgres://… BACKUP_AGE_IDENTITY=/path/to/key.txt ./scripts/restore.sh monicacafe_….dump.age
 #
-# A .age file is decrypted first with the private key file BACKUP_AGE_IDENTITY
-# (held offline by the owner, see docs/BACKUP.md). The database must exist and
-# have no tables in schema public; this never overwrites data. To restore over a
-# live database, drop and recreate it first (docs/BACKUP.md). After pg_restore
+# A .age file is decrypted with the private key file BACKUP_AGE_IDENTITY (held
+# offline by the owner, see docs/BACKUP.md). The database must exist and have no
+# tables in schema public; this never overwrites data. To restore over a live
+# database, drop and recreate it first (docs/BACKUP.md). After pg_restore
 # (--no-owner), scripts/migrate.sh runs, so a dump from an older release catches
 # up with migrations/. POSIX sh; the client tools must be PostgreSQL 17+.
+#
+# All or nothing (#289): pg_restore runs with --single-transaction and
+# --exit-on-error, so a failed restore leaves the database empty, not half loaded.
+# An encrypted dump is decrypted straight into pg_restore through a pipe (no
+# plaintext file), and the password in DATABASE_URL goes through PGPASSWORD, not
+# the command line (visible in ps).
 set -eu
 
 die() { echo "restore: $*" >&2; exit 1; }
@@ -23,18 +29,42 @@ work=$(mktemp -d)
 chmod 700 "$work"
 trap 'rm -rf "$work"' EXIT
 
-case "$dump" in
-  *.age)
-    [ -n "${BACKUP_AGE_IDENTITY:-}" ] && [ -f "$BACKUP_AGE_IDENTITY" ] || die "$dump is encrypted: set BACKUP_AGE_IDENTITY to the private key file"
-    age -d -i "$BACKUP_AGE_IDENTITY" -o "$work/restore.dump" "$dump"
-    dump="$work/restore.dump"
+# postgres://user:PASSWORD@host/db becomes PGPASSWORD plus a URL without the
+# password. (A URL-encoded password, with %, stays in the URL.)
+pg_url="$DATABASE_URL"
+case "$pg_url" in
+  postgres://*:*@*|postgresql://*:*@*)
+    pw=$(printf %s "$pg_url" | sed -n 's|^postgres[a-z]*://[^:/@]*:\([^@/]*\)@.*|\1|p')
+    case "$pw" in
+      ""|*%*) ;;
+      *)
+        PGPASSWORD="$pw"; export PGPASSWORD
+        pg_url=$(printf %s "$pg_url" | sed 's|^\(postgres[a-z]*://[^:/@]*\):[^@/]*@|\1@|')
+        ;;
+    esac
     ;;
 esac
 
-tables=$(psql "$DATABASE_URL" -X -q -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")
+case "$dump" in
+  *.age)
+    [ -n "${BACKUP_AGE_IDENTITY:-}" ] && [ -f "$BACKUP_AGE_IDENTITY" ] || die "$dump is encrypted: set BACKUP_AGE_IDENTITY to the private key file"
+    encrypted=1
+    ;;
+  *) encrypted=0 ;;
+esac
+
+tables=$(psql "$pg_url" -X -q -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")
 [ "$tables" = "0" ] || die "the target database already has $tables tables in public; restore only into an empty database"
 
-pg_restore --no-owner --exit-on-error --dbname "$DATABASE_URL" "$dump"
+if [ "$encrypted" = 1 ]; then
+  # POSIX sh has no pipefail, so age's exit status travels through a file. (A wrong
+  # key or a damaged file also makes pg_restore fail; this catches the rest.)
+  { rc=0; age -d -i "$BACKUP_AGE_IDENTITY" "$dump" || rc=$?; echo "$rc" >"$work/age.rc"; } \
+    | pg_restore --single-transaction --no-owner --exit-on-error --dbname "$pg_url"
+  [ "$(cat "$work/age.rc")" = 0 ] || die "decrypting $dump failed (wrong BACKUP_AGE_IDENTITY?)"
+else
+  pg_restore --single-transaction --no-owner --exit-on-error --dbname "$pg_url" "$dump"
+fi
 echo "restore: dump loaded, applying any newer migrations"
 sh "$here/migrate.sh"
 echo "restore: done"

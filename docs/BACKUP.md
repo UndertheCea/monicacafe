@@ -23,13 +23,26 @@ Set `BACKUP_MEDIA=true`. The `backup` service reads the media bucket with the sa
 
 ## Retention
 
-The newest **7** dumps (daily) plus the newest **4** taken on a Sunday (Taipei time), pruned by `backup.sh` after each upload. File names: `monicacafe_YYYYMMDD_HHMMSS_<mon..sun>.dump.age`. In the bucket they sit under `BACKUP_S3_PREFIX` (default `monicacafe/`). Point-in-time recovery (WAL archiving) is out of scope: the recovery point is the last nightly dump.
+Retention is by **date**, not by file count, in the bucket and in a `BACKUP_TARGET` directory alike. After each upload `backup.sh` keeps the newest dump of each of the **7** most recent days that have one, plus the newest dump of each of the **4** most recent Sundays (Taipei time), and deletes the rest. Several dumps on one day (a restart with `BACKUP_RUN_NOW=true`) replace each other and never push older days out. A file whose name has no date is never deleted. File names: `monicacafe_YYYYMMDD_HHMMSS_<mon..sun>.dump.age`. In the bucket they sit under `BACKUP_S3_PREFIX` (default `monicacafe/`). **A dump that is much smaller than the one before it** (under 50 %: an emptied database looks like this) is still stored, but the run prunes nothing, logs `ERROR: … may have been emptied`, pings `/fail` and exits non-zero. Look at the database before the next night's run; the good dumps are all still there.
+
+Point-in-time recovery (WAL archiving) is out of scope: the recovery point is the last nightly dump.
 
 ## Setting it up (production)
 
 1. On a machine that is not the server: `age-keygen -o moni-backup.key`. It prints the public key (`age1…`).
 2. Put the **public** key in `.env` as `BACKUP_AGE_RECIPIENT`, and fill `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT` (empty for AWS), `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`. Give that key write/list/delete on the backup bucket only.
-3. `docker compose --profile prod up -d --build backup`. Check once with `BACKUP_RUN_NOW=true` (the service then runs a backup at start) and look at its log: the last line is JSON, `{"file":…,"bytes":…,"seconds":…,"pruned":…}`. A failure exits non-zero and is logged as `backup_loop: backup FAILED`; watch the log (or the bucket's newest object) for it.
+3. `docker compose --profile prod up -d --build backup`. Check once with `BACKUP_RUN_NOW=true` (the service then runs a backup at start) and look at its log: the last line is JSON, `{"file":…,"bytes":…,"seconds":…,"pruned":…}`. A failure exits non-zero and is logged as `backup_loop: backup FAILED`.
+4. **Set up the alert** (next section), so a failure or a job that never ran is noticed without anyone reading logs.
+
+## Knowing it failed
+
+Three layers, because a backup can fail loudly (an error), quietly (it stops running) or oddly (it runs and saves something useless):
+
+- **Dead-man's switch.** Create a check at [healthchecks.io](https://healthchecks.io) (or any service with the same URLs) with a period of 1 day and a grace time of a few hours, and put its ping URL in `.env` as `BACKUP_PING_URL`. `backup.sh` does a GET on that URL after each success and a GET on `$BACKUP_PING_URL/fail` after any failure (healthchecks.io's failure signal; services without one just see a 404 there, which is harmless). No ping for a day means an alert, which also covers a container that is down. A failed ping is logged as a warning and never fails the backup. The image has `curl`; the script falls back to `wget`.
+- **Container healthcheck.** `backup.sh` writes the time of each success to `/backups/.last_success` (`BACKUP_MARKER`); the compose healthcheck (`scripts/backup_healthcheck.sh`) turns `unhealthy` when that is older than `BACKUP_MAX_AGE_HOURS` (26). See it with `docker compose ps backup`. A new container gets one full window from its start.
+- **Size check.** The under-50 % rule above.
+
+Plaintext only exists in memory: an encrypted dump is streamed from `pg_dump` into `age`, so no unencrypted copy is written to disk. The database password is handed to the tools as `PGPASSWORD`, not on the command line, so it does not show in `ps`.
 
 **Who holds the decryption key:** the owner (`UndertheCea`), offline (password manager plus a printed or USB copy kept elsewhere). The server never has it, so a stolen backup bucket or server is no leak. **Losing the key makes every backup unreadable**; keep two copies.
 
@@ -46,7 +59,7 @@ aws s3 cp s3://$BACKUP_S3_BUCKET/monicacafe/monicacafe_….dump.age .
 docker compose stop nginx frontend backend
 docker compose exec postgres psql -U monica -d monicacafe -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
 
-# 3. restore (decrypts, refuses a non-empty database, runs migrate.sh afterwards)
+# 3. restore (decrypts, refuses a non-empty database, all-or-nothing, runs migrate.sh afterwards)
 DATABASE_URL=postgres://… BACKUP_AGE_IDENTITY=./moni-backup.key ./scripts/restore.sh monicacafe_….dump.age
 
 # 4. start again
@@ -66,10 +79,10 @@ docker compose --profile prod run --rm --no-deps backup sh /monicacafe/scripts/r
 
 Do this before starting the API against a rebuilt database, or keep `MEDIA_CLEANUP_DRY_RUN=true` until it is done. Restore the database and the images from the same night where you can: an image uploaded after the dump is not referenced by it, and the sweep deletes it after `MEDIA_CLEANUP_MIN_AGE`.
 
-`restore.sh` uses `pg_restore --no-owner`, then `scripts/migrate.sh`, so a dump from an older release gets the newer migrations. Users' sessions (refresh tokens) are in the dump; `restore.sh` does not touch the media bucket (see above).
+`restore.sh` uses `pg_restore --single-transaction --exit-on-error --no-owner`, so it is all or nothing: if anything fails, the database is left empty rather than half loaded, and you can simply run it again. It then runs `scripts/migrate.sh`, so a dump from an older release gets the newer migrations. Users' sessions (refresh tokens) are in the dump; images are restored separately (above).
 
 **How long:** about a minute for a database of a few hundred MB (dump and restore are both I/O bound; the demo database takes seconds). Allow 15 minutes in total including fetching the key and the dump and restarting the stack.
 
 ## The restore drill
 
-CI (job `stack`) proves the chain on every run: after the smoke test it runs `backup.sh` into a directory (plaintext, `BACKUP_ALLOW_PLAINTEXT=true`, since CI has no key), drops the `public` schema, runs `restore.sh`, restarts the stack and runs `smoke.sh` again. A second step does the same for images (`BACKUP_MEDIA=true`): after the backup it checks that images were mirrored, deletes one from the bucket (`scripts/media_drill.sh`), expects nginx to answer `404` for it, runs `restore_media.sh`, and expects `200` again. The encrypted path and the S3 upload are exercised only in production: do a manual drill (the steps above, into a scratch database) after setting up, and again every few months.
+CI (job `stack`) proves the real chain on every run: it makes a throwaway age key, runs `backup.sh` against the dev SeaweedFS (a second bucket, `backups`) with encryption on, and checks the upload, the listing, date-based retention (it seeds ten old dumps and expects seven days to remain), the success marker and the healthcheck (`scripts/backup_drill.sh`). Then it drops the `public` schema, downloads and decrypts the newest dump with `restore.sh`, restarts the stack and runs `smoke.sh` again. What CI cannot cover is your real provider and your real key: do a manual drill (the steps above, into a scratch database) after setting up, and again every few months. A second step does the same for images (`BACKUP_MEDIA=true`, #288): after the backup it checks that images were mirrored, deletes one from the bucket (`scripts/media_drill.sh`), expects nginx to answer `404` for it, runs `restore_media.sh`, and expects `200` again.

@@ -39,6 +39,14 @@ BEGIN
   ASSERT (SELECT count(*) FROM shops WHERE slug IN ('ref-sey', 'ref-onyx')) = 2, 'ref-sey and ref-onyx exist';
   ASSERT NOT EXISTS (SELECT 1 FROM shops WHERE slug IN ('ref-lab19', 'ref-poma')), 'shops without catalogue rows are not created';
   ASSERT (SELECT name FROM shops WHERE slug = 'ref-sey') = 'SEY Coffee（參考）', 'shop name ends in （參考）';
+  ASSERT (SELECT city = '新竹市' AND lat = 24.8040 AND lng = 120.9690 FROM shops WHERE slug = 'ref-sey'),
+    'reference shop gets its placeholder Taiwan city and pin';
+  ASSERT NOT EXISTS (SELECT 1 FROM reference_shops WHERE city = '' OR lat IS NULL OR lng IS NULL),
+    'every reference shop has a city and a pin';
+  -- A shop created before locations existed is backfilled by the next load.
+  UPDATE shops SET city = '', lat = NULL, lng = NULL WHERE slug = 'ref-onyx';
+  PERFORM reference_load();
+  ASSERT (SELECT city = '高雄市' AND lat IS NOT NULL FROM shops WHERE slug = 'ref-onyx'), 'missing location backfilled';
   ASSERT (SELECT description FROM shops WHERE slug = 'ref-sey') LIKE 'Reference catalogue for tracking coffee types; not a seller on Moni Cafe.%',
     'shop description says it is not a seller';
   ASSERT (SELECT u.email || ' ' || u.password_hash FROM shops s JOIN users u ON u.id = s.owner_id WHERE s.slug = 'ref-sey')

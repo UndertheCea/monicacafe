@@ -34,6 +34,15 @@ CREATE TABLE IF NOT EXISTS reference_shops (
   source_url TEXT NOT NULL
 );
 
+-- A made-up Taiwan city and pin per reference shop, so they show on /map and
+-- in the city line like real shops (owner, 2026-11-14). The real roasters are
+-- mostly abroad; these are placeholders, picked near a town centre so the pin
+-- lands on land. ADD COLUMN IF NOT EXISTS keeps re-runs on older dev DBs working.
+ALTER TABLE reference_shops
+  ADD COLUMN IF NOT EXISTS city TEXT NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS lat  DOUBLE PRECISION CHECK (lat IS NULL OR lat BETWEEN 21.8 AND 25.4),
+  ADD COLUMN IF NOT EXISTS lng  DOUBLE PRECISION CHECK (lng IS NULL OR lng BETWEEN 119.9 AND 122.1);
+
 CREATE TABLE IF NOT EXISTS reference_catalogue (
   shop_slug      TEXT        NOT NULL REFERENCES reference_shops(slug),
   coffee_name    TEXT        NOT NULL,
@@ -142,13 +151,18 @@ BEGIN
   WHERE EXISTS (SELECT 1 FROM reference_catalogue c WHERE c.shop_slug = s.slug)
   ON CONFLICT (email) DO NOTHING;
 
-  INSERT INTO shops (owner_id, slug, name, description, city)
+  INSERT INTO shops (owner_id, slug, name, description, city, lat, lng)
   SELECT u.id, 'ref-' || s.slug, s.name || '（參考）',
          'Reference catalogue for tracking coffee types; not a seller on Moni Cafe. 參考目錄，用來追蹤咖啡種類；並非 Moni Cafe 的賣家。',
-         ''
+         s.city, s.lat, s.lng
   FROM reference_shops s
   JOIN users u ON u.email = 'reference+' || s.slug || '@monicacafe.local'
   ON CONFLICT DO NOTHING;
+
+  -- Shops created by an older version of this script have no location yet.
+  UPDATE shops sh SET city = s.city, lat = s.lat, lng = s.lng
+  FROM reference_shops s
+  WHERE sh.slug = 'ref-' || s.slug AND sh.lat IS NULL AND s.lat IS NOT NULL;
 
   INSERT INTO coffees (shop_id, name, slug, description, origin_country_id, variety_id, processing_method_id,
                        roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
@@ -174,12 +188,18 @@ $$;
 
 -- ─── Data ────────────────────────────────────────────────────────────────────
 
-INSERT INTO reference_shops (slug, name, source_url) VALUES
-  ('lab19', 'Lab19',        'https://lab19coffee.com/'),
-  ('sey',   'SEY Coffee',   'https://www.seycoffee.com/'),
-  ('poma',  'Poma Coffee',  'https://pomacoffee.com/'),
-  ('onyx',  'Onyx Coffee Lab', 'https://onyxcoffeelab.com/')
-ON CONFLICT (slug) DO NOTHING;
+-- #170–#173 and #299–#303. Cities and pins are placeholders (see above).
+INSERT INTO reference_shops (slug, name, source_url, city, lat, lng) VALUES
+  ('lab19',            'Lab19',             'https://lab19coffee.com/',            '台北市', 25.0418, 121.5440),
+  ('sey',              'SEY Coffee',        'https://www.seycoffee.com/',          '新竹市', 24.8040, 120.9690),
+  ('poma',             'Poma Coffee',       'https://pomacoffee.com/',             '台中市', 24.1490, 120.6650),
+  ('onyx',             'Onyx Coffee Lab',   'https://onyxcoffeelab.com/',          '高雄市', 22.6270, 120.3010),
+  ('coffeecollective', 'Coffee Collective', 'https://coffeecollective.dk/',        '台南市', 22.9930, 120.2040),
+  ('lacabra',          'La Cabra',          'https://us.lacabra.com/',             '花蓮縣', 23.9770, 121.6040),
+  ('september',        'September',         'https://september.coffee/',           '宜蘭縣', 24.7570, 121.7530),
+  ('philsebastian',    'Phil & Sebastian',  'https://philsebastian.com/',          '嘉義市', 23.4800, 120.4490),
+  ('monogram',         'Monogram',          'https://monogramcoffee.com/',         '台東縣', 22.7560, 121.1450)
+ON CONFLICT (slug) DO UPDATE SET city = EXCLUDED.city, lat = EXCLUDED.lat, lng = EXCLUDED.lng;
 
 INSERT INTO reference_aliases (kind, alias, canonical) VALUES
   ('origin',  'PNG',                  'Papua New Guinea'),

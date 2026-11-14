@@ -50,7 +50,10 @@ func TestSimilarCoffees(t *testing.T) {
 	mk := func(s *gqlClient, name, origin, process, roast string, notes []string, stock int, publish bool, extra ...map[string]any) string {
 		if notes == nil { // a note is required (#181); one only this coffee has adds nothing to the score
 			solo++
-			notes = []string{fmt.Sprintf("solo-%s-%d", run[len(run)-8:], solo)}
+			// The "n" keeps the two digit groups apart: "02345678-1" reads as
+			// a Taiwan landline to the contact-info check (#225) and failed ~8%
+			// of runs.
+			notes = []string{fmt.Sprintf("solo-%s-n%d", run[len(run)-8:], solo)}
 		}
 		in := withEssentials(t, map[string]any{
 			"name": name, "description": "", "roastLevel": roast, "flavorNotes": notes,

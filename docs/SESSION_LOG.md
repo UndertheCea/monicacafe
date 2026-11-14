@@ -15,6 +15,49 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 37 — 2026-11-14 — Search synonyms, data export, toolchain majors (six stage-1 slices)
+PR: #PRNUM
+
+No open PR from an earlier session (only dependabot's). No owner answers on any question (#203's safe defaults 3 / 5 / 6 / 7
+are already built). Every open slice was blocked as in Session 36, so I filed six real `stage-1` gaps
+(#269–#274) from the roadmap's "Things nobody has considered yet" (search in Chinese, data requests) and the open dependabot
+majors, and built them. A Sonnet sub-agent did #271–#273 in a worktree (cherry-picked and reviewed); the rest I did.
+
+### Shipped (one line per slice: area — what — key files)
+- #269 backend — `internal/search`: curated zh-TW ↔ English synonym groups (regions, varieties, processes, tasting notes,
+  mainland country names), accent / punctuation-insensitive lookup, simplified → traditional fold; each search word becomes
+  `ILIKE ANY($n)` over ≤ 8 patterns (`store/coffees.go` `searchPatterns`). Table tests + integration test (Yirgacheffe →
+  耶加雪菲, 埃塞俄比亚 → Ethiopia, 瑰夏 → Geisha, AND across words).
+- #274 cross-cutting — `searchTerms(q)` query (same Go table); /coffees with `?q=` fetches descriptions (`@include`) and each
+  card whose match isn't visible shows "Matched: <field> <mark>…</mark>" (`lib/searchMatch.ts`, longest synonym marked,
+  ±24-char snippet; black underline, no colour). `tests/searchMatch.test.mjs`.
+- #270 cross-cutting — `myDataExport`: one SQL `jsonb_build_object` snapshot (account, active sessions, comments, saves,
+  follows, reports filed, account events, seller's shop + coffees + options); no hashes / tokens / other people's data;
+  `RATE_LIMIT_EXPORT_USER` (10/1h, `.env.example`, compose). /account "Download my data" saves
+  `monicafe-data-<Taipei date>.json`. Go integration test (contents, no secrets, no other user's data, rate limit); e2e
+  journey downloads the buyer's file and checks saves / follows.
+- #271 cross-cutting — Go 1.27.4 (`go.mod`, builder image, CLAUDE.md / README); Playwright 1.65.1 in `e2e/`. Supersedes
+  dependabot #267 / #268 (1.27.5+ weren't on the toolchain proxy yet).
+- #272 frontend — Node 26 LTS: `node:26.13.0-alpine` stages, CI `node-version: 26`, `@types/node` ^26. Supersedes #244 / #254.
+- #273 frontend — ESLint 10.15 with `eslint-config-next` 16.4.6; no rule changes. Supersedes #251.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend on Go 1.27.4: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, migrations 001–019).
+- Frontend on Node 26.13.1: `npm ci`, tsc, lint (ESLint 10), `npm test` (279), `next build`, `npm audit --omit=dev` (0).
+  `docker compose config`, `check_brief.sh`.
+- Local API binary + `next start` on the seed data: /coffees?q=jasmine / 瑰夏 / 埃塞俄比亚 show the matched line; the export
+  downloads through the real UI (build with `NEXT_PUBLIC_GRAPHQL_URL`, since there was no nginx for same-origin `/graphql`).
+- Not tested locally: `docker compose up --build`, the `golang:1.27.4-alpine` / `node:26.13.0-alpine` images and the e2e
+  suite through nginx (CI's `stack` job covers them).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `eslint-config-next`'s bundled plugins (import / react / jsx-a11y) still declare `eslint <=9` as a peer; `npm ci` accepts
+  the lockfile and every rule runs. Watch for a config release that lifts it.
+- Open dependabot majors left: TypeScript 7 (#252), PostgreSQL 18 (#248, needs a volume dump / restore plan), Redis 8 (#247,
+  Redis is reserved and unused; licence changed).
+- Search: multi-word phrases ("Yirga Cheffe", "Costa Rica") only expand when typed as one word; CJK words glued to other text
+  (耶加雪菲日曬) don't expand. Good enough for now; Meilisearch (Stage 3) would replace it.
+
 ## Session 36 — 2026-11-13 — Browser checks in CI, dependency upkeep, router tests (six stage-1 slices)
 PR: #266
 

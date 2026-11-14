@@ -24,6 +24,12 @@ func TestCheckMacRoundTrip(t *testing.T) {
 	}
 }
 
+// TestCheckMacValueOfficialVector must hold ECPay's documented CheckMacValue
+// example (inputs, HashKey/HashIV and the expected value), copied verbatim.
+func TestCheckMacValueOfficialVector(t *testing.T) {
+	t.Skip("ECPay docs unreachable from the build session on 2026-11-14; add the example from https://developers.ecpay.com.tw (CheckMacValue encryption mechanism) and remove this skip")
+}
+
 func TestDotNetEscape(t *testing.T) {
 	if got := dotNetEscape("a b~(x)*!-_."); got != "a+b%7e(x)*!-_." {
 		t.Fatal(got)

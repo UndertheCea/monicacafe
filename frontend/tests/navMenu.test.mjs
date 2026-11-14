@@ -13,7 +13,7 @@ test("navMenu: the menu for each kind of viewer", () => {
     ["nav.coffees", ["nav.all=/coffees"]],
     ["nav.shops", ["nav.all=/shops", "nav.map=/map"]],
   ];
-  const signedIn = ["nav.saved=/account#saved-coffees", "nav.following=/account#followed-shops", "nav.settings=/account"];
+  const signedIn = ["nav.cart=/cart", "nav.saved=/account#saved-coffees", "nav.following=/account#followed-shops", "nav.settings=/account"];
   const cases = [
     ["signed out", { signedIn: false }, ["nav.login=/login", "nav.register=/register"]],
     ["buyer", { signedIn: true, role: "BUYER", hasShop: false }, [...signedIn, "nav.openShop=/dashboard", "nav.logout!logout"]],

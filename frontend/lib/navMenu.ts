@@ -18,6 +18,7 @@ export type NavLabel =
   | "nav.all"
   | "nav.accountSection"
   | "nav.saved"
+  | "nav.cart"
   | "nav.following"
   | "nav.settings"
   | "nav.dashboard"
@@ -45,6 +46,8 @@ export interface NavSection {
 export function navMenu(v: NavViewer): NavSection[] {
   const account: NavItem[] = v.signedIn
     ? [
+        // Stage 2 cart (#280); checkout comes later.
+        { label: "nav.cart", href: "/cart" },
         { label: "nav.saved", href: "/account#saved-coffees" },
         { label: "nav.following", href: "/account#followed-shops" },
         { label: "nav.settings", href: "/account" },

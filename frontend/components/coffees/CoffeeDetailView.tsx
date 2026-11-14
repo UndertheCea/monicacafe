@@ -23,11 +23,14 @@ export function CoffeeDetailView({
   coffee,
   locale,
   actions,
+  purchase,
 }: {
   coffee: CoffeeDetail;
   locale: Locale;
   /** Shown under the name (the public page's save button; the draft preview has none). */
   actions?: React.ReactNode;
+  /** Shown under the options table (the public page's add-to-cart, #280; the draft preview has none). */
+  purchase?: React.ReactNode;
 }) {
   const facts: [string, string][] = [
     [t(locale, "coffee.origin"), pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn)],
@@ -166,7 +169,8 @@ export function CoffeeDetailView({
               </tbody>
             </table>
           )}
-          {/* Stage 1 is discovery only — cart & ECPay checkout land in Stage 2. */}
+          {purchase}
+          {/* The cart is open (#280); ECPay checkout comes next in Stage 2. */}
           <p className="mt-3 rounded-box bg-paper px-4 py-3 text-sm text-muted">
             {t(locale, "coffee.checkoutSoon")}
           </p>

@@ -93,6 +93,8 @@ type Config struct {
 	// their own: deleting a comment, signing out everywhere and every admin
 	// action (#283).
 	RateLimitAccountWriteUser string
+	// RateLimitProfileUser caps display-name changes (#286).
+	RateLimitProfileUser string
 
 	// Every /graphql request, per client IP.
 	RateLimitGraphQLIP string
@@ -165,6 +167,7 @@ func Load() Config {
 		RateLimitSellerWriteUser:  get("RATE_LIMIT_SELLER_WRITE_USER", "60/5m"),
 		RateLimitExportUser:       get("RATE_LIMIT_EXPORT_USER", "10/1h"),
 		RateLimitAccountWriteUser: get("RATE_LIMIT_ACCOUNT_WRITE_USER", "60/5m"),
+		RateLimitProfileUser:      get("RATE_LIMIT_PROFILE_USER", "10/1h"),
 		RateLimitGraphQLIP:        get("RATE_LIMIT_GRAPHQL_IP", "600/1m"),
 
 		// Loopback by default (a bare `go run` must not expose metrics);
@@ -280,12 +283,12 @@ const DefaultTrustedProxies = "127.0.0.0/8,::1/128,10.0.0.0/8,172.16.0.0/12,192.
 
 // RateLimitRules are the parsed auth rate limits.
 type RateLimitRules struct {
-	LoginIP, LoginEmail, RegisterIP, RefreshIP ratelimit.Rule
-	LoginEmailIP                               ratelimit.Rule
-	CommentUser, UploadUser, PasswordUser      ratelimit.Rule
-	SaveUser, SellerWriteUser, ReportUser      ratelimit.Rule
-	ExportUser, CartUser, AccountWriteUser     ratelimit.Rule
-	GraphQLIP                                  ratelimit.Rule
+	LoginIP, LoginEmail, RegisterIP, RefreshIP          ratelimit.Rule
+	LoginEmailIP                                        ratelimit.Rule
+	CommentUser, UploadUser, PasswordUser               ratelimit.Rule
+	SaveUser, SellerWriteUser, ReportUser               ratelimit.Rule
+	ExportUser, CartUser, AccountWriteUser, ProfileUser ratelimit.Rule
+	GraphQLIP                                           ratelimit.Rule
 }
 
 // RateLimits parses the RATE_LIMIT_* settings.
@@ -307,6 +310,7 @@ func (c Config) RateLimits() (RateLimitRules, error) {
 		{"RATE_LIMIT_REPORT_USER", c.RateLimitReportUser, &r.ReportUser},
 		{"RATE_LIMIT_SELLER_WRITE_USER", c.RateLimitSellerWriteUser, &r.SellerWriteUser},
 		{"RATE_LIMIT_EXPORT_USER", c.RateLimitExportUser, &r.ExportUser},
+		{"RATE_LIMIT_PROFILE_USER", c.RateLimitProfileUser, &r.ProfileUser},
 		{"RATE_LIMIT_CART_USER", c.RateLimitCartUser, &r.CartUser},
 		{"RATE_LIMIT_ACCOUNT_WRITE_USER", c.RateLimitAccountWriteUser, &r.AccountWriteUser},
 		{"RATE_LIMIT_GRAPHQL_IP", c.RateLimitGraphQLIP, &r.GraphQLIP},

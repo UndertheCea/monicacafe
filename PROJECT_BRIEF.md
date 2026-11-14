@@ -243,8 +243,8 @@ Open questions for the owner (answer by commenting on the issue):
   15 s, then each minute). A form whose session ends stays mounted, disabled, under an inline sign-in. The `mc_s` hint
   cookie (readable, no secret) lets signed-out visitors skip the refresh call (#234).
 - **Reports go to `/admin`; contact details refused only in new text (#225)**: one open report per person per target;
-  "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks comments and descriptions when
-  written or changed, never stored rows, so old text can still be saved back unchanged.
+  "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks every seller text field, comments
+  and display names when written or changed, never stored rows. Filters only raise the cost (#286); the report is the backstop.
 - **Thumbnails are derived, never stored (#235)**: `<key>.thumb.webp` sits next to its original, is kept exactly while the
   original is referenced and can't be saved as a URL; cards fall back to the original. Only anonymous catalogue data (filter
   options, home, sitemap) is cached for 60 s; anything carrying a viewer's cookie or IP is not.

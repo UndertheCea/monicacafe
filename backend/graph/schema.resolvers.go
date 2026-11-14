@@ -213,6 +213,9 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	if err != nil {
 		return nil, err
 	}
+	if err := checkDisplayName(nil, name); err != nil {
+		return nil, err
+	}
 	hash, err := auth.HashPassword(input.Password)
 	if errors.Is(err, auth.ErrWeakPassword) || errors.Is(err, auth.ErrCommonPassword) {
 		return nil, errBadInput("password", err.Error())
@@ -361,9 +364,25 @@ func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.Update
 	if err != nil {
 		return nil, err
 	}
+	if err := allowKey(r.Limits.ProfileUser, c.UserID); err != nil {
+		return nil, err
+	}
 	name, err := cleanText("displayName", input.DisplayName, 1, 50)
 	if err != nil {
 		return nil, err
+	}
+	// Only a changed name is checked, so saving the same one never fails.
+	cur, err := r.Store.UserByID(ctx, c.UserID)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if name != cur.DisplayName {
+		if err := checkDisplayName(c, name); err != nil {
+			return nil, err
+		}
 	}
 	u, err := r.Store.UpdateDisplayName(ctx, c.UserID, name)
 	if errors.Is(err, store.ErrNotFound) {
@@ -472,6 +491,9 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("name", name); err != nil {
+		return nil, err
+	}
 	desc, err := cleanMultiline("description", input.Description, 0, 2000)
 	if err != nil {
 		return nil, err
@@ -525,6 +547,9 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	}
 	var p store.UpdateShopParams
 	if p.Name, err = cleanOptText("name", input.Name, 1, 80); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
 		return nil, err
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 2000); err != nil {
@@ -612,6 +637,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := noContactInfo("name", name); err != nil {
+		return nil, err
+	}
 	desc, err := cleanMultiline("description", input.Description, 0, 5000)
 	if err != nil {
 		return nil, err
@@ -630,8 +658,17 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	if err := noNewContactInfoNotes(notes, nil); err != nil {
+		return nil, err
+	}
 	producer, region, err := cleanProvenance(input.Producer, input.Region)
 	if err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfoText("producer", producer, ""); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfoText("region", region, ""); err != nil {
 		return nil, err
 	}
 	if err := validateAltitude(input.AltitudeMinM, input.AltitudeMaxM); err != nil {
@@ -705,6 +742,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Name, err = cleanOptText("name", input.Name, 1, maxCoffeeName); err != nil {
 		return nil, err
 	}
+	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
+		return nil, err
+	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 5000); err != nil {
 		return nil, err
 	}
@@ -726,6 +766,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.FlavorNotes, err = requireFlavorNotes(input.FlavorNotes, input.FlavorNotes != nil); err != nil {
 		return nil, err
 	}
+	if err := noNewContactInfoNotes(p.FlavorNotes, current.FlavorNotes); err != nil {
+		return nil, err
+	}
 	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
 		return nil, err
 	}
@@ -734,6 +777,12 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, err
 	}
 	if p.Region, err = cleanOptText("region", input.Region, 1, maxProvenanceText); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("producer", p.Producer, current.Producer); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("region", p.Region, current.Region); err != nil {
 		return nil, err
 	}
 	if input.AltitudeMinM != nil || input.AltitudeMaxM != nil {
@@ -910,6 +959,9 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 	newName := copyName(src.Name, " (copy)")
 	if name != nil {
 		if newName, err = cleanText("name", *name, 1, maxCoffeeName); err != nil {
+			return nil, err
+		}
+		if err := noContactInfo("name", newName); err != nil {
 			return nil, err
 		}
 	}
@@ -1788,6 +1840,18 @@ func (r *userResolver) Email(ctx context.Context, obj *model.User) (*string, err
 	}
 	email := obj.EmailAddr
 	return &email, nil
+}
+
+// Role is the resolver for the role field.
+func (r *userResolver) Role(ctx context.Context, obj *model.User) (*model.UserRole, error) {
+	// Like email: only the user themself (RevealEmail marks a user returned to
+	// its owner) and admins see it, so a comment's author doesn't reveal admins.
+	c := viewer(ctx)
+	if !obj.RevealEmail && (c == nil || (c.UserID != obj.ID && !isAdmin(c))) {
+		return nil, nil
+	}
+	role := obj.RoleValue
+	return &role, nil
 }
 
 // Shop is the resolver for the shop field.

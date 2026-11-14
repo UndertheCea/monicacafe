@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/underthecea/monicacafe/backend/graph/model"
+	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/platform/twfmt"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
@@ -35,6 +36,46 @@ func noNewContactInfo(field string, text *string, stored string) error {
 		return nil
 	}
 	return noContactInfo(field, *text)
+}
+
+// noNewContactInfoText is noNewContactInfo for a required string that is only
+// checked when it differs from the stored one (create passes stored == "").
+func noNewContactInfoText(field, text, stored string) error {
+	if text == stored {
+		return nil
+	}
+	return noContactInfo(field, text)
+}
+
+// noNewContactInfoNotes checks flavour notes that are not already stored.
+func noNewContactInfoNotes(notes, stored []string) error {
+	have := make(map[string]bool, len(stored))
+	for _, n := range stored {
+		have[n] = true
+	}
+	for _, n := range notes {
+		if !have[n] {
+			if err := noContactInfo("flavorNotes", n); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// errReservedName refuses a display name that impersonates the platform or its
+// staff (#286).
+func errReservedName() error {
+	return errBadInput("displayName", "displayName can't contain platform or staff names such as admin, official or 客服")
+}
+
+// checkDisplayName refuses a new display name that is reserved or carries
+// contact details. Admins may use staff words.
+func checkDisplayName(c *auth.Claims, name string) error {
+	if !isAdmin(c) && twfmt.IsReservedDisplayName(name) {
+		return errReservedName()
+	}
+	return noContactInfo("displayName", name)
 }
 
 // reportOutcome maps an admin's resolution to the status the report gets and

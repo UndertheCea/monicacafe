@@ -52,6 +52,8 @@ test("authErrorMessage", () => {
     { args: ["register", "CONFLICT", "email"], want: { key: "auth.error.taken" } },
     { args: ["register", "BAD_USER_INPUT", "password"], want: { key: "auth.error.password" } },
     { args: ["register", "BAD_USER_INPUT", "other"], want: { key: "auth.error.generic" } },
+    { args: ["register", "BAD_USER_INPUT", "displayName"], want: { key: "auth.error.displayName" } },
+    { args: ["register", "CONTACT_INFO_NOT_ALLOWED", "displayName"], want: { key: "auth.error.displayName" } },
     { args: ["login", "UNAVAILABLE"], want: { key: "auth.error.unavailable" } },
     { args: ["login", "FORBIDDEN"], want: { key: "auth.error.suspended" } },
     { args: ["register", "FORBIDDEN"], want: { key: "auth.error.generic" } },

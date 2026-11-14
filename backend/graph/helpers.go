@@ -20,6 +20,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/internal/auth"
 	"github.com/underthecea/monicacafe/backend/internal/middleware"
 	"github.com/underthecea/monicacafe/backend/internal/platform/money"
+	"github.com/underthecea/monicacafe/backend/internal/platform/twfmt"
 	"github.com/underthecea/monicacafe/backend/internal/platform/tz"
 	"github.com/underthecea/monicacafe/backend/internal/search"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
@@ -135,7 +136,7 @@ func (r *Resolver) authPayload(u *store.User, refreshToken string) (*model.AuthP
 func toUser(u *store.User) *model.User {
 	return &model.User{
 		ID: u.ID, EmailAddr: u.Email, DisplayName: u.DisplayName,
-		Role: model.UserRole(u.Role), CreatedAt: u.CreatedAt, SuspendedAt: u.SuspendedAt,
+		RoleValue: model.UserRole(u.Role), CreatedAt: u.CreatedAt, SuspendedAt: u.SuspendedAt,
 	}
 }
 
@@ -316,6 +317,10 @@ func badTextRune(r rune, multiline bool) bool {
 		return !multiline
 	case r == '\u200d':
 		return false
+	case twfmt.HasBlankLookingRune(string(r)):
+		// Hangul fillers, the Braille blank: letters that render as nothing,
+		// so a name or comment made of them looks empty (#286).
+		return true
 	}
 	return unicode.Is(unicode.Cc, r) || unicode.Is(unicode.Cf, r)
 }
@@ -610,6 +615,11 @@ func cleanFlavorNotes(notes []string) ([]string, error) {
 		n = strings.TrimSpace(n)
 		if n == "" {
 			continue
+		}
+		for _, r := range n {
+			if badTextRune(r, false) {
+				return nil, errBadInput("flavorNotes", "flavorNotes contain characters that are not allowed")
+			}
 		}
 		if utf8.RuneCountInString(n) > maxFlavorNoteLen {
 			return nil, errBadInput("flavorNotes", fmt.Sprintf("each flavor note must be at most %d characters", maxFlavorNoteLen))

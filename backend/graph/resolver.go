@@ -53,6 +53,8 @@ type Limits struct {
 	// AccountWriteUser covers writes with no bucket of their own: deleteComment,
 	// logoutEverywhere and every admin mutation (#283).
 	AccountWriteUser *ratelimit.Limiter
+	// ProfileUser counts display-name changes (#286).
+	ProfileUser *ratelimit.Limiter
 }
 
 // allowIP spends a token for the request's client IP. Requests whose IP is

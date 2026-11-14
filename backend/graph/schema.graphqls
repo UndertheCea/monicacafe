@@ -200,7 +200,9 @@ type User {
   # Only visible to the user themself and to admins; null for everyone else.
   email: String
   displayName: String!
-  role: UserRole!
+  # Only visible to the user themself and to admins; null for everyone else, so
+  # a comment's author never reveals who the admins are (#286).
+  role: UserRole
   shop: Shop
   # The user's own comments, newest first. Only for the user themself or an
   # admin; for anyone else it is empty (never an error: User appears on every

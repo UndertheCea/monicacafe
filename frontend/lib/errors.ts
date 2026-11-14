@@ -126,6 +126,8 @@ export function authErrorMessage(
   // Login answers FORBIDDEN only for a suspended account, after the right password (#224).
   if (mode === "login" && code === "FORBIDDEN") return { key: "auth.error.suspended" };
   if (code === "CONFLICT") return { key: "auth.error.taken" };
+  // A display name carrying a phone number or handle (#286).
+  if (code === "CONTACT_INFO_NOT_ALLOWED" && field === "displayName") return { key: "auth.error.displayName" };
   if (code === "BAD_USER_INPUT") {
     if (field === "email") return { key: "auth.error.email" };
     if (field === "password") return { key: "auth.error.password" };

@@ -107,6 +107,7 @@ func run() error {
 		SellerWriteUser:  lim("seller_write_user", rules.SellerWriteUser),
 		ExportUser:       lim("export_user", rules.ExportUser),
 		AccountWriteUser: lim("account_write_user", rules.AccountWriteUser),
+		ProfileUser:      lim("profile_user", rules.ProfileUser),
 	}
 	proxies, err := middleware.ParsePrefixes(cfg.TrustedProxies)
 	if err != nil {

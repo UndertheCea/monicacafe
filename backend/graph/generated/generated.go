@@ -439,6 +439,7 @@ type ShopResolver interface {
 type UserResolver interface {
 	Email(ctx context.Context, obj *model.User) (*string, error)
 
+	Role(ctx context.Context, obj *model.User) (*model.UserRole, error)
 	Shop(ctx context.Context, obj *model.User) (*model.Shop, error)
 	Comments(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CommentConnection, error)
 	SavedCoffees(ctx context.Context, obj *model.User, limit *int, offset *int) (*model.CoffeeConnection, error)
@@ -2263,7 +2264,9 @@ type User {
   # Only visible to the user themself and to admins; null for everyone else.
   email: String
   displayName: String!
-  role: UserRole!
+  # Only visible to the user themself and to admins; null for everyone else, so
+  # a comment's author never reveals who the admins are (#286).
+  role: UserRole
   shop: Shop
   # The user's own comments, newest first. Only for the user themself or an
   # admin; for anyone else it is empty (never an error: User appears on every
@@ -10278,18 +10281,18 @@ func (ec *executionContext) _User_role(ctx context.Context, field graphql.Collec
 			return ec.fieldContext_User_role(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Role, nil
+			return ec.Resolvers.User().Role(ctx, obj)
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v model.UserRole) graphql.Marshaler {
-			return ec.marshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.UserRole) graphql.Marshaler {
+			return ec.marshalOUserRole2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
 func (ec *executionContext) fieldContext_User_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("User", field, false, false, "UserRole")
+	return graphql.NewScalarFieldContext("User", field, true, true, "UserRole")
 }
 
 func (ec *executionContext) _User_shop(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
@@ -14463,10 +14466,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "role":
-			out.Values[i] = ec._User_role(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
-			}
+			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
+				true, false,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._User_role(ctx, field, obj)
+				})
 		case "shop":
 			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
 				true, false,
@@ -15644,16 +15648,6 @@ func (ec *executionContext) marshalNUserConnection2ᚖgithubᚗcomᚋunderthecea
 	return ec._UserConnection(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, v any) (model.UserRole, error) {
-	var res model.UserRole
-	err := res.UnmarshalGQL(v)
-	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNUserRole2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, sel ast.SelectionSet, v model.UserRole) graphql.Marshaler {
-	return v
-}
-
 func (ec *executionContext) marshalNVariant2ᚕᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐVariantᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Variant) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -16126,6 +16120,22 @@ func (ec *executionContext) marshalOUser2ᚖgithubᚗcomᚋundertheceaᚋmonicac
 		return graphql.Null
 	}
 	return ec._User(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOUserRole2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, v any) (*model.UserRole, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.UserRole)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOUserRole2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐUserRole(ctx context.Context, sel ast.SelectionSet, v *model.UserRole) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValueᚄ(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

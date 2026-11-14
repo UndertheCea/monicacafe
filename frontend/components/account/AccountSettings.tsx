@@ -110,7 +110,7 @@ function ProfileForm({ locale }: { locale: Locale }) {
       setSaved(true);
     } catch (err) {
       const e2 = toApiError(err);
-      if (e2.code === "BAD_USER_INPUT") fe.failField("displayName", { key: "auth.error.displayName" });
+      if (e2.code === "BAD_USER_INPUT" || e2.code === "CONTACT_INFO_NOT_ALLOWED") fe.failField("displayName", { key: "auth.error.displayName" });
       else fe.fail({ fields: {}, form: { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.generic" } });
     } finally {
       setBusy(false);

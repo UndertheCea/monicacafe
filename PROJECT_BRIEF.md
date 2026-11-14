@@ -198,7 +198,7 @@ Open questions for the owner (answer by commenting on the issue):
 - **Reference shops are dev-only seed data, one account each (#169)**: `shops.owner_id` is unique, so each reference shop has
   its own `reference+<slug>@monicacafe.local` account that can't log in. Raw values are matched to our tables (names in
   English or Chinese, or an alias). An unmatched origin or process skips the coffee, and the gap report lists every miss.
-  No prices or photos are copied, so the coffees read as sold out.
+  No prices or photos are copied, so the coffees read as sold out. Each gets a made-up Taiwan city + pin (owner, 2026-11-14).
 - **Navigation drawer at every width (owner, #177 (b); built #185)**: the header is ☰ · wordmark (centred) · search on every
   screen, like Lab19; a clean page matters more than one saved click on desktop. The drawer (`lib/navMenu.ts`) holds
   everything, incl. "Open a shop" / "Seller dashboard"; login links carry `?next=`. Without JS the button links to `/menu`.

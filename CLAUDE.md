@@ -75,6 +75,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved
 | `backend/internal/auth` | bcrypt, JWT issue / verify, refresh rotation and reuse detection |
 | `backend/internal/platform` | `money.TWD`, `twfmt` (Taiwan validators), `tz.Taipei`, `config.Load()` |
 | `backend/internal/ratelimit`, `internal/middleware` | In-memory token buckets (auth, comments, uploads, password); client IP via `TRUSTED_PROXIES` |
+| `backend/internal/search` | Search-word synonyms (zh-TW ↔ English, simplified → traditional) used by the coffee keyword search |
 | `backend/internal/storage` | S3 SigV4 presigned uploads, which image URLs belong to the bucket |
 | `backend/internal/payments/ecpay` | ECPay CheckMacValue signing stub (Stage 2) |
 | `migrations/NNN_*.sql` | Plain SQL; `scripts/migrate.sh` applies the ones not in `schema_migrations` (compose service `migrate`, every start; `initdb.sh` on an empty volume, then `scripts/seed_dev.sql`). Never edit a migration that has shipped: add a new one |

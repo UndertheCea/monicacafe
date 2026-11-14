@@ -62,7 +62,7 @@ Optional services start only when asked: `--profile cache` (Redis), `--profile s
 ```
 browser ──► nginx :80 ──┬─► frontend   Next.js 16 (App Router, React 19, Tailwind CSS 4)
                         │     └─ /api/auth/*  holds the refresh token in an httpOnly cookie
-                        ├─► backend    Go 1.26 · chi · gqlgen GraphQL · pgx   (/graphql, /health)
+                        ├─► backend    Go 1.27 · chi · gqlgen GraphQL · pgx   (/graphql, /health)
                         └─► /media/    S3-compatible image store (SeaweedFS in development)
 backend ──► PostgreSQL 17
 ```

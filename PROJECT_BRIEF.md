@@ -84,6 +84,7 @@ example couldn't be fetched (proxy blocks developers.ecpay.com.tw), so that test
 
 ## Current focus
 
+0. **Audit of 2026-11-14 (`docs/ROADMAP.md`): fix #282, #283, #287, #290 (p1) before any order code**; then #284–#295.
 1. **Orders need #205 answered** (no safe default): one checkout split per shop or one shop per checkout, shipping fee, delivery
    methods, when stock is taken, guest checkout, roast-to-order. Then: `orders` / `order_items` (snapshots, `ON DELETE
    RESTRICT` on variants) / `payments` (unique `merchant_trade_no`) / `payment_events` (idempotent on ECPay's trade number),
@@ -91,12 +92,9 @@ example couldn't be fetched (proxy blocks developers.ecpay.com.tw), so that test
    payouts and launch.
 2. **Hosting waits on #199** (no safe default): production compose with HTTPS is #219 (blocked). Compose has no `worker`
    service yet; add it with the first real job. Add ECPay's documented CheckMacValue example when the docs are reachable.
-3. Blocked `stage-1` slices stay in the queue (owner, #197): #170–#174 (roaster domains), #223 / #226 (#200 / #201).
-   Open dependabot majors: TypeScript 7, Postgres 18 (volume dump / restore), Redis 8.
-4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
-   `DB_MAX_CONNS` × API instances below Postgres' `max_connections`; choose a map tile provider (#10). The owner should
-   turn on secret scanning + push protection and a branch rule on `master` requiring CI (#216; not settable from here).
-   Grant the first admin with `cmd/admin grant <email>` so reports reach someone.
+3. Blocked `stage-1` slices stay in the queue (owner, #197): #170–#174, #223 / #226. Dependabot majors: TypeScript 7, Postgres 18, Redis 8.
+4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100; choose a map tile provider
+   (#10); the owner should turn on secret scanning and a branch rule on `master` (#216); grant the first admin (`cmd/admin`).
 
 Open questions for the owner (answer by commenting on the issue):
 
@@ -113,6 +111,8 @@ Open questions for the owner (answer by commenting on the issue):
 | #203 | UI tidy-up proposals | 3, 5, 6, 7 | yes |
 | #204 | English URLs (/en/…), bilingual seller text | keep cookie, one field | yes |
 | #205 | Multi-shop orders, shipping, stock (Stage 2) | one checkout, order per shop | **no** |
+| #292 | Stock numbers public, NT$0 items, own-shop purchases, cart lifetime | hide exact stock unless ≤ 5; min NT$1; no; 90 days | yes, except stock display |
+| #293 | Exact map pins for home roasters | warning text only | yes |
 
 ## Decisions (why it looks like this)
 

@@ -1465,6 +1465,9 @@ func (r *processingMethodResolver) CoffeeCount(ctx context.Context, obj *model.P
 func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	c := viewer(ctx)
 	if c == nil {
+		if staleToken(ctx) {
+			return nil, errUnauthenticated() // revoked / outdated token (#284)
+		}
 		return nil, nil
 	}
 	u, err := r.Store.UserByID(ctx, c.UserID)

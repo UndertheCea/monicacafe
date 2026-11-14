@@ -53,7 +53,10 @@ every `Closes #N` in the PR body) so merging the PR closes the issue. If you sto
 10. Seller-supplied text is never inserted as HTML (use `textContent` / JSX).
 11. Visual style is white + black only (see the brief's "Look and feel"): no amber / yellow accents, no gradients,
     no dark hero blocks. Colour appears only in the soft Radix tiles behind coffees without a photo.
-12. Never push to `master` directly. Work on a branch, open a PR, and merge only when CI is green.
+12. Private data (own account, cart, orders, admin views) is read only through `requireViewer` / `viewer` /
+    `isAdmin` / `requireAdmin`: `tokenGate` checks those claims against the database for every signed-in query and
+    mutation (#284). Never decode a token or trust a role some other way.
+13. Never push to `master` directly. Work on a branch, open a PR, and merge only when CI is green.
 
 ## Architecture
 

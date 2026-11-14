@@ -38,6 +38,9 @@ func requireViewer(ctx context.Context) (*auth.Claims, error) {
 	return c, nil
 }
 
+// isAdmin reads the role in the claims. tokenGate has already checked them
+// against the database for this operation (queries and mutations, #284), and
+// every role change bumps the token version, so this is the stored role.
 func isAdmin(c *auth.Claims) bool { return c != nil && c.Role == string(model.UserRoleAdmin) }
 
 // ownedShop loads a shop and checks the viewer may manage it.

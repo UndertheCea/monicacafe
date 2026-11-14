@@ -211,6 +211,15 @@ func TestMarketplaceFlow(t *testing.T) {
 		map[string]any{"t": login.Login.RefreshToken})
 	anon.expectCode(graph.CodeUnauthenticated, `mutation($t: String!) { refreshToken(token: $t) { accessToken } }`,
 		map[string]any{"t": replayedAgain.RefreshToken.RefreshToken})
+	// Reuse detection ended every session and bumped the token version, so the
+	// access token still in hand can neither write (#224) nor read private
+	// data (#284). Sign in again to carry on.
+	seller.expectCode(graph.CodeUnauthenticated, `mutation { updateProfile(input: {displayName: "x"}) { id } }`, nil)
+	seller.expectCode(graph.CodeUnauthenticated, `{ me { id } }`, nil)
+	var relogin struct{ Login authPayload }
+	anon.mustDo(`mutation($in: LoginInput!) { login(input: $in) { `+authFields+` } }`,
+		map[string]any{"in": map[string]any{"email": "seller+" + run + "@example.com", "password": "correct-horse-battery"}}, &relogin)
+	seller.token = relogin.Login.AccessToken
 
 	var me struct {
 		Me *struct {
@@ -226,14 +235,6 @@ func TestMarketplaceFlow(t *testing.T) {
 	if me.Me != nil {
 		t.Fatal("anonymous me should be null")
 	}
-
-	// Reuse detection ended every session, so the access token still in hand
-	// can read but no longer write (#224: the token version was bumped).
-	seller.expectCode(graph.CodeUnauthenticated, `mutation { updateProfile(input: {displayName: "x"}) { id } }`, nil)
-	var relogin struct{ Login authPayload }
-	anon.mustDo(`mutation($in: LoginInput!) { login(input: $in) { `+authFields+` } }`,
-		map[string]any{"in": map[string]any{"email": "seller+" + run + "@example.com", "password": "correct-horse-battery"}}, &relogin)
-	seller.token = relogin.Login.AccessToken
 
 	// ── Shop ────────────────────────────────────────────────────────────────
 	anon.expectCode(graph.CodeUnauthenticated, `mutation { createShop(input: {slug: "x-shop", name: "x", description: "", city: "台北"}) { id } }`, nil)

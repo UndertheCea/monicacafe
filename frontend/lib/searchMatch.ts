@@ -37,7 +37,8 @@ export const SNIPPET_RADIUS = 24;
 
 /**
  * The first search word that needs explaining, as a match in the first field
- * (in `fields` order) containing any of its alternatives. A word needs no
+ * (in `fields` order) containing any of its alternatives (the longest one found
+ * in that field is marked). A word needs no
  * explanation when the card visibly contains it as typed. Null when every word
  * is visible or no field (of those passed) contains it.
  */
@@ -47,10 +48,13 @@ export function findSearchMatch(fields: SearchField[], terms: string[][]): Searc
     if (!typed) continue;
     if (fields.some((f) => f.visible && indexOfFold(f.text, typed) >= 0)) continue;
     for (const f of fields) {
+      // The longest alternative found marks the most text (茉莉花, not 茉莉).
+      let best: { at: number; len: number } | null = null;
       for (const alt of alternatives) {
         const at = indexOfFold(f.text, alt);
-        if (at >= 0) return snippet(f.field, f.text, at, at + alt.length);
+        if (at >= 0 && (!best || alt.length > best.len)) best = { at, len: alt.length };
       }
+      if (best) return snippet(f.field, f.text, best.at, best.at + best.len);
     }
   }
   return null;

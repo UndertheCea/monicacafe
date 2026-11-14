@@ -40,6 +40,11 @@ test("the first word needing an explanation wins; visible words are skipped", ()
   assert.equal(m?.match, "佛手柑");
 });
 
+test("the longest alternative in the field is marked", () => {
+  const m = findSearchMatch(zh, [["Jasmine", "茉莉", "茉莉花"]]);
+  assert.deepEqual(m, { field: "notes", before: "", match: "茉莉花", after: "" });
+});
+
 test("a note beyond the visible four is explained even when typed exactly", () => {
   const m = findSearchMatch(zh, [["佛手柑"]]);
   assert.equal(m?.field, "notes");

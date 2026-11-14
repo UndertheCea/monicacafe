@@ -17,9 +17,9 @@ const coffeeColumns = `c.id, c.shop_id, c.name, c.slug, c.description, c.origin_
 // coffees drop out of every public query, published or not.
 const suspendedShopIDs = `SELECT id FROM shops WHERE suspended_at IS NOT NULL`
 
-// publicCoffee is the condition for a coffee anyone may see: published, in a
-// shop that isn't suspended. Use it with the coffees table aliased as c.
-const publicCoffee = `(c.is_published AND c.shop_id NOT IN (` + suspendedShopIDs + `))`
+// publicCoffee is the condition for a coffee anyone may see: published, not
+// archived (#278), in a shop that isn't suspended. Use it with the coffees table aliased as c.
+const publicCoffee = `(c.is_published AND c.archived_at IS NULL AND c.shop_id NOT IN (` + suspendedShopIDs + `))`
 
 func scanCoffee(row interface{ Scan(...any) error }) (*Coffee, error) {
 	var c Coffee
@@ -57,15 +57,16 @@ func collectCoffees(rows interface {
 	return out, mapErr(rows.Err())
 }
 
-// CoffeeByID fetches a coffee regardless of publication state.
+// CoffeeByID fetches a coffee regardless of publication state. Archived
+// coffees (#278) are ErrNotFound.
 func (s *Store) CoffeeByID(ctx context.Context, id string) (*Coffee, error) {
-	return scanCoffee(s.db.QueryRow(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = $1`, id))
+	return scanCoffee(s.db.QueryRow(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = $1 AND c.archived_at IS NULL`, id))
 }
 
 // CoffeesByIDs batch-loads coffees (drafts included; callers check
-// visibility). Missing IDs are absent from the map.
+// visibility). Missing and archived IDs are absent from the map.
 func (s *Store) CoffeesByIDs(ctx context.Context, ids []string) (map[string]*Coffee, error) {
-	rows, err := s.db.Query(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = ANY($1::uuid[])`, ids)
+	rows, err := s.db.Query(ctx, `SELECT `+coffeeColumns+` FROM coffees c WHERE c.id = ANY($1::uuid[]) AND c.archived_at IS NULL`, ids)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -123,6 +124,8 @@ func (f CoffeeFilter) where() (string, []any) {
 	}
 	if !f.IncludeUnpublished {
 		conds = append(conds, publicCoffee)
+	} else {
+		conds = append(conds, "c.archived_at IS NULL")
 	}
 	if f.ShopID != nil {
 		add("c.shop_id = $%d", *f.ShopID)
@@ -362,10 +365,10 @@ type CreateCoffeeParams struct {
 }
 
 // CreateCoffee inserts a draft coffee.
-// CountShopCoffees counts a shop's coffees, drafts included.
+// CountShopCoffees counts a shop's coffees, drafts included, archived not.
 func (s *Store) CountShopCoffees(ctx context.Context, shopID string) (int, error) {
 	var n int
-	err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees WHERE shop_id = $1`, shopID).Scan(&n)
+	err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees WHERE shop_id = $1 AND archived_at IS NULL`, shopID).Scan(&n)
 	return n, mapErr(err)
 }
 
@@ -411,7 +414,7 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 	if _, err := s.db.Exec(ctx, `
 		INSERT INTO variants (coffee_id, grind, weight_g, price_twd, stock, is_available)
 		SELECT $2, grind, weight_g, price_twd, stock, is_available
-		FROM variants WHERE coffee_id = $1`, srcID, co.ID); err != nil {
+		FROM variants WHERE coffee_id = $1 AND archived_at IS NULL`, srcID, co.ID); err != nil {
 		return nil, mapErr(err)
 	}
 	return co, nil
@@ -528,26 +531,26 @@ type CreateVariantParams struct {
 func (s *Store) CreateVariants(ctx context.Context, coffeeID string, vs []CreateVariantParams) ([]*Variant, error) {
 	out := make([]*Variant, 0, len(vs))
 	for _, v := range vs {
-		var r Variant
-		err := s.db.QueryRow(ctx, `
+		r, err := scanVariant(s.db.QueryRow(ctx, `
 			INSERT INTO variants (coffee_id, grind, weight_g, price_twd, stock)
 			VALUES ($1, $2::grind_option, $3, $4, $5)
-			RETURNING id, coffee_id, grind, weight_g, price_twd, stock, is_available`,
+			RETURNING `+variantColumns,
 			coffeeID, v.Grind, v.WeightG, v.PriceTWD, v.Stock,
-		).Scan(&r.ID, &r.CoffeeID, &r.Grind, &r.WeightG, &r.PriceTWD, &r.Stock, &r.IsAvailable)
+		))
 		if err != nil {
-			return nil, mapErr(err)
+			return nil, err
 		}
-		out = append(out, &r)
+		out = append(out, r)
 	}
 	return out, nil
 }
 
-// VariantsByCoffeeIDs batch-fetches variants grouped by coffee, ordered by weight then price.
+// VariantsByCoffeeIDs batch-fetches live (not archived) variants grouped by
+// coffee, ordered by weight then price.
 func (s *Store) VariantsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (map[string][]*Variant, error) {
 	rows, err := s.db.Query(ctx, `
-		SELECT id, coffee_id, grind, weight_g, price_twd, stock, is_available
-		FROM variants WHERE coffee_id = ANY($1::uuid[])
+		SELECT `+variantColumns+`
+		FROM variants WHERE coffee_id = ANY($1::uuid[]) AND archived_at IS NULL
 		ORDER BY weight_g, price_twd, grind, id`, coffeeIDs)
 	if err != nil {
 		return nil, mapErr(err)
@@ -555,11 +558,11 @@ func (s *Store) VariantsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (ma
 	defer rows.Close()
 	out := make(map[string][]*Variant, len(coffeeIDs))
 	for rows.Next() {
-		var v Variant
-		if err := rows.Scan(&v.ID, &v.CoffeeID, &v.Grind, &v.WeightG, &v.PriceTWD, &v.Stock, &v.IsAvailable); err != nil {
-			return nil, mapErr(err)
+		v, err := scanVariant(rows)
+		if err != nil {
+			return nil, err
 		}
-		out[v.CoffeeID] = append(out[v.CoffeeID], &v)
+		out[v.CoffeeID] = append(out[v.CoffeeID], v)
 	}
 	return out, mapErr(rows.Err())
 }
@@ -567,36 +570,42 @@ func (s *Store) VariantsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (ma
 // CountVariants returns how many variants a coffee has.
 func (s *Store) CountVariants(ctx context.Context, coffeeID string) (int, error) {
 	var n int
-	err := s.db.QueryRow(ctx, `SELECT count(*) FROM variants WHERE coffee_id = $1`, coffeeID).Scan(&n)
+	err := s.db.QueryRow(ctx, `SELECT count(*) FROM variants WHERE coffee_id = $1 AND archived_at IS NULL`, coffeeID).Scan(&n)
 	return n, mapErr(err)
 }
 
-const variantColumns = `id, coffee_id, grind, weight_g, price_twd, stock, is_available`
+const variantColumns = `id, coffee_id, grind, weight_g, price_twd, stock, is_available, updated_at`
 
 func scanVariant(row interface{ Scan(...any) error }) (*Variant, error) {
 	var v Variant
-	if err := row.Scan(&v.ID, &v.CoffeeID, &v.Grind, &v.WeightG, &v.PriceTWD, &v.Stock, &v.IsAvailable); err != nil {
+	if err := row.Scan(&v.ID, &v.CoffeeID, &v.Grind, &v.WeightG, &v.PriceTWD, &v.Stock, &v.IsAvailable, &v.UpdatedAt); err != nil {
 		return nil, mapErr(err)
 	}
 	return &v, nil
 }
 
-// VariantByID fetches one variant.
+// VariantByID fetches one live variant; archived ones are ErrNotFound.
 func (s *Store) VariantByID(ctx context.Context, id string) (*Variant, error) {
-	return scanVariant(s.db.QueryRow(ctx, `SELECT `+variantColumns+` FROM variants WHERE id = $1`, id))
+	return scanVariant(s.db.QueryRow(ctx, `SELECT `+variantColumns+` FROM variants WHERE id = $1 AND archived_at IS NULL`, id))
 }
 
 // DeleteCoffee removes a coffee; its variants and comments cascade (migration
-// 001). ErrNotFound if it doesn't exist.
-func (s *Store) DeleteCoffee(ctx context.Context, id string) error {
-	tag, err := s.db.Exec(ctx, `DELETE FROM coffees WHERE id = $1`, id)
-	if err != nil {
-		return mapErr(err)
+// 001). When something still references one of its variants (an order line,
+// Stage 2) the coffee and its variants are archived instead (#278).
+// ErrNotFound if there is no live coffee with that id.
+func (s *Store) DeleteCoffee(ctx context.Context, id string) (archived bool, err error) {
+	return deleteOrArchive(ctx, s.db, `SELECT delete_or_archive_coffee($1)`, id)
+}
+
+func deleteOrArchive(ctx context.Context, db DB, q, id string) (bool, error) {
+	var res *string
+	if err := db.QueryRow(ctx, q, id).Scan(&res); err != nil {
+		return false, mapErr(err)
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+	if res == nil {
+		return false, ErrNotFound
 	}
-	return nil
+	return *res == "archived", nil
 }
 
 // LockCoffee takes a row lock on a coffee for the rest of the transaction, so
@@ -631,14 +640,24 @@ func (s *Store) UpdateVariant(ctx context.Context, id string, p UpdateVariantPar
 			price_twd    = COALESCE($2, price_twd),
 			stock        = COALESCE($3, stock),
 			is_available = COALESCE($4, is_available)
-		WHERE id = $1
+		WHERE id = $1 AND archived_at IS NULL
 		RETURNING `+variantColumns,
 		id, p.PriceTWD, p.Stock, p.IsAvailable))
 }
 
-// DeleteVariant removes a variant. ErrNotFound if it doesn't exist.
-func (s *Store) DeleteVariant(ctx context.Context, id string) error {
-	tag, err := s.db.Exec(ctx, `DELETE FROM variants WHERE id = $1`, id)
+// DeleteVariant removes a variant, or archives it (unavailable, hidden from
+// every list) when something still references it (#278). ErrNotFound if there
+// is no live variant with that id.
+func (s *Store) DeleteVariant(ctx context.Context, id string) (archived bool, err error) {
+	return deleteOrArchive(ctx, s.db, `SELECT delete_or_archive_variant($1)`, id)
+}
+
+// ArchiveVariant retires a variant without deleting it: it becomes unavailable
+// and drops out of every list, but rows that reference it keep working.
+func (s *Store) ArchiveVariant(ctx context.Context, id string) error {
+	tag, err := s.db.Exec(ctx, `
+		UPDATE variants SET archived_at = now(), is_available = false
+		WHERE id = $1 AND archived_at IS NULL`, id)
 	if err != nil {
 		return mapErr(err)
 	}

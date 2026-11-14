@@ -227,6 +227,7 @@ func toVariant(v *store.Variant) *model.Variant {
 	return &model.Variant{
 		ID: v.ID, Grind: model.GrindOption(v.Grind), WeightG: v.WeightG,
 		PriceTwd: money.TWD(v.PriceTWD), Stock: v.Stock, IsAvailable: v.IsAvailable && v.Stock > 0,
+		UpdatedAt: v.UpdatedAt,
 	}
 }
 

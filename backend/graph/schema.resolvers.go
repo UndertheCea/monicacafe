@@ -819,7 +819,8 @@ func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, e
 		if published {
 			return errConflict("isPublished", "unpublish the coffee before deleting it")
 		}
-		return tx.DeleteCoffee(ctx, id)
+		_, err = tx.DeleteCoffee(ctx, id)
+		return err
 	})
 	if errors.Is(err, store.ErrNotFound) {
 		return false, errNotFound("coffee")
@@ -1055,7 +1056,8 @@ func (r *mutationResolver) DeleteVariant(ctx context.Context, id string) (bool, 
 				return errBadInput("variants", "a published coffee needs at least one variant; unpublish it first")
 			}
 		}
-		return tx.DeleteVariant(ctx, id)
+		_, err = tx.DeleteVariant(ctx, id)
+		return err
 	})
 	if errors.Is(err, store.ErrNotFound) {
 		return false, errNotFound("variant")

@@ -77,10 +77,10 @@ func TestVariantStore(t *testing.T) {
 			}
 		}
 
-		if err := tx.DeleteVariant(ctx, v.ID); err != nil {
+		if _, err := tx.DeleteVariant(ctx, v.ID); err != nil {
 			return err
 		}
-		if err := tx.DeleteVariant(ctx, v.ID); !errors.Is(err, store.ErrNotFound) {
+		if _, err := tx.DeleteVariant(ctx, v.ID); !errors.Is(err, store.ErrNotFound) {
 			return fmt.Errorf("second delete: err = %v, want ErrNotFound", err)
 		}
 		if _, err := tx.VariantByID(ctx, v.ID); !errors.Is(err, store.ErrNotFound) {

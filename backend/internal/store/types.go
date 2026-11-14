@@ -77,6 +77,7 @@ type Variant struct {
 	PriceTWD    int64
 	Stock       int
 	IsAvailable bool
+	UpdatedAt   time.Time
 }
 
 // Comment is a buyer comment on a coffee.

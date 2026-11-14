@@ -439,6 +439,8 @@ type Variant {
   priceTwd: TWD!
   stock: Int!
   isAvailable: Boolean!
+  "Last change to price, stock or availability (#278)."
+  updatedAt: Time!
 }
 
 # EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176.

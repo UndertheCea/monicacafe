@@ -217,6 +217,8 @@ type Variant struct {
 	PriceTwd    money.TWD   `json:"priceTwd"`
 	Stock       int         `json:"stock"`
 	IsAvailable bool        `json:"isAvailable"`
+	// Last change to price, stock or availability (#278).
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type VariantInput struct {

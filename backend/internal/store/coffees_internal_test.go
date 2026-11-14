@@ -50,17 +50,17 @@ func TestCoffeeFilterWhere(t *testing.T) {
 		wantArgs int
 	}{
 		{"published only by default", CoffeeFilter{}, " WHERE " + publicCoffee + "", 0},
-		{"drafts included, nothing else", CoffeeFilter{IncludeUnpublished: true}, "", 0},
+		{"drafts included, nothing else", CoffeeFilter{IncludeUnpublished: true}, " WHERE c.archived_at IS NULL", 0},
 		{"in stock", CoffeeFilter{InStock: true}, " WHERE " + publicCoffee + " AND " + stock, 0},
 		{"sold out", CoffeeFilter{SoldOut: true}, " WHERE " + publicCoffee + " AND NOT " + stock, 0},
-		{"shop + sold out, drafts", CoffeeFilter{ShopID: &id, SoldOut: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND NOT " + stock, 1},
+		{"shop + sold out, drafts", CoffeeFilter{ShopID: &id, SoldOut: true, IncludeUnpublished: true}, " WHERE c.archived_at IS NULL AND c.shop_id = $1 AND NOT " + stock, 1},
 		{"brew methods", CoffeeFilter{BrewMethods: []string{"FILTER", "OMNI"}}, " WHERE " + publicCoffee + " AND c.brew_method = ANY($1)", 1},
 		{"harvest year", CoffeeFilter{MinHarvestYear: &year}, " WHERE " + publicCoffee + " AND c.harvest_year >= $1", 1},
 		{"min altitude", CoffeeFilter{MinAltitudeM: &alt}, " WHERE " + publicCoffee + " AND COALESCE(c.altitude_max_m, c.altitude_min_m) >= $1", 1},
 		{"search term covers flavour notes", CoffeeFilter{SearchTerms: []string{"茉莉花"}}, " WHERE " + publicCoffee + " AND " + fmt.Sprintf(searchCond, 1), 1},
-		{"shop + in stock", CoffeeFilter{ShopID: &id, InStock: true, IncludeUnpublished: true}, " WHERE c.shop_id = $1 AND " + stock, 1},
+		{"shop + in stock", CoffeeFilter{ShopID: &id, InStock: true, IncludeUnpublished: true}, " WHERE c.archived_at IS NULL AND c.shop_id = $1 AND " + stock, 1},
 		{"min price keeps its own in-stock check", CoffeeFilter{MinPriceTWD: &lo, IncludeUnpublished: true},
-			" WHERE EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= $1)", 1},
+			" WHERE c.archived_at IS NULL AND EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= $1)", 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

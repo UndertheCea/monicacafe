@@ -290,6 +290,7 @@ type ComplexityRoot struct {
 		IsAvailable func(childComplexity int) int
 		PriceTwd    func(childComplexity int) int
 		Stock       func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
 		WeightG     func(childComplexity int) int
 	}
 }
@@ -1786,6 +1787,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Variant.Stock(childComplexity), true
+	case "Variant.updatedAt":
+		if e.ComplexityRoot.Variant.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Variant.UpdatedAt(childComplexity), true
 	case "Variant.weightG":
 		if e.ComplexityRoot.Variant.WeightG == nil {
 			break
@@ -2332,6 +2339,8 @@ type Variant {
   priceTwd: TWD!
   stock: Int!
   isAvailable: Boolean!
+  "Last change to price, stock or availability (#278)."
+  updatedAt: Time!
 }
 
 # EXTRA_LIGHT (極淺焙) was added on the owner's answer to #176.
@@ -2988,6 +2997,8 @@ func (ec *executionContext) childFields_Variant(ctx context.Context, field graph
 		return ec.fieldContext_Variant_stock(ctx, field)
 	case "isAvailable":
 		return ec.fieldContext_Variant_isAvailable(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_Variant_updatedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Variant", field.Name)
 }
@@ -9812,6 +9823,29 @@ func (ec *executionContext) fieldContext_Variant_isAvailable(_ context.Context, 
 	return graphql.NewScalarFieldContext("Variant", field, false, false, "Boolean")
 }
 
+func (ec *executionContext) _Variant_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Variant_updatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Variant_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Variant", field, false, false, "Time")
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -13526,6 +13560,11 @@ func (ec *executionContext) _Variant(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "isAvailable":
 			out.Values[i] = ec._Variant_isAvailable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._Variant_updatedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

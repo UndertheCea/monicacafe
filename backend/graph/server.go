@@ -16,6 +16,7 @@ import (
 
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/graph/model"
+	"github.com/underthecea/monicacafe/backend/internal/store"
 )
 
 // Limits on a single GraphQL request (#207). Together they keep one request,
@@ -80,6 +81,8 @@ func complexityRoot() generated.ComplexityRoot {
 	c.User.SavedCoffees = paged(perParentQueryCost)
 	c.User.FollowedShops = paged(perParentQueryCost)
 	c.Coffee.Comments = paged(perParentQueryCost)
+	// A cart holds at most store.MaxCartLines lines.
+	c.Cart.Items = func(child int) int { return 1 + store.MaxCartLines*child }
 	c.Coffee.Similar = func(child int, limit *int) int { return similarQueryCost + similarLimit(limit)*child }
 	return c
 }

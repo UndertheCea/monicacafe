@@ -13,6 +13,9 @@ type Query {
   # rate limited per account (RATE_LIMIT_EXPORT_USER).
   myDataExport: String!
 
+  # The signed-in buyer's cart (#21; Stage 2). UNAUTHENTICATED when signed out.
+  cart: Cart!
+
   # Shop discovery
   shop(slug: String!): Shop
   # sort defaults to NEWEST. search: keywords (≤ 100 characters, ≤ 8 words);
@@ -59,6 +62,16 @@ type Query {
 # ─── Mutations ────────────────────────────────────────────────────────────────
 
 type Mutation {
+  # Cart (#21). Each returns the whole cart. addToCart adds to the line's
+  # quantity if the option is already there. Only public, available options
+  # with enough stock can be added; a line holds 1–20 bags (never more than the
+  # stock) and a cart at most 50 lines (LIMIT_REACHED). Each write refreshes
+  # the line's price snapshot. Rate limited per account (RATE_LIMIT_CART_USER).
+  addToCart(variantId: ID!, quantity: Int! = 1): Cart!
+  # quantity 1–20; raising it past the stock is refused, lowering always works.
+  updateCartItem(id: ID!, quantity: Int!): Cart!
+  removeFromCart(id: ID!): Cart!
+
   # Auth
   register(input: RegisterInput!): AuthPayload!
   login(input: LoginInput!): AuthPayload!
@@ -722,4 +735,29 @@ input CoffeeFilter {
 input AddCommentInput {
   coffeeId: ID!
   body: String!
+}
+
+type Cart {
+  items: [CartItem!]!
+  "Sum of the lines that can be bought now, at today's prices."
+  subtotalTwd: TWD!
+  "Bags in the lines that can be bought now."
+  itemCount: Int!
+}
+
+type CartItem {
+  id: ID!
+  quantity: Int!
+  variant: Variant!
+  "Null when the coffee is no longer public (unpublished, archived, shop suspended)."
+  coffee: Coffee
+  "Price per bag when the line was added or last changed."
+  addedPriceTwd: TWD!
+  "Today's price per bag."
+  priceTwd: TWD!
+  priceChanged: Boolean!
+  "False when the option or coffee is gone, off sale, or has fewer bags than the line."
+  available: Boolean!
+  "priceTwd × quantity."
+  lineTotalTwd: TWD!
 }

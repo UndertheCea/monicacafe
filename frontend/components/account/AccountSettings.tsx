@@ -356,7 +356,7 @@ function DownloadData({ locale }: { locale: Locale }) {
       setError(
         e2.code === "RATE_LIMITED"
           ? rateLimitMessage(e2.retryAfter)
-          : { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.generic" },
+          : { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.export" },
       );
     } finally {
       setBusy(false);

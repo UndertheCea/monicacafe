@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 37 — 2026-11-14 — Search synonyms, data export, toolchain majors (six stage-1 slices)
-PR: #PRNUM
+PR: #275
 
 No open PR from an earlier session (only dependabot's). No owner answers on any question (#203's safe defaults 3 / 5 / 6 / 7
 are already built). Every open slice was blocked as in Session 36, so I filed six real `stage-1` gaps

@@ -148,6 +148,20 @@ collections, email notifications for followed shops.
 | #204 | `/en` URLs; bilingual seller text | follow-up slices | yes (no change) |
 | #205 | Multi-shop checkout, shipping, stock holds, guest checkout | M5 | **no** |
 | #12 | Commission and payouts | M5 payments | **no** |
+| #298 → its question | Which ideas from the roaster UI/UX review, if any | UI slices from the review | yes (build none) |
+
+### The roaster UI/UX review needs discussion first (owner, 2026-11-14)
+
+The owner's review of nine roaster sites (`ui-ux-review.md`, branch `platform-feature-sumry`, analysed in #298) is
+**input for a discussion, not a feature list**. Adding every idea in it would make Moni busier, which is the opposite
+of the goal: Moni should stay clean like POMA / La Cabra / SEY, and several ideas also conflict with past decisions:
+- cup meters (September) and "Flavour Mood" navigation bring back cross-shop taste comparison, removed in #166 / #189;
+- conversion features (Monogram's banners and testimonials) don't fit the white + black look;
+- per-coffee prices paid to farmers and green cost (Coffee Collective, Onyx) wait for Stage 2 decisions (#201 / #205).
+
+Rules for sessions: never build an idea from the review directly. #298 writes a short analysis and opens **one
+`question` issue**. Only the ideas the owner explicitly picks there become slices, and an unanswered pick counts as
+"no" (the default is not to build). Pick a few at a time, try them, and keep the rest for later.
 
 ## Things nobody has considered yet
 

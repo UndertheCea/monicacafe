@@ -32,6 +32,10 @@ export const API_ERROR_CODES = [
   // A stock edit carried the stock last seen (expectedStock) and an order
   // changed it meanwhile (#277). See lib/dashboard/variantSave.ts.
   "STOCK_CHANGED",
+  // The shop is suspended: read-only for its owner (#282). See lib/dashboard/takedown.ts.
+  "SHOP_SUSPENDED",
+  // An admin took the coffee down; no publish / duplicate / delete until restored (#282).
+  "TAKEN_DOWN",
   "INTERNAL_SERVER_ERROR",
 ] as const;
 

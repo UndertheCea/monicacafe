@@ -34,7 +34,12 @@ const (
 	// CodeStockChanged: a stock edit carried the stock the seller last saw
 	// (expectedStock) and an order changed it meanwhile (#277).
 	CodeStockChanged = "STOCK_CHANGED"
-	CodeInternal     = "INTERNAL_SERVER_ERROR"
+	// CodeShopSuspended: the shop is suspended, so its owner can't change it (#282).
+	CodeShopSuspended = "SHOP_SUSPENDED"
+	// CodeTakenDown: an admin took the coffee down; the seller can't publish,
+	// duplicate or delete it until an admin restores it (#282).
+	CodeTakenDown = "TAKEN_DOWN"
+	CodeInternal  = "INTERNAL_SERVER_ERROR"
 )
 
 // apiError is a client-safe error with a machine-readable code.
@@ -54,6 +59,14 @@ func errLimitReached(field, msg string) error {
 
 func errStockChanged() error {
 	return &apiError{code: CodeStockChanged, message: "stock changed since it was loaded; reload and try again", field: "stock"}
+}
+
+func errShopSuspended() error {
+	return &apiError{code: CodeShopSuspended, message: "this shop is suspended; contact the platform"}
+}
+
+func errTakenDown() error {
+	return &apiError{code: CodeTakenDown, message: "this coffee was taken down by an admin; contact the platform"}
 }
 
 func errUploadQuota() error {

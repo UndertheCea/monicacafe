@@ -183,7 +183,28 @@ func (r *Resolver) adminUnpublishCoffee(ctx context.Context, id, reason string) 
 		return nil, errNotFound("coffee")
 	}
 	if err != nil {
-		return nil, noChange(err, "the coffee is already a draft")
+		return nil, noChange(err, "the coffee is already taken down")
+	}
+	return toCoffee(co), nil
+}
+
+func (r *Resolver) adminRestoreCoffee(ctx context.Context, id, reason string) (*model.Coffee, error) {
+	c, err := r.requireAdmin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, errNotFound("coffee")
+	}
+	if reason, err = moderationReason(reason); err != nil {
+		return nil, err
+	}
+	co, err := r.Store.AdminRestoreCoffee(ctx, c.UserID, id, reason)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee")
+	}
+	if err != nil {
+		return nil, noChange(err, "the coffee isn't taken down")
 	}
 	return toCoffee(co), nil
 }

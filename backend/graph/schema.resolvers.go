@@ -793,6 +793,12 @@ func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model
 		if _, err := tx.LockCoffee(ctx, id); err != nil {
 			return err
 		}
+		// Read under the lock, so a takedown can't slip in after the check (#282).
+		if cur, err := tx.CoffeeByID(ctx, id); err != nil {
+			return err
+		} else if cur.RemovedAt != nil {
+			return errTakenDown()
+		}
 		n, err := tx.CountVariants(ctx, id)
 		if err != nil {
 			return err
@@ -851,6 +857,20 @@ func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, e
 		if published {
 			return errConflict("isPublished", "unpublish the coffee before deleting it")
 		}
+		// Deleting would erase the comments, saves and reports an admin acts
+		// on (#282): not while it is taken down or a report is open.
+		cur, err := tx.CoffeeByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if cur.RemovedAt != nil {
+			return errTakenDown()
+		}
+		if open, err := tx.CoffeeHasOpenReports(ctx, id); err != nil {
+			return err
+		} else if open {
+			return errConflict("reports", "a report on this coffee is waiting for an admin; try again later")
+		}
 		_, err = tx.DeleteCoffee(ctx, id)
 		return err
 	})
@@ -875,6 +895,10 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 	src, err := r.ownedCoffee(ctx, c, id)
 	if err != nil {
 		return nil, err
+	}
+	if src.RemovedAt != nil {
+		// A copy would be a clean listing an admin never reviewed (#282).
+		return nil, errTakenDown()
 	}
 	if err := r.checkCoffeeCap(ctx, src.ShopID); err != nil {
 		return nil, err
@@ -1317,7 +1341,8 @@ func (r *mutationResolver) FollowShop(ctx context.Context, id string) (*model.Sh
 		return nil, errNotFound("shop")
 	}
 	sh, err := r.Store.ShopByID(ctx, id)
-	if errors.Is(err, store.ErrNotFound) {
+	if errors.Is(err, store.ErrNotFound) || (err == nil && sh.SuspendedAt != nil) {
+		// A suspended shop is unreachable for everyone (#282).
 		return nil, errNotFound("shop")
 	}
 	if err != nil {
@@ -1361,6 +1386,10 @@ func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.
 	if err != nil {
 		return nil, err
 	}
+	if sh.SuspendedAt != nil {
+		// The follow is gone, but a suspended shop's profile isn't returned (#282).
+		return nil, errNotFound("shop")
+	}
 	return toShop(sh), nil
 }
 
@@ -1387,6 +1416,11 @@ func (r *mutationResolver) UnsuspendShop(ctx context.Context, id string, reason 
 // AdminUnpublishCoffee is the resolver for the adminUnpublishCoffee field.
 func (r *mutationResolver) AdminUnpublishCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error) {
 	return r.adminUnpublishCoffee(ctx, id, reason)
+}
+
+// AdminRestoreCoffee is the resolver for the adminRestoreCoffee field.
+func (r *mutationResolver) AdminRestoreCoffee(ctx context.Context, id string, reason string) (*model.Coffee, error) {
+	return r.adminRestoreCoffee(ctx, id, reason)
 }
 
 // Report is the resolver for the report field.

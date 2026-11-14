@@ -1,5 +1,6 @@
 // Pure helpers for "Duplicate" on the dashboard (duplicateCoffee mutation).
 import type { MessageKey } from "../i18n/dict";
+import { moderationBlockKey } from "./takedown.ts";
 
 /** Longest coffee name the API accepts, in characters (code points). */
 export const MAX_COFFEE_NAME = 120;
@@ -20,6 +21,8 @@ export const MAX_COFFEES_PER_SHOP = 200;
 
 /** Message for a failed duplicateCoffee, by API error code. */
 export function duplicateCoffeeErrorKey(code: string): MessageKey {
+  const blocked = moderationBlockKey(code);
+  if (blocked) return blocked;
   if (code === "LIMIT_REACHED") return "dash.error.coffeeLimit";
   if (code === "NOT_FOUND" || code === "FORBIDDEN") return "cf.notYours";
   return "dash.error.generic";

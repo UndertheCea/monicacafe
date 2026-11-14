@@ -62,6 +62,9 @@ type Coffee struct {
 	HarvestYear *int
 	// ShopSuspended: the coffee's shop was taken off the site (#224).
 	ShopSuspended bool
+	// RemovedAt: an admin took the coffee down (#282); nil = not taken down.
+	// The seller can't publish, duplicate or delete it until an admin restores it.
+	RemovedAt *time.Time
 }
 
 // Public reports whether anyone may see the coffee: published, and its shop

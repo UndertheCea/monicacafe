@@ -61,6 +61,7 @@ type Coffee struct {
 	HarvestYear        *int        `json:"harvestYear,omitempty"`
 	ImageUrls          []string    `json:"imageUrls"`
 	IsPublished        bool        `json:"isPublished"`
+	TakenDown          bool        `json:"takenDown"`
 	CreatedAt          time.Time   `json:"createdAt"`
 	UpdatedAt          time.Time   `json:"updatedAt"`
 }

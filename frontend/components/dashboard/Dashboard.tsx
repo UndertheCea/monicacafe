@@ -20,6 +20,7 @@ import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
+import { moderationBlockKey } from "@/lib/dashboard/takedown";
 import { CommentFeed } from "@/components/CommentFeed";
 import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
@@ -100,7 +101,9 @@ export function Dashboard({ locale }: { locale: Locale }) {
       const e = toApiError(err);
       setRowError({
         id,
-        key: e.code === "BAD_USER_INPUT" && publish ? "dash.error.publishNeedsVariant" : "dash.error.generic",
+        key:
+          moderationBlockKey(e.code) ??
+          (e.code === "BAD_USER_INPUT" && publish ? "dash.error.publishNeedsVariant" : "dash.error.generic"),
       });
     } finally {
       setPending(null);
@@ -245,6 +248,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       <Badge tone={c.isPublished ? "solid" : "soft"}>
                         {t(locale, c.isPublished ? "dash.published" : "dash.draft")}
                       </Badge>
+                      {c.takenDown && <Badge tone="danger">{t(locale, "dash.takenDown")}</Badge>}
                       <StockBadge locale={locale} variants={c.variants} />
                       <span className="truncate font-semibold text-ink">{c.name}</span>
                     </div>

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Audit actions (#224). Stored as text; the GraphQL enum mirrors them.
@@ -15,6 +17,7 @@ const (
 	AuditSuspendShop     = "SUSPEND_SHOP"
 	AuditUnsuspendShop   = "UNSUSPEND_SHOP"
 	AuditUnpublishCoffee = "UNPUBLISH_COFFEE"
+	AuditRestoreCoffee   = "RESTORE_COFFEE"
 	AuditDeleteComment   = "DELETE_COMMENT"
 	AuditDeleteAccount   = "DELETE_ACCOUNT"
 	AuditChangePassword  = "CHANGE_PASSWORD"
@@ -100,6 +103,23 @@ func (s *Store) SetUserSuspended(ctx context.Context, actorID, userID string, su
 			if err := tx.RevokeUserRefreshTokens(ctx, userID); err != nil {
 				return err
 			}
+			// Their shop goes too (#282): nobody can manage it any more. It
+			// gets its own suspension and audit entry, so reinstating the
+			// account leaves the shop for an admin to reinstate separately.
+			var shopID string
+			err := tx.db.QueryRow(ctx, `
+				UPDATE shops SET suspended_at = now() WHERE owner_id = $1 AND suspended_at IS NULL RETURNING id`,
+				userID).Scan(&shopID)
+			switch {
+			case errors.Is(err, pgx.ErrNoRows):
+			case err != nil:
+				return mapErr(err)
+			default:
+				if err := tx.Audit(ctx, AuditEntry{ActorID: &actorID, Action: AuditSuspendShop, TargetType: AuditShop,
+					TargetID: shopID, Reason: truncateRunes("owner suspended: "+reason, 500)}); err != nil {
+					return err
+				}
+			}
 		}
 		return tx.Audit(ctx, AuditEntry{ActorID: &actorID, Action: action, TargetType: AuditUser, TargetID: userID, Reason: reason})
 	})
@@ -130,15 +150,19 @@ func (s *Store) SetShopSuspended(ctx context.Context, actorID, shopID string, su
 	return sh, err
 }
 
-// AdminUnpublishCoffee takes a published coffee offline and records it.
-// ErrNoChange when it is already a draft.
+// AdminUnpublishCoffee takes a coffee down and records it (#282): it becomes a
+// draft marked removed_at, which the seller can't publish, duplicate or delete
+// until an admin restores it. Works on drafts too (a takedown before the
+// seller republishes). ErrNoChange when it is already taken down.
 func (s *Store) AdminUnpublishCoffee(ctx context.Context, actorID, coffeeID, reason string) (*Coffee, error) {
 	var co *Coffee
 	err := s.InTx(ctx, func(tx *Store) error {
 		var err error
 		co, err = scanCoffee(tx.db.QueryRow(ctx, `
-			WITH c AS (UPDATE coffees SET is_published = false WHERE id = $1 AND is_published RETURNING *)
-			SELECT `+coffeeColumns+` FROM c`, coffeeID))
+			WITH c AS (
+				UPDATE coffees SET is_published = false, removed_at = now(), removed_by = $2
+				WHERE id = $1 AND archived_at IS NULL AND removed_at IS NULL RETURNING *)
+			SELECT `+coffeeColumns+` FROM c`, coffeeID, actorID))
 		if errors.Is(err, ErrNotFound) {
 			return tx.existsOrNoChange(ctx, "coffees", coffeeID)
 		}
@@ -148,6 +172,41 @@ func (s *Store) AdminUnpublishCoffee(ctx context.Context, actorID, coffeeID, rea
 		return tx.Audit(ctx, AuditEntry{ActorID: &actorID, Action: AuditUnpublishCoffee, TargetType: AuditCoffee, TargetID: coffeeID, Reason: reason})
 	})
 	return co, err
+}
+
+// AdminRestoreCoffee lifts a takedown (#282). The coffee stays a draft; its
+// seller may publish it again. ErrNoChange when it isn't taken down.
+func (s *Store) AdminRestoreCoffee(ctx context.Context, actorID, coffeeID, reason string) (*Coffee, error) {
+	var co *Coffee
+	err := s.InTx(ctx, func(tx *Store) error {
+		var err error
+		co, err = scanCoffee(tx.db.QueryRow(ctx, `
+			WITH c AS (
+				UPDATE coffees SET removed_at = NULL, removed_by = NULL
+				WHERE id = $1 AND archived_at IS NULL AND removed_at IS NOT NULL RETURNING *)
+			SELECT `+coffeeColumns+` FROM c`, coffeeID))
+		if errors.Is(err, ErrNotFound) {
+			return tx.existsOrNoChange(ctx, "coffees", coffeeID)
+		}
+		if err != nil {
+			return err
+		}
+		return tx.Audit(ctx, AuditEntry{ActorID: &actorID, Action: AuditRestoreCoffee, TargetType: AuditCoffee, TargetID: coffeeID, Reason: reason})
+	})
+	return co, err
+}
+
+// CoffeeHasOpenReports reports whether the coffee, or any comment on it, has a
+// report an admin hasn't handled yet (#282): deleting it would erase them.
+func (s *Store) CoffeeHasOpenReports(ctx context.Context, coffeeID string) (bool, error) {
+	var open bool
+	err := s.db.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM reports r WHERE r.status = 'OPEN' AND (
+				(r.target_type = 'COFFEE' AND r.target_id = $1)
+				OR (r.target_type = 'COMMENT' AND r.target_id IN (SELECT id FROM comments WHERE coffee_id = $1))))`,
+		coffeeID).Scan(&open)
+	return open, mapErr(err)
 }
 
 // AdminDeleteComment deletes someone else's comment and records it.
@@ -277,4 +336,13 @@ func adminSearch(terms []string, colA, colB string) (string, []any) {
 		conds[i] = fmt.Sprintf("(%s ILIKE $%d OR %s ILIKE $%d)", colA, i+1, colB, i+1)
 	}
 	return " WHERE " + strings.Join(conds, " AND "), args
+}
+
+// truncateRunes cuts s to at most n characters (code points).
+func truncateRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }

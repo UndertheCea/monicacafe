@@ -55,6 +55,11 @@ func (r *Resolver) ownedShop(ctx context.Context, c *auth.Claims, shopID string)
 	if sh.OwnerID != c.UserID && !isAdmin(c) {
 		return nil, errForbidden("you do not manage this shop")
 	}
+	// A suspended shop is read-only for its owner (#282); admins may still
+	// act on it. Every caller is a mutation.
+	if sh.SuspendedAt != nil && !isAdmin(c) {
+		return nil, errShopSuspended()
+	}
 	return sh, nil
 }
 
@@ -145,6 +150,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
 		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: toRoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
+		TakenDown: c.RemovedAt != nil,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
 		BrewMethod: toBrewMethod(c.BrewMethod), HarvestYear: c.HarvestYear,

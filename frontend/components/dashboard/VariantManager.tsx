@@ -14,6 +14,7 @@ import {
 } from "@/lib/dashboard/queries";
 import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
+import { variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
@@ -42,10 +43,6 @@ function RowProblem({ id, children }: { id: string; children?: string }) {
 const ROW_ORDER = ["price", "stock"] as const;
 const ADD_ORDER = ["weight", "price", "stock"] as const;
 
-function errKey(code: string): MessageKey {
-  if (code === "CONFLICT") return "cf.error.duplicate";
-  return "cf.error.generic";
-}
 
 export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale: Locale }) {
   const { status, view, user, request } = useSellerSession();
@@ -137,6 +134,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
                   locale={locale}
                   onSaved={replace}
                   onDeleted={() => void fetchCoffee()}
+                  onStale={() => void fetchCoffee()}
                   request={request}
                 />
               ))}
@@ -170,12 +168,15 @@ function VariantRow({
   locale,
   onSaved,
   onDeleted,
+  onStale,
   request,
 }: {
   variant: DashboardVariant;
   locale: Locale;
   onSaved: (v: DashboardVariant) => void;
   onDeleted: () => void;
+  /** Reload the coffee: the stored stock changed under this row (STOCK_CHANGED). */
+  onStale: () => void;
   request: Request;
 }) {
   const [price, setPrice] = useState(String(v.priceTwd));
@@ -200,14 +201,17 @@ function VariantRow({
     setBusy(true);
     fe.clear();
     try {
-      // Send isAvailable only when toggled: for out-of-stock rows the API
-      // can't tell us the stored flag, so don't overwrite it by accident.
-      const input = { priceTwd: p, stock: s, ...(onSale !== initialOnSale ? { isAvailable: onSale } : {}) };
+      // Stock goes with the stock last loaded (#277); isAvailable only when toggled.
+      const input = variantUpdateInput(v, { priceTwd: p, stock: s }, onSale !== initialOnSale ? onSale : undefined);
       const r = await request(UPDATE_VARIANT, { id: v.id, input });
       onSaved(r.updateVariant);
       setSaved(true);
     } catch (err) {
-      fe.fail({ fields: {}, form: { key: errKey(toApiError(err).code) } });
+      const code = toApiError(err).code;
+      // The row keeps what the seller typed; the reload brings the new stored
+      // stock, so the next save is checked against it.
+      if (code === "STOCK_CHANGED") onStale();
+      fe.fail({ fields: {}, form: { key: variantSaveErrorKey(code) } });
     } finally {
       setBusy(false);
     }
@@ -347,7 +351,7 @@ function AddVariantForm({
     } catch (err) {
       const code = toApiError(err).code;
       if (code === "CONFLICT") fe.failField("weight", { key: "cf.error.duplicate" });
-      else fe.fail({ fields: {}, form: { key: errKey(code) } });
+      else fe.fail({ fields: {}, form: { key: variantSaveErrorKey(code) } });
     } finally {
       setBusy(false);
     }

@@ -1023,6 +1023,9 @@ func (r *mutationResolver) UpdateVariant(ctx context.Context, id string, input m
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("variant")
 	}
+	if errors.Is(err, store.ErrStockChanged) {
+		return nil, errStockChanged()
+	}
 	if err != nil {
 		return nil, err
 	}

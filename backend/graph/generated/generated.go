@@ -2576,6 +2576,12 @@ input UpdateVariantInput {
   priceTwd: Int
   stock: Int
   isAvailable: Boolean
+  """
+  The stock the seller last saw. With it, a new stock is saved only if the
+  stored stock is still this number; otherwise STOCK_CHANGED (an order took
+  some meanwhile, #277). Only valid together with stock.
+  """
+  expectedStock: Int
 }
 
 # The site's /coffees page uses only originCountryId, varietyId,
@@ -11798,7 +11804,7 @@ func (ec *executionContext) unmarshalInputUpdateVariantInput(ctx context.Context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"priceTwd", "stock", "isAvailable"}
+	fieldsInOrder := [...]string{"priceTwd", "stock", "isAvailable", "expectedStock"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -11826,6 +11832,13 @@ func (ec *executionContext) unmarshalInputUpdateVariantInput(ctx context.Context
 				return it, err
 			}
 			it.IsAvailable = data
+		case "expectedStock":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedStock"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedStock = data
 		}
 	}
 	return it, nil

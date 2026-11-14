@@ -27,6 +27,12 @@ var (
 	ErrRefreshReuse = errors.New("store: refresh token reuse")
 	// ErrOwnsShop is returned when deleting an account that owns a shop.
 	ErrOwnsShop = errors.New("store: account owns a shop")
+	// ErrStockChanged is returned when a stock edit carried the stock the
+	// seller last saw and the row no longer has it (an order took some, #277).
+	ErrStockChanged = errors.New("store: stock changed")
+	// ErrInsufficientStock is returned when ReserveStock can't take n units:
+	// too few left, the variant is unavailable, archived or missing.
+	ErrInsufficientStock = errors.New("store: insufficient stock")
 )
 
 // DB is the subset of pgx used by the store; satisfied by *pgxpool.Pool and pgx.Tx.

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -631,18 +632,66 @@ type UpdateVariantParams struct {
 	PriceTWD    *int64
 	Stock       *int
 	IsAvailable *bool
+	// ExpectedStock, when set, is the stock the seller last saw. The update
+	// applies only if the row still has it; otherwise ErrStockChanged, so an
+	// absolute stock edit can't undo an order's decrement (#277).
+	ExpectedStock *int
 }
 
 // UpdateVariant applies a partial update to a variant.
 func (s *Store) UpdateVariant(ctx context.Context, id string, p UpdateVariantParams) (*Variant, error) {
-	return scanVariant(s.db.QueryRow(ctx, `
+	v, err := scanVariant(s.db.QueryRow(ctx, `
 		UPDATE variants SET
 			price_twd    = COALESCE($2, price_twd),
 			stock        = COALESCE($3, stock),
 			is_available = COALESCE($4, is_available)
-		WHERE id = $1 AND archived_at IS NULL
+		WHERE id = $1 AND archived_at IS NULL AND ($5::int IS NULL OR stock = $5)
 		RETURNING `+variantColumns,
-		id, p.PriceTWD, p.Stock, p.IsAvailable))
+		id, p.PriceTWD, p.Stock, p.IsAvailable, p.ExpectedStock))
+	if errors.Is(err, ErrNotFound) && p.ExpectedStock != nil {
+		// Missing, or there with another stock?
+		if _, lookErr := s.VariantByID(ctx, id); lookErr == nil {
+			return nil, ErrStockChanged
+		}
+	}
+	return v, err
+}
+
+// ReserveStock takes n units of a variant atomically: it succeeds only while
+// the variant is live, available and has at least n left, so concurrent
+// orders can never take more than exists. ErrInsufficientStock otherwise.
+// Call it inside the order's transaction (InTx) so a failed checkout
+// releases nothing it didn't take.
+func (s *Store) ReserveStock(ctx context.Context, variantID string, n int) error {
+	if n <= 0 {
+		return fmt.Errorf("store: reserve %d units", n)
+	}
+	tag, err := s.db.Exec(ctx, `
+		UPDATE variants SET stock = stock - $2
+		WHERE id = $1 AND archived_at IS NULL AND is_available AND stock >= $2`, variantID, n)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrInsufficientStock
+	}
+	return nil
+}
+
+// ReleaseStock gives n units back (a cancelled or expired order). It works
+// on archived or unavailable variants too: the bags exist either way.
+func (s *Store) ReleaseStock(ctx context.Context, variantID string, n int) error {
+	if n <= 0 {
+		return fmt.Errorf("store: release %d units", n)
+	}
+	tag, err := s.db.Exec(ctx, `UPDATE variants SET stock = stock + $2 WHERE id = $1`, variantID, n)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // DeleteVariant removes a variant, or archives it (unavailable, hidden from

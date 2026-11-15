@@ -96,6 +96,21 @@ test("parseGraphQLErrors", () => {
       in: [{ message: "m", extensions: { code: "RATE_LIMITED", retryAfter: -1, field: 3 } }],
       want: { code: "RATE_LIMITED", message: "m" },
     },
+    {
+      name: "available stock on a cart write",
+      in: [{ message: "m", extensions: { code: "BAD_USER_INPUT", field: "quantity", available: 3 } }],
+      want: { code: "BAD_USER_INPUT", message: "m", field: "quantity", available: 3 },
+    },
+    {
+      name: "zero left is kept, a bad count is dropped",
+      in: [{ message: "m", extensions: { code: "BAD_USER_INPUT", available: 0 } }],
+      want: { code: "BAD_USER_INPUT", message: "m", available: 0 },
+    },
+    {
+      name: "negative or fractional available dropped",
+      in: [{ message: "m", extensions: { code: "BAD_USER_INPUT", available: -1 } }],
+      want: { code: "BAD_USER_INPUT", message: "m" },
+    },
   ];
   for (const c of cases) assert.deepEqual(parseGraphQLErrors(c.in), c.want, c.name);
 });

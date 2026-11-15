@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { after, before, describe, it } from "node:test";
-import { addCoffee, launch, loaded, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
+import { addCoffee, addSeededToCart, launch, loaded, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
 
 const AXE = createRequire(import.meta.url).resolve("axe-core/axe.min.js");
 const FAILING = new Set(["serious", "critical"]);
@@ -85,4 +85,34 @@ describe("axe: no serious or critical violations", () => {
       }
     });
   }
+});
+
+// #311: the cart page empty and filled. The seller above can't buy from their own shop, so a separate buyer does.
+describe("axe: cart", () => {
+  it("empty and filled", async () => {
+    const buyer = await newVisitor(browser, { bypassCSP: true });
+    const { page } = buyer;
+    try {
+      await step(page, "a11y-cart-setup", () =>
+        register(page, { name: `A11y Buyer ${RUN}`, email: `e2e-a11y-buyer-${RUN}@example.com` }),
+      );
+      const empty = await step(page, "a11y-cart-empty", async () => {
+        await page.goto("/cart");
+        await page.waitForLoadState("networkidle");
+        await page.getByText("Your cart is empty.").waitFor();
+        return audit(page, "cart (empty)");
+      });
+      assert.equal(empty.length, 0, report("cart (empty)", empty));
+      const filled = await step(page, "a11y-cart-filled", async () => {
+        await addSeededToCart(page, 2);
+        await page.goto("/cart");
+        await page.waitForLoadState("networkidle");
+        await page.getByRole("button", { name: "Remove" }).first().waitFor();
+        return audit(page, "cart (filled)");
+      });
+      assert.equal(filled.length, 0, report("cart (filled)", filled));
+    } finally {
+      await buyer.ctx.close();
+    }
+  });
 });

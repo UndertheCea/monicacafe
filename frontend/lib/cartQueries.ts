@@ -26,3 +26,8 @@ export const UPDATE_CART_ITEM = typed<{ updateCartItem: CartData }, { id: string
 export const REMOVE_FROM_CART = typed<{ removeFromCart: CartData }, { id: string }>(/* GraphQL */ `
   mutation RemoveFromCart($id: ID!) { removeFromCart(id: $id) { ${CART_FIELDS} } }
 `);
+
+/** Sets the line's price snapshot to today's price, so "price changed" goes away (#311). */
+export const ACCEPT_CART_PRICE = typed<{ acceptCartPrice: CartData }, { id: string }>(/* GraphQL */ `
+  mutation AcceptCartPrice($id: ID!) { acceptCartPrice(id: $id) { ${CART_FIELDS} } }
+`);

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cartErrorKey, groupByShop, quantityChoices, type CartData, type CartLine } from "@/lib/cart";
-import { CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
+import { cartProblem, groupByShop, quantityChoices, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
+import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
+import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -12,7 +13,7 @@ import { formatTWD } from "@/lib/utils";
 import { Button, Card, Select, SectionTitle } from "@/components/ui";
 
 type Load = { state: "loading" } | { state: "error" } | { state: "ready"; cart: CartData };
-type Problem = { key: MessageKey; vars?: Record<string, number> };
+type Problem = CartProblem;
 
 /** /cart (#280): lines grouped by shop with quantity, remove and totals. Checkout comes later. */
 export function CartView({ locale }: { locale: Locale }) {
@@ -25,7 +26,11 @@ export function CartView({ locale }: { locale: Locale }) {
     if (status !== "authenticated") return;
     let live = true;
     request(CART, {}).then(
-      (r) => live && setLoad({ state: "ready", cart: r.cart }),
+      (r) => {
+        if (!live) return;
+        setLoad({ state: "ready", cart: r.cart });
+        setCartSnapshot(r.cart);
+      },
       () => live && setLoad({ state: "error" }),
     );
     return () => {
@@ -59,16 +64,20 @@ export function CartView({ locale }: { locale: Locale }) {
     setBusy(line);
     setProblem(null);
     try {
-      setLoad({ state: "ready", cart: await run() });
+      const next = await run();
+      setLoad({ state: "ready", cart: next });
+      setCartSnapshot(next);
     } catch (err) {
       const e = toApiError(err);
-      setProblem({ line, p: e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : { key: cartErrorKey(e.code, e.field) } });
+      setProblem({ line, p: e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : cartProblem(e.code, e.field, e.available) });
     } finally {
       setBusy(null);
     }
   }
   const setQty = (l: CartLine, quantity: number) =>
     write(l.id, async () => (await request(UPDATE_CART_ITEM, { id: l.id, quantity })).updateCartItem);
+  const acceptPrice = (l: CartLine) =>
+    write(l.id, async () => (await request(ACCEPT_CART_PRICE, { id: l.id })).acceptCartPrice);
   const remove = (l: CartLine) => write(l.id, async () => (await request(REMOVE_FROM_CART, { id: l.id })).removeFromCart);
 
   return (
@@ -102,7 +111,14 @@ export function CartView({ locale }: { locale: Locale }) {
                       {t(locale, `grind.${l.variant.grind}` as MessageKey)} · {l.variant.weightG} g · NT${formatTWD(l.priceTwd)}
                     </p>
                     {l.priceChanged && (
-                      <p className="text-xs text-ink">{t(locale, "cart.priceChanged", { old: formatTWD(l.addedPriceTwd) })}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink">
+                        <span>
+                          {t(locale, "cart.priceChanged", { old: formatTWD(l.addedPriceTwd), new: formatTWD(l.priceTwd) })}
+                        </span>
+                        <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void acceptPrice(l)}>
+                          {t(locale, "cart.acceptPrice")}
+                        </Button>
+                      </p>
                     )}
                     {!l.available && <p className="text-xs text-danger">{t(locale, "cart.unavailable")}</p>}
                   </div>

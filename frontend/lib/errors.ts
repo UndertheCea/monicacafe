@@ -36,6 +36,8 @@ export const API_ERROR_CODES = [
   "SHOP_SUSPENDED",
   // An admin took the coffee down; no publish / duplicate / delete until restored (#282).
   "TAKEN_DOWN",
+  // A seller tried to put a coffee from their own shop into their cart (#311).
+  "OWN_SHOP",
   "INTERNAL_SERVER_ERROR",
 ] as const;
 
@@ -47,6 +49,8 @@ export interface ApiErrorFields {
   message: string;
   field?: string;
   retryAfter?: number;
+  /** Cart writes that ask for more than is left (BAD_USER_INPUT on `quantity`): bags this cart can still take, may be 0 (#311). */
+  available?: number;
 }
 
 /** Fields of the first error in a GraphQL response's `errors` array. */
@@ -60,7 +64,14 @@ export function parseGraphQLErrors(errors: unknown): ApiErrorFields {
   if (typeof ext.field === "string" && ext.field) out.field = ext.field;
   const retry = retryAfterSeconds(ext.retryAfter);
   if (retry) out.retryAfter = retry;
+  const available = availableCount(ext.available);
+  if (available !== undefined) out.available = available;
   return out;
+}
+
+/** A whole number of bags >= 0 from the `available` extension, else undefined. */
+export function availableCount(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : undefined;
 }
 
 /** Message key for a failed page load (server components). */

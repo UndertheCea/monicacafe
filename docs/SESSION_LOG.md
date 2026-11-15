@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 40 — 2026-11-15 — Nine reference roasters, the values they need, UI polish, UI review analysis (thirteen slices)
-PR: #PRNUM
+PR: #308
 
 No open session PR (only dependabot's) and no owner answers on questions. The owner had unblocked the reference-shop
 slices by attaching locally collected lists (branch `platform-feature-sumry`, #168 (b)), so this session took all nine

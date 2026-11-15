@@ -125,6 +125,18 @@ The token-prune and orphaned-image sweeps take a Postgres advisory lock before e
 instance only one runs a given sweep at a time. On shutdown the API stops the sweeps and waits for them before it
 closes the database pool. Rate limits are still per instance (in memory).
 
+## Upgrading Postgres to a new major (manual, #317)
+
+Dependabot never proposes a new major of `postgres`, `redis` or `getmeili/meilisearch`: a new Postgres major can't
+start on the old data directory, and CI (which starts from an empty volume) wouldn't notice. To upgrade:
+
+1. Take a fresh backup and check it restores (`docs/BACKUP.md`, the drill steps).
+2. In one change, bump both `postgres:` images in `docker-compose.yml`, the CI service image in
+   `.github/workflows/ci.yml` and `postgresqlNN-client` in `scripts/backup.Dockerfile` (`pg_dump` refuses a newer server).
+3. Stop the stack, keep the old volume (rename it, don't delete it), start `postgres` on a new empty volume with
+   `SEED_DEMO_DATA=false`, then restore the backup with `scripts/restore.sh` and start the rest.
+4. Delete the old volume only after a few days of normal running.
+
 ## Stripping metadata from existing images (one-off, before launch)
 
 Since #285 the browser removes EXIF / XMP / GPS before every upload (`frontend/lib/dashboard/stripMetadata.ts`).

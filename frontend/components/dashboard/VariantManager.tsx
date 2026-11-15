@@ -231,8 +231,14 @@ function VariantRow({
 
   return (
     <li className="rounded-box bg-paper p-3 ring-1 ring-line">
+      {/* One fieldset per option, so every repeated "Price", "Stock", "Save" and
+          "Delete" is announced with the option it belongs to (#322). */}
+      <fieldset className="m-0 min-w-0 border-0 p-0">
+      <legend className="sr-only">
+        {t(locale, `grind.${v.grind}`)} · {v.weightG} g
+      </legend>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1.2fr_1fr_1fr_auto_auto] sm:items-end">
-        <div className="col-span-2 text-sm font-semibold text-ink sm:col-span-1 sm:pb-2">
+        <div aria-hidden="true" className="col-span-2 text-sm font-semibold text-ink sm:col-span-1 sm:pb-2">
           {t(locale, `grind.${v.grind}`)} · {v.weightG} g
         </div>
         <label className="block text-xs font-medium text-muted">
@@ -287,6 +293,7 @@ function VariantRow({
           </ConfirmButton>
         </div>
       </div>
+      </fieldset>
       <RowProblem id={fe.id(fe.first ?? "price")}>{fe.first && fieldMessage(locale, fe.errors, fe.first)}</RowProblem>
       {fe.errors.form && (
         <div className="mt-2">

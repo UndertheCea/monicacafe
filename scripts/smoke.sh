@@ -351,10 +351,12 @@ if [[ "$body" == *'"errors"'* || "$high" != *'000000000201'* || "$high" != *'000
 else
   echo "ok   graphql altitude filter"
 fi
+# The /coffees page checks below add instock=1 for the same reason (the sold-out
+# reference coffees would fill page 1).
 # /coffees no longer offers these filters (owner, #166, #167): old links show the
 # unfiltered list, the sidebar has no such fields, and cards don't show the
 # brew method (the coffee page still does).
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?brew=espresso&harvest=recent&acidity=low&sweet=high&body=light&altitude=high&roast=dark&flavor=zzz") || page=""
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?brew=espresso&harvest=recent&acidity=low&sweet=high&body=light&altitude=high&roast=dark&flavor=zzz&instock=1") || page=""
 if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" == *'/coffees/00000000-0000-4000-8000-000000000206'* \
       && "$page" != *'name="brew"'* && "$page" != *'name="roast"'* && "$page" != *'name="acidity"'* && "$page" != *'name="body"'* \
       && "$page" != *'name="harvest"'* && "$page" != *'name="sweet"'* && "$page" != *'name="altitude"'* && "$page" != *'name="flavor"'* \
@@ -365,7 +367,7 @@ else
 fi
 
 # A malformed id (#179): a truncated or hand-edited link shows the list, not the error page.
-page=$(curl -s --max-time 15 "$BASE_URL/coffees?origin=not-a-uuid&variety=x&process=123") || page=""
+page=$(curl -s --max-time 15 "$BASE_URL/coffees?origin=not-a-uuid&variety=x&process=123&instock=1") || page=""
 if [[ "$page" == *'/coffees/00000000-0000-4000-8000-000000000201'* && "$page" != *'無法載入資料'* && "$page" != *'Couldn'* ]]; then
   echo "ok   /coffees ignores malformed origin / variety / process ids"
 else
@@ -382,20 +384,20 @@ else
 fi
 
 # Filter-option counts (#150, #151): the seed has a published Ethiopian coffee
-# and nothing from Rwanda, so /coffees offers Ethiopia (with its count) and
-# leaves Rwanda out of the origin select.
+# and nothing from Laos (nor do the reference shops, #170–#174), so /coffees
+# offers Ethiopia (with its count) and leaves Laos out of the origin select.
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
   -d '{"query":"{ originCountries { nameEn coffeeCount } coffeeVarieties { coffeeCount } processingMethods { coffeeCount } }"}') || body=""
-if [[ "$body" != *'"errors"'* && "$body" =~ \"nameEn\":\"Ethiopia\",\"coffeeCount\":[1-9] && "$body" == *'"nameEn":"Rwanda","coffeeCount":0'* ]]; then
+if [[ "$body" != *'"errors"'* && "$body" =~ \"nameEn\":\"Ethiopia\",\"coffeeCount\":[1-9] && "$body" == *'"nameEn":"Laos","coffeeCount":0'* ]]; then
   echo "ok   graphql coffeeCount on origins / varieties / processes"
 else
-  echo "FAIL coffeeCount: Ethiopia should be ≥ 1 and Rwanda 0, got ${body:0:300}"; fail=1
+  echo "FAIL coffeeCount: Ethiopia should be ≥ 1 and Laos 0, got ${body:0:300}"; fail=1
 fi
 page=$(curl -s --max-time 15 "$BASE_URL/coffees") || page=""
-if [[ "$page" == *'Ethiopia（'* || "$page" == *'Ethiopia ('* ]] && [[ "$page" != *'Rwanda'* ]]; then
+if [[ "$page" == *'Ethiopia（'* || "$page" == *'Ethiopia ('* ]] && [[ "$page" != *'Laos'* && "$page" != *'寮國'* ]]; then
   echo "ok   /coffees origin select lists only origins with coffees, with counts"
 else
-  echo "FAIL /coffees origin select should list Ethiopia with a count and leave out Rwanda"; fail=1
+  echo "FAIL /coffees origin select should list Ethiopia with a count and leave out Laos"; fail=1
 fi
 
 # Active-filter chips + phone toggle (#152–#154): each chip links to the list

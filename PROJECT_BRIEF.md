@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-15 (after Session 40)
+Last updated: 2026-11-15 (after Session 41)
 
 ---
 
@@ -37,7 +37,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–019, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
+| DB schema + migrations 001–027, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
 | Coffee listing details: provenance (#116–#120), brew method (#122–#127), harvest year (#129–#134) on the API, forms, coffee page + JSON-LD; cup profile removed (#189); `minAltitudeM` / brew / harvest filters in the API only (#167) | Done |
@@ -73,14 +73,15 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 | Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
 | Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep; photo metadata (EXIF / GPS) stripped in the browser (#285) | Done (#217, #285) |
 | Exposure: nginx on 127.0.0.1 unless `HTTP_BIND`, `REAL_IP_FROM`, production refuses dev CORS / http SITE_URL / seed / default S3 keys (#287); ≤ 20 root fields, scan costs, control chars refused before SQL (#283) | Done |
-| **Stage 2 groundwork (#237)**: `money.TWD` refuses fractions / negatives / > NT$10M (#276); `ReserveStock` / `ReleaseStock` + `expectedStock` → `STOCK_CHANGED` on seller edits (#277); `variants.updated_at`, archive instead of delete when referenced (#278, migration 020); River worker with graceful stop + no-op job (#279, migration 021); ECPay test vector still missing (docs unreachable) | Done |
-| **Cart (#21, #280)**: `cart_items` (migration 022), `cart` / `addToCart` / `updateCartItem` / `removeFromCart`, price snapshot + "price changed", /cart grouped by shop, Add to cart on the coffee page, drawer link | Done; checkout next |
+| **Stage 2 groundwork (#237)**: `money.TWD` refuses fractions / negatives / > NT$10M (#276); `ReserveStock` / `ReleaseStock` + `expectedStock` → `STOCK_CHANGED` on seller edits (#277); `variants.updated_at`, archive instead of delete when referenced (#278, migration 020); River worker (#279, migration 021) in the image + compose profile `worker` (#290); stock-only writes don't touch the coffee (#290, migration 026); `ReserveLines` / `ReleaseHold` on `stock_holds` (#310, migration 027); ECPay test vector still missing | Done |
+| **Cart (#21, #280, #291, #311)**: `cart_items` (migration 022), add / update / remove / `acceptCartPrice`, price kept until accepted, no own-shop buys (`OWN_SHOP`), NT$1 minimum, "only N left" (`available`), 90-day expiry; /cart, header cart count, option + qty kept through login, e2e journey + axe | Done; checkout next |
 
 ## Last session
 
-**Session 40**: nine reference roasters loaded from the owner's JSON (#170–#173, #299–#303) + migration 024 for the values
-they use (#174); UI polish (#294: words once per coffee, buying controls by the price, /map fits a phone, layout e2e); UI
-review analysis (#298 → #306); question #307. Sub-agents built #294 / #298; stack + e2e run only in CI.
+**Session 41**: last stage-1 slice #295 (API tidy-up, migration 025) + #309 (container / CI hardening, split from it);
+Stage 2 before orders: #290 (quiet stock writes, reorder after archive, worker in compose), #310 (stock holds), #291 (cart
+rules on the owner's #292 defaults 2a / 3a / 4a) + #311 (cart in the browser). Sonnet sub-agents built #309 and #311.
+Docker isn't available here: compose stack, smoke and e2e (incl. the new cart journey) run only in CI.
 
 ## Current focus
 
@@ -90,7 +91,8 @@ review analysis (#298 → #306); question #307. Sub-agents built #294 / #298; st
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
-3. Left in stage-1: #295 (low-severity batch), then #290 / #291 (stage 2). Blocked: #219, #223, #226. #306 picks UI ideas.
+3. No open unblocked slices left: stage 1 is done except #219, #223, #226 (blocked); #306 picks UI ideas. Orders wait on #205;
+   they take stock with `ReserveLines` and give it back with `ReleaseHold` (a River job for unpaid holds).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
    rule on `master` requiring CI (#216). Grant the first admin with `cmd/admin grant <email>`.
@@ -110,7 +112,7 @@ Open questions for the owner (answer by commenting on the issue):
 | #203 | UI tidy-up proposals | 3, 5, 6, 7 | yes |
 | #204 | English URLs (/en/…), bilingual seller text | keep cookie, one field | yes |
 | #205 | Multi-shop orders, shipping, stock (Stage 2) | one checkout, order per shop | **no** |
-| #292 | Small Stage 2 rules (stock shown, NT$0, own shop, cart age) | recommended options | 2–5 yes, 1 **no** |
+| #292 | Small Stage 2 rules: 1 exact stock shown (2–4 built on the defaults) | "In stock", number only ≤ 5 | **no** |
 | #293 | Home roaster's exact map pin | warning text only | yes |
 | #306 | Ideas from the roaster UI/UX review | build none | yes |
 | #307 | Blends / several varieties per listing | one origin, "Mixed" variety | yes |
@@ -129,8 +131,7 @@ Open questions for the owner (answer by commenting on the issue):
 - **Bilingual `t()` dictionary instead of an i18n library** — two locales; TypeScript enforces key parity and
   a test checks placeholders.
 - **Leaflet + OSM** — no API key for the demo. Owner on #10: keep OSM for the demo and decide before launch.
-- **Coordinates validated in three places** (GraphQL input, `toShopPin`, DB CHECK in migration 003) — defence in
-  depth, because seeds and future admin tools write the table directly.
+- **Coordinates validated in three places** (GraphQL, `toShopPin`, DB CHECKs 003 / 025: range + set as a pair).
 - **Work queue in GitHub Issues, not a doc** — sessions claim slices with `in-progress`, so parallel or
   overlapping runs don't duplicate work (six runs once rebuilt the same `/map` page); the owner can answer
   questions from a phone.
@@ -148,27 +149,19 @@ Open questions for the owner (answer by commenting on the issue):
 - **No loading boundaries (#156)** — a `loading.tsx` makes Next stream the page into hidden placeholders that only an
   inline script reveals, so without JavaScript /coffees and /shops showed a skeleton forever. Header and pagination links
   show a pending dot (`useLinkStatus`) instead; a test keeps `loading.*` out of `app/`.
-- **Comment pages by offset, not cursor** — simple; "load more" dedupes by id, so a new comment can't show twice.
-  The dashboard coffee list pages the same way (#49).
-- **Price sort = cheapest available, in-stock variant; sold-out last** — matches the "from NT$…" on cards (#44).
-- **Duplicate copies details + options, never photos or comments** — image keys are scoped to the source coffee,
-  so sharing them would let the orphan sweep or a later edit of one break the other (#54).
+- **Comment pages by offset, not cursor** — "load more" dedupes by id; the dashboard coffee list pages the same way (#49).
+- **Duplicate copies details + options, never photos or comments** — image keys are scoped to the source coffee (#54).
 - **Search synonyms = a curated Go table (#269)**: each word ORs its group (≤ 8 patterns, one `ILIKE ANY`), words AND; the
   frontend reads the same expansion from `searchTerms` (#274). **Data export (#270)** = one SQL snapshot of own rows, no secrets.
-- **Keyword search = Postgres ILIKE per word (AND), wildcards escaped** — enough for Stage 1's catalogue with no
-  new infra; Meilisearch (Stage 3) can replace it behind the same `CoffeeFilter.search` field (#66).
+- **Keyword search = Postgres ILIKE per word (AND)** — no new infra; Meilisearch (Stage 3) can replace it (#66).
 - **`Comment.coffee` is nullable** — a comment can outlive its coffee's publication; non-owners get null rather
   than a draft (#69). `User.comments` is empty, not an error, for other viewers (#71).
 - **Logout ends one device; `logoutEverywhere` ends all** — the cookie's refresh token proves the session, so it
   works with an expired access token; revoked tokens leave the rotation chain so a late replay isn't "theft" (#73).
 - **Shop search covers name + description, not city** — owner on #50: no city filter, /map shows where shops are (#75).
-- **Comment edits are author-only and leave no history** — admins can remove a comment but never rewrite someone's
-  words; an "edited" marker is shown instead of keeping old versions (#81). Sellers can't delete comments on their
-  coffees: author and admin only (owner, #42).
-- **Similar coffees = a SQL score over origin / process / roast / notes, other shops only** — cross-shop discovery
-  without new infra; a shared roast alone isn't "similar" (#83).
-- **Saved coffees: public count, private list** — the list is self / admin only like "My comments"; drafts drop out of
-  it but can still be unsaved; saving a draft is NOT_FOUND, even for its owner (#87).
+- **Comment edits are author-only, no history** — an "edited" marker instead (#81); delete = author or admin only (#42).
+- **Similar coffees = a SQL score over origin / process / roast / notes, other shops only** (#83).
+- **Saved coffees: public count, private list** (self / admin); saving a draft is NOT_FOUND, even for its owner (#87).
 - **Account deletion deletes comments, refuses shop owners and admins** — personal data goes with the account
   (PDPA); a shop's coffees and links depend on its owner, so seller closure waits on #93 (#90).
 - **"Roaster" badge derived from shop ownership, not stored** — `Comment.fromShop` is an `EXISTS` on every read, so
@@ -245,6 +238,13 @@ Open questions for the owner (answer by commenting on the issue):
 - **Reports go to `/admin`; contact details refused only in new text (#225)**: one open report per person per target;
   "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks every seller text field, comments
   and display names when written or changed, never stored rows. Filters only raise the cost (#286); the report is the backstop.
+- **Cart rules on #292's safe defaults (#291)**: NT$1 minimum, no buying from your own shop, lines deleted 90 days after their
+  last change (hourly sweep), 20 bags per line. The price snapshot changes only on `acceptCartPrice`. **Stock is taken per
+  order** with `ReserveLines` (sorted variant ids, one hold row per line) and returned with `ReleaseHold` (exactly once, #310).
+- **Accepted until #223 (#295)**: register says when an email is taken, and the per-email failed-login cap lets someone lock a
+  seller out for 10 minutes; both need email verification / reset. Integration tests leave rows, so they get their own DB
+  (`scripts/test_db.sh`). **Containers (#309)**: postgres, nginx, seaweedfs, redis, meilisearch and backup keep root and their
+  capabilities (their entrypoints chown / drop privileges; untested without Docker); images pinned by tag; no CodeQL / SBOM yet.
 - **Thumbnails are derived, never stored (#235)**: `<key>.thumb.webp` sits next to its original, is kept exactly while the
   original is referenced and can't be saved as a URL; cards fall back to the original. Only anonymous catalogue data (filter
   options, home, sitemap) is cached for 60 s; anything carrying a viewer's cookie or IP is not.

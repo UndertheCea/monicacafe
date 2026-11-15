@@ -1,8 +1,11 @@
 // Cart helpers (lib/cart.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { t } from "../lib/i18n/dict.ts";
 import {
   MAX_CART_QUANTITY,
+  bagCountKey,
+  cartLineName,
   MIN_CART_PRICE_TWD,
   canAddToCart,
   lineQuantityChoices,
@@ -165,4 +168,26 @@ test("shouldReloadCart: only when the line changed or went away", () => {
     ["", false],
   ];
   for (const [code, want] of cases) assert.equal(shouldReloadCart(code), want, code);
+});
+
+test("bagCountKey: one bag is singular, everything else plural", () => {
+  const cases = [
+    ["cart.itemCount", 1, "cart.itemCount.one"],
+    ["cart.itemCount", 0, "cart.itemCount.other"],
+    ["cart.itemCount", 2, "cart.itemCount.other"],
+    ["nav.cartCount", 1, "nav.cartCount.one"],
+    ["nav.cartCount", 12, "nav.cartCount.other"],
+  ];
+  for (const [base, n, want] of cases) assert.equal(bagCountKey(base, n), want);
+  assert.equal(t("en", bagCountKey("cart.itemCount", 1), { n: 1 }), "1 bag");
+  assert.equal(t("en", bagCountKey("nav.cartCount", 3), { n: 3 }), "Cart, 3 bags");
+});
+
+test("cartLineName: the coffee's name, else grind and weight", () => {
+  const variant = { weightG: 200 };
+  const cases = [
+    [{ coffee: { name: "Yirgacheffe" }, variant }, "Yirgacheffe"],
+    [{ coffee: null, variant }, "Whole bean · 200 g"],
+  ];
+  for (const [l, want] of cases) assert.equal(cartLineName(l, "Whole bean"), want);
 });

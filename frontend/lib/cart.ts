@@ -130,6 +130,22 @@ export function bagsLeft(stock: number, inCart: number, known?: number): number 
   return known === undefined ? left : Math.min(left, Math.max(0, known));
 }
 
+/** The singular or plural message key for the bags in a cart (1 is singular), for "cart.itemCount" and "nav.cartCount". */
+export function bagCountKey(base: "cart.itemCount" | "nav.cartCount", n: number): MessageKey {
+  const one = n === 1;
+  if (base === "cart.itemCount") return one ? "cart.itemCount.one" : "cart.itemCount.other";
+  return one ? "nav.cartCount.one" : "nav.cartCount.other";
+}
+
+/**
+ * What a line's controls call it for screen readers: the coffee's name, or
+ * "grind · N g" when the coffee is no longer on the site. `grind` is the
+ * already translated grind label.
+ */
+export function cartLineName(line: Pick<CartLine, "coffee" | "variant">, grind: string): string {
+  return line.coffee ? line.coffee.name : `${grind} · ${line.variant.weightG} g`;
+}
+
 /** "N" for the header's cart link: 99+ beyond two digits; "" for an empty cart. */
 export function cartBadgeText(itemCount: number): string {
   if (!Number.isInteger(itemCount) || itemCount <= 0) return "";

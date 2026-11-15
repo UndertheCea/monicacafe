@@ -48,7 +48,7 @@ export function CoffeeDetailView({
   const availability = coffeeAvailability(coffee.variants);
 
   return (
-    <div className="mt-6 grid gap-10 lg:grid-cols-2">
+    <div className="mt-6 grid grid-cols-1 gap-10 lg:grid-cols-2">
       {/* Images */}
       <PhotoGallery
         images={coffee.imageUrls}

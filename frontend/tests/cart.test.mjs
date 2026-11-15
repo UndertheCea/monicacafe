@@ -15,6 +15,7 @@ import {
   inCartFor,
   parseCartChoice,
   quantityChoices,
+  shouldReloadCart,
 } from "../lib/cart.ts";
 
 const shopA = { slug: "a", name: "A 烘焙" };
@@ -151,4 +152,17 @@ test("lineQuantityChoices: an unbuyable line can only be lowered", () => {
     [mk(false, 0, 3), [1, 2, 3]],
   ];
   for (const [l, want] of cases) assert.deepEqual(lineQuantityChoices(l), want);
+});
+
+test("shouldReloadCart: only when the line changed or went away", () => {
+  const cases = [
+    ["BAD_USER_INPUT", true],
+    ["NOT_FOUND", true],
+    ["RATE_LIMITED", false],
+    ["LIMIT_REACHED", false],
+    ["OWN_SHOP", false],
+    ["INTERNAL", false],
+    ["", false],
+  ];
+  for (const [code, want] of cases) assert.equal(shouldReloadCart(code), want, code);
 });

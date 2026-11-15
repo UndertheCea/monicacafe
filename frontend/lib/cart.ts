@@ -92,6 +92,15 @@ export function cartErrorKey(code: string, field?: string): MessageKey {
   return "cart.error.generic";
 }
 
+/**
+ * Whether the page's cart is probably stale after a refused write: a line
+ * that changed or vanished (BAD_USER_INPUT, NOT_FOUND) means reload it.
+ * Rate limits, outages and the like say nothing about the cart.
+ */
+export function shouldReloadCart(code: string): boolean {
+  return code === "BAD_USER_INPUT" || code === "NOT_FOUND";
+}
+
 export type CartProblem = { key: MessageKey; vars?: Record<string, number> };
 
 /**

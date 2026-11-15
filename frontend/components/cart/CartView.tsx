@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cartProblem, groupByShop, lineQuantityChoices, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
+import { cartProblem, groupByShop, lineQuantityChoices, shouldReloadCart, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
 import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
 import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -70,6 +70,16 @@ export function CartView({ locale }: { locale: Locale }) {
     } catch (err) {
       const e = toApiError(err);
       setProblem({ line, p: e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : cartProblem(e.code, e.field, e.available) });
+      if (shouldReloadCart(e.code)) {
+        // The line changed or went away on the server: show what it holds now, keeping the message.
+        try {
+          const fresh = (await request(CART, {})).cart;
+          setLoad({ state: "ready", cart: fresh });
+          setCartSnapshot(fresh);
+        } catch {
+          // Keep the page as it is; the next change or reload fetches again.
+        }
+      }
     } finally {
       setBusy(null);
     }

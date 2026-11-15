@@ -78,19 +78,13 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
   const left = bagsLeft(chosen.stock, cart ? inCartFor(cart.items, chosen.id) : 0, known[chosen.id]);
   const qty = Math.max(1, Math.min(quantity, left));
 
-  if (status === "anonymous") {
-    return (
-      <p className="mt-4">
-        <Button href={cartLoginHref(pathname, chosen.id, qty)} variant="secondary">
-          {t(locale, "cart.loginToBuy")}
-        </Button>
-      </p>
-    );
-  }
+  // Signed-out visitors pick the option and quantity too; the sign-in link
+  // carries them through the login round trip (#311).
+  const anonymous = status === "anonymous";
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || anonymous) return;
     setBusy(true);
     setNote(null);
     try {
@@ -154,9 +148,15 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
           ))}
         </Select>
       </label>
-      <Button type="submit" pending={busy} disabled={status !== "authenticated"}>
-        {t(locale, "cart.add")}
-      </Button>
+      {anonymous ? (
+        <Button href={cartLoginHref(pathname, chosen.id, qty)} variant="secondary">
+          {t(locale, "cart.loginToBuy")}
+        </Button>
+      ) : (
+        <Button type="submit" pending={busy} disabled={status !== "authenticated"}>
+          {t(locale, "cart.add")}
+        </Button>
+      )}
       </>
       )}
       {note?.kind === "added" && (

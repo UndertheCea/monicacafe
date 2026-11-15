@@ -12,8 +12,8 @@ export interface VariantUpdateInput {
 /**
  * The updateVariant input for a row. Stock is sent only when the seller
  * changed it, and then always with the stock they last saw, so a save can't
- * silently overwrite bags an order took meanwhile. isAvailable is sent only
- * when toggled (the API reports false for sold-out rows, so it can't be echoed).
+ * silently overwrite bags an order took meanwhile. isAvailable (the on-sale
+ * switch) is sent only when toggled.
  */
 export function variantUpdateInput(
   loaded: { stock: number },
@@ -27,6 +27,18 @@ export function variantUpdateInput(
   }
   if (availability !== undefined) input.isAvailable = availability;
   return input;
+}
+
+/**
+ * Whether a row differs from what is stored. The checkbox is compared with the
+ * stored switch (`onSale`), never with `isAvailable`, which is also false when
+ * the stock is 0, so a sold-out row saved "off sale" isn't left dirty (#318).
+ */
+export function variantRowDirty(
+  stored: { priceTwd: number; stock: number; onSale: boolean },
+  row: { priceTwd: number | null; stock: number | null; onSale: boolean },
+): boolean {
+  return row.priceTwd !== stored.priceTwd || row.stock !== stored.stock || row.onSale !== stored.onSale;
 }
 
 /** Message for a failed option save or add, by API error code. */

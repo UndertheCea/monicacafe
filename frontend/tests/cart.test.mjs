@@ -1,8 +1,14 @@
 // Cart helpers (lib/cart.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { t } from "../lib/i18n/dict.ts";
 import {
   MAX_CART_QUANTITY,
+  bagCountKey,
+  cartLineName,
+  MIN_CART_PRICE_TWD,
+  canAddToCart,
+  lineQuantityChoices,
   bagsLeft,
   cartBadgeText,
   cartErrorKey,
@@ -12,6 +18,7 @@ import {
   inCartFor,
   parseCartChoice,
   quantityChoices,
+  shouldReloadCart,
 } from "../lib/cart.ts";
 
 const shopA = { slug: "a", name: "A 烘焙" };
@@ -125,4 +132,62 @@ test("parseCartChoice accepts known options and 1-20 only", () => {
     { in: "?qty=20", want: { quantity: 20 } },
   ];
   for (const c of cases) assert.deepEqual(parseCartChoice(c.in, ids), c.want, c.in);
+});
+
+test("canAddToCart: on sale, in stock and at least NT$1", () => {
+  const ok = { isAvailable: true, stock: 3, priceTwd: 450 };
+  const cases = [
+    [ok, true],
+    [{ ...ok, priceTwd: MIN_CART_PRICE_TWD }, true],
+    [{ ...ok, priceTwd: 0 }, false],
+    [{ ...ok, stock: 0 }, false],
+    [{ ...ok, isAvailable: false }, false],
+  ];
+  for (const [v, want] of cases) assert.equal(canAddToCart(v), want, JSON.stringify(v));
+});
+
+test("lineQuantityChoices: an unbuyable line can only be lowered", () => {
+  const mk = (available, stock, quantity) => ({ available, quantity, variant: { stock } });
+  const cases = [
+    [mk(true, 5, 2), [1, 2, 3, 4, 5]],
+    [mk(true, 1, 3), [1, 2, 3]],
+    [mk(false, 5, 2), [1, 2]],
+    [mk(false, 0, 3), [1, 2, 3]],
+  ];
+  for (const [l, want] of cases) assert.deepEqual(lineQuantityChoices(l), want);
+});
+
+test("shouldReloadCart: only when the line changed or went away", () => {
+  const cases = [
+    ["BAD_USER_INPUT", true],
+    ["NOT_FOUND", true],
+    ["RATE_LIMITED", false],
+    ["LIMIT_REACHED", false],
+    ["OWN_SHOP", false],
+    ["INTERNAL", false],
+    ["", false],
+  ];
+  for (const [code, want] of cases) assert.equal(shouldReloadCart(code), want, code);
+});
+
+test("bagCountKey: one bag is singular, everything else plural", () => {
+  const cases = [
+    ["cart.itemCount", 1, "cart.itemCount.one"],
+    ["cart.itemCount", 0, "cart.itemCount.other"],
+    ["cart.itemCount", 2, "cart.itemCount.other"],
+    ["nav.cartCount", 1, "nav.cartCount.one"],
+    ["nav.cartCount", 12, "nav.cartCount.other"],
+  ];
+  for (const [base, n, want] of cases) assert.equal(bagCountKey(base, n), want);
+  assert.equal(t("en", bagCountKey("cart.itemCount", 1), { n: 1 }), "1 bag");
+  assert.equal(t("en", bagCountKey("nav.cartCount", 3), { n: 3 }), "Cart, 3 bags");
+});
+
+test("cartLineName: the coffee's name, else grind and weight", () => {
+  const variant = { weightG: 200 };
+  const cases = [
+    [{ coffee: { name: "Yirgacheffe" }, variant }, "Yirgacheffe"],
+    [{ coffee: null, variant }, "Whole bean · 200 g"],
+  ];
+  for (const [l, want] of cases) assert.equal(cartLineName(l, "Whole bean"), want);
 });

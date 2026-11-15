@@ -10,7 +10,10 @@ export interface DashboardVariant {
   weightG: number;
   priceTwd: number;
   stock: number;
+  /** Buyable now: on sale AND stock > 0. */
   isAvailable: boolean;
+  /** The seller's on-sale switch alone, whatever the stock (#318): the row's checkbox. */
+  onSale: boolean;
 }
 
 export interface DashboardCoffee {
@@ -39,7 +42,7 @@ export interface DashboardShop {
   coffees: { total: number; nodes: DashboardCoffee[] };
 }
 
-const VARIANT_FIELDS = `id grind weightG priceTwd stock isAvailable`;
+const VARIANT_FIELDS = `id grind weightG priceTwd stock isAvailable onSale`;
 
 const DASHBOARD_COFFEE_FIELDS = `id name isPublished takenDown commentCount saveCount createdAt imageUrls variants { ${VARIANT_FIELDS} }`;
 

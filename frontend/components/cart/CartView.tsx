@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cartProblem, groupByShop, quantityChoices, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
+import { bagCountKey, cartLineName, cartProblem, groupByShop, lineQuantityChoices, shouldReloadCart, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
 import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
 import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -70,6 +70,16 @@ export function CartView({ locale }: { locale: Locale }) {
     } catch (err) {
       const e = toApiError(err);
       setProblem({ line, p: e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : cartProblem(e.code, e.field, e.available) });
+      if (shouldReloadCart(e.code)) {
+        // The line changed or went away on the server: show what it holds now, keeping the message.
+        try {
+          const fresh = (await request(CART, {})).cart;
+          setLoad({ state: "ready", cart: fresh });
+          setCartSnapshot(fresh);
+        } catch {
+          // Keep the page as it is; the next change or reload fetches again.
+        }
+      }
     } finally {
       setBusy(null);
     }
@@ -94,7 +104,9 @@ export function CartView({ locale }: { locale: Locale }) {
             )}
           </SectionTitle>
           <ul className="mt-3 divide-y divide-line">
-            {g.lines.map((l) => (
+            {g.lines.map((l) => {
+              const name = cartLineName(l, t(locale, `grind.${l.variant.grind}` as MessageKey));
+              return (
               <li key={l.id} className="py-3">
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
@@ -115,7 +127,13 @@ export function CartView({ locale }: { locale: Locale }) {
                         <span>
                           {t(locale, "cart.priceChanged", { old: formatTWD(l.addedPriceTwd), new: formatTWD(l.priceTwd) })}
                         </span>
-                        <Button size="sm" variant="secondary" disabled={busy !== null} onClick={() => void acceptPrice(l)}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          aria-label={t(locale, "cart.acceptPriceFor", { name })}
+                          disabled={busy !== null}
+                          onClick={() => void acceptPrice(l)}
+                        >
                           {t(locale, "cart.acceptPrice")}
                         </Button>
                       </p>
@@ -126,11 +144,12 @@ export function CartView({ locale }: { locale: Locale }) {
                     {t(locale, "cart.quantity")}
                     <Select
                       value={l.quantity}
+                      aria-label={t(locale, "cart.quantityFor", { name })}
                       disabled={busy !== null}
                       onChange={(e) => void setQty(l, Number(e.target.value))}
                       className="mt-1"
                     >
-                      {quantityChoices(l.variant.stock, 0, l.quantity).map((n) => (
+                      {lineQuantityChoices(l).map((n) => (
                         <option key={n} value={n}>
                           {n}
                         </option>
@@ -140,7 +159,14 @@ export function CartView({ locale }: { locale: Locale }) {
                   <p className={`ml-auto w-24 text-right font-semibold ${l.available ? "text-ink" : "text-muted line-through"}`}>
                     NT${formatTWD(l.lineTotalTwd)}
                   </p>
-                  <Button size="sm" variant="secondary" pending={busy === l.id} disabled={busy !== null} onClick={() => void remove(l)}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={t(locale, "cart.removeNamed", { name })}
+                    pending={busy === l.id}
+                    disabled={busy !== null}
+                    onClick={() => void remove(l)}
+                  >
                     {t(locale, "cart.remove")}
                   </Button>
                 </div>
@@ -150,7 +176,8 @@ export function CartView({ locale }: { locale: Locale }) {
                   </p>
                 )}
               </li>
-            ))}
+              );
+            })}
           </ul>
           {g.shop && (
             <p className="mt-3 flex justify-between border-t border-line pt-3 text-sm text-ink">
@@ -162,7 +189,7 @@ export function CartView({ locale }: { locale: Locale }) {
       ))}
       <div className="flex items-baseline justify-between border-t border-ink pt-4">
         <span className="text-lg font-bold text-ink">
-          {t(locale, "cart.total")} <span className="text-sm font-normal text-muted">{t(locale, "cart.itemCount", { n: cart.itemCount })}</span>
+          {t(locale, "cart.total")} <span className="text-sm font-normal text-muted">{t(locale, bagCountKey("cart.itemCount", cart.itemCount), { n: cart.itemCount })}</span>
         </span>
         <span className="text-lg font-bold text-ink">NT${formatTWD(cart.subtotalTwd)}</span>
       </div>

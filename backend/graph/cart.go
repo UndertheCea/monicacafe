@@ -54,7 +54,8 @@ func cartAddProblem(cv *store.CartVariant, viewerID string, have, add, lines int
 }
 
 // cartUpdateProblem checks changing a line to `qty` bags: lowering always
-// works, raising must fit the stock of a buyable option.
+// works, raising must fit the stock of a buyable option (the same price floor
+// as adding, #319).
 func cartUpdateProblem(l *store.CartLine, qty int) error {
 	if qty < 1 || qty > store.MaxCartQuantity {
 		return errBadInput("quantity", fmt.Sprintf("quantity must be 1–%d", store.MaxCartQuantity))
@@ -62,7 +63,7 @@ func cartUpdateProblem(l *store.CartLine, qty int) error {
 	if qty <= l.Quantity {
 		return nil
 	}
-	if !l.VariantLive || !l.CoffeePublic || !l.Variant.IsAvailable {
+	if !l.VariantLive || !l.CoffeePublic || !l.Variant.IsAvailable || l.Variant.PriceTWD < MinCartPriceTWD {
 		return errNotEnough(0)
 	}
 	if qty > cartMax(l.Variant.Stock) {

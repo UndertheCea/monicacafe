@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { bagsLeft, cartLoginHref, cartProblem, inCartFor, parseCartChoice, type CartProblem } from "@/lib/cart";
+import { bagsLeft, canAddToCart, cartLoginHref, cartProblem, inCartFor, parseCartChoice, type CartProblem } from "@/lib/cart";
 import { ADD_TO_CART, CART } from "@/lib/cartQueries";
 import { getCartSnapshot, getServerCartSnapshot, setCartSnapshot, subscribeCart } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -35,7 +35,7 @@ type Note = { kind: "added" } | ({ kind: "error" } & CartProblem);
 export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; locale: Locale }) {
   const { status, request } = useAuth();
   const pathname = usePathname();
-  const buyable = variants.filter((v) => v.isAvailable && v.stock > 0);
+  const buyable = variants.filter((v) => canAddToCart(v));
   const [variantId, setVariantId] = useState(buyable[0]?.id ?? "");
   const [quantity, setQuantity] = useState(1);
   const [busy, setBusy] = useState(false);

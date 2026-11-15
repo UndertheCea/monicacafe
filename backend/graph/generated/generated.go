@@ -314,6 +314,7 @@ type ComplexityRoot struct {
 		Grind       func(childComplexity int) int
 		ID          func(childComplexity int) int
 		IsAvailable func(childComplexity int) int
+		OnSale      func(childComplexity int) int
 		PriceTwd    func(childComplexity int) int
 		Stock       func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
@@ -1952,6 +1953,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Variant.IsAvailable(childComplexity), true
+	case "Variant.onSale":
+		if e.ComplexityRoot.Variant.OnSale == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Variant.OnSale(childComplexity), true
 	case "Variant.priceTwd":
 		if e.ComplexityRoot.Variant.PriceTwd == nil {
 			break
@@ -2550,7 +2557,14 @@ type Variant {
   weightG: Int!
   priceTwd: TWD!
   stock: Int!
+  "Buyable now: the seller's on-sale switch is on AND stock > 0."
   isAvailable: Boolean!
+  """
+  The seller's on-sale switch alone, whatever the stock (#318): the dashboard's
+  checkbox. Public like stock: on a sold-out option it says only whether the
+  seller means to sell it again.
+  """
+  onSale: Boolean!
   "Last change to price, stock or availability (#278)."
   updatedAt: Time!
 }
@@ -3281,6 +3295,8 @@ func (ec *executionContext) childFields_Variant(ctx context.Context, field graph
 		return ec.fieldContext_Variant_stock(ctx, field)
 	case "isAvailable":
 		return ec.fieldContext_Variant_isAvailable(ctx, field)
+	case "onSale":
+		return ec.fieldContext_Variant_onSale(ctx, field)
 	case "updatedAt":
 		return ec.fieldContext_Variant_updatedAt(ctx, field)
 	}
@@ -10779,6 +10795,29 @@ func (ec *executionContext) fieldContext_Variant_isAvailable(_ context.Context, 
 	return graphql.NewScalarFieldContext("Variant", field, false, false, "Boolean")
 }
 
+func (ec *executionContext) _Variant_onSale(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Variant_onSale(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.OnSale, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Variant_onSale(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Variant", field, false, false, "Boolean")
+}
+
 func (ec *executionContext) _Variant_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Variant) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14694,6 +14733,11 @@ func (ec *executionContext) _Variant(ctx context.Context, sel ast.SelectionSet, 
 			}
 		case "isAvailable":
 			out.Values[i] = ec._Variant_isAvailable(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "onSale":
+			out.Values[i] = ec._Variant_onSale(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

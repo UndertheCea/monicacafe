@@ -1,7 +1,7 @@
 // Option-row save helpers (lib/dashboard/variantSave.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { variantSaveErrorKey, variantUpdateInput } from "../lib/dashboard/variantSave.ts";
+import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "../lib/dashboard/variantSave.ts";
 
 test("variantUpdateInput sends stock only when changed, always with the stock last seen", () => {
   const cases = [
@@ -21,4 +21,19 @@ test("variantSaveErrorKey maps API codes to messages", () => {
   assert.equal(variantSaveErrorKey("CONFLICT"), "cf.error.duplicate");
   assert.equal(variantSaveErrorKey("INTERNAL_SERVER_ERROR"), "cf.error.generic");
   assert.equal(variantSaveErrorKey("UNAVAILABLE"), "cf.error.generic");
+});
+
+test("variantRowDirty compares the checkbox with the stored switch, not with isAvailable (#318)", () => {
+  // Sold out and switched off, just saved: the API says isAvailable false and
+  // onSale false; the row shows "off", so nothing is left to save.
+  const soldOutOff = { priceTwd: 450, stock: 0, isAvailable: false, onSale: false };
+  assert.equal(variantRowDirty(soldOutOff, { priceTwd: 450, stock: 0, onSale: false }), false);
+  // Sold out but switched on: unchanged row isn't dirty either.
+  const soldOutOn = { priceTwd: 450, stock: 0, isAvailable: false, onSale: true };
+  assert.equal(variantRowDirty(soldOutOn, { priceTwd: 450, stock: 0, onSale: true }), false);
+  assert.equal(variantRowDirty(soldOutOn, { priceTwd: 450, stock: 0, onSale: false }), true);
+  assert.equal(variantRowDirty(soldOutOn, { priceTwd: 450, stock: 5, onSale: true }), true);
+  assert.equal(variantRowDirty(soldOutOn, { priceTwd: 480, stock: 0, onSale: true }), true);
+  // An unparseable field counts as a change (Save then shows the field error).
+  assert.equal(variantRowDirty(soldOutOn, { priceTwd: null, stock: 0, onSale: true }), true);
 });

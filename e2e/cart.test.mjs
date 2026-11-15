@@ -16,8 +16,8 @@ after(async () => {
   await browser?.close();
 });
 
-/** The header's cart link, named "Cart, N items". */
-const headerCart = (page, n) => page.getByRole("banner").getByRole("link", { name: `Cart, ${n} items` });
+/** The header's cart link, named "Cart, 1 bag" / "Cart, N bags" (#322). */
+const headerCart = (page, n) => page.getByRole("banner").getByRole("link", { name: `Cart, ${n} ${n === 1 ? "bag" : "bags"}`, exact: true });
 
 describe("cart", () => {
   it("signed-out visitors see no cart link, and their choice survives login", async () => {

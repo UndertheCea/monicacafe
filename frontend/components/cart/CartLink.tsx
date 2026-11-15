@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cartBadgeText } from "@/lib/cart";
+import { bagCountKey, cartBadgeText } from "@/lib/cart";
 import { CART } from "@/lib/cartQueries";
 import { getCartSnapshot, getServerCartSnapshot, setCartSnapshot, subscribeCart } from "@/lib/cartStore";
 import { t, type Locale } from "@/lib/i18n/dict";
@@ -42,7 +42,7 @@ export function CartLink({ locale }: { locale: Locale }) {
   return (
     <Link
       href="/cart"
-      aria-label={t(locale, "nav.cartCount", { n: count })}
+      aria-label={t(locale, bagCountKey("nav.cartCount", count), { n: count })}
       className={ICON_BUTTON.replace("w-11", "min-w-11 gap-1 px-3")}
     >
       <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75">

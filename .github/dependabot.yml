@@ -28,6 +28,17 @@ updates:
   - package-ecosystem: docker-compose
     directory: /
     schedule: { interval: weekly }
+    # A new major of a stateful service can't start on the old one's data volume
+    # (Postgres needs dump + restore and a matching pg_dump in scripts/backup.Dockerfile;
+    # Meilisearch needs a dump / import). CI starts from an empty volume, so it can't
+    # catch this: majors are upgraded by hand, see docs/DEPLOY.md (#317).
+    ignore:
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      - dependency-name: redis
+        update-types: [version-update:semver-major]
+      - dependency-name: getmeili/meilisearch
+        update-types: [version-update:semver-major]
     groups:
       compose-minor-patch:
         update-types: [minor, patch]

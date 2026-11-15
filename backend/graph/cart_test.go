@@ -56,8 +56,10 @@ func TestCartAddProblem(t *testing.T) {
 
 func TestCartUpdateProblem(t *testing.T) {
 	line := func(qty, stock int, avail, live, public bool) *store.CartLine {
-		return &store.CartLine{Quantity: qty, Variant: store.Variant{Stock: stock, IsAvailable: avail}, VariantLive: live, CoffeePublic: public}
+		return &store.CartLine{Quantity: qty, Variant: store.Variant{Stock: stock, IsAvailable: avail, PriceTWD: 450}, VariantLive: live, CoffeePublic: public}
 	}
+	free := line(1, 9, true, true, true)
+	free.Variant.PriceTWD = 0 // the seller set the price to NT$0 after it was added (#319)
 	cases := []struct {
 		name string
 		l    *store.CartLine
@@ -70,6 +72,8 @@ func TestCartUpdateProblem(t *testing.T) {
 		{"keep the same", line(3, 0, false, false, false), 3, ""},
 		{"raise an archived line", line(1, 9, false, false, true), 2, CodeBadInput},
 		{"raise a line whose coffee is gone", line(1, 9, true, true, false), 2, CodeBadInput},
+		{"raise a line now priced NT$0", free, 2, CodeBadInput},
+		{"lower a line now priced NT$0", &store.CartLine{Quantity: 3, Variant: free.Variant, VariantLive: true, CoffeePublic: true}, 1, ""},
 		{"zero", line(1, 9, true, true, true), 0, CodeBadInput},
 		{"21", line(1, 99, true, true, true), 21, CodeBadInput},
 	}
@@ -129,7 +133,7 @@ func TestCartAvailable(t *testing.T) {
 	cv := &store.CartVariant{Variant: store.Variant{Stock: 7, IsAvailable: true, PriceTWD: 450}, VariantLive: true, CoffeePublic: true}
 	big := &store.CartVariant{Variant: store.Variant{Stock: 500, IsAvailable: true, PriceTWD: 450}, VariantLive: true, CoffeePublic: true}
 	line := func(qty, stock int, avail bool) *store.CartLine {
-		return &store.CartLine{Quantity: qty, Variant: store.Variant{Stock: stock, IsAvailable: avail}, VariantLive: true, CoffeePublic: true}
+		return &store.CartLine{Quantity: qty, Variant: store.Variant{Stock: stock, IsAvailable: avail, PriceTWD: 450}, VariantLive: true, CoffeePublic: true}
 	}
 	cases := []struct {
 		name string

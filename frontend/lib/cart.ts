@@ -5,6 +5,9 @@ import type { MessageKey } from "./i18n/dict";
 /** Most bags of one option a cart line may hold (backend store.MaxCartQuantity). */
 export const MAX_CART_QUANTITY = 20;
 
+/** Cheapest price (NT$) the API lets into a cart (mirrors backend graph.MinCartPriceTWD, like MAX_CART_QUANTITY above). */
+export const MIN_CART_PRICE_TWD = 1;
+
 export interface CartLine {
   id: string;
   quantity: number;
@@ -66,6 +69,20 @@ export function quantityChoices(stock: number, inCart = 0, current?: number): nu
   return Array.from({ length: Math.max(0, top) }, (_, i) => i + 1);
 }
 
+/** Whether an option can be added to a cart: on sale, in stock and priced at least NT$1 (what the API accepts). */
+export function canAddToCart(v: { isAvailable: boolean; stock: number; priceTwd: number }): boolean {
+  return v.isAvailable && v.stock > 0 && v.priceTwd >= MIN_CART_PRICE_TWD;
+}
+
+/**
+ * Quantities to offer for a cart line. The API refuses every increase on a
+ * line that can't be bought now, so such a line offers only 1..quantity
+ * (lowering); a buyable line offers up to its stock.
+ */
+export function lineQuantityChoices(line: Pick<CartLine, "available" | "quantity" | "variant">): number[] {
+  return quantityChoices(line.available ? line.variant.stock : 0, 0, line.quantity);
+}
+
 /** Message for a failed cart write, by API error code and field. */
 export function cartErrorKey(code: string, field?: string): MessageKey {
   if (code === "OWN_SHOP") return "cart.error.ownShop";
@@ -73,6 +90,15 @@ export function cartErrorKey(code: string, field?: string): MessageKey {
   if (code === "BAD_USER_INPUT" && field === "quantity") return "cart.error.quantity";
   if (code === "BAD_USER_INPUT" || code === "NOT_FOUND") return "cart.error.unavailable";
   return "cart.error.generic";
+}
+
+/**
+ * Whether the page's cart is probably stale after a refused write: a line
+ * that changed or vanished (BAD_USER_INPUT, NOT_FOUND) means reload it.
+ * Rate limits, outages and the like say nothing about the cart.
+ */
+export function shouldReloadCart(code: string): boolean {
+  return code === "BAD_USER_INPUT" || code === "NOT_FOUND";
 }
 
 export type CartProblem = { key: MessageKey; vars?: Record<string, number> };
@@ -102,6 +128,22 @@ export function inCartFor(items: Pick<CartLine, "quantity" | "variant">[], varia
 export function bagsLeft(stock: number, inCart: number, known?: number): number {
   const left = Math.max(0, Math.min(MAX_CART_QUANTITY, Math.max(0, stock)) - inCart);
   return known === undefined ? left : Math.min(left, Math.max(0, known));
+}
+
+/** The singular or plural message key for the bags in a cart (1 is singular), for "cart.itemCount" and "nav.cartCount". */
+export function bagCountKey(base: "cart.itemCount" | "nav.cartCount", n: number): MessageKey {
+  const one = n === 1;
+  if (base === "cart.itemCount") return one ? "cart.itemCount.one" : "cart.itemCount.other";
+  return one ? "nav.cartCount.one" : "nav.cartCount.other";
+}
+
+/**
+ * What a line's controls call it for screen readers: the coffee's name, or
+ * "grind · N g" when the coffee is no longer on the site. `grind` is the
+ * already translated grind label.
+ */
+export function cartLineName(line: Pick<CartLine, "coffee" | "variant">, grind: string): string {
+  return line.coffee ? line.coffee.name : `${grind} · ${line.variant.weightG} g`;
 }
 
 /** "N" for the header's cart link: 99+ beyond two digits; "" for an empty cart. */

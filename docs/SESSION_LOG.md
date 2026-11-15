@@ -15,6 +15,37 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 42 — 2026-11-15 — Audit of the cart and dashboard; dependabot majors (six slices)
+PR: #323
+
+No session PR open (only dependabot's #247 / #252 / #313–#316) and no owner answers on questions. Every open slice is
+blocked (#219, #223, #226), so an Explore agent audited the newest code (cart, stock holds, worker, dashboard, account)
+and its confirmed findings became #318–#322; #317 came from dependabot's #313. A Sonnet sub-agent built #320, #321 and the
+cart half of #322 in a worktree (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #317 cross-cutting — `.github/dependabot.yml` ignores semver-major for `postgres`, `redis`, `getmeili/meilisearch`
+  (compose); `docs/DEPLOY.md` "Upgrading Postgres to a new major" (backup → new volume → restore, bump the backup client).
+- #319 backend — `cartUpdateProblem` refuses raising a line priced under NT$1 (same floor as add); `cart_test.go` cases.
+- #318 backend + frontend — `Variant.onSale` (the raw switch; `isAvailable` stays "on sale AND stock > 0"); the dashboard
+  row starts its checkbox from it, `variantRowDirty` (`lib/dashboard/variantSave.ts`) + test; `TestToVariantOnSale`.
+- #320 frontend — `MIN_CART_PRICE_TWD`, `canAddToCart`, `lineQuantityChoices` (unavailable lines: lowering only) in `lib/cart.ts`.
+- #321 frontend — `shouldReloadCart`: a refused write (`BAD_USER_INPUT` / `NOT_FOUND`) refetches the cart, message kept.
+- #322 frontend — cart line controls named after the coffee (`cart.quantityFor` / `removeNamed` / `acceptPriceFor`),
+  `.one` / `.other` for `cart.itemCount` and `nav.cartCount` ("bag(s)", `bagCountKey`); dashboard option rows are fieldsets
+  with a hidden "{grind} · {weight} g" legend; e2e `headerCart` matches "Cart, N bags".
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`).
+- Frontend: tsc, lint, `npm test` (309), `next build`; `docker compose config --quiet`, `check_brief.sh`.
+- Not run here: the compose stack, smoke and Playwright (Docker ran, but image builds can't reach the Go / npm proxies:
+  the session's proxy CA isn't trusted inside build containers). CI's `stack` job runs them, incl. the changed cart e2e.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `Variant.onSale` is public like `stock`: on a sold-out option it only says whether the seller means to sell it again.
+- Dependabot's #313 (postgres 18) and #247 (redis 8) should be closed by the owner; future majors won't be proposed.
+- The audit also noted English "1 coffees" / "1 shops" counts (`coffees.count`, `shops.count`); not filed yet.
+
 ## Session 41 — 2026-11-15 — Stage 1 closed out; Stage 2 groundwork before orders (six slices)
 PR: #312
 

@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-15 (after Session 41)
+Last updated: 2026-11-15 (after Session 42)
 
 ---
 
@@ -74,14 +74,14 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 | Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep; photo metadata (EXIF / GPS) stripped in the browser (#285) | Done (#217, #285) |
 | Exposure: nginx on 127.0.0.1 unless `HTTP_BIND`, `REAL_IP_FROM`, production refuses dev CORS / http SITE_URL / seed / default S3 keys (#287); ≤ 20 root fields, scan costs, control chars refused before SQL (#283) | Done |
 | **Stage 2 groundwork (#237)**: `money.TWD` refuses fractions / negatives / > NT$10M (#276); `ReserveStock` / `ReleaseStock` + `expectedStock` → `STOCK_CHANGED` on seller edits (#277); `variants.updated_at`, archive instead of delete when referenced (#278, migration 020); River worker (#279, migration 021) in the image + compose profile `worker` (#290); stock-only writes don't touch the coffee (#290, migration 026); `ReserveLines` / `ReleaseHold` on `stock_holds` (#310, migration 027); ECPay test vector still missing | Done |
-| **Cart (#21, #280, #291, #311)**: `cart_items` (migration 022), add / update / remove / `acceptCartPrice`, price kept until accepted, no own-shop buys (`OWN_SHOP`), NT$1 minimum, "only N left" (`available`), 90-day expiry; /cart, header cart count, option + qty kept through login, e2e journey + axe | Done; checkout next |
+| **Cart (#21, #280, #291, #311)**: `cart_items` (migration 022), add / update / remove / `acceptCartPrice`, price kept until accepted, no own-shop buys (`OWN_SHOP`), NT$1 minimum, "only N left" (`available`), 90-day expiry; /cart, header cart count, option + qty kept through login, e2e journey + axe | Done (+ #318–#322); checkout next |
 
 ## Last session
 
-**Session 41**: last stage-1 slice #295 (API tidy-up, migration 025) + #309 (container / CI hardening, split from it);
-Stage 2 before orders: #290 (quiet stock writes, reorder after archive, worker in compose), #310 (stock holds), #291 (cart
-rules on the owner's #292 defaults 2a / 3a / 4a) + #311 (cart in the browser). Sonnet sub-agents built #309 and #311.
-Docker isn't available here: compose stack, smoke and e2e (incl. the new cart journey) run only in CI.
+**Session 42**: queue empty (all left are blocked), no owner answers, so an audit of the newest code (cart, holds, dashboard)
+became six slices: #317 (dependabot skips Postgres / Redis / Meilisearch majors), #318 (`Variant.onSale` for the dashboard
+switch), #319 (NT$1 floor on raising a cart line), #320–#322 (cart UI offers only what the API accepts, reloads after a refusal,
+named controls + "1 bag"; option-row fieldsets). Sonnet built #320–#322's cart half. Stack / smoke / e2e only in CI (no CA in builds).
 
 ## Current focus
 
@@ -222,7 +222,7 @@ Open questions for the owner (answer by commenting on the issue):
   socket address, so :3000 must never be reachable except through nginx (compose binds it to 127.0.0.1).
 - **Migrations: plain SQL + `schema_migrations`, no Go migration library (#209)**: one POSIX script runs in compose, CI and
   `initdb.sh`; each file is one transaction under an advisory lock. Old volumes are refused until `MIGRATE_BASELINE` says
-  what they already have, never guessed. Shipped migrations are never edited.
+  what they already have, never guessed. Shipped migrations are never edited. Postgres / Redis / Meilisearch majors are manual (#317).
 - **Suspension hides, never deletes (#224)**: one SQL fragment (`publicCoffee`) decides what anyone may see, so every list,
   count and lookup drops a suspended shop's coffees the same way; owners and admins still see them. Access tokens carry a
   token version that every **mutation** checks (one primary-key read), so password change, sign out everywhere, theft

@@ -30,7 +30,7 @@ describe("cart", () => {
       await page.goto(SEEDED_COFFEE_PATH);
       await page.getByRole("link", { name: "Log in to add to cart" }).waitFor();
       assert.equal(await page.getByRole("banner").getByRole("link", { name: /^Cart, / }).count(), 0);
-      const option = await page.getByLabel("Option").inputValue();
+      const option = await page.getByRole("combobox", { name: /^Option/ }).inputValue();
       await page.getByLabel("Quantity").selectOption("3");
       await page.getByRole("link", { name: "Log in to add to cart" }).click();
       await page.waitForURL((u) => u.pathname === "/login");
@@ -42,7 +42,7 @@ describe("cart", () => {
       await page.getByRole("button", { name: "Add to cart" }).waitFor();
       await page.waitForFunction(() => !location.search);
       assert.equal(await page.getByLabel("Quantity").inputValue(), "3");
-      assert.equal(await page.getByLabel("Option").inputValue(), option);
+      assert.equal(await page.getByRole("combobox", { name: /^Option/ }).inputValue(), option);
     });
   });
 

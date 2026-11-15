@@ -200,6 +200,11 @@ func (r *mutationResolver) RemoveFromCart(ctx context.Context, id string) (*mode
 	return r.removeFromCart(ctx, id)
 }
 
+// AcceptCartPrice is the resolver for the acceptCartPrice field.
+func (r *mutationResolver) AcceptCartPrice(ctx context.Context, id string) (*model.Cart, error) {
+	return r.acceptCartPrice(ctx, id)
+}
+
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error) {
 	if err := allowIP(ctx, r.Limits.RegisterIP); err != nil {

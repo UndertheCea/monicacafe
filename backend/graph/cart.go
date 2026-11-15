@@ -13,28 +13,39 @@ import (
 // Cart (#21). The rules live in pure functions (cartAddProblem,
 // cartUpdateProblem, buildCart) so they are table-tested without a database.
 
+// MinCartPriceTWD: anything that goes in a cart costs at least NT$1, because
+// ECPay refuses zero-amount trades (owner's default 2a on #292).
+const MinCartPriceTWD = 1
+
 // lineBuyable reports whether a cart line could be checked out now.
 func lineBuyable(l *store.CartLine) bool {
-	return l.VariantLive && l.CoffeePublic && l.Variant.IsAvailable && l.Variant.Stock >= l.Quantity
+	return l.VariantLive && l.CoffeePublic && l.Variant.IsAvailable && l.Variant.Stock >= l.Quantity &&
+		l.Variant.PriceTWD >= MinCartPriceTWD
 }
 
 // cartMax is the most bags one line may hold for an option with this stock.
 func cartMax(stock int) int { return min(store.MaxCartQuantity, stock) }
 
-// cartAddProblem checks adding `add` bags of cv to a cart that already holds
-// `have` of it in a cart of `lines` lines.
-func cartAddProblem(cv *store.CartVariant, have, add, lines int) error {
+// cartAddProblem checks buyer `viewerID` adding `add` bags of cv to a cart
+// that already holds `have` of it in a cart of `lines` lines.
+func cartAddProblem(cv *store.CartVariant, viewerID string, have, add, lines int) error {
 	if !cv.CoffeePublic || !cv.VariantLive {
 		return errNotFound("variant")
 	}
+	if cv.ShopOwnerID == viewerID {
+		return errOwnShop() // no self-purchase (owner's default 3a on #292)
+	}
 	if add < 1 || add > store.MaxCartQuantity {
 		return errBadInput("quantity", fmt.Sprintf("quantity must be 1–%d", store.MaxCartQuantity))
+	}
+	if cv.Variant.PriceTWD < MinCartPriceTWD {
+		return errBadInput("variantId", "this option has no price and can't be bought")
 	}
 	if !cv.Variant.IsAvailable || cv.Variant.Stock < 1 {
 		return errBadInput("variantId", "this option is not on sale or is sold out")
 	}
 	if have+add > cartMax(cv.Variant.Stock) {
-		return errBadInput("quantity", fmt.Sprintf("at most %d of this option fit in a cart", cartMax(cv.Variant.Stock)))
+		return errNotEnough(cartMax(cv.Variant.Stock) - have)
 	}
 	if have == 0 && lines >= store.MaxCartLines {
 		return errLimitReached("cart", fmt.Sprintf("a cart holds at most %d options", store.MaxCartLines))
@@ -51,8 +62,11 @@ func cartUpdateProblem(l *store.CartLine, qty int) error {
 	if qty <= l.Quantity {
 		return nil
 	}
-	if !l.VariantLive || !l.CoffeePublic || !l.Variant.IsAvailable || qty > cartMax(l.Variant.Stock) {
-		return errBadInput("quantity", "not enough of this option left")
+	if !l.VariantLive || !l.CoffeePublic || !l.Variant.IsAvailable {
+		return errNotEnough(0)
+	}
+	if qty > cartMax(l.Variant.Stock) {
+		return errNotEnough(cartMax(l.Variant.Stock))
 	}
 	return nil
 }
@@ -114,9 +128,9 @@ func (r *Resolver) addToCart(ctx context.Context, variantID string, quantity int
 		if err != nil {
 			return err
 		}
-		have := 0
+		have, snapshot := 0, int64(0)
 		if l, err := tx.CartLineForVariant(ctx, c.UserID, variantID); err == nil {
-			have = l.Quantity
+			have, snapshot = l.Quantity, l.AddedPriceTWD
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return err
 		}
@@ -124,10 +138,16 @@ func (r *Resolver) addToCart(ctx context.Context, variantID string, quantity int
 		if err != nil {
 			return err
 		}
-		if err := cartAddProblem(cv, have, quantity, lines); err != nil {
+		if err := cartAddProblem(cv, c.UserID, have, quantity, lines); err != nil {
 			return err
 		}
-		return tx.SetCartLine(ctx, c.UserID, variantID, have+quantity, cv.Variant.PriceTWD)
+		// A new line snapshots today's price; adding to a line keeps its
+		// snapshot, so a "price changed" notice stays until it is accepted.
+		price := cv.Variant.PriceTWD
+		if have > 0 {
+			price = snapshot
+		}
+		return tx.SetCartLine(ctx, c.UserID, variantID, have+quantity, price)
 	})
 	if err != nil {
 		return nil, err
@@ -160,9 +180,31 @@ func (r *Resolver) updateCartItem(ctx context.Context, id string, quantity int) 
 		if err := cartUpdateProblem(l, quantity); err != nil {
 			return err
 		}
-		return tx.SetCartLine(ctx, c.UserID, l.Variant.ID, quantity, l.Variant.PriceTWD)
+		// The snapshot stays: only acceptCartPrice takes today's price (#291).
+		return tx.SetCartLine(ctx, c.UserID, l.Variant.ID, quantity, l.AddedPriceTWD)
 	})
 	if err != nil {
+		return nil, err
+	}
+	return r.loadCart(ctx, c.UserID)
+}
+
+// acceptCartPrice takes today's price as the line's snapshot: the buyer saw
+// "price changed" and agreed to the new price (#291).
+func (r *Resolver) acceptCartPrice(ctx context.Context, id string) (*model.Cart, error) {
+	c, err := requireViewer(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := allowKey(r.Limits.CartUser, c.UserID); err != nil {
+		return nil, err
+	}
+	if !isUUID(id) {
+		return nil, errNotFound("cart item")
+	}
+	if err := r.Store.AcceptCartPrice(ctx, c.UserID, id); errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("cart item")
+	} else if err != nil {
 		return nil, err
 	}
 	return r.loadCart(ctx, c.UserID)

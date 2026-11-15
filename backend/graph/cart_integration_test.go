@@ -108,12 +108,27 @@ func TestCart(t *testing.T) {
 	if l := g.Cart.Items[1]; !l.PriceChanged || l.AddedPriceTwd != 450 || l.PriceTwd != 500 || l.LineTotalTwd != 1000 {
 		t.Fatalf("after price change: %+v", l)
 	}
-	// Changing the quantity takes today's price as the new snapshot.
+	// Changing the quantity or adding more keeps the snapshot (#291): the
+	// notice stays until the buyer accepts the new price.
 	var u struct{ UpdateCartItem cart }
-	buyer.mustDo(update, map[string]any{"id": manyLine, "q": 4}, &u)
-	if l := u.UpdateCartItem.Items[1]; l.PriceChanged || l.Quantity != 4 || l.AddedPriceTwd != 500 {
-		t.Fatalf("after update: %+v", l)
+	buyer.mustDo(update, map[string]any{"id": manyLine, "q": 3}, &u)
+	buyer.mustDo(add, map[string]any{"v": many, "q": 1}, &a)
+	if l := a.AddToCart.Items[1]; !l.PriceChanged || l.Quantity != 4 || l.AddedPriceTwd != 450 {
+		t.Fatalf("after update + add: %+v", l)
 	}
+	accept := `mutation($id: ID!) { acceptCartPrice(id: $id) { ` + cartFields + ` } }`
+	other.expectCode(graph.CodeNotFound, accept, map[string]any{"id": manyLine})
+	var acc struct{ AcceptCartPrice cart }
+	buyer.mustDo(accept, map[string]any{"id": manyLine}, &acc)
+	if l := acc.AcceptCartPrice.Items[1]; l.PriceChanged || l.Quantity != 4 || l.AddedPriceTwd != 500 {
+		t.Fatalf("after accept: %+v", l)
+	}
+	// Asking for more than fits says how many still do.
+	if r := buyer.do(add, map[string]any{"v": few, "q": 1}, nil); len(r.Errors) == 0 || r.Errors[0].Extensions["available"] != float64(0) {
+		t.Fatalf("full line: %+v", r.Errors)
+	}
+	// A seller can't buy from their own shop (#292 3a).
+	seller.expectCode(graph.CodeOwnShop, add, map[string]any{"v": many, "q": 1})
 	buyer.expectCode(graph.CodeBadInput, update, map[string]any{"id": fewLine, "q": 4})
 	other.expectCode(graph.CodeNotFound, update, map[string]any{"id": fewLine, "q": 1})
 	other.expectCode(graph.CodeNotFound, remove, map[string]any{"id": fewLine})

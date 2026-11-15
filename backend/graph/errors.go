@@ -39,7 +39,10 @@ const (
 	// CodeTakenDown: an admin took the coffee down; the seller can't publish,
 	// duplicate or delete it until an admin restores it (#282).
 	CodeTakenDown = "TAKEN_DOWN"
-	CodeInternal  = "INTERNAL_SERVER_ERROR"
+	// CodeOwnShop: a seller tried to put their own shop's coffee in their
+	// cart (owner's default 3a on #292; #291).
+	CodeOwnShop  = "OWN_SHOP"
+	CodeInternal = "INTERNAL_SERVER_ERROR"
 )
 
 // apiError is a client-safe error with a machine-readable code.
@@ -49,6 +52,21 @@ type apiError struct {
 	field   string
 	// retryAfter (whole seconds) is set on RATE_LIMITED errors.
 	retryAfter int
+	// available is the number of bags a cart line can still take, set when
+	// a cart write asks for more than that (#291).
+	available *int
+}
+
+// errNotEnough: the cart asked for more bags than it can take; available is
+// what it still can (0 = none).
+func errNotEnough(available int) error {
+	available = max(available, 0)
+	return &apiError{code: CodeBadInput, field: "quantity", available: &available,
+		message: fmt.Sprintf("only %d more of this option can go in the cart", available)}
+}
+
+func errOwnShop() error {
+	return &apiError{code: CodeOwnShop, message: "you can't buy from your own shop"}
 }
 
 func (e *apiError) Error() string { return e.message }
@@ -112,6 +130,9 @@ func ErrorPresenter(ctx context.Context, err error) *gqlerror.Error {
 		}
 		if ae.retryAfter > 0 {
 			gqlErr.Extensions["retryAfter"] = ae.retryAfter
+		}
+		if ae.available != nil {
+			gqlErr.Extensions["available"] = *ae.available
 		}
 		return gqlErr
 	}

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -79,6 +80,8 @@ type CartVariant struct {
 	Variant      Variant
 	VariantLive  bool
 	CoffeePublic bool
+	// ShopOwnerID: the account that owns the coffee's shop.
+	ShopOwnerID string
 }
 
 // CartVariantByID loads an option with what the cart needs to know about it.
@@ -87,10 +90,10 @@ func (s *Store) CartVariantByID(ctx context.Context, variantID string) (*CartVar
 	v := &cv.Variant
 	err := s.db.QueryRow(ctx, `
 		SELECT v.id, v.coffee_id, v.grind, v.weight_g, v.price_twd, v.stock, v.is_available, v.updated_at,
-			v.archived_at IS NULL, `+publicCoffee+`
-		FROM variants v JOIN coffees c ON c.id = v.coffee_id
+			v.archived_at IS NULL, `+publicCoffee+`, sh.owner_id
+		FROM variants v JOIN coffees c ON c.id = v.coffee_id JOIN shops sh ON sh.id = c.shop_id
 		WHERE v.id = $1`, variantID).Scan(&v.ID, &v.CoffeeID, &v.Grind, &v.WeightG, &v.PriceTWD, &v.Stock,
-		&v.IsAvailable, &v.UpdatedAt, &cv.VariantLive, &cv.CoffeePublic)
+		&v.IsAvailable, &v.UpdatedAt, &cv.VariantLive, &cv.CoffeePublic, &cv.ShopOwnerID)
 	if err != nil {
 		return nil, mapErr(err)
 	}
@@ -121,6 +124,37 @@ func (s *Store) SetCartLine(ctx context.Context, userID, variantID string, quant
 		SET quantity = EXCLUDED.quantity, price_twd = EXCLUDED.price_twd, updated_at = now()`,
 		userID, variantID, quantity, priceTWD)
 	return mapErr(err)
+}
+
+// AcceptCartPrice sets a line's price snapshot to the option's price today.
+// ErrNotFound if the line isn't the buyer's.
+func (s *Store) AcceptCartPrice(ctx context.Context, userID, id string) error {
+	tag, err := s.db.Exec(ctx, `
+		UPDATE cart_items ci SET price_twd = v.price_twd, updated_at = now()
+		FROM variants v WHERE v.id = ci.variant_id AND ci.user_id = $1 AND ci.id = $2`, userID, id)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// CartLineMaxAge: a line nobody touched for this long is removed by the
+// hourly sweep (owner's default 4a on #292; #291).
+const CartLineMaxAge = 90 * 24 * time.Hour
+
+// PruneStaleCartLines deletes up to batch lines not changed for maxAge.
+func (s *Store) PruneStaleCartLines(ctx context.Context, maxAge time.Duration, batch int) (int64, error) {
+	tag, err := s.db.Exec(ctx, `
+		DELETE FROM cart_items WHERE id IN (
+			SELECT id FROM cart_items WHERE updated_at < now() - $1::interval LIMIT $2)`,
+		fmt.Sprintf("%d seconds", int64(maxAge.Seconds())), batch)
+	if err != nil {
+		return 0, mapErr(err)
+	}
+	return tag.RowsAffected(), nil
 }
 
 // DeleteCartLine removes one of the buyer's lines. ErrNotFound if it isn't theirs.

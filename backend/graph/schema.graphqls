@@ -64,13 +64,20 @@ type Query {
 type Mutation {
   # Cart (#21). Each returns the whole cart. addToCart adds to the line's
   # quantity if the option is already there. Only public, available options
-  # with enough stock can be added; a line holds 1–20 bags (never more than the
-  # stock) and a cart at most 50 lines (LIMIT_REACHED). Each write refreshes
-  # the line's price snapshot. Rate limited per account (RATE_LIMIT_CART_USER).
+  # priced NT$1 or more with enough stock can be added, never from the
+  # viewer's own shop (OWN_SHOP); a line holds 1–20 bags (never more than the
+  # stock) and a cart at most 50 lines (LIMIT_REACHED). Asking for more than
+  # fits is BAD_USER_INPUT (field quantity) with extensions.available = bags
+  # the line can still take. A new line snapshots today's price; later writes
+  # keep the snapshot until acceptCartPrice (#291). Lines untouched for 90
+  # days are removed. Rate limited per account (RATE_LIMIT_CART_USER).
   addToCart(variantId: ID!, quantity: Int! = 1): Cart!
-  # quantity 1–20; raising it past the stock is refused, lowering always works.
+  # quantity 1–20; raising it past the stock is refused (available = the most
+  # this line can hold), lowering always works.
   updateCartItem(id: ID!, quantity: Int!): Cart!
   removeFromCart(id: ID!): Cart!
+  # Takes today's price as the line's snapshot (clears priceChanged).
+  acceptCartPrice(id: ID!): Cart!
 
   # Auth
   register(input: RegisterInput!): AuthPayload!

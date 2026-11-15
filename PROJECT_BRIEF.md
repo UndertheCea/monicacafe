@@ -30,8 +30,8 @@ takes a commission on each sale).
 **Look and feel (owner, 2026-11-08):** clean like SEY, La Cabra, Coffee Collective and Poma — a white page
 with black type and nothing else. No yellow / amber, no dark "black and yellow" blocks, no gradients. The
 wordmark is a heavy, italic, lowercase "moni cafe" in the style of the *motors coffee* sign (#110). Coffees
-without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8) with the coffee's words written
-on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keeps colour utilities out.
+without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8); on cards it carries the coffee's words (once, in the seller's own case, #294), on the coffee page it is plain colour
+(#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keeps colour utilities out.
 
 ## Status
 

@@ -23,7 +23,8 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-ink text-white hover:bg-ink/80",
   secondary: "bg-white text-ink ring-1 ring-line hover:ring-ink",
   quiet: "text-muted hover:bg-paper hover:text-ink",
-  danger: "bg-white text-danger ring-1 ring-danger/30 hover:bg-danger/10",
+  // Solid red with white text (6.5:1): clearly enabled. A disabled one fades like every other button.
+  danger: "bg-danger text-white hover:bg-danger/85",
 };
 
 export const BUTTON_VARIANT_NAMES = Object.keys(BUTTON_VARIANTS) as ButtonVariant[];

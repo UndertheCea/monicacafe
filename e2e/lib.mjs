@@ -77,7 +77,7 @@ export async function openShop(page, { name, slug }) {
   await page.goto("/dashboard");
   await page.getByLabel("Shop name").fill(name);
   await page.getByLabel("City").fill("Taipei");
-  await page.getByLabel("URL name").fill(slug);
+  await page.getByLabel("Shop web address").fill(slug);
   await page.getByRole("button", { name: "Create shop" }).click();
   await page.getByRole("heading", { name }).waitFor();
 }

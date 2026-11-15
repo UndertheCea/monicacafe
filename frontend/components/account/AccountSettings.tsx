@@ -30,6 +30,15 @@ type Msg = { key: MessageKey; vars?: Record<string, number> };
 
 const sectionCls = `${CARD} space-y-4 p-6`;
 
+/** In-page links at the top: [element id, label]. Each id is on a section or its heading below. */
+const JUMP_LINKS = [
+  ["saved-coffees", "account.savedCoffees"],
+  ["followed-shops", "account.followedShops"],
+  ["my-comments", "account.myComments"],
+  ["account-password", "account.password"],
+  ["delete-title", "account.delete.title"],
+] as const satisfies readonly (readonly [string, MessageKey])[];
+
 function Saved({ children }: { children: React.ReactNode }) {
   return (
     <p role="status" className="text-sm text-ink">
@@ -53,11 +62,20 @@ export function AccountSettings({ locale }: { locale: Locale }) {
   };
   return (
     <div className="space-y-6">
+      {/* What people come here for (saved, following, comments) comes first; security settings follow (#294). */}
+      <nav aria-label={t(locale, "account.jump")} className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-muted">{t(locale, "account.jump")}</span>
+        {JUMP_LINKS.map(([id, label]) => (
+          <a key={id} href={`#${id}`} className="rounded-full px-3 py-1.5 text-ink ring-1 ring-line hover:ring-ink">
+            {t(locale, label)}
+          </a>
+        ))}
+      </nav>
       <ProfileForm locale={locale} />
-      <PasswordForm locale={locale} />
       <SavedCoffees locale={locale} />
       <FollowedShops locale={locale} />
       <MyComments locale={locale} />
+      <PasswordForm locale={locale} />
       <Sessions locale={locale} onLeave={onLeave} />
       <DownloadData locale={locale} />
       <DeleteAccount locale={locale} onLeave={onLeave} />
@@ -209,7 +227,7 @@ function PasswordForm({ locale }: { locale: Locale }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className={sectionCls}>
+    <form id="account-password" onSubmit={onSubmit} noValidate className={`${sectionCls} scroll-mt-20`}>
       <SectionTitle>{t(locale, "account.password")}</SectionTitle>
       <p className="text-sm text-muted">{t(locale, "account.passwordHint")}</p>
       <FormSummary formId="password" locale={locale} errors={fe.errors} order={PASSWORD_ORDER} />

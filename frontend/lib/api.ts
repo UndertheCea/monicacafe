@@ -336,18 +336,6 @@ export const HOME = typed<
   }
 `);
 
-/** Group pins by city (zh-TW collation), keeping each city's order stable. */
-export function groupByCity(pins: ShopPin[]): [string, ShopPin[]][] {
-  const groups = new Map<string, ShopPin[]>();
-  for (const p of pins) {
-    const city = p.city || "—";
-    const list = groups.get(city);
-    if (list) list.push(p);
-    else groups.set(city, [p]);
-  }
-  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b, "zh-TW"));
-}
-
 /** True when the pin has a plottable coordinate pair. */
 export function hasCoords(p: ShopPin): p is ShopPin & { lat: number; lng: number } {
   return typeof p.lat === "number" && typeof p.lng === "number";

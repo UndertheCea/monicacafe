@@ -5,7 +5,7 @@ import { flavorNoteHref } from "@/lib/coffeeQuery";
 import { knownHarvestYear } from "@/lib/harvest";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { coffeeAvailability, pricePer100g } from "@/lib/pricing";
-import { originLine, provenanceFacts } from "@/lib/provenance";
+import { provenanceFacts } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { PhotoGallery } from "./PhotoGallery";
@@ -15,8 +15,8 @@ import { CARD } from "@/lib/ui";
 import { ReportButton } from "@/components/ReportButton";
 
 /**
- * The body of a coffee page: images, facts, flavour notes, description,
- * options and seller. Pure render (no data fetching, no hooks), so the public
+ * The body of a coffee page: images, price + buying controls, facts, flavour notes,
+ * description, price list and seller. Pure render (no data fetching, no hooks), so the public
  * server page and the seller's client-side draft preview share it.
  */
 export function CoffeeDetailView({
@@ -29,7 +29,7 @@ export function CoffeeDetailView({
   locale: Locale;
   /** Shown under the name (the public page's save button; the draft preview has none). */
   actions?: React.ReactNode;
-  /** Shown under the options table (the public page's add-to-cart, #280; the draft preview has none). */
+  /** Shown under the price (the public page's add-to-cart, #280; the draft preview has none). */
   purchase?: React.ReactNode;
 }) {
   const facts: [string, string][] = [
@@ -55,17 +55,7 @@ export function CoffeeDetailView({
         name={coffee.name}
         locale={locale}
         placeholder={
-          <CoffeeTile
-            size="hero"
-            id={coffee.id}
-            name={coffee.name}
-            variety={coffee.variety?.name}
-            process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
-            origin={originLine({
-              region: coffee.region,
-              country: pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn),
-            })}
-          />
+          <CoffeeTile size="hero" id={coffee.id} name={coffee.name} />
         }
       />
 
@@ -96,6 +86,10 @@ export function CoffeeDetailView({
         {availability.kind === "soldOut" && (
           <p className="mt-2 text-xl font-semibold text-ink">{t(locale, "coffee.soldOutHeadline")}</p>
         )}
+        {/* Buying controls sit with the price, above the facts (#294). */}
+        {purchase}
+        {/* The cart is open (#280); ECPay checkout comes next in Stage 2. */}
+        <p className="mt-3 text-sm text-muted">{t(locale, "coffee.checkoutSoon")}</p>
         {actions}
         {/* Not on the seller's draft preview: only published coffees can be reported (#225). */}
         {coffee.isPublished && (
@@ -136,6 +130,7 @@ export function CoffeeDetailView({
           <p className="mt-6 whitespace-pre-line leading-relaxed text-ink">{coffee.description}</p>
         )}
 
+        {/* The full price list, sold-out options included; the picker above only offers what can be bought. */}
         <section className="mt-8" aria-labelledby="variants-heading">
           <SectionTitle id="variants-heading">
             {t(locale, "coffee.variants")}
@@ -169,11 +164,6 @@ export function CoffeeDetailView({
               </tbody>
             </table>
           )}
-          {purchase}
-          {/* The cart is open (#280); ECPay checkout comes next in Stage 2. */}
-          <p className="mt-3 rounded-box bg-paper px-4 py-3 text-sm text-muted">
-            {t(locale, "coffee.checkoutSoon")}
-          </p>
         </section>
 
         <Card as="aside" className="mt-8 flex items-center gap-4 p-4">

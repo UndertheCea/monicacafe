@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { cartProblem, groupByShop, quantityChoices, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
+import { cartProblem, groupByShop, lineQuantityChoices, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
 import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
 import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -130,7 +130,7 @@ export function CartView({ locale }: { locale: Locale }) {
                       onChange={(e) => void setQty(l, Number(e.target.value))}
                       className="mt-1"
                     >
-                      {quantityChoices(l.variant.stock, 0, l.quantity).map((n) => (
+                      {lineQuantityChoices(l).map((n) => (
                         <option key={n} value={n}>
                           {n}
                         </option>

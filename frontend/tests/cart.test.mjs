@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   MAX_CART_QUANTITY,
+  MIN_CART_PRICE_TWD,
+  canAddToCart,
+  lineQuantityChoices,
   bagsLeft,
   cartBadgeText,
   cartErrorKey,
@@ -125,4 +128,27 @@ test("parseCartChoice accepts known options and 1-20 only", () => {
     { in: "?qty=20", want: { quantity: 20 } },
   ];
   for (const c of cases) assert.deepEqual(parseCartChoice(c.in, ids), c.want, c.in);
+});
+
+test("canAddToCart: on sale, in stock and at least NT$1", () => {
+  const ok = { isAvailable: true, stock: 3, priceTwd: 450 };
+  const cases = [
+    [ok, true],
+    [{ ...ok, priceTwd: MIN_CART_PRICE_TWD }, true],
+    [{ ...ok, priceTwd: 0 }, false],
+    [{ ...ok, stock: 0 }, false],
+    [{ ...ok, isAvailable: false }, false],
+  ];
+  for (const [v, want] of cases) assert.equal(canAddToCart(v), want, JSON.stringify(v));
+});
+
+test("lineQuantityChoices: an unbuyable line can only be lowered", () => {
+  const mk = (available, stock, quantity) => ({ available, quantity, variant: { stock } });
+  const cases = [
+    [mk(true, 5, 2), [1, 2, 3, 4, 5]],
+    [mk(true, 1, 3), [1, 2, 3]],
+    [mk(false, 5, 2), [1, 2]],
+    [mk(false, 0, 3), [1, 2, 3]],
+  ];
+  for (const [l, want] of cases) assert.deepEqual(lineQuantityChoices(l), want);
 });

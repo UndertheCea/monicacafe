@@ -5,6 +5,9 @@ import type { MessageKey } from "./i18n/dict";
 /** Most bags of one option a cart line may hold (backend store.MaxCartQuantity). */
 export const MAX_CART_QUANTITY = 20;
 
+/** Cheapest price (NT$) the API lets into a cart (mirrors backend graph.MinCartPriceTWD, like MAX_CART_QUANTITY above). */
+export const MIN_CART_PRICE_TWD = 1;
+
 export interface CartLine {
   id: string;
   quantity: number;
@@ -64,6 +67,20 @@ export function quantityChoices(stock: number, inCart = 0, current?: number): nu
   const most = Math.min(MAX_CART_QUANTITY, Math.max(0, stock)) - inCart;
   const top = Math.max(most, current ?? 0);
   return Array.from({ length: Math.max(0, top) }, (_, i) => i + 1);
+}
+
+/** Whether an option can be added to a cart: on sale, in stock and priced at least NT$1 (what the API accepts). */
+export function canAddToCart(v: { isAvailable: boolean; stock: number; priceTwd: number }): boolean {
+  return v.isAvailable && v.stock > 0 && v.priceTwd >= MIN_CART_PRICE_TWD;
+}
+
+/**
+ * Quantities to offer for a cart line. The API refuses every increase on a
+ * line that can't be bought now, so such a line offers only 1..quantity
+ * (lowering); a buyable line offers up to its stock.
+ */
+export function lineQuantityChoices(line: Pick<CartLine, "available" | "quantity" | "variant">): number[] {
+  return quantityChoices(line.available ? line.variant.stock : 0, 0, line.quantity);
 }
 
 /** Message for a failed cart write, by API error code and field. */

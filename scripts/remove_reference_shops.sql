@@ -19,12 +19,14 @@ DELETE FROM users   WHERE id IN (SELECT id FROM ref_users);
 
 DROP VIEW     IF EXISTS reference_gaps;
 DROP FUNCTION IF EXISTS reference_load();
+DROP FUNCTION IF EXISTS reference_add(TEXT, JSONB);
 DROP FUNCTION IF EXISTS reference_origin_id(TEXT);
 DROP FUNCTION IF EXISTS reference_variety_id(TEXT);
 DROP FUNCTION IF EXISTS reference_process_id(TEXT);
 DROP FUNCTION IF EXISTS reference_norm(TEXT);
 DROP TABLE    IF EXISTS reference_catalogue;
 DROP TABLE    IF EXISTS reference_aliases;
+DROP TABLE    IF EXISTS reference_accepted_gaps;
 DROP TABLE    IF EXISTS reference_shops;
 
 COMMIT;

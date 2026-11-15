@@ -1,7 +1,9 @@
 -- Self-test for the reference-shop seed (issue #169). CI runs it after
 -- scripts/seed_reference.sql, then scripts/remove_reference_shops.sql, then
 -- checks nothing is left. It COMMITS fixture rows (made-up coffees for the
--- sey / onyx slugs), so run it only on a throwaway database.
+-- sey / onyx slugs, next to the real lists), so run it only on a throwaway
+-- database. Unknown values are made up ("Atlantis", "Moonbean") so that adding
+-- real values in a migration (#174) never turns a fixture gap into a match.
 --
 --   psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f scripts/reference_selftest.sql
 
@@ -15,29 +17,55 @@ INSERT INTO reference_catalogue (shop_slug, coffee_name, origin_raw, variety_raw
   ('sey', 'Selftest A', ' ethiopia ', 'Gesha', 'WASHED', 'Selftest Farm', 1900, 2100, 2025, 'LIGHT', 'FILTER',
    '{jasmine}', 'https://example.test/a', '2026-11-09'),
   -- Matches on the Chinese origin name and a process alias; unknown variety → inserted without one.
-  ('sey', 'Selftest B', '衣索比亞', 'Sidra', 'Natural   Process', '', NULL, NULL, NULL, 'LIGHT', NULL,
+  ('sey', 'Selftest B', '衣索比亞', 'Moonbean', 'Natural   Process', '', NULL, NULL, NULL, 'LIGHT', NULL,
    '{}', 'https://example.test/b', '2026-11-09'),
   -- Unknown origin → skipped.
-  ('sey', 'Selftest C', 'Mexico', NULL, 'Washed', '', NULL, NULL, NULL, 'LIGHT', NULL,
+  ('sey', 'Selftest C', 'Atlantis', NULL, 'Washed', '', NULL, NULL, NULL, 'LIGHT', NULL,
    '{}', 'https://example.test/c', '2026-11-09'),
   -- Unknown process → skipped.
-  ('sey', 'Selftest D', 'Colombia', 'Caturra', 'Thermal Shock', '', NULL, NULL, NULL, 'LIGHT', NULL,
+  ('sey', 'Selftest D', 'Colombia', 'Caturra', 'Moon Dried', '', NULL, NULL, NULL, 'LIGHT', NULL,
    '{}', 'https://example.test/d', '2026-11-09'),
   -- Same unknown variety at another shop (one gap row, both shops); Chinese process name.
-  ('onyx', 'Selftest E', 'colombia', 'sidra', '水洗', '', NULL, NULL, NULL, 'MEDIUM', 'OMNI',
+  ('onyx', 'Selftest E', 'colombia', 'moonbean', '水洗', '', NULL, NULL, NULL, 'MEDIUM', 'OMNI',
    '{}', 'https://example.test/e', '2026-11-09');
+
+-- reference_add (the loader for docs/reference-data/ lists): one coffee printing
+-- no country and one blend, both kept in the catalogue but never loaded.
+SELECT reference_add('sey', $j$[
+  {"coffee_name": "Selftest F", "origin_raw": null, "variety_raw": "Caturra", "process_raw": "Washed",
+   "producer": null, "region": "", "altitude_min_m": null, "altitude_max_m": null, "harvest_year": null,
+   "roast_level": null, "brew_method": null, "flavor_notes": [], "source_url": "https://example.test/f",
+   "checked_on": "2026-11-13"},
+  {"coffee_name": "Selftest G", "origin_raw": "Atlantis / Lemuria", "variety_raw": null, "process_raw": null,
+   "roast_level": "MEDIUM", "brew_method": "ESPRESSO", "flavor_notes": ["cocoa"], "blend": true,
+   "source_url": "https://example.test/g", "checked_on": "2026-11-13"}
+]$j$);
+
+-- A reference roaster with no catalogue rows.
+INSERT INTO reference_shops (slug, name, source_url, city, lat, lng)
+VALUES ('selftest-empty', 'Selftest Empty', 'https://example.test/', '台北市', 25.03, 121.56);
+
+INSERT INTO reference_accepted_gaps (kind, value, reason)
+VALUES ('origin', 'atlantis /  lemuria', 'selftest: a blend lists two countries');
 
 DO $$
 DECLARE
   n INTEGER;
   r RECORD;
 BEGIN
+  ASSERT (SELECT origin_raw IS NULL AND producer = '' AND roast_level IS NULL AND NOT blend
+          FROM reference_catalogue WHERE coffee_name = 'Selftest F'), 'reference_add: nulls become NULL / blank';
+  ASSERT (SELECT blend AND process_raw IS NULL AND roast_level = 'MEDIUM' AND flavor_notes = '{cocoa}'
+          FROM reference_catalogue WHERE coffee_name = 'Selftest G'), 'reference_add: blend, roast, notes';
+  ASSERT reference_add('sey', '[{"coffee_name": "Selftest F", "origin_raw": "Ethiopia", "process_raw": "Washed",
+    "source_url": "https://example.test/f2", "checked_on": "2026-11-14"}]') = 0, 'reference_add never replaces a row';
+
   n := reference_load();
   ASSERT n = 3, format('reference_load inserted %s coffees, want 3 (A, B, E)', n);
   ASSERT reference_load() = 0, 'a second reference_load must insert nothing';
 
   ASSERT (SELECT count(*) FROM shops WHERE slug IN ('ref-sey', 'ref-onyx')) = 2, 'ref-sey and ref-onyx exist';
-  ASSERT NOT EXISTS (SELECT 1 FROM shops WHERE slug IN ('ref-lab19', 'ref-poma')), 'shops without catalogue rows are not created';
+  ASSERT NOT EXISTS (SELECT 1 FROM shops WHERE slug = 'ref-selftest-empty'), 'shops without catalogue rows are not created';
   ASSERT (SELECT name FROM shops WHERE slug = 'ref-sey') = 'SEY Coffee（參考）', 'shop name ends in （參考）';
   ASSERT (SELECT city = '新竹市' AND lat = 24.8040 AND lng = 120.9690 FROM shops WHERE slug = 'ref-sey'),
     'reference shop gets its placeholder Taiwan city and pin';
@@ -68,13 +96,20 @@ BEGIN
   ASSERT (SELECT variety_id IS NULL FROM coffees WHERE name = 'Selftest B'), 'B has no variety';
   ASSERT (SELECT p.name_en FROM coffees c JOIN processing_methods p ON p.id = c.processing_method_id WHERE c.name = 'Selftest B') = 'Natural',
     'B process via alias';
-  ASSERT NOT EXISTS (SELECT 1 FROM coffees WHERE name IN ('Selftest C', 'Selftest D')), 'C and D are skipped';
+  ASSERT NOT EXISTS (SELECT 1 FROM coffees WHERE name IN ('Selftest C', 'Selftest D', 'Selftest F', 'Selftest G')),
+    'C, D (unknown origin / process), F (no origin) and G (blend, no process) are skipped';
 
-  ASSERT (SELECT count(*) FROM reference_gaps) = 3, format('gaps: %s', (SELECT string_agg(kind || '=' || value, ', ') FROM reference_gaps));
-  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'origin' AND value = 'Mexico' AND skipped AND coffees = 'sey: Selftest C'), 'origin gap';
-  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'process' AND value = 'Thermal Shock' AND skipped), 'process gap';
-  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'variety' AND lower(value) = 'sidra' AND NOT skipped AND shops = 'onyx, sey'),
+  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'origin' AND value = 'Atlantis' AND skipped AND NOT accepted
+                 AND coffees = 'sey: Selftest C'), 'origin gap';
+  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'process' AND value = 'Moon Dried' AND skipped), 'process gap';
+  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'variety' AND lower(value) = 'moonbean' AND NOT skipped AND shops = 'onyx, sey'),
     'variety gap, both shops, coffee kept';
+  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'origin' AND value = '' AND coffees LIKE '%sey: Selftest F%'),
+    'a coffee printing no country is an origin gap with value ''''';
+  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'origin' AND value = 'Atlantis / Lemuria' AND accepted),
+    'an accepted gap matches case- and space-insensitively';
+  ASSERT EXISTS (SELECT 1 FROM reference_gaps WHERE kind = 'process' AND value = '' AND coffees LIKE '%sey: Selftest G%'),
+    'a coffee printing no process is a process gap';
 END;
 $$;
 

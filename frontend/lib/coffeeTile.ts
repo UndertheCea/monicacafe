@@ -63,8 +63,7 @@ export function coffeeTile(id: string): CoffeeTileColor {
 
 /**
  * The small lines written under the coffee's name, SEY-style: variety · process, then origin.
- * Shown uppercase and letter-spaced by CSS (`label-caps`), so the strings stay as the seller / catalogue
- * wrote them. Empty parts are dropped.
+ * Shown as written (no forced capitals or letter-spacing: they shout beside Chinese, #294). Empty parts are dropped.
  */
 export function tileLines(parts: { variety?: string | null; process?: string | null; origin?: string | null }): string[] {
   const clean = (s: string | null | undefined) => (s ?? "").trim();

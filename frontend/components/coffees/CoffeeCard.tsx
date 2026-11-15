@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { cardLines } from "@/lib/coffeeCard";
 import { originLine } from "@/lib/provenance";
 import type { SearchMatch } from "@/lib/searchMatch";
 import { formatTWD } from "@/lib/utils";
@@ -20,8 +21,16 @@ export function CoffeeCard({
   const price = fromPrice(coffee);
   const img = coffee.imageUrls[0];
   const country = pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn);
-  // Producer · region tells two coffees from the same country apart.
-  const source = originLine({ producer: coffee.producer, region: coffee.region });
+  const process = pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn);
+  // Every fact once: a photo card's body prints the words; a colour tile carries them itself (#294).
+  const { source, facts } = cardLines({
+    hasPhoto: Boolean(img),
+    producer: coffee.producer,
+    region: coffee.region,
+    country,
+    process,
+    variety: coffee.variety?.name,
+  });
 
   return (
     <Card as="article" className="relative flex flex-col overflow-hidden focus-within:ring-2 focus-within:ring-ink">
@@ -33,7 +42,7 @@ export function CoffeeCard({
             id={coffee.id}
             name={coffee.name}
             variety={coffee.variety?.name}
-            process={pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
+            process={process}
             origin={originLine({ region: coffee.region, country })}
           />
         )}
@@ -45,23 +54,27 @@ export function CoffeeCard({
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <p className="text-xs text-muted">
-          {coffee.shop.name}
-          {coffee.shop.city && ` · ${coffee.shop.city}`}
+        {/* A long shop name is cut with an ellipsis; the city always stays whole. */}
+        <p className="flex min-w-0 text-xs text-muted">
+          <span className="min-w-0 truncate">{coffee.shop.name}</span>
+          {coffee.shop.city && <span className="shrink-0 whitespace-pre">{` · ${coffee.shop.city}`}</span>}
         </p>
-        <h3 className="mt-1 text-base font-bold leading-snug text-ink">
-          {/* Stretched link: the whole card is clickable, one tab stop. */}
-          <Link href={`/coffees/${coffee.id}`} className="after:absolute after:inset-0">
-            {coffee.name}
-          </Link>
-        </h3>
+        {img ? (
+          <h3 className="mt-1 text-base font-bold leading-snug text-ink">
+            {/* Stretched link: the whole card is clickable, one tab stop. */}
+            <Link href={`/coffees/${coffee.id}`} className="after:absolute after:inset-0">
+              {coffee.name}
+            </Link>
+          </h3>
+        ) : (
+          <>
+            {/* The tile above already shows the name: the heading and the card link stay for screen readers and clicks. */}
+            <h3 className="sr-only">{coffee.name}</h3>
+            <Link href={`/coffees/${coffee.id}`} aria-label={coffee.name} className="absolute inset-0 z-10" />
+          </>
+        )}
         {source && <p className="mt-1 line-clamp-1 text-sm text-muted">{source}</p>}
-        <p className="label-caps mt-2 text-muted">
-          {country}
-          {" · "}
-          {pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn)}
-          {coffee.variety && ` · ${coffee.variety.name}`}
-        </p>
+        {facts && <p className="mt-1 line-clamp-2 break-words text-xs text-muted">{facts}</p>}
 
         {coffee.flavorNotes.length > 0 && (
           <ul className="mt-3 flex flex-wrap gap-1.5">

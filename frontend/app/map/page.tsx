@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SHOPS_FOR_MAP, groupByCity, hasCoords } from "@/lib/api";
+import { SHOPS_FOR_MAP, hasCoords } from "@/lib/api";
+import { cityGroups } from "@/lib/mapList";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -64,22 +65,29 @@ export default async function MapPage() {
             {t(locale, "map.empty")}
           </Card>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {groupByCity(pins).map(([city, list]) => (
-              <Card key={city} className="p-5">
-                <Label as="h3" className="mb-3 text-ink!">{city}</Label>
+          // grid-cols-1 + min-w-0: a long shop name must not stretch the column past the viewport (#294).
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {cityGroups(pins).map(({ city, count, shops, more }) => (
+              <Card key={city} className="min-w-0 p-5">
+                <Label as="h3" className="mb-3 text-ink!">
+                  {city} <span className="font-normal text-muted">({count})</span>
+                </Label>
                 <ul className="space-y-2">
-                  {list.map((p) => (
-                    <li key={p.id} className="flex items-baseline justify-between gap-3">
-                      <Link href={`/shops/${p.slug}`} className="font-medium text-ink hover:text-ink hover:underline underline-offset-4">
+                  {shops.map((p) => (
+                    <li key={p.id} className="min-w-0">
+                      <Link href={`/shops/${p.slug}`} className="break-words font-medium text-ink hover:text-ink hover:underline underline-offset-4">
                         {p.name}
                       </Link>
-                      {!hasCoords(p) && (
-                        <span className="shrink-0 text-xs text-muted">{t(locale, "map.noLocation")}</span>
-                      )}
                     </li>
                   ))}
                 </ul>
+                {more > 0 && (
+                  <p className="mt-3 text-sm">
+                    <Link href="/shops" className="text-muted underline-offset-4 hover:text-ink hover:underline">
+                      {t(locale, "map.moreShops", { n: more })}
+                    </Link>
+                  </p>
+                )}
               </Card>
             ))}
           </div>

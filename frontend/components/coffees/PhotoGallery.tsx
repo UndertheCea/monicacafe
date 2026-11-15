@@ -39,7 +39,7 @@ export function PhotoGallery({
 
   return (
     <div>
-      <div className="relative aspect-square overflow-hidden rounded-box bg-paper ring-1 ring-line">
+      <div className={`relative overflow-hidden rounded-box bg-paper ring-1 ring-line ${hero ? "aspect-square" : "aspect-[2/1] sm:aspect-square"}`}>
         {hero ? (
           <Picture
             src={hero}

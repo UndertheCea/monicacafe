@@ -43,6 +43,9 @@
   body {
     @apply bg-white text-ink antialiased;
     font-feature-settings: "kern" 1, "liga" 1;
+    /* Seller-typed text (a shop name with no spaces, a long coffee name) may break anywhere rather than widen the
+       page sideways on a phone; "anywhere" also lets flex / grid items shrink below the long word (#294). */
+    overflow-wrap: anywhere;
   }
 
   /* Keyboard focus stays clearly visible on white: a black outline, offset from the element. */

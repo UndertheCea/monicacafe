@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-14 (after Session 39)
+Last updated: 2026-11-15 (after Session 40)
 
 ---
 
@@ -30,8 +30,8 @@ takes a commission on each sale).
 **Look and feel (owner, 2026-11-08):** clean like SEY, La Cabra, Coffee Collective and Poma — a white page
 with black type and nothing else. No yellow / amber, no dark "black and yellow" blocks, no gradients. The
 wordmark is a heavy, italic, lowercase "moni cafe" in the style of the *motors coffee* sign (#110). Coffees
-without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8) with the coffee's words written
-on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keeps colour utilities out.
+without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8): on cards it carries the coffee's words once,
+in the seller's case (#111, #294); on the coffee page it is plain. `tests/palette.test.mjs` keeps colour utilities out.
 
 ## Status
 
@@ -65,7 +65,7 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 | nginx: gzip, no server version, `/media/` sandboxed (GET / HEAD / PUT only), per-IP `limit_req` on /graphql and /api/, timeouts + body caps, exact `/graphql`, JSON access log with request ids | Done (#64, #214) |
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
-| Reference shops (dev only): seed scaffolding, gap report, removal script; roaster lists pending | Scaffolding done (#169); #170–#174 |
+| Reference shops (dev only): nine roasters' lists (`docs/reference-data/`, `reference_add`), gap report (`--strict` in CI, reviewed gaps "accepted"), migration 024 adds the values they use; 159 / 181 coffees load | Done (#169, #170–#174, #299–#303) |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Moderation: suspend users / shops, audit log, `cmd/admin` (#224); reports + `/admin` (#225); takedowns stick until `adminRestoreCoffee`, suspended shops read-only (#282); token version checked on queries too (#284); contact filter normalises and covers names / notes, reserved display names, role private (#286) | Done |
 | Observability: `/metrics` on an internal port, `/health/live` + `/health/ready`, `/api/health`, Sentry-compatible reporting when `SENTRY_DSN` is set, sweeps awaited + advisory-locked, `docs/DEPLOY.md` | Done (#221) |
@@ -78,9 +78,9 @@ on it (#111). Shipped in Session 20 (#109–#112); `tests/palette.test.mjs` keep
 
 ## Last session
 
-**Session 39**: eight audit slices (#282–#289): takedowns stick, aliases / NUL refused, queries check the token version,
-EXIF stripped, stronger contact filter, fail-safe exposure, image backup + sweep guard, backup monitoring. Sonnet
-sub-agents built #285–#289; compose image builds still can't run here, so the stack / drills are proven only in CI.
+**Session 40**: nine reference roasters loaded from the owner's JSON (#170–#173, #299–#303) + migration 024 for the values
+they use (#174); UI polish (#294: words once per coffee, buying controls by the price, /map fits a phone, layout e2e); UI
+review analysis (#298 → #306); question #307. Sub-agents built #294 / #298; stack + e2e run only in CI.
 
 ## Current focus
 
@@ -89,9 +89,8 @@ sub-agents built #285–#289; compose image builds still can't run here, so the 
    RESTRICT` on variants) / `payments` (unique `merchant_trade_no`) / `payment_events` (idempotent on ECPay's trade number),
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
-2. **Hosting waits on #199**: HTTPS compose is #219 (blocked); `docs/DEPLOY.md` has the pre-exposure checklist (#287).
-   Add a `worker` service with the first real job, and ECPay's CheckMacValue example when its docs are reachable.
-3. Left in stage-1: #294 (UI polish), #295 (low-severity batch), then #290 / #291 (stage 2). Blocked: #170–#174, #219, #223, #226.
+2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
+3. Left in stage-1: #295 (low-severity batch), then #290 / #291 (stage 2). Blocked: #219, #223, #226. #306 picks UI ideas.
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
    rule on `master` requiring CI (#216). Grant the first admin with `cmd/admin grant <email>`.
@@ -113,6 +112,8 @@ Open questions for the owner (answer by commenting on the issue):
 | #205 | Multi-shop orders, shipping, stock (Stage 2) | one checkout, order per shop | **no** |
 | #292 | Small Stage 2 rules (stock shown, NT$0, own shop, cart age) | recommended options | 2–5 yes, 1 **no** |
 | #293 | Home roaster's exact map pin | warning text only | yes |
+| #306 | Ideas from the roaster UI/UX review | build none | yes |
+| #307 | Blends / several varieties per listing | one origin, "Mixed" variety | yes |
 
 ## Decisions (why it looks like this)
 
@@ -189,9 +190,8 @@ Open questions for the owner (answer by commenting on the issue):
 - **/coffees filters = origin / variety / process / price / in stock (owner, #166; built #167)**: each shop rates cup
   profile, roast and brew by its own standard, so filtering across shops on them misleads. Old links with the removed
   params show the unfiltered list; cards show only the roast. Keyword search and sort stay.
-- **Reference roasters' lists come over the network (owner, #168 (a))**: the environment's allow-list gets
-  lab19coffee.com, seycoffee.com, pomacoffee.com and onyxcoffeelab.com. Until sessions can reach them, #170–#173 stay
-  blocked.
+- **Reference lists are collected by the owner (#168 (b))** and kept as JSON in `docs/reference-data/`; the seed loads them
+  verbatim. Several cultivars in one lot → variety "Mixed"; multi-country blends are accepted gaps (#174, #307).
 - **Shop pages are the seller's storefront (#158 defaults)**: no buyer controls. The order is the seller's
   (`shop_position`, new coffees at the end, not unique, rewritten as a whole). Sold out = no available option with
   stock, shown in an archive below, and nothing changes on /coffees. Reordering doesn't touch `updated_at` (#160–#163).

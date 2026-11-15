@@ -107,6 +107,7 @@ baseline_marker() {
     022) echo "to_regclass('public.cart_items') IS NOT NULL" ;;
     023) col coffees removed_at ;;
     025) echo "EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shops_location_pair')" ;;
+    026) echo "EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'touch_coffee_from_variant' AND prosrc LIKE '%to_jsonb(NEW)%')" ;;
     *) return 1 ;;
   esac
 }

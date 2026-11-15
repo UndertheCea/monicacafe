@@ -505,7 +505,9 @@ func (s *Store) SetCoffeePublished(ctx context.Context, id string, published boo
 // its current lineup order and locks them for the rest of the transaction, so
 // a reorder can't race with another reorder. Call it inside InTx.
 func (s *Store) ShopCoffeeIDsForUpdate(ctx context.Context, shopID string) ([]string, error) {
-	rows, err := s.db.Query(ctx, `SELECT id FROM coffees WHERE shop_id = $1
+	// Archived coffees (#278) are left out: the seller's list doesn't show
+	// them, so a line-up that counted them could never match (#290).
+	rows, err := s.db.Query(ctx, `SELECT id FROM coffees WHERE shop_id = $1 AND archived_at IS NULL
 		ORDER BY shop_position, created_at DESC, id FOR UPDATE`, shopID)
 	if err != nil {
 		return nil, mapErr(err)

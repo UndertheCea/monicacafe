@@ -83,16 +83,17 @@ export async function openShop(page, { name, slug }) {
 }
 
 /** Adds a draft coffee with every required field; returns its dashboard edit path. */
-export async function addCoffee(page, name) {
+/** Adds a draft coffee. `origin` / `process` / `notes` default to a washed Ethiopian like the seeded 耶加雪菲. */
+export async function addCoffee(page, name, { origin = "Ethiopia", process = "Washed", notes = "jasmine, bergamot" } = {}) {
   await page.goto("/dashboard/coffees/new");
   await page.getByLabel("Name *").fill(name);
-  await page.getByLabel("Origin *").selectOption({ label: "Ethiopia" });
-  await page.getByLabel("Process *").selectOption({ label: "Washed" });
+  await page.getByLabel("Origin *").selectOption({ label: origin });
+  await page.getByLabel("Process *").selectOption({ label: process });
   await page.getByLabel("Variety *").selectOption({ label: "Heirloom" });
   await page.getByLabel("Producer *").fill("Konga Cooperative");
   await page.getByLabel("Region *").fill("Gedeo, Yirgacheffe");
   await page.getByLabel("Altitude (lowest) *").fill("1900");
-  await page.getByLabel("Flavor notes *").fill("jasmine, bergamot");
+  await page.getByLabel("Flavor notes *").fill(notes);
   await page.getByLabel("Price (NT$)").fill("480");
   await page.getByLabel("Stock").fill("12");
   await page.getByRole("button", { name: "Save draft" }).click();

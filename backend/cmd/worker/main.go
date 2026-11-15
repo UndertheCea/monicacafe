@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,7 +22,38 @@ const (
 	cancelTimeout = 5 * time.Second
 )
 
+// healthTimeout bounds the database check behind `worker health`.
+const healthTimeout = 5 * time.Second
+
+// isHealthCmd reports whether the arguments (without the program name) ask for
+// the container healthcheck instead of running the worker.
+func isHealthCmd(args []string) bool {
+	return len(args) == 1 && args[0] == "health"
+}
+
+// health is the compose healthcheck: the worker is fit when the database it
+// works from answers. It returns nil when it does.
+func health() error {
+	cfg := config.Load()
+	ctx, cancel := context.WithTimeout(context.Background(), healthTimeout)
+	defer cancel()
+	// db.New pings, so a successful return means the database answered.
+	pool, err := db.New(ctx, cfg.DatabaseURL, db.Options{MaxConns: 1})
+	if err != nil {
+		return err
+	}
+	pool.Close()
+	return nil
+}
+
 func main() {
+	if isHealthCmd(os.Args[1:]) {
+		if err := health(); err != nil {
+			fmt.Fprintln(os.Stderr, "unhealthy:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	if err := run(); err != nil {
 		slog.Error("worker exited", "err", err)

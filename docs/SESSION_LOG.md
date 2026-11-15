@@ -44,7 +44,7 @@ cart half of #322 in a worktree (cherry-picked).
 ### Decisions / deferred (anything the next session or the owner should know)
 - `Variant.onSale` is public like `stock`: on a sold-out option it only says whether the seller means to sell it again.
 - Dependabot's #313 (postgres 18) and #247 (redis 8) should be closed by the owner; future majors won't be proposed.
-- The audit also noted English "1 coffees" / "1 shops" counts (`coffees.count`, `shops.count`); not filed yet.
+- The audit also noted English "1 coffees" / "1 shops" counts (`coffees.count`, `shops.count`): #324.
 
 ## Session 41 — 2026-11-15 — Stage 1 closed out; Stage 2 groundwork before orders (six slices)
 PR: #312

@@ -75,7 +75,7 @@ jobs:
           docker run -d --name seaweedfs -p 8333:8333 \
             -e S3_BUCKET=media -e S3_ACCESS_KEY=monica_s3 -e S3_SECRET_KEY=monica_s3_secret \
             -v "$PWD/scripts/seaweedfs.sh:/seaweedfs.sh:ro" \
-            --entrypoint /bin/sh chrislusf/seaweedfs:4.52 /seaweedfs.sh start
+            --entrypoint /bin/sh chrislusf/seaweedfs:4.53 /seaweedfs.sh start
           for i in $(seq 60); do curl -sf http://localhost:8333/healthz >/dev/null && break; sleep 1; done
           docker exec -e S3_BUCKET=media -e SEAWEED_HOST=localhost seaweedfs /bin/sh /seaweedfs.sh init
       - name: gofmt
@@ -130,6 +130,9 @@ jobs:
       # Production dependencies only; high and critical advisories fail the build.
       - name: npm audit
         working-directory: frontend
+        run: npm audit --audit-level=high --omit=dev
+      - name: npm audit (e2e)
+        working-directory: e2e
         run: npm audit --audit-level=high --omit=dev
 
   compose:

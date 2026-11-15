@@ -3,8 +3,21 @@
 # Every value below has a safe *development* default; override any of them by
 # copying .env.example to .env (compose reads it automatically).
 
+# Applied to every service (merge key). no-new-privileges blocks setuid
+# escalation; json-file rotation keeps container logs from filling the disk (#309).
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
 services:
   postgres:
+    <<: *hardening
+    mem_limit: 1g
     image: postgres:17.11-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-monica}
@@ -40,6 +53,9 @@ services:
   # instead of failing. The API starts only after it succeeds. A volume made
   # before schema_migrations existed needs MIGRATE_BASELINE once (see .env.example).
   migrate:
+    <<: *hardening
+    mem_limit: 256m
+    cap_drop: [ALL]
     image: postgres:17.11-alpine
     entrypoint: ["/bin/sh", "/monicacafe/scripts/migrate.sh"]
     environment:
@@ -58,6 +74,8 @@ services:
   # Reserved (cart / cache, Stage 2): no code reads it yet, so it only starts
   # with `docker compose --profile cache up`. The backend does not wait for it.
   redis:
+    <<: *hardening
+    mem_limit: 256m
     profiles: ["cache"]
     image: redis:7.4.12-alpine
     command: redis-server --appendonly yes
@@ -73,6 +91,8 @@ services:
   # Reserved (Stage 3 search): nothing uses it yet, so it only starts with
   # `docker compose --profile search up`. Set MEILI_KEY first (see .env.example).
   meilisearch:
+    <<: *hardening
+    mem_limit: 1g
     profiles: ["search"]
     image: getmeili/meilisearch:v1.56
     environment:
@@ -94,6 +114,8 @@ services:
   # SeaweedFS stands in for MinIO, whose images left Docker Hub. Images are
   # uploaded with presigned PUTs and served through nginx at /media/.
   seaweedfs:
+    <<: *hardening
+    mem_limit: 512m
     image: chrislusf/seaweedfs:4.53
     entrypoint: ["/bin/sh", "/seaweedfs.sh", "start"]
     environment:
@@ -112,6 +134,8 @@ services:
 
   # One-shot: creates the bucket (idempotent).
   seaweedfs-init:
+    <<: *hardening
+    mem_limit: 256m
     image: chrislusf/seaweedfs:4.53
     entrypoint: ["/bin/sh", "/seaweedfs.sh", "init"]
     environment:
@@ -125,6 +149,13 @@ services:
     restart: "no"
 
   backend:
+    <<: *hardening
+    mem_limit: 512m
+    cap_drop: [ALL]
+    # The server writes no files (checked: no os.Create / WriteFile outside tests).
+    read_only: true
+    tmpfs:
+      - /tmp
     build:
       context: ./backend
     environment:
@@ -209,6 +240,8 @@ services:
   # to BACKUP_TARGET, a directory, kept in the backup_data volume). Runbook and
   # restore: docs/BACKUP.md. CI runs the same image for its restore drill.
   backup:
+    <<: *hardening
+    mem_limit: 512m
     profiles: ["prod"]
     build:
       context: ./scripts
@@ -262,6 +295,9 @@ services:
     restart: unless-stopped
 
   frontend:
+    <<: *hardening
+    mem_limit: 768m
+    cap_drop: [ALL]
     build:
       context: ./frontend
       # No build args (#210): the browser calls /graphql on the page's origin.
@@ -284,6 +320,8 @@ services:
     restart: unless-stopped
 
   nginx:
+    <<: *hardening
+    mem_limit: 128m
     image: nginx:1.31.8-alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
@@ -308,6 +346,14 @@ services:
       # Loopback only by default (#287): a dev stack must not be reachable from
       # the network. HTTP_BIND=0.0.0.0 opens it (see docs/DEPLOY.md first).
       - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-80}:80"
+    healthcheck:
+      # nginx's own location (no upstream, not logged, not rate limited).
+      # 127.0.0.1, not localhost (busybox wget and IPv6, see meilisearch).
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/nginx-health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      start_period: 5s
+      retries: 5
     restart: unless-stopped
 
 # A fixed subnet, so TRUSTED_PROXIES can name exactly the compose network.

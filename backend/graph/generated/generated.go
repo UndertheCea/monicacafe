@@ -2678,8 +2678,11 @@ input UpdateShopInput {
   logoUrl: String
   bannerUrl: String
   city: String
+  # lat and lng come as a pair (BAD_USER_INPUT on lng otherwise).
   lat: Float
   lng: Float
+  # true removes the shop's location (it leaves /map); can't be combined with lat / lng.
+  clearLocation: Boolean
 }
 
 # Required (owner's answer on #176): name, origin, process, variety, at least
@@ -12589,7 +12592,7 @@ func (ec *executionContext) unmarshalInputUpdateShopInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "logoUrl", "bannerUrl", "city", "lat", "lng"}
+	fieldsInOrder := [...]string{"name", "description", "logoUrl", "bannerUrl", "city", "lat", "lng", "clearLocation"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12645,6 +12648,13 @@ func (ec *executionContext) unmarshalInputUpdateShopInput(ctx context.Context, o
 				return it, err
 			}
 			it.Lng = data
+		case "clearLocation":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearLocation"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearLocation = data
 		}
 	}
 	return it, nil

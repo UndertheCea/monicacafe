@@ -776,6 +776,21 @@ func validateCoords(lat, lng *float64) error {
 	return nil
 }
 
+// locationUpdate checks that a shop's location changes as a whole (#295):
+// lat and lng together, or clearLocation alone. It reports whether to clear.
+func locationUpdate(lat, lng *float64, clear *bool) (bool, error) {
+	if (lat == nil) != (lng == nil) {
+		return false, errBadInput("lng", "lat and lng must be set together")
+	}
+	if clear == nil || !*clear {
+		return false, nil
+	}
+	if lat != nil {
+		return false, errBadInput("clearLocation", "clearLocation can't be combined with lat / lng")
+	}
+	return true, nil
+}
+
 // validateRefs checks optional curated reference IDs exist. Nil IDs are skipped.
 func (r *Resolver) validateRefs(ctx context.Context, originID, varietyID, methodID *string) error {
 	refs, err := r.refs.get(ctx)
@@ -1001,13 +1016,23 @@ func toShopPin(p *store.ShopPin) *model.ShopPin {
 
 // MaxCoffeesPerShop caps a shop's coffees, drafts included (#213), so one
 // account can't flood the catalogue. A seller who reaches it deletes drafts
-// first. The count is read before the insert, so two concurrent creates can
-// overshoot by one; the seller write rate limit bounds that.
+// first. checkCoffeeCap answers early, before the input is validated;
+// checkCoffeeCapTx repeats the count under the shop's row lock in the insert's
+// transaction, so concurrent creates can't overshoot (#295).
 const MaxCoffeesPerShop = 200
 
 // checkCoffeeCap refuses a new coffee when the shop already has the maximum.
 func (r *Resolver) checkCoffeeCap(ctx context.Context, shopID string) error {
-	n, err := r.Store.CountShopCoffees(ctx, shopID)
+	return coffeeCapErr(r.Store.CountShopCoffees(ctx, shopID))
+}
+
+// checkCoffeeCapTx is checkCoffeeCap inside the creating transaction: it
+// locks the shop row first, so creates in one shop take turns.
+func checkCoffeeCapTx(ctx context.Context, tx *store.Store, shopID string) error {
+	return coffeeCapErr(tx.LockShopCoffeeCount(ctx, shopID))
+}
+
+func coffeeCapErr(n int, err error) error {
 	if err != nil {
 		return err
 	}

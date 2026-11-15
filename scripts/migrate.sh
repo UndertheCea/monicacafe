@@ -106,6 +106,7 @@ baseline_marker() {
     021) echo "to_regclass('public.river_queue') IS NOT NULL" ;;
     022) echo "to_regclass('public.cart_items') IS NOT NULL" ;;
     023) col coffees removed_at ;;
+    025) echo "EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shops_location_pair')" ;;
     *) return 1 ;;
   esac
 }

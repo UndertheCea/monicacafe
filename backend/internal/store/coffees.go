@@ -239,7 +239,8 @@ const (
 const fromPriceJoin = ` LEFT JOIN LATERAL (SELECT min(v.price_twd) AS p FROM variants v
 		WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) fp ON true`
 
-const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id) cc ON true`
+const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id
+		AND cm.user_id NOT IN (` + suspendedUserIDs + `)) cc ON true`
 
 const saveCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM saved_coffees sv WHERE sv.coffee_id = c.id) sc ON true`
 
@@ -288,7 +289,8 @@ func (s *Store) ListCoffees(ctx context.Context, f CoffeeFilter, sort CoffeeSort
 func (s *Store) PopularCoffees(ctx context.Context, limit int) ([]*Coffee, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT `+coffeeColumns+` FROM coffees c
-		LEFT JOIN (SELECT coffee_id, count(*) AS n FROM comments GROUP BY coffee_id) cc ON cc.coffee_id = c.id
+		LEFT JOIN (SELECT coffee_id, count(*) AS n FROM comments
+			WHERE user_id NOT IN (`+suspendedUserIDs+`) GROUP BY coffee_id) cc ON cc.coffee_id = c.id
 		WHERE `+publicCoffee+`
 		ORDER BY COALESCE(cc.n, 0) DESC, c.created_at DESC, c.id
 		LIMIT $1`, limit)
@@ -371,6 +373,19 @@ func (s *Store) CountShopCoffees(ctx context.Context, shopID string) (int, error
 	var n int
 	err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees WHERE shop_id = $1 AND archived_at IS NULL`, shopID).Scan(&n)
 	return n, mapErr(err)
+}
+
+// LockShopCoffeeCount locks the shop row (FOR UPDATE) and counts its coffees
+// like CountShopCoffees. Call it inside a transaction, before inserting, so
+// two creates can't both see room for one more (#295).
+func (s *Store) LockShopCoffeeCount(ctx context.Context, shopID string) (int, error) {
+	// Two statements on purpose: under READ COMMITTED a count in the locking
+	// statement would use the snapshot from before the wait, so it would miss
+	// the coffee the previous lock holder just inserted.
+	if _, err := s.db.Exec(ctx, `SELECT 1 FROM shops WHERE id = $1 FOR UPDATE`, shopID); err != nil {
+		return 0, mapErr(err)
+	}
+	return s.CountShopCoffees(ctx, shopID)
 }
 
 func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee, error) {

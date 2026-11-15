@@ -102,7 +102,8 @@ CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).
 
 ```bash
 cd backend && gofmt -l . && go build ./... && go vet ./... && go test ./... -count=1
-# with a migrated DB (DATABASE_URL=… ./scripts/migrate.sh): TEST_DATABASE_URL=postgres://monica:monica_secret@localhost:5432/monicacafe go test -race ./...
+# integration tests in a database of their own (they leave rows behind, #295):
+# TEST_DATABASE_URL=$(../scripts/test_db.sh) go test -race ./...
 cd frontend && npm ci && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd .. && docker compose config --quiet && ./scripts/check_brief.sh
 # full stack: docker compose up --build -d && ./scripts/smoke.sh

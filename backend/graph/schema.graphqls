@@ -614,8 +614,11 @@ input UpdateShopInput {
   logoUrl: String
   bannerUrl: String
   city: String
+  # lat and lng come as a pair (BAD_USER_INPUT on lng otherwise).
   lat: Float
   lng: Float
+  # true removes the shop's location (it leaves /map); can't be combined with lat / lng.
+  clearLocation: Boolean
 }
 
 # Required (owner's answer on #176): name, origin, process, variety, at least

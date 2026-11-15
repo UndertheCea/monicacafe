@@ -477,7 +477,7 @@ func TestMarketplaceFlow(t *testing.T) {
 		buyer.mustDo(`mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": c.ID}, nil)
 	}
 
-	seller.expectCode(graph.CodeForbidden, `mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID})
+	seller.expectCode(graph.CodeNotFound, `mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID})
 	buyer.mustDo(`mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID}, nil)
 	buyer.expectCode(graph.CodeNotFound, `mutation($id: ID!) { deleteComment(id: $id) }`, map[string]any{"id": cm.AddComment.ID})
 

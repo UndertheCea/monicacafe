@@ -36,9 +36,16 @@ export function cachedClient(next: { revalidate: number; tags: string[] }) {
   return new GraphQLClient(endpoint, { next });
 }
 
-export function authedClient(accessToken: string) {
+/**
+ * Client carrying the viewer's access token. The auth BFF also passes the
+ * visitor's address (`xff`, from nginx's X-Real-IP) so per-IP limits and logs
+ * see the visitor, not the frontend server (#295).
+ */
+export function authedClient(accessToken: string, xff?: string) {
+  const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
+  if (xff) headers["X-Forwarded-For"] = xff;
   return new GraphQLClient(endpoint, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers,
     credentials: "include",
     cache: "no-store",
   });

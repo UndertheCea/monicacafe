@@ -828,3 +828,39 @@ func TestCleanText(t *testing.T) {
 		}
 	}
 }
+
+func TestLocationUpdate(t *testing.T) {
+	f := func(v float64) *float64 { return &v }
+	yes, no := true, false
+	cases := []struct {
+		name      string
+		lat, lng  *float64
+		clear     *bool
+		wantClear bool
+		wantField string
+	}{
+		{"nothing", nil, nil, nil, false, ""},
+		{"pair", f(25), f(121.5), nil, false, ""},
+		{"lat alone", f(25), nil, nil, false, "lng"},
+		{"lng alone", nil, f(121.5), nil, false, "lng"},
+		{"clear", nil, nil, &yes, true, ""},
+		{"clear false", nil, nil, &no, false, ""},
+		{"clear with pair", f(25), f(121.5), &yes, false, "clearLocation"},
+		{"clear false with pair", f(25), f(121.5), &no, false, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := locationUpdate(tc.lat, tc.lng, tc.clear)
+			if tc.wantField == "" {
+				if err != nil || got != tc.wantClear {
+					t.Fatalf("got %v, %v; want %v, nil", got, err, tc.wantClear)
+				}
+				return
+			}
+			var ae *apiError
+			if !errors.As(err, &ae) || ae.field != tc.wantField {
+				t.Fatalf("err = %v; want field %q", err, tc.wantField)
+			}
+		})
+	}
+}

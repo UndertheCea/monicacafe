@@ -15,6 +15,51 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 40 — 2026-11-15 — Nine reference roasters, the values they need, UI polish, UI review analysis (thirteen slices)
+PR: #PRNUM
+
+No open session PR (only dependabot's) and no owner answers on questions. The owner had unblocked the reference-shop
+slices by attaching locally collected lists (branch `platform-feature-sumry`, #168 (b)), so this session took all nine
+(#170–#173, #299–#303) and #174, which they feed. Sonnet sub-agents built #294 and #298 in worktrees (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #170 cross-cutting — `reference_add(slug, jsonb)` loads a roaster's JSON array as printed; `reference_catalogue`
+  origin / process / roast nullable + `blend`; `reference_accepted_gaps` (reviewed values with a reason, shown as
+  "accepted", don't fail `--strict`); gap report shows loaded counts; self-test rewritten around made-up values and
+  covering NULL origins, blends and accepted gaps; removal drops the new objects. Lab19: 21 coffees.
+- #171 SEY (9), #172 Poma (18), #173 Onyx (33), #299 Coffee Collective (12), #300 La Cabra (8), #301 September (15),
+  #302 Phil & Sebastian (20), #303 Monogram (45) — one `reference_add` block each in `scripts/seed_reference.sql`;
+  the owner's files kept in `docs/reference-data/` (+ README).
+- #174 backend — migration 024: Ecuador, Mexico; 18 varieties incl. `Mixed` (several cultivars in one lot); White
+  Honey, Pulped Natural, Lactic, Yeast Inoculated, Co-Fermented, Thermal Shock, Sugarcane Decaf. ~80 aliases (spelling
+  variants, multi-cultivar lists → Mixed, multi-step processes → the defining step). Accepted gaps: multi-country blends,
+  lots printing no country / process, Poma's Danish research station. 159 of 181 coffees load; `--strict` passes.
+  `health.ExpectedMigration` = 024. Smoke's limit-100 filter checks add `inStock: true` (reference coffees are sold out).
+  Search synonym 厄瓜多 / 厄瓜多爾.
+- #294 frontend — a coffee without a photo says its words once (tile on cards, plain tile on the coffee page;
+  `lib/coffeeCard.ts`); no forced capitals in tiles; shop name truncates on cards; coffee page: price → add to cart →
+  save → facts; /account: saved / following first + "Jump to"; seller form explains itself, "Shop web address"; solid
+  danger button; /map lists cities with ≤ 5 shops + "N more" (`lib/mapList.ts`), no "no location" rows, overflow fix;
+  `e2e/layout.test.mjs` (no sideways scroll at 390 px on 13 pages). Declined: 5 (#203), 9 (#177 (b) / #291), 11 (#226),
+  the options table on the coffee page (only place sold-out options / stock show).
+- #298 cross-cutting — `docs/ui-ux-review.md` (owner's review, verbatim) + `docs/ui-review-analysis.md` (13 ideas;
+  recommends three: spec block, roast twin link, seller-made shop sections). Question #306, default "build none" (safe).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16,
+  migrations 001–024). Reference seed: CI's sequence (seed → `reference_gaps.sh --strict` → re-run → self-test → gaps →
+  removal → nothing left) on a fresh DB, and an upgrade from master's seed on an existing DB. Local API: the three changed
+  smoke filter checks pass with the reference shops loaded; reference shop / processes queried through GraphQL.
+- Frontend: tsc, lint, `npm test` (297), `next build`. `docker compose config --quiet`, `check_brief.sh`.
+- Not run here: the compose stack, `smoke.sh` in full and the Playwright suite (incl. the new layout test) — no Docker
+  daemon; CI's `stack` job runs them. No before / after screenshots for #294 for the same reason.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Several cultivars in one lot → variety "Mixed"; multi-country blends aren't listable as such (main country +
+  description). Question #307 (default: keep it so, safe).
+- Onyx "Cold Brew" / "Eclipse" are blends printing one country: loaded as that country.
+- Next: #295 (p3), then stage-2 #290 / #291; orders still wait on #205.
+
 ## Session 39 — 2026-11-14 — Audit fixes: moderation, query abuse, private reads, privacy, exposure, backups (eight slices)
 PR: #296
 

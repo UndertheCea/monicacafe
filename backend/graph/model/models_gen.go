@@ -216,12 +216,17 @@ type UserConnection struct {
 }
 
 type Variant struct {
-	ID          string      `json:"id"`
-	Grind       GrindOption `json:"grind"`
-	WeightG     int         `json:"weightG"`
-	PriceTwd    money.TWD   `json:"priceTwd"`
-	Stock       int         `json:"stock"`
-	IsAvailable bool        `json:"isAvailable"`
+	ID       string      `json:"id"`
+	Grind    GrindOption `json:"grind"`
+	WeightG  int         `json:"weightG"`
+	PriceTwd money.TWD   `json:"priceTwd"`
+	Stock    int         `json:"stock"`
+	// Buyable now: the seller's on-sale switch is on AND stock > 0.
+	IsAvailable bool `json:"isAvailable"`
+	// The seller's on-sale switch alone, whatever the stock (#318): the dashboard's
+	// checkbox. Public like stock: on a sold-out option it says only whether the
+	// seller means to sell it again.
+	OnSale bool `json:"onSale"`
 	// Last change to price, stock or availability (#278).
 	UpdatedAt time.Time `json:"updatedAt"`
 }

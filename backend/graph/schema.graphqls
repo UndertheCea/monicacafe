@@ -473,7 +473,14 @@ type Variant {
   weightG: Int!
   priceTwd: TWD!
   stock: Int!
+  "Buyable now: the seller's on-sale switch is on AND stock > 0."
   isAvailable: Boolean!
+  """
+  The seller's on-sale switch alone, whatever the stock (#318): the dashboard's
+  checkbox. Public like stock: on a sold-out option it says only whether the
+  seller means to sell it again.
+  """
+  onSale: Boolean!
   "Last change to price, stock or availability (#278)."
   updatedAt: Time!
 }

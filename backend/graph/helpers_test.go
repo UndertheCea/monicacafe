@@ -864,3 +864,27 @@ func TestLocationUpdate(t *testing.T) {
 		})
 	}
 }
+
+// isAvailable is "buyable now"; onSale is the seller's switch alone, so the
+// dashboard can show it for a sold-out option (#318).
+func TestToVariantOnSale(t *testing.T) {
+	cases := []struct {
+		name                  string
+		stock                 int
+		switchOn              bool
+		wantAvail, wantOnSale bool
+	}{
+		{"on sale with stock", 3, true, true, true},
+		{"on sale, sold out", 0, true, false, true},
+		{"off sale with stock", 3, false, false, false},
+		{"off sale, sold out", 0, false, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := toVariant(&store.Variant{Stock: tc.stock, IsAvailable: tc.switchOn})
+			if v.IsAvailable != tc.wantAvail || v.OnSale != tc.wantOnSale {
+				t.Fatalf("isAvailable = %v, onSale = %v; want %v / %v", v.IsAvailable, v.OnSale, tc.wantAvail, tc.wantOnSale)
+			}
+		})
+	}
+}

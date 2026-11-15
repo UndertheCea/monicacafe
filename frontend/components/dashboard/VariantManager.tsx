@@ -14,7 +14,7 @@ import {
 } from "@/lib/dashboard/queries";
 import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
-import { variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
+import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
@@ -181,17 +181,15 @@ function VariantRow({
 }) {
   const [price, setPrice] = useState(String(v.priceTwd));
   const [stock, setStock] = useState(String(v.stock));
-  // isAvailable from the API is false when stock is 0; the seller's switch is
-  // only meaningful with stock, so start it "on" for out-of-stock rows.
-  const initialOnSale = v.isAvailable || v.stock === 0;
-  const [onSale, setOnSale] = useState(initialOnSale);
+  // The stored switch, not isAvailable (false whenever stock is 0, #318).
+  const [onSale, setOnSale] = useState(v.onSale);
   const [busy, setBusy] = useState(false);
   const fe = useFormErrors<"price" | "stock">(`variant-${v.id}`, ROW_ORDER);
   const [saved, setSaved] = useState(false);
 
   const p = parseWhole(price, 0, LIMITS.priceTwd);
   const s = parseWhole(stock, 0, LIMITS.stock);
-  const dirty = p !== v.priceTwd || s !== v.stock || onSale !== initialOnSale;
+  const dirty = variantRowDirty(v, { priceTwd: p, stock: s, onSale });
   useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
 
   async function save() {
@@ -202,7 +200,7 @@ function VariantRow({
     fe.clear();
     try {
       // Stock goes with the stock last loaded (#277); isAvailable only when toggled.
-      const input = variantUpdateInput(v, { priceTwd: p, stock: s }, onSale !== initialOnSale ? onSale : undefined);
+      const input = variantUpdateInput(v, { priceTwd: p, stock: s }, onSale !== v.onSale ? onSale : undefined);
       const r = await request(UPDATE_VARIANT, { id: v.id, input });
       onSaved(r.updateVariant);
       setSaved(true);

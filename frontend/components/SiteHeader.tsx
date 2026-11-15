@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n/dict";
+import { CartLink } from "./cart/CartLink";
 import { NavDrawer } from "./NavDrawer";
 import { SearchToggle } from "./SearchToggle";
 import { Wordmark } from "./Wordmark";
@@ -9,7 +10,8 @@ import { Page } from "@/components/Page";
  * button (opens the navigation drawer), the wordmark centred, and a search
  * icon. Everything else (coffees, shops, map, language, account) is in the
  * drawer. The outer columns are the same width, so the wordmark sits in the
- * middle of the page.
+ * middle of the page. Signed-in visitors also get a cart link beside the
+ * search icon (#311).
  */
 export function SiteHeader({ locale }: { locale: Locale }) {
   return (
@@ -19,7 +21,8 @@ export function SiteHeader({ locale }: { locale: Locale }) {
           <NavDrawer locale={locale} />
         </div>
         <Wordmark />
-        <div className="justify-self-end">
+        <div className="flex items-center gap-2 justify-self-end">
+          <CartLink locale={locale} />
           <SearchToggle locale={locale} />
         </div>
       </Page>

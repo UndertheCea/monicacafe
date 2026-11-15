@@ -331,12 +331,13 @@ export interface ShopProfilePatch {
   city?: string;
   lat?: number;
   lng?: number;
+  clearLocation?: true;
 }
 
 /**
  * The `updateShop` input for the fields that changed. A location is always
- * sent as a pair. Clearing a saved location isn't supported by updateShop
- * (null means "unchanged"), so a blank location simply sends nothing.
+ * sent as a pair; blanking both halves of a saved location sends
+ * `clearLocation` (null alone means "unchanged" to updateShop, #295).
  */
 export function shopProfilePatch(before: ShopProfile, after: ShopProfile): ShopProfilePatch {
   const p: ShopProfilePatch = {};
@@ -349,6 +350,8 @@ export function shopProfilePatch(before: ShopProfile, after: ShopProfile): ShopP
   if (after.lat !== null && after.lng !== null && (after.lat !== before.lat || after.lng !== before.lng)) {
     p.lat = after.lat;
     p.lng = after.lng;
+  } else if (after.lat === null && after.lng === null && before.lat !== null) {
+    p.clearLocation = true;
   }
   return p;
 }

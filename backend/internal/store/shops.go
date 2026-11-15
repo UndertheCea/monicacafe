@@ -42,8 +42,10 @@ type UpdateShopParams struct {
 	LogoURL     *string // "" clears
 	BannerURL   *string // "" clears
 	City        *string
-	Lat         *float64
+	Lat         *float64 // set with Lng
 	Lng         *float64
+	// ClearLocation removes lat / lng (when Lat / Lng are nil).
+	ClearLocation bool
 }
 
 // UpdateShop applies a partial update.
@@ -55,11 +57,11 @@ func (s *Store) UpdateShop(ctx context.Context, id string, p UpdateShopParams) (
 			logo_url    = CASE WHEN $4::text IS NULL THEN logo_url ELSE NULLIF($4, '') END,
 			banner_url  = CASE WHEN $5::text IS NULL THEN banner_url ELSE NULLIF($5, '') END,
 			city        = COALESCE($6, city),
-			lat         = COALESCE($7, lat),
-			lng         = COALESCE($8, lng)
+			lat         = CASE WHEN $9 THEN NULL ELSE COALESCE($7, lat) END,
+			lng         = CASE WHEN $9 THEN NULL ELSE COALESCE($8, lng) END
 		WHERE id = $1
 		RETURNING `+shopColumns,
-		id, p.Name, p.Description, p.LogoURL, p.BannerURL, p.City, p.Lat, p.Lng))
+		id, p.Name, p.Description, p.LogoURL, p.BannerURL, p.City, p.Lat, p.Lng, p.ClearLocation))
 }
 
 // ShopByID fetches a shop by primary key.

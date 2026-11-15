@@ -5,7 +5,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /server ./cmd/server \
- && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /admin ./cmd/admin
+ && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /admin ./cmd/admin \
+ && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /worker ./cmd/worker
 
 FROM alpine:3.24.4
 # CA roots come from the builder image (golang:alpine ships them), so the
@@ -19,6 +20,8 @@ WORKDIR /app
 COPY --from=builder /server /app/server
 # Grants / revokes the ADMIN role: docker compose exec backend /app/admin grant <email>
 COPY --from=builder /admin /app/admin
+# River job worker; compose profile `worker` runs it (`/app/worker health` is its healthcheck).
+COPY --from=builder /worker /app/worker
 USER app
 EXPOSE 4000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \

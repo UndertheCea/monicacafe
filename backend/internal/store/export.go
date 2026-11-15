@@ -12,6 +12,10 @@ import (
 // version) and other people's data (who handled a report, who acted in the
 // audit log, other users' comments) are left out on purpose; a test checks
 // the keys. One statement, so the document is one consistent snapshot.
+//
+// Names of things the user can no longer see (another shop's draft, archived
+// or taken-down coffee, a suspended shop) are null: the ids stay, so the rows
+// still say what the user did, without leaking current names (#295).
 const exportSQL = `
 SELECT jsonb_build_object(
   'exportedAt', now(),
@@ -23,20 +27,20 @@ SELECT jsonb_build_object(
     FROM refresh_tokens rt
     WHERE rt.user_id = u.id AND rt.revoked_at IS NULL AND rt.expires_at > now()), '[]'::jsonb),
   'comments', COALESCE((SELECT jsonb_agg(jsonb_build_object(
-      'id', cm.id, 'coffeeId', cm.coffee_id, 'coffeeName', c.name, 'body', cm.body,
+      'id', cm.id, 'coffeeId', cm.coffee_id, 'coffeeName', (CASE WHEN ` + publicCoffee + ` OR c.shop_id IN (SELECT id FROM shops WHERE owner_id = u.id) THEN c.name END), 'body', cm.body,
       'createdAt', cm.created_at, 'editedAt', cm.edited_at) ORDER BY cm.created_at, cm.id)
     FROM comments cm JOIN coffees c ON c.id = cm.coffee_id
     WHERE cm.user_id = u.id), '[]'::jsonb),
   'savedCoffees', COALESCE((SELECT jsonb_agg(jsonb_build_object(
-      'coffeeId', sv.coffee_id, 'coffeeName', c.name, 'savedAt', sv.created_at) ORDER BY sv.created_at, sv.id)
+      'coffeeId', sv.coffee_id, 'coffeeName', (CASE WHEN ` + publicCoffee + ` OR c.shop_id IN (SELECT id FROM shops WHERE owner_id = u.id) THEN c.name END), 'savedAt', sv.created_at) ORDER BY sv.created_at, sv.id)
     FROM saved_coffees sv JOIN coffees c ON c.id = sv.coffee_id
     WHERE sv.user_id = u.id), '[]'::jsonb),
   'followedShops', COALESCE((SELECT jsonb_agg(jsonb_build_object(
-      'shopSlug', s.slug, 'shopName', s.name, 'followedAt', f.created_at) ORDER BY f.created_at, f.id)
+      'shopSlug', s.slug, 'shopName', (CASE WHEN s.suspended_at IS NULL THEN s.name END), 'followedAt', f.created_at) ORDER BY f.created_at, f.id)
     FROM shop_follows f JOIN shops s ON s.id = f.shop_id
     WHERE f.user_id = u.id), '[]'::jsonb),
   'cart', COALESCE((SELECT jsonb_agg(jsonb_build_object(
-      'coffeeId', c.id, 'coffeeName', c.name, 'grind', v.grind, 'weightG', v.weight_g,
+      'coffeeId', c.id, 'coffeeName', (CASE WHEN ` + publicCoffee + ` OR c.shop_id IN (SELECT id FROM shops WHERE owner_id = u.id) THEN c.name END), 'grind', v.grind, 'weightG', v.weight_g,
       'quantity', ci.quantity, 'priceTwdWhenAdded', ci.price_twd, 'addedAt', ci.created_at,
       'updatedAt', ci.updated_at) ORDER BY ci.created_at, ci.id)
     FROM cart_items ci JOIN variants v ON v.id = ci.variant_id JOIN coffees c ON c.id = v.coffee_id

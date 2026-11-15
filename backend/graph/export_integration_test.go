@@ -101,8 +101,35 @@ func TestMyDataExport(t *testing.T) {
 		t.Errorf("seller export contains the buyer's data:\n%s", raw)
 	}
 
-	// Burst 3 per account: the buyer has used one, two more pass, then RATE_LIMITED.
-	export(buyer)
+	if comments[0].(map[string]any)["coffeeName"] == nil {
+		t.Errorf("a public coffee's name is missing: %v", comments)
+	}
+
+	// The coffee goes back to draft and the shop is suspended: the buyer can't
+	// see them any more, so the export keeps the ids but not the names (#295).
+	// The seller still sees their own coffee's name.
+	if _, err := pool.Exec(t.Context(), `UPDATE coffees SET is_published = false WHERE id = $1`, coffeeID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(t.Context(), `UPDATE shops SET suspended_at = now() WHERE id = $1`, shop.CreateShop.ID); err != nil {
+		t.Fatal(err)
+	}
+	doc, _ = export(buyer)
+	for _, k := range []string{"comments", "savedCoffees", "cart"} {
+		rows := doc[k].([]any)
+		if len(rows) != 1 || rows[0].(map[string]any)["coffeeId"] != coffeeID || rows[0].(map[string]any)["coffeeName"] != nil {
+			t.Errorf("%s after unpublish: %v", k, rows)
+		}
+	}
+	if f := doc["followedShops"].([]any); len(f) != 1 || f[0].(map[string]any)["shopName"] != nil {
+		t.Errorf("followedShops after suspension: %v", f)
+	}
+	doc, _ = export(seller)
+	if cm := doc["comments"].([]any); len(cm) != 1 || cm[0].(map[string]any)["coffeeName"] == nil {
+		t.Errorf("seller's comment on their own draft lost its name: %v", cm)
+	}
+
+	// Burst 3 per account: the buyer has used two, one more passes, then RATE_LIMITED.
 	export(buyer)
 	buyer.expectCode(graph.CodeRateLimited, q, nil)
 }

@@ -1,7 +1,18 @@
 // Cart helpers (lib/cart.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_CART_QUANTITY, cartErrorKey, groupByShop, quantityChoices } from "../lib/cart.ts";
+import {
+  MAX_CART_QUANTITY,
+  bagsLeft,
+  cartBadgeText,
+  cartErrorKey,
+  cartLoginHref,
+  cartProblem,
+  groupByShop,
+  inCartFor,
+  parseCartChoice,
+  quantityChoices,
+} from "../lib/cart.ts";
 
 const shopA = { slug: "a", name: "A 烘焙" };
 const shopB = { slug: "b", name: "B Roasters" };
@@ -47,4 +58,71 @@ test("cartErrorKey maps API errors to messages", () => {
   assert.equal(cartErrorKey("BAD_USER_INPUT", "variantId"), "cart.error.unavailable");
   assert.equal(cartErrorKey("NOT_FOUND"), "cart.error.unavailable");
   assert.equal(cartErrorKey("INTERNAL_SERVER_ERROR"), "cart.error.generic");
+});
+
+test("cartProblem names the bags left, or sold out, when the server says so", () => {
+  const cases = [
+    { in: ["BAD_USER_INPUT", "quantity", 3], want: { key: "cart.error.onlyLeft", vars: { n: 3 } } },
+    { in: ["BAD_USER_INPUT", "quantity", 0], want: { key: "cart.error.soldOut" } },
+    { in: ["BAD_USER_INPUT", "quantity", undefined], want: { key: "cart.error.quantity" } },
+    { in: ["BAD_USER_INPUT", "variantId", 2], want: { key: "cart.error.unavailable" } },
+    { in: ["OWN_SHOP", undefined, undefined], want: { key: "cart.error.ownShop" } },
+    { in: ["LIMIT_REACHED", undefined, undefined], want: { key: "cart.error.full" } },
+  ];
+  for (const c of cases) assert.deepEqual(cartProblem(...c.in), c.want, JSON.stringify(c.in));
+});
+
+test("inCartFor sums the lines of one option", () => {
+  const items = [line("1", shopA, 450), { ...line("2", shopA, 450), quantity: 3 }];
+  assert.equal(inCartFor(items, "v1"), 1);
+  assert.equal(inCartFor(items, "v2"), 3);
+  assert.equal(inCartFor(items, "nope"), 0);
+});
+
+test("bagsLeft is stock (max 20) minus the cart, lowered by what the server reported", () => {
+  const cases = [
+    { in: [10, 0], want: 10 },
+    { in: [10, 4], want: 6 },
+    { in: [60, 0], want: 20 },
+    { in: [60, 5], want: 15 },
+    { in: [3, 5], want: 0 },
+    { in: [10, 0, 2], want: 2 },
+    { in: [10, 0, 50], want: 10 },
+    { in: [10, 0, 0], want: 0 },
+    { in: [-1, 0], want: 0 },
+  ];
+  for (const c of cases) assert.equal(bagsLeft(...c.in), c.want, JSON.stringify(c.in));
+});
+
+test("cartBadgeText", () => {
+  assert.equal(cartBadgeText(0), "");
+  assert.equal(cartBadgeText(7), "7");
+  assert.equal(cartBadgeText(99), "99");
+  assert.equal(cartBadgeText(100), "99+");
+  assert.equal(cartBadgeText(Number.NaN), "");
+});
+
+test("cartLoginHref keeps option and quantity in ?next= and the result stays a safe path", async () => {
+  const { safeNext } = await import("../lib/auth/token.ts");
+  const href = cartLoginHref("/coffees/abc", "v-1", 3);
+  const next = new URL(href, "http://x").searchParams.get("next");
+  assert.equal(next, "/coffees/abc?option=v-1&qty=3");
+  assert.equal(safeNext(next), "/coffees/abc?option=v-1&qty=3");
+});
+
+test("parseCartChoice accepts known options and 1-20 only", () => {
+  const ids = ["a", "b"];
+  const cases = [
+    { in: "?option=b&qty=4", want: { variantId: "b", quantity: 4 } },
+    { in: "option=a", want: { variantId: "a" } },
+    { in: "?option=zzz&qty=2", want: { quantity: 2 } },
+    { in: "?qty=0", want: {} },
+    { in: "?qty=21", want: {} },
+    { in: "?qty=2.5", want: {} },
+    { in: "?qty=-1", want: {} },
+    { in: "?qty=abc&option=", want: {} },
+    { in: "", want: {} },
+    { in: "?qty=20", want: { quantity: 20 } },
+  ];
+  for (const c of cases) assert.deepEqual(parseCartChoice(c.in, ids), c.want, c.in);
 });

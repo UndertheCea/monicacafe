@@ -42,10 +42,12 @@ func TestCartAddProblem(t *testing.T) {
 		{"draft coffee", cv(10, true, true, false), 0, 1, 0, CodeNotFound},
 		{"full cart, new line", ok, 0, 1, store.MaxCartLines, CodeLimitReached},
 		{"full cart, existing line", ok, 1, 1, store.MaxCartLines, ""},
+		{"own shop", &store.CartVariant{Variant: ok.Variant, VariantLive: true, CoffeePublic: true, ShopOwnerID: "buyer"}, 0, 1, 0, CodeOwnShop},
+		{"NT$0 option", &store.CartVariant{Variant: store.Variant{Stock: 10, IsAvailable: true}, VariantLive: true, CoffeePublic: true}, 0, 1, 0, CodeBadInput},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := codeOf(cartAddProblem(tc.cv, tc.have, tc.add, tc.lines)); got != tc.want {
+			if got := codeOf(cartAddProblem(tc.cv, "buyer", tc.have, tc.add, tc.lines)); got != tc.want {
 				t.Fatalf("code = %q, want %q", got, tc.want)
 			}
 		})
@@ -109,5 +111,45 @@ func TestBuildCart(t *testing.T) {
 	}
 	if empty := buildCart(nil); empty.Items == nil || len(empty.Items) != 0 || empty.SubtotalTwd != 0 {
 		t.Fatalf("empty cart = %+v", empty)
+	}
+}
+
+// availableOf returns the "available" extension of a cart error, or -1.
+func availableOf(err error) int {
+	var ae *apiError
+	if errors.As(err, &ae) && ae.available != nil {
+		return *ae.available
+	}
+	return -1
+}
+
+// TestCartAvailable (#291): a refused cart write says how many bags the line
+// can still take, so the page can say "only N left".
+func TestCartAvailable(t *testing.T) {
+	cv := &store.CartVariant{Variant: store.Variant{Stock: 7, IsAvailable: true, PriceTWD: 450}, VariantLive: true, CoffeePublic: true}
+	big := &store.CartVariant{Variant: store.Variant{Stock: 500, IsAvailable: true, PriceTWD: 450}, VariantLive: true, CoffeePublic: true}
+	line := func(qty, stock int, avail bool) *store.CartLine {
+		return &store.CartLine{Quantity: qty, Variant: store.Variant{Stock: stock, IsAvailable: avail}, VariantLive: true, CoffeePublic: true}
+	}
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{"add past stock, empty line", cartAddProblem(cv, "b", 0, 8, 0), 7},
+		{"add past stock, line holds 5", cartAddProblem(cv, "b", 5, 3, 1), 2},
+		{"add when the line holds all", cartAddProblem(cv, "b", 7, 1, 1), 0},
+		{"add past the 20-bag cap", cartAddProblem(big, "b", 18, 5, 1), 2},
+		{"fits: no extension", cartAddProblem(cv, "b", 0, 7, 0), -1},
+		{"bad quantity: no extension", cartAddProblem(cv, "b", 0, 0, 0), -1},
+		{"raise past stock", cartUpdateProblem(line(2, 4, true), 6), 4},
+		{"raise an off-sale line", cartUpdateProblem(line(2, 9, false), 3), 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := availableOf(tc.err); got != tc.want {
+				t.Fatalf("available = %d, want %d (%v)", got, tc.want, tc.err)
+			}
+		})
 	}
 }

@@ -52,20 +52,18 @@ func TestShopPins(t *testing.T) {
 	ctx := context.Background()
 	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
 
-	// ShopPins returns every shop with its raw coordinates; dropping
-	// half-set pairs is the GraphQL layer's job (graph.toShopPin).
+	// ShopPins returns every shop with its raw coordinates. Half-set pairs
+	// can't be stored since migration 025 (shops_location_pair).
 	cases := []struct {
 		name     string
 		lat, lng *float64
 	}{
 		{"both coordinates", f64(25.0330), f64(121.5654)},
 		{"no coordinates", nil, nil},
-		{"lat only", f64(24.1477), nil},
-		{"lng only", nil, f64(120.6736)},
 		{"edge of range", f64(-90), f64(180)},
 		{"no published coffee: not on the map", f64(25), f64(121)},
 	}
-	const emptyCase = 5
+	const emptyCase = 3
 
 	// Everything runs in one transaction that is always rolled back, so a
 	// shared dev database is left untouched.
@@ -133,9 +131,11 @@ func TestShopCoordinateConstraints(t *testing.T) {
 		wantErr  bool
 	}{
 		{"valid Taipei", f64(25.0330), f64(121.5654), false},
-		{"lat too large", f64(90.1), nil, true},
-		{"lng too small", nil, f64(-180.5), true},
-		{"lat NaN", f64(math.NaN()), nil, true},
+		{"lat too large", f64(90.1), f64(121), true},
+		{"lng too small", f64(25), f64(-180.5), true},
+		{"lat NaN", f64(math.NaN()), f64(121), true},
+		{"lat without lng", f64(25), nil, true},
+		{"lng without lat", nil, f64(121), true},
 	}
 	for i, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

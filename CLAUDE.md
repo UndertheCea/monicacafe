@@ -71,7 +71,7 @@ backend ──► PostgreSQL 17 (all data) · Redis 7 (profile `cache`, reserved
 | Path | What lives there |
 |---|---|
 | `backend/cmd/server` | HTTP server: chi, gqlgen, JWT middleware, slog, graceful shutdown |
-| `backend/cmd/worker` + `internal/jobs` | River worker (graceful SIGTERM); job kinds and workers live in `internal/jobs`, River's tables in migration 021 |
+| `backend/cmd/worker` + `internal/jobs` | River worker (graceful SIGTERM; compose profile `worker`, `/app/worker health` is its healthcheck); job kinds and workers live in `internal/jobs`, River's tables in migration 021 |
 | `backend/cmd/admin` | `admin grant <email>` / `admin revoke <email>` set the ADMIN role (audited); in compose: `docker compose exec backend /app/admin grant <email>` |
 | `backend/graph/` | `schema.graphqls`, resolvers, hand-written models, dataloaders, input validation, integration tests |
 | `backend/graph/errors.go` + `frontend/lib/errors.ts` | The error contract: `extensions.code` (+ `field`, `retryAfter`); a Go test keeps the code lists in sync |
@@ -102,7 +102,8 @@ CSS v4 · PostgreSQL 17 · Redis 7 · JWT HS256 (15-min access / 7-day refresh).
 
 ```bash
 cd backend && gofmt -l . && go build ./... && go vet ./... && go test ./... -count=1
-# with a migrated DB (DATABASE_URL=… ./scripts/migrate.sh): TEST_DATABASE_URL=postgres://monica:monica_secret@localhost:5432/monicacafe go test -race ./...
+# integration tests in a database of their own (they leave rows behind, #295):
+# TEST_DATABASE_URL=$(../scripts/test_db.sh) go test -race ./...
 cd frontend && npm ci && npx tsc --noEmit && npm run lint && npm test && npm run build
 cd .. && docker compose config --quiet && ./scripts/check_brief.sh
 # full stack: docker compose up --build -d && ./scripts/smoke.sh

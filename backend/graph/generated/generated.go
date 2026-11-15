@@ -153,6 +153,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		AcceptCartPrice      func(childComplexity int, id string) int
 		AddComment           func(childComplexity int, input model.AddCommentInput) int
 		AddToCart            func(childComplexity int, variantID string, quantity int) int
 		AddVariant           func(childComplexity int, coffeeID string, input model.VariantInput) int
@@ -356,6 +357,7 @@ type MutationResolver interface {
 	AddToCart(ctx context.Context, variantID string, quantity int) (*model.Cart, error)
 	UpdateCartItem(ctx context.Context, id string, quantity int) (*model.Cart, error)
 	RemoveFromCart(ctx context.Context, id string) (*model.Cart, error)
+	AcceptCartPrice(ctx context.Context, id string) (*model.Cart, error)
 	Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error)
@@ -912,6 +914,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ImageUpload.UploadURL(childComplexity), true
 
+	case "Mutation.acceptCartPrice":
+		if e.ComplexityRoot.Mutation.AcceptCartPrice == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_acceptCartPrice_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AcceptCartPrice(childComplexity, args["id"].(string)), true
 	case "Mutation.addComment":
 		if e.ComplexityRoot.Mutation.AddComment == nil {
 			break
@@ -2128,13 +2141,20 @@ type Query {
 type Mutation {
   # Cart (#21). Each returns the whole cart. addToCart adds to the line's
   # quantity if the option is already there. Only public, available options
-  # with enough stock can be added; a line holds 1–20 bags (never more than the
-  # stock) and a cart at most 50 lines (LIMIT_REACHED). Each write refreshes
-  # the line's price snapshot. Rate limited per account (RATE_LIMIT_CART_USER).
+  # priced NT$1 or more with enough stock can be added, never from the
+  # viewer's own shop (OWN_SHOP); a line holds 1–20 bags (never more than the
+  # stock) and a cart at most 50 lines (LIMIT_REACHED). Asking for more than
+  # fits is BAD_USER_INPUT (field quantity) with extensions.available = bags
+  # the line can still take. A new line snapshots today's price; later writes
+  # keep the snapshot until acceptCartPrice (#291). Lines untouched for 90
+  # days are removed. Rate limited per account (RATE_LIMIT_CART_USER).
   addToCart(variantId: ID!, quantity: Int! = 1): Cart!
-  # quantity 1–20; raising it past the stock is refused, lowering always works.
+  # quantity 1–20; raising it past the stock is refused (available = the most
+  # this line can hold), lowering always works.
   updateCartItem(id: ID!, quantity: Int!): Cart!
   removeFromCart(id: ID!): Cart!
+  # Takes today's price as the line's snapshot (clears priceChanged).
+  acceptCartPrice(id: ID!): Cart!
 
   # Auth
   register(input: RegisterInput!): AuthPayload!
@@ -2678,8 +2698,11 @@ input UpdateShopInput {
   logoUrl: String
   bannerUrl: String
   city: String
+  # lat and lng come as a pair (BAD_USER_INPUT on lng otherwise).
   lat: Float
   lng: Float
+  # true removes the shop's location (it leaves /map); can't be combined with lat / lng.
+  clearLocation: Boolean
 }
 
 # Required (owner's answer on #176): name, origin, process, variety, at least
@@ -3413,6 +3436,20 @@ func (ec *executionContext) field_Coffee_similar_args(ctx context.Context, rawAr
 		return nil, err
 	}
 	args["limit"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_acceptCartPrice_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -6558,6 +6595,50 @@ func (ec *executionContext) fieldContext_Mutation_removeFromCart(ctx context.Con
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_removeFromCart_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_acceptCartPrice(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_acceptCartPrice(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().AcceptCartPrice(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Cart) graphql.Marshaler {
+			return ec.marshalNCart2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCart(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_acceptCartPrice(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Cart(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_acceptCartPrice_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -12589,7 +12670,7 @@ func (ec *executionContext) unmarshalInputUpdateShopInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "description", "logoUrl", "bannerUrl", "city", "lat", "lng"}
+	fieldsInOrder := [...]string{"name", "description", "logoUrl", "bannerUrl", "city", "lat", "lng", "clearLocation"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -12645,6 +12726,13 @@ func (ec *executionContext) unmarshalInputUpdateShopInput(ctx context.Context, o
 				return it, err
 			}
 			it.Lng = data
+		case "clearLocation":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("clearLocation"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ClearLocation = data
 		}
 	}
 	return it, nil
@@ -13510,6 +13598,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "removeFromCart":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_removeFromCart(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "acceptCartPrice":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_acceptCartPrice(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

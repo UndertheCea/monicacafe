@@ -168,7 +168,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         const r = await query(
           CHANGE_PASSWORD,
           { input: { currentPassword: str(b.currentPassword), newPassword: str(b.newPassword) } },
-          authedClient(bearer),
+          authedClient(bearer, clientAddress(req.headers.get("x-real-ip"))),
         );
         return ok(r.changePassword);
       } catch (err) {
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       const bearer = bearerToken(req.headers.get("authorization"));
       if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
       try {
-        await query(LOGOUT_EVERYWHERE, undefined, authedClient(bearer));
+        await query(LOGOUT_EVERYWHERE, undefined, authedClient(bearer, clientAddress(req.headers.get("x-real-ip"))));
       } catch (err) {
         return fromError(err);
       }
@@ -207,7 +207,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       if (!bearer) return fail(401, "UNAUTHENTICATED", "no session");
       const b = await readJSON(req);
       try {
-        await query(DELETE_ACCOUNT, { password: str(b.password) }, authedClient(bearer));
+        await query(DELETE_ACCOUNT, { password: str(b.password) }, authedClient(bearer, clientAddress(req.headers.get("x-real-ip"))));
       } catch (err) {
         return fromError(err);
       }

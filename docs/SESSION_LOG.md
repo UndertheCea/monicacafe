@@ -15,6 +15,50 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 41 — 2026-11-15 — Stage 1 closed out; Stage 2 groundwork before orders (six slices)
+PR: #312
+
+No session PR open (only dependabot's #247 / #248 / #252) and no owner answers on questions. Only three slices were
+pickable (#295, #290, #291), each a batch, so each was split: the operations bullet of #295 became #309, points 2 + 5 of
+#290 became #310 and the browser half of #291 became #311. Sonnet sub-agents built #309 (+ the worker part of #290) and
+#311 in worktrees (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #295 backend — deleteComment answers NOT_FOUND for others' comments; "Most discussed" / popular skip suspended users'
+  comments; the data export nulls names of coffees / shops the user can't see; `updateShop` lat / lng as a pair +
+  `clearLocation` (migration 025 `shops_location_pair`; dashboard sends it when both fields are blanked); coffee cap
+  re-counted under the shop row lock (`LockShopCoffeeCount`, two statements so READ COMMITTED sees the last insert);
+  BFF forwards X-Real-IP on password / sign-out-everywhere / delete; password copy says a Chinese character counts as 3;
+  `scripts/test_db.sh` (own test DB). Register enumeration + per-email lock-out accepted until #223 (brief).
+- #309 cross-cutting — compose `x-hardening` (no-new-privileges, json-file rotation) + memory limits on every service;
+  `cap_drop: ALL` on backend / frontend / migrate; backend `read_only` + tmpfs; nginx `/nginx-health` healthcheck and
+  `limit_req` on `/health`; CI SeaweedFS 4.53 = compose; dependabot docker `/scripts`; `npm audit` on `e2e/`.
+- #290 backend — migration 026: the variants → coffees touch trigger skips stock-only updates; `ShopCoffeeIDsForUpdate`
+  skips archived coffees; `/app/worker` in the backend image with `worker health`, compose service under profile `worker`.
+- #310 backend — migration 027 `stock_holds`; `store.ReserveLines` (sorted variant ids, all-or-nothing, hold ids in line
+  order) and `store.ReleaseHold` (one statement, idempotent). Concurrency tests: opposite-order orders, duplicate releases.
+- #291 backend — `OWN_SHOP` code; NT$1 minimum (never buyable below); `extensions.available` on "not enough";
+  snapshot kept on add-more / quantity change, `acceptCartPrice(id)`; `cart_prune` sweep (90 days).
+- #311 frontend — one line under Add to cart; header cart link with count (`CartLink`, `lib/cartStore.ts`); picker = stock
+  minus cart; option + qty through login (`?option=&qty=`); accept-new-price on /cart; `e2e/cart.test.mjs`, axe on /cart
+  (empty + filled), smoke requests /cart.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, and `go test -race ./...` with `TEST_DATABASE_URL` on a fresh `monicacafe_test`
+  (PostgreSQL 16, migrations 001–027 via `scripts/test_db.sh`), incl. the error-code contract and the frontend
+  query-cost test with the new `AcceptCartPrice` operation.
+- Frontend: tsc, lint, `npm test` (303), `next build`. `docker compose config --quiet` (+ `--profile worker`),
+  `check_brief.sh`.
+- Not run here (no Docker daemon): the compose stack with the hardening, smoke and every Playwright test incl. the new
+  cart journey and axe on /cart; the header at 390 px with the cart link was not looked at in a browser. CI's `stack`
+  job runs them.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- #292: 2a / 3a / 4a / 5a built as the safe defaults; 1 (exact stock shown to everyone) still waits for the owner.
+- Paid holds stay unreleased; the orders slice (after #205) links order lines to holds and adds the expiry job.
+- `migrate` runs with `cap_drop: ALL`: it needs the mounted scripts world-readable (a normal checkout is). If the stack
+  job fails on it, drop that line.
+
 ## Session 40 — 2026-11-15 — Nine reference roasters, the values they need, UI polish, UI review analysis (thirteen slices)
 PR: #308
 

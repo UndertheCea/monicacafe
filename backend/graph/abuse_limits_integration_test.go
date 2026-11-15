@@ -3,6 +3,8 @@ package graph_test
 import (
 	"context"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -138,4 +140,34 @@ func TestSellerWriteLimitAndCoffeeCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	seller.mustDo(`mutation($id: ID!) { duplicateCoffee(id: $id) { id } }`, map[string]any{"id": other}, nil)
+
+	// Concurrent copies can't overshoot (#295): with room for 3, eight at once
+	// leave the shop at exactly the cap.
+	if _, err := pool.Exec(ctx, `DELETE FROM coffees WHERE id IN
+		(SELECT id FROM coffees WHERE shop_id = $1 AND id <> $2 LIMIT 3)`, shop.CreateShop.ID, other); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	var ok, limited atomic.Int32
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r := seller.do(`mutation($id: ID!) { duplicateCoffee(id: $id) { id } }`, map[string]any{"id": other}, nil)
+			switch {
+			case len(r.Errors) == 0:
+				ok.Add(1)
+			case r.Errors[0].Extensions["code"] == graph.CodeLimitReached:
+				limited.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	var n int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM coffees WHERE shop_id = $1`, shop.CreateShop.ID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if ok.Load() != 3 || limited.Load() != 5 || n != graph.MaxCoffeesPerShop {
+		t.Fatalf("concurrent copies: %d ok, %d limited, %d coffees; want 3, 5, %d", ok.Load(), limited.Load(), n, graph.MaxCoffeesPerShop)
+	}
 }

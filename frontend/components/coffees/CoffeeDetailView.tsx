@@ -89,7 +89,7 @@ export function CoffeeDetailView({
         {/* Buying controls sit with the price, above the facts (#294). */}
         {purchase}
         {/* The cart is open (#280); ECPay checkout comes next in Stage 2. */}
-        <p className="mt-3 text-sm text-muted">{t(locale, "coffee.checkoutSoon")}</p>
+        <p className="mt-3 text-sm text-muted">{t(locale, "cart.addNow")}</p>
         {actions}
         {/* Not on the seller's draft preview: only published coffees can be reported (#225). */}
         {coffee.isPublished && (

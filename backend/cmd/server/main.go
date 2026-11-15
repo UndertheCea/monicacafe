@@ -121,6 +121,7 @@ func run() error {
 	pruneEvery, _ := cfg.TokenPruneEvery() // checked by cfg.Validate
 	if pruneEvery > 0 {
 		sweeps.Start(sweepCtx, pruneJob(st, pruneEvery))
+		sweeps.Start(sweepCtx, cartPruneJob(st, pruneEvery))
 	}
 	cleanEvery, cleanAge, _ := cfg.MediaCleanup()             // checked by cfg.Validate
 	cleanFraction, cleanDryRun, _ := cfg.MediaCleanupSafety() // checked by cfg.Validate
@@ -238,6 +239,7 @@ func run() error {
 const (
 	lockKeyPrune = 1836019401
 	lockKeyMedia = 1836019402
+	lockKeyCart  = 1836019403
 )
 
 // pruneBatch bounds each DELETE so pruning never holds long locks.
@@ -250,6 +252,19 @@ func pruneJob(st *store.Store, every time.Duration) sweep.Job {
 			n, err := st.PruneRefreshTokens(ctx, pruneBatch)
 			if err == nil && n > 0 {
 				slog.Info("pruned expired refresh tokens", "rows", n)
+			}
+			return int(n), err
+		}}
+}
+
+// cartPruneJob removes cart lines untouched for store.CartLineMaxAge (90 days,
+// #291), on the token prune's schedule.
+func cartPruneJob(st *store.Store, every time.Duration) sweep.Job {
+	return sweep.Job{Name: "cart_prune", Key: lockKeyCart, Every: every, RunNow: true,
+		Run: func(ctx context.Context) (int, error) {
+			n, err := st.PruneStaleCartLines(ctx, store.CartLineMaxAge, pruneBatch)
+			if err == nil && n > 0 {
+				slog.Info("pruned stale cart lines", "rows", n)
 			}
 			return int(n), err
 		}}

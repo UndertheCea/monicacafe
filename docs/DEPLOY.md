@@ -36,6 +36,8 @@ then, work through this list before anything listens on a public address.
    the proxy's port.
 6. **Grant the first admin** with `docker compose exec backend /app/admin grant <email>` and check the nightly backup
    (`--profile prod`) restores (`docs/BACKUP.md`).
+7. **Background jobs (optional).** `docker compose --profile worker up -d` also starts the River worker (same image and
+   environment as the API; healthy when the database answers). Off by default.
 
 ## Monitoring
 

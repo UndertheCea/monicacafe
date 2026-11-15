@@ -36,9 +36,16 @@ export function cachedClient(next: { revalidate: number; tags: string[] }) {
   return new GraphQLClient(endpoint, { next });
 }
 
-export function authedClient(accessToken: string) {
+/**
+ * Client carrying the viewer's access token. The auth BFF also passes the
+ * visitor's address (`xff`, from nginx's X-Real-IP) so per-IP limits and logs
+ * see the visitor, not the frontend server (#295).
+ */
+export function authedClient(accessToken: string, xff?: string) {
+  const headers: Record<string, string> = { Authorization: `Bearer ${accessToken}` };
+  if (xff) headers["X-Forwarded-For"] = xff;
   return new GraphQLClient(endpoint, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers,
     credentials: "include",
     cache: "no-store",
   });
@@ -75,6 +82,8 @@ export class ApiError extends Error {
     public field?: string,
     /** Seconds to wait, on RATE_LIMITED errors. */
     public retryAfter?: number,
+    /** Bags this cart can still take, on a cart write that asked for too many (#311). */
+    public available?: number,
   ) {
     super(message);
   }
@@ -88,7 +97,7 @@ export function toApiError(err: unknown): ApiError {
     const limited = err.response.errors ? undefined : rateLimitedFromStatus(err.response.status, err.response.headers?.get("retry-after"));
     if (limited) return new ApiError(limited.code, limited.message, undefined, limited.retryAfter);
     const f = parseGraphQLErrors(err.response.errors);
-    return new ApiError(f.code, f.message, f.field, f.retryAfter);
+    return new ApiError(f.code, f.message, f.field, f.retryAfter, f.available);
   }
   return unavailable();
 }

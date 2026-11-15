@@ -200,6 +200,11 @@ func (r *mutationResolver) RemoveFromCart(ctx context.Context, id string) (*mode
 	return r.removeFromCart(ctx, id)
 }
 
+// AcceptCartPrice is the resolver for the acceptCartPrice field.
+func (r *mutationResolver) AcceptCartPrice(ctx context.Context, id string) (*model.Cart, error) {
+	return r.acceptCartPrice(ctx, id)
+}
+
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error) {
 	if err := allowIP(ctx, r.Limits.RegisterIP); err != nil {
@@ -572,6 +577,9 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if err := validateCoords(input.Lat, input.Lng); err != nil {
 		return nil, err
 	}
+	if p.ClearLocation, err = locationUpdate(input.Lat, input.Lng, input.ClearLocation); err != nil {
+		return nil, err
+	}
 	p.Lat, p.Lng = input.Lat, input.Lng
 
 	sh, err := r.Store.UpdateShop(ctx, id, p)
@@ -697,6 +705,9 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 		}
 		var co *store.Coffee
 		err = r.Store.InTx(ctx, func(tx *store.Store) error {
+			if err := checkCoffeeCapTx(ctx, tx, sh.ID); err != nil {
+				return err
+			}
 			var err error
 			co, err = tx.CreateCoffee(ctx, store.CreateCoffeeParams{
 				ShopID: sh.ID, Name: name, Slug: base + "-" + suffix, Description: desc,
@@ -973,6 +984,9 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 		}
 		var co *store.Coffee
 		err = r.Store.InTx(ctx, func(tx *store.Store) error {
+			if err := checkCoffeeCapTx(ctx, tx, src.ShopID); err != nil {
+				return err
+			}
 			var err error
 			co, err = tx.DuplicateCoffee(ctx, src.ID, newName, base+"-"+suffix)
 			return err
@@ -1301,8 +1315,10 @@ func (r *mutationResolver) DeleteComment(ctx context.Context, id string, reason 
 	if cm.UserID != c.UserID {
 		// Someone else's comment: admins only, checked against the database,
 		// and recorded in the audit log (#224).
+		// Others get NOT_FOUND, the same as for an id that doesn't exist, so
+		// the answer doesn't tell them which comment ids exist (#295).
 		if !isAdmin(c) {
-			return false, errForbidden("you can only delete your own comments")
+			return false, errNotFound("comment")
 		}
 		if c, err = r.requireAdmin(ctx); err != nil {
 			return false, err

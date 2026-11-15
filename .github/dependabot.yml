@@ -19,7 +19,7 @@ updates:
       e2e-minor-patch:
         update-types: [minor, patch]
   - package-ecosystem: docker
-    directories: [/backend, /frontend]
+    directories: [/backend, /frontend, /scripts]
     schedule: { interval: weekly }
     groups:
       docker-minor-patch:

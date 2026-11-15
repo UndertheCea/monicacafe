@@ -185,13 +185,14 @@ type UpdateProfileInput struct {
 }
 
 type UpdateShopInput struct {
-	Name        *string  `json:"name,omitempty"`
-	Description *string  `json:"description,omitempty"`
-	LogoURL     *string  `json:"logoUrl,omitempty"`
-	BannerURL   *string  `json:"bannerUrl,omitempty"`
-	City        *string  `json:"city,omitempty"`
-	Lat         *float64 `json:"lat,omitempty"`
-	Lng         *float64 `json:"lng,omitempty"`
+	Name          *string  `json:"name,omitempty"`
+	Description   *string  `json:"description,omitempty"`
+	LogoURL       *string  `json:"logoUrl,omitempty"`
+	BannerURL     *string  `json:"bannerUrl,omitempty"`
+	City          *string  `json:"city,omitempty"`
+	Lat           *float64 `json:"lat,omitempty"`
+	Lng           *float64 `json:"lng,omitempty"`
+	ClearLocation *bool    `json:"clearLocation,omitempty"`
 }
 
 type UpdateVariantInput struct {

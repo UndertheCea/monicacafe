@@ -116,6 +116,17 @@ export async function publish(page, name) {
   await row.getByText("Published").waitFor();
 }
 
+/** The seeded demo coffee 耶加雪菲 (scripts/seed_dev.sql): whole bean 200 g NT$450 with 20 in stock, listed first. */
+export const SEEDED_COFFEE_PATH = "/coffees/00000000-0000-4000-8000-000000000201";
+
+/** Puts `quantity` bags of the seeded coffee's first option in the signed-in buyer's cart (#311). */
+export async function addSeededToCart(page, quantity = 1) {
+  await page.goto(SEEDED_COFFEE_PATH);
+  await page.getByLabel("Quantity").selectOption(String(quantity));
+  await page.getByRole("button", { name: "Add to cart" }).click();
+  await page.getByText("Added to your cart.").waitFor();
+}
+
 /** Logs in through the UI. */
 export async function login(page, email) {
   await page.goto("/login");

@@ -264,7 +264,7 @@ test("shopProfilePatch", () => {
     [{ description: "淺焙專門" }, { description: "淺焙專門" }],
     [{ lat: 25.04 }, { lat: 25.04, lng: 121.56 }],
     [{ lng: 121.6 }, { lat: 25.03, lng: 121.6 }],
-    [{ lat: null, lng: null }, {}],
+    [{ lat: null, lng: null }, { clearLocation: true }],
   ];
   for (const [patch, want] of cases) assert.deepEqual(shopProfilePatch(baseShop, { ...baseShop, ...patch }), want, JSON.stringify(patch));
   // First location for a shop that had none.
@@ -272,6 +272,8 @@ test("shopProfilePatch", () => {
     shopProfilePatch({ ...baseShop, lat: null, lng: null }, { ...baseShop, lat: 22.6, lng: 120.3 }),
     { lat: 22.6, lng: 120.3 },
   );
+  // No saved location and none typed: nothing to clear.
+  assert.deepEqual(shopProfilePatch({ ...baseShop, lat: null, lng: null }, { ...baseShop, lat: null, lng: null }), {});
 });
 
 test("parseAltitude mirrors validateAltitude", () => {

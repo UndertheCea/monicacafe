@@ -305,10 +305,13 @@ else
   echo "FAIL /coffees?q= did not list the seeded match"; fail=1
 fi
 
+# The filter checks below add inStock: true: the dev-only reference shops (#170–#174,
+# SEED_REFERENCE_SHOPS=true in CI) add ~160 sold-out coffees that would push the
+# seeded ones past limit: 100. Every seeded coffee has stock.
 # Brew method (#122–#127): the seeded espresso blend (206) and the omni
 # Huila (203) match ESPRESSO; the filter-only Yirgacheffe (201) doesn't.
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
-  -d '{"query":"{ coffees(filter: { brewMethod: ESPRESSO }, limit: 100) { nodes { id brewMethod } } }"}') || body=""
+  -d '{"query":"{ coffees(filter: { brewMethod: ESPRESSO, inStock: true }, limit: 100) { nodes { id brewMethod } } }"}') || body=""
 if [[ "$body" == *'"errors"'* || "$body" != *'"id":"00000000-0000-4000-8000-000000000206","brewMethod":"ESPRESSO"'* \
       || "$body" != *'"id":"00000000-0000-4000-8000-000000000203","brewMethod":"OMNI"'* || "$body" == *'"brewMethod":"FILTER"'* ]]; then
   echo "FAIL brew filter: expected espresso + omni coffees only, got: ${body:0:300}"; fail=1
@@ -321,7 +324,7 @@ fi
 # not the older Huila (203) or the unset blend (206).
 recent=$(( $(TZ=Asia/Taipei date +%Y) - 1 ))
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
-  -d "{\"query\":\"{ coffees(filter: { minHarvestYear: $recent }, limit: 100) { nodes { id harvestYear } } }\"}") || body=""
+  -d "{\"query\":\"{ coffees(filter: { minHarvestYear: $recent, inStock: true }, limit: 100) { nodes { id harvestYear } } }\"}") || body=""
 if [[ "$body" == *'"errors"'* || "$body" != *"\"id\":\"00000000-0000-4000-8000-000000000201\",\"harvestYear\":$recent"* \
       || "$body" == *'00000000-0000-4000-8000-000000000203'* || "$body" == *'00000000-0000-4000-8000-000000000206'* ]]; then
   echo "FAIL harvest filter: expected recent crops only, got: ${body:0:300}"; fail=1
@@ -341,7 +344,7 @@ fi
 # High-grown (#147, API only): 1,500 m+ leaves out the 1,000–1,400 m blend and
 # coffees are judged by the top of their range.
 body=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' \
-  -d '{"query":"{ high: coffees(filter: { minAltitudeM: 1500 }, limit: 100) { nodes { id } } }"}') || body=""
+  -d '{"query":"{ high: coffees(filter: { minAltitudeM: 1500, inStock: true }, limit: 100) { nodes { id } } }"}') || body=""
 high=$(echo "$body" | grep -o '"high":{"nodes":\[[^]]*\]') || high=""
 if [[ "$body" == *'"errors"'* || "$high" != *'000000000201'* || "$high" != *'000000000205'* || "$high" == *'000000000206'* ]]; then
   echo "FAIL altitude filter: got ${body:0:400}"; fail=1

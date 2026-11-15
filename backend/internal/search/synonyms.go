@@ -56,6 +56,7 @@ var groups = [][]string{
 	{"Costa Rica", "哥斯大黎加", "哥斯達黎加"},
 	{"Yemen", "葉門", "也門"},
 	{"Indonesia", "印尼", "印度尼西亞"},
+	{"Ecuador", "厄瓜多", "厄瓜多爾"},
 	// Varieties (coffee_varieties has English names only).
 	{"Geisha", "Gesha", "瑰夏", "藝伎", "藝妓"},
 	{"Bourbon", "波旁"},

@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 43 — 2026-11-16 — Audit: moderation gaps, stock holds, English plurals (six slices)
-PR: #PRNUM
+PR: #330
 
 No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions. Only #324 was pickable, so an
 Explore agent audited the store, resolvers, worker and frontend strings; its confirmed findings became #325–#329. A Sonnet

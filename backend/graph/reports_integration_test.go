@@ -263,6 +263,9 @@ func TestContactInfoRefused(t *testing.T) {
 		return map[string]any{"in": map[string]any{"slug": "ci-" + run, "name": "聯絡測試", "description": desc, "city": "台北市"}}
 	}
 	seller.expectCode(code, createShop, shopIn("訂購請加 LINE ID: beans123"))
+	cityIn := shopIn("台北的小烘豆室")
+	cityIn["in"].(map[string]any)["city"] = "0912345678"
+	seller.expectCode(code, createShop, cityIn) // #325
 	var shop struct{ CreateShop struct{ ID string } }
 	seller.mustDo(createShop, shopIn("台北的小烘豆室，海拔 1,900–2,200 m 的豆子"), &shop)
 	shopID := shop.CreateShop.ID
@@ -276,6 +279,13 @@ func TestContactInfoRefused(t *testing.T) {
 	}
 	seller.mustDo(updateShop, map[string]any{"id": shopID, "d": legacy}, nil)
 	seller.expectCode(code, updateShop, map[string]any{"id": shopID, "d": legacy + "（週一公休）"})
+	updateCity := `mutation($id: ID!, $c: String!) { updateShop(id: $id, input: {city: $c}) { city } }`
+	seller.expectCode(code, updateCity, map[string]any{"id": shopID, "c": "LINE: beans123"})
+	if _, err := pool.Exec(ctx, `UPDATE shops SET city = '02-2345-6789' WHERE id = $1`, shopID); err != nil {
+		t.Fatal(err)
+	}
+	seller.mustDo(updateCity, map[string]any{"id": shopID, "c": "02-2345-6789"}, nil)
+	seller.mustDo(updateCity, map[string]any{"id": shopID, "c": "台中市"}, nil)
 
 	publishTestCoffee(t, pool, shopID)
 	var coffeeID string

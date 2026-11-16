@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-16 (after Session 43)
+Last updated: 2026-11-16 (after Session 44)
 
 ---
 
@@ -64,7 +64,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 | CI: backend, frontend (incl. lint), compose config, **full stack compose + smoke + browser checks** (Playwright journeys, axe on 13 pages, report → /admin; `e2e/`), `security`, dependabot, actions pinned by SHA. Go 1.27, Node 26, ESLint 10 (#271–#273) | Done (#216, #263–#265) |
 | nginx: gzip, no server version, `/media/` sandboxed (GET / HEAD / PUT only), per-IP `limit_req` on /graphql and /api/, timeouts + body caps, exact `/graphql`, JSON access log with request ids | Done (#64, #214) |
 | Coffee details (owner, #176): required = name, origin, process, variety, producer, region, altitude, ≥ 1 flavour note, an option; roast optional + 極淺焙 `EXTRA_LIGHT`. API + both forms (Essentials / folded More details) | Done (#181, #182, #190–#192) |
-| Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer, `/menu` no-JS fallback | Done (#175, #185) |
+| Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer (Home first, no visible heading, labelled language switch), `/menu` no-JS fallback | Done (#175, #185, #331) |
 | Reference shops (dev only): nine roasters' lists (`docs/reference-data/`, `reference_add`), gap report (`--strict` in CI, reviewed gaps "accepted"), migration 024 adds the values they use; 159 / 181 coffees load | Done (#169, #170–#174, #299–#303) |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Moderation: suspend users / shops, audit log, `cmd/admin` (#224); reports + `/admin` (#225); takedowns stick until `adminRestoreCoffee`, suspended shops read-only (#282); token version checked on queries too (#284); contact filter normalises and covers names / notes / city, reserved display names, role private (#286, #325); suspended accounts' saves / follows don't count (#327) | Done |
@@ -78,10 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 43**: queue held only #324, no owner answers, so an audit became #325–#329: shop city through the contact filter
-(#325), `ReserveStock` only on coffees buyers can see + holds ≤ 1000 bags (#326), suspended accounts' saves / follows left out
-of counts and sorts (#327), comment refusals say "hidden characters" unless too long (#328), English singulars via `pluralKey`
-(`lib/plural.ts`, #324, #329). Sonnet built #329. Stack / smoke / e2e only in CI (no CA in builds).
+**Session 44**: only the owner's #331 was pickable (no owner answers): the drawer's heading is now screen-reader only, 首頁 /
+Home comes first (drawer and /menu), and the language switch has a 語言 / Language label. New `e2e/nav.test.mjs` passed
+locally against `next start`; stack / smoke / axe only in CI. ECPay vector still blocked (docs host not reachable).
 
 ## Current focus
 

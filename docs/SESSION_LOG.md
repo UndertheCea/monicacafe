@@ -15,6 +15,29 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 44 — 2026-11-16 — Navigation drawer tidy-up (one slice)
+PR: #332
+
+No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions. The only pickable slice was the
+owner's #331; everything else waits on #199 / #200 / #201 / #205. Session 43 had just audited the code, so no new slices
+were invented. The ECPay CheckMacValue vector is still missing: `developers.ecpay.com.tw` is outside this session's network.
+
+### Shipped (one line per slice: area — what — key files)
+- #331 frontend — drawer heading kept only for screen readers (`Drawer` `hideTitle`, sr-only `h2` still names the dialog);
+  `NAV_HOME` 首頁 / Home first, above the sections, in the drawer and on /menu (its `h1` sr-only too); language switch in a
+  row labelled 語言 / Language (`role=group`). `lib/navMenu.ts`, `NavMenuList`, `NavDrawer`, `app/menu/page.tsx`,
+  `tests/navMenu.test.mjs`; new `e2e/nav.test.mjs` (keyboard open, name, Home, Esc returns focus; /menu without JS).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` (no Go changes). Frontend: tsc, lint, `npm test` (315), `next build`;
+  `docker compose config --quiet`, `check_brief.sh`.
+- `e2e/nav.test.mjs` passed locally against `next start` (no backend; Chromium at `/opt/pw-browsers/chromium`, the e2e
+  package's Playwright differs). Screenshots of the drawer and /menu checked by eye. Full stack / smoke / axe only in CI.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Home is a link above the sections rather than a section of its own (owner's sketch on #331). The sr-only headings keep
+  the section labels at h3 (drawer) / h2 (/menu) so the heading outline doesn't change.
+
 ## Session 43 — 2026-11-16 — Audit: moderation gaps, stock holds, English plurals (six slices)
 PR: #330
 

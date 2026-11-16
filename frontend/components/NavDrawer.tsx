@@ -65,6 +65,7 @@ export function NavDrawer({ locale }: { locale: Locale }) {
         open={open}
         onClose={() => setOpen(false)}
         title={t(locale, "nav.menuTitle")}
+        hideTitle
         closeLabel={t(locale, "nav.menuClose")}
       >
         <nav aria-label={t(locale, "nav.menuTitle")}>

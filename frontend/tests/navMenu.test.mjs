@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authHref, navMenu } from "../lib/navMenu.ts";
+import { authHref, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
 import { t } from "../lib/i18n/dict.ts";
 
 const flat = (sections) =>
@@ -43,6 +43,28 @@ test("navMenu: every label is translated in both languages", () => {
       }
     }
   }
+});
+
+// #331: Home first, outside the sections; the language switch has a label; the heading is screen-reader only.
+test("navMenu: Home comes first and the language switch is labelled", () => {
+  assert.deepEqual(NAV_HOME, { label: "nav.home", href: "/" });
+  for (const v of [{ signedIn: false }, { signedIn: true, role: "SELLER", hasShop: true }]) {
+    const hrefs = navMenu(v).flatMap((s) => s.items.map((i) => i.href));
+    assert.ok(!hrefs.includes("/"), "Home is not repeated inside a section");
+  }
+  const want = { "zh-TW": ["首頁", "語言"], en: ["Home", "Language"] };
+  for (const [locale, [home, lang]] of Object.entries(want)) {
+    assert.equal(t(locale, NAV_HOME.label), home);
+    assert.equal(t(locale, NAV_LANGUAGE_LABEL), lang);
+  }
+  const list = readFileSync(new URL("../components/NavMenuList.tsx", import.meta.url), "utf8");
+  assert.ok(list.indexOf("NAV_HOME.href") < list.indexOf("navMenu(viewer)"), "Home renders above the sections");
+  assert.match(list, /aria-labelledby=\{`\$\{idBase\}-lang`\}/);
+  const drawer = readFileSync(new URL("../components/NavDrawer.tsx", import.meta.url), "utf8");
+  assert.match(drawer, /\bhideTitle\b/);
+  assert.match(drawer, /<nav aria-label=\{t\(locale, "nav.menuTitle"\)\}>/);
+  const page = readFileSync(new URL("../app/menu/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /<PageTitle className="sr-only">/);
 });
 
 test("authHref: login / register come back to the page being viewed", () => {

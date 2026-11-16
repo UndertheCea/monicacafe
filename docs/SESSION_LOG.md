@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 45 — 2026-11-16 — Audit: upload keys, past-the-end pages, /admin count (four slices)
-PR: #TBD
+PR: #337
 
 No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice is blocked. An
 Explore agent audited uploads, comments / reports, listings and /admin; four confirmed findings became #333–#336. Its fifth

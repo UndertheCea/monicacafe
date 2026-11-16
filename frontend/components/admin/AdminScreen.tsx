@@ -283,9 +283,9 @@ function ReportsSection({ locale }: { locale: Locale }) {
                   onAct={(action) => setActing({ id: r.id, action })}
                   onCancel={() => setActing(null)}
                   onResolve={async (action, reason) => {
-                    await request(RESOLVE_REPORT, { id: r.id, action, ...(reason ? { reason } : {}) });
+                    const res = await request(RESOLVE_REPORT, { id: r.id, action, ...(reason ? { reason } : {}) });
                     setActing(null);
-                    update((p) => withoutTarget(p, r));
+                    update((p) => withoutTarget(p, r, res.resolveReport.closedCount));
                   }}
                 />
               ))}

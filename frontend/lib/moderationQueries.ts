@@ -45,11 +45,11 @@ export const ADMIN_REPORTS = typed<
 `);
 
 export const RESOLVE_REPORT = typed<
-  { resolveReport: { id: string; status: ReportStatus } },
+  { resolveReport: { id: string; status: ReportStatus; closedCount: number | null } },
   { id: string; action: ReportResolution; reason?: string }
 >(/* GraphQL */ `
   mutation ResolveReport($id: ID!, $action: ReportResolution!, $reason: String) {
-    resolveReport(id: $id, action: $action, reason: $reason) { id status }
+    resolveReport(id: $id, action: $action, reason: $reason) { id status closedCount }
   }
 `);
 

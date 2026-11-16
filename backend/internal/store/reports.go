@@ -88,9 +88,10 @@ func (s *Store) Reports(ctx context.Context, status string, limit, offset int) (
 // is set the target is taken down first, in the same transaction; a target
 // that is already gone or already down (ErrNotFound / ErrNoChange) still
 // closes the report. ErrNotFound for an unknown report, ErrNoChange when it
-// was already closed.
-func (s *Store) ResolveReport(ctx context.Context, actorID, reportID, status, reason string, remove func(tx *Store) error) (*Report, error) {
+// was already closed. It also returns how many reports it closed (#336).
+func (s *Store) ResolveReport(ctx context.Context, actorID, reportID, status, reason string, remove func(tx *Store) error) (*Report, int, error) {
 	var out *Report
+	closed := 0
 	err := s.InTx(ctx, func(tx *Store) error {
 		rep, err := scanReport(tx.db.QueryRow(ctx, `SELECT `+reportColumns+` FROM reports WHERE id = $1 FOR UPDATE`, reportID))
 		if err != nil {
@@ -104,12 +105,14 @@ func (s *Store) ResolveReport(ctx context.Context, actorID, reportID, status, re
 				return err
 			}
 		}
-		if _, err := tx.db.Exec(ctx, `
+		tag, err := tx.db.Exec(ctx, `
 			UPDATE reports SET status = $3, handled_by = $4, handled_at = now()
 			WHERE target_type = $1 AND target_id = $2 AND status = 'OPEN'`,
-			rep.TargetType, rep.TargetID, status, actorID); err != nil {
+			rep.TargetType, rep.TargetID, status, actorID)
+		if err != nil {
 			return mapErr(err)
 		}
+		closed = int(tag.RowsAffected())
 		action := AuditActionReport
 		if status == ReportDismissed {
 			action = AuditDismissReport
@@ -120,5 +123,8 @@ func (s *Store) ResolveReport(ctx context.Context, actorID, reportID, status, re
 		out, err = tx.ReportByID(ctx, reportID)
 		return err
 	})
-	return out, err
+	if err != nil {
+		return nil, 0, err
+	}
+	return out, closed, nil
 }

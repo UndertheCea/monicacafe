@@ -42,7 +42,8 @@ func (s *Store) SavedCoffeeIDs(ctx context.Context, userID string, coffeeIDs []s
 func (s *Store) SaveCountsByCoffeeIDs(ctx context.Context, coffeeIDs []string) (map[string]int, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT coffee_id, count(*) FROM saved_coffees
-		WHERE coffee_id = ANY($1::uuid[]) GROUP BY coffee_id`, coffeeIDs)
+		WHERE coffee_id = ANY($1::uuid[]) AND user_id NOT IN (`+suspendedUserIDs+`)
+		GROUP BY coffee_id`, coffeeIDs)
 	if err != nil {
 		return nil, mapErr(err)
 	}

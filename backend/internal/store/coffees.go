@@ -242,7 +242,10 @@ const fromPriceJoin = ` LEFT JOIN LATERAL (SELECT min(v.price_twd) AS p FROM var
 const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id
 		AND cm.user_id NOT IN (` + suspendedUserIDs + `)) cc ON true`
 
-const saveCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM saved_coffees sv WHERE sv.coffee_id = c.id) sc ON true`
+// saveCountJoin counts saves like SaveCountsByCoffeeIDs: suspended accounts'
+// saves don't count (#327).
+const saveCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM saved_coffees sv
+		WHERE sv.coffee_id = c.id AND sv.user_id NOT IN (` + suspendedUserIDs + `)) sc ON true`
 
 // orderBy returns the extra join a sort needs and its ORDER BY list. Every
 // order ends on newest-then-id so offset paging is stable; sold-out coffees

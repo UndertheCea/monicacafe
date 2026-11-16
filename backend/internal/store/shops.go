@@ -131,7 +131,7 @@ const shopCoffeeCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM coffe
 
 // Followers per shop, the same number Shop.followerCount shows.
 const shopFollowerCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM shop_follows f
-		WHERE f.shop_id = s.id) fc ON true`
+		WHERE f.shop_id = s.id AND f.user_id NOT IN (` + suspendedUserIDs + `)) fc ON true`
 
 // orderBy returns the extra join a sort needs and its ORDER BY list. Every
 // order ends on newest-then-id so offset paging is stable. Unknown values sort

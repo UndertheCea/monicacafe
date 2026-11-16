@@ -1,3 +1,4 @@
+import { listCountKey } from "@/lib/listCount";
 import type { Metadata } from "next";
 import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
 import { cardSearchFields, findSearchMatch } from "@/lib/searchMatch";
@@ -102,7 +103,7 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
         <section>
           {q && <SectionTitle className="mb-1">{t(locale, "coffees.results", { q })}</SectionTitle>}
-          <p aria-live="polite" className="mb-4 text-sm text-muted">{t(locale, "coffees.count", { n: list.total })}</p>
+          <p aria-live="polite" className="mb-4 text-sm text-muted">{t(locale, listCountKey("coffees.count", list.total), { n: list.total })}</p>
           <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
           {list.nodes.length === 0 ? (

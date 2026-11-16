@@ -1,5 +1,6 @@
 "use client";
 
+import { listCountKey } from "@/lib/listCount";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -78,7 +79,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
       <SectionTitle id="followed-shops">
         {t(locale, "account.followedShops")}
         {s.state === "ready" && s.list.total > 0 && (
-          <span className="ml-2 text-sm font-normal text-muted">{t(locale, "shops.count", { n: s.list.total })}</span>
+          <span className="ml-2 text-sm font-normal text-muted">{t(locale, listCountKey("shops.count", s.list.total), { n: s.list.total })}</span>
         )}
       </SectionTitle>
 

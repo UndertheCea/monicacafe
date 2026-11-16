@@ -15,6 +15,33 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 45 — 2026-11-16 — Audit: upload keys, past-the-end pages, /admin count (four slices)
+PR: #TBD
+
+No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice is blocked. An
+Explore agent audited uploads, comments / reports, listings and /admin; four confirmed findings became #333–#336. Its fifth
+("N more" on /map should filter /shops by city) was dropped: the owner chose no city filter on #50. A Sonnet sub-agent built
+#334 and #335 in a worktree (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #333 backend — `createImageUpload` / `updateShop` / `updateCoffee` build S3 prefixes from the loaded row's id, not the
+  client's spelling (upper-case / braced UUIDs passed `isUUID` but made keys the sweep and thumbnails never recognise); the
+  thumbnail key is checked before the daily budget is spent. `graph/schema.resolvers.go`, `TestImageUploads` cases.
+- #334 frontend — `pastLastPage()` (`lib/pagination.ts`): `/coffees`, `/shops`, `/shops/[slug]` (+ archive) past the last page
+  show "This page is empty" + a link to page 1 (`components/PastLastPage.tsx`) instead of "no coffees yet".
+- #335 frontend — the uploader's progress bar has `aria-label` (`img.progress`); `tests/progressbar.test.mjs` keeps every
+  `role="progressbar"` named.
+- #336 cross-cutting — `Report.closedCount` (only on `resolveReport`'s answer: open reports closed on that target);
+  `withoutTarget` subtracts it, so /admin's total counts reports on pages not loaded. `store.ResolveReport` returns the count.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`); the
+  #333 test fails without the fix. Frontend: tsc, lint, `npm test` (317), `next build`; `docker compose config`, `check_brief.sh`.
+- Not run here: compose stack, smoke, Playwright (CI `stack`). Past-the-end pages not rendered in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `closedCount` is null outside `resolveReport`, rather than a separate payload type, so the mutation's shape stays `Report!`.
+
 ## Session 44 — 2026-11-16 — Navigation drawer tidy-up (one slice)
 PR: #332
 

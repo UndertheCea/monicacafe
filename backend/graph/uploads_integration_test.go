@@ -119,6 +119,40 @@ func TestImageUploads(t *testing.T) {
 		}
 	}
 
+	// ── Ids in another spelling (#333) ──────────────────────────────────────
+	// uuid.Parse and Postgres accept upper case and braces; keys are always
+	// built from the canonical id, so thumbnails and the sweep recognise them.
+	const thumbQ = `mutation($in: ImageUploadInput!) { createImageUpload(input: $in) { publicUrl thumbnail { publicUrl } } }`
+	for _, tc := range []struct{ kind, target, want string }{
+		{"SHOP_LOGO", strings.ToUpper(shopID), "/shops/" + shopID + "/logo-"},
+		{"SHOP_BANNER", "{" + shopID + "}", "/shops/" + shopID + "/banner-"},
+		{"COFFEE_PHOTO", strings.ToUpper(coffeeID), "/coffees/" + coffeeID + "/photo-"},
+		{"COFFEE_PHOTO", strings.ReplaceAll(coffeeID, "-", ""), "/coffees/" + coffeeID + "/photo-"},
+	} {
+		var got struct {
+			CreateImageUpload struct {
+				PublicURL string
+				Thumbnail *struct{ PublicURL string }
+			}
+		}
+		v := in(tc.kind, tc.target, "image/jpeg", 1000)
+		v["in"].(map[string]any)["thumbnailByteSize"] = 500
+		seller.mustDo(thumbQ, v, &got)
+		u := got.CreateImageUpload
+		if !strings.Contains(u.PublicURL, tc.want) || u.Thumbnail == nil || !strings.HasSuffix(u.Thumbnail.PublicURL, ".thumb.webp") {
+			t.Fatalf("%s %s: key not canonical: %+v", tc.kind, tc.target, u)
+		}
+	}
+	// Saving through an id in another spelling checks against the canonical prefix.
+	var upper struct {
+		UpdateShop struct{ LogoURL *string }
+	}
+	seller.mustDo(`mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { logoUrl } }`,
+		map[string]any{"id": strings.ToUpper(shopID), "in": map[string]any{"logoUrl": lu.PublicURL}}, &upper)
+	if upper.UpdateShop.LogoURL == nil || *upper.UpdateShop.LogoURL != lu.PublicURL {
+		t.Fatalf("logo via upper-case id not saved: %+v", upper)
+	}
+
 	// ── Saving URLs ─────────────────────────────────────────────────────────
 	const shopQ = `mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { logoUrl bannerUrl } }`
 	seller.expectCode(graph.CodeBadInput, shopQ, map[string]any{"id": shopID, "in": map[string]any{"logoUrl": "https://cdn.example.com/logo.png"}})

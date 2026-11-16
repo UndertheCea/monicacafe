@@ -3,7 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UPDATE_COMMENT } from "@/lib/api";
-import { COMMENT_MAX_CHARS, canEditComment, commentEditErrorKey, commentEditState } from "@/lib/comments";
+import { COMMENT_MAX_CHARS, canEditComment, commentEditErrorKey, commentEditState, commentInputErrorKey } from "@/lib/comments";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
@@ -96,7 +96,7 @@ export function CommentBody({
       const e2 = toApiError(err);
       if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
       else if (isContactInfoError(e2.code)) fe.failField("body", { key: "contact.error" });
-      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX_CHARS } });
+      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: commentInputErrorKey(draft), vars: { max: COMMENT_MAX_CHARS } });
       else fe.fail({ fields: {}, form: { key: commentEditErrorKey(e2.code), vars: { max: COMMENT_MAX_CHARS } } });
     } finally {
       setBusy(false);

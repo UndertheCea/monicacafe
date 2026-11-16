@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
+import { commentInputErrorKey } from "@/lib/comments";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale } from "@/lib/i18n/dict";
@@ -60,7 +61,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
       const e2 = toApiError(err);
       if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
       else if (isContactInfoError(e2.code)) fe.fail(placeError(e2.field, { key: "contact.error" }, ORDER));
-      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: "comments.tooLong", vars: { max: COMMENT_MAX } });
+      else if (e2.code === "BAD_USER_INPUT") fe.failField("body", { key: commentInputErrorKey(body, COMMENT_MAX), vars: { max: COMMENT_MAX } });
       else fe.fail(placeError(undefined, { key: "comments.error" }, ORDER));
     } finally {
       setBusy(false);

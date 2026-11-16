@@ -10,6 +10,7 @@ import {
   commentAuthorBadge,
   commentCoffeeHref,
   commentEditErrorKey,
+  commentInputErrorKey,
   commentEditState,
   commentLength,
   hasMoreComments,
@@ -129,4 +130,16 @@ test("commentAuthorBadge marks only the shop owner's comments", () => {
     ["null", { fromShop: null }, null],
   ];
   for (const [name, c, want] of cases) assert.equal(commentAuthorBadge(c), want, name);
+});
+
+test("commentInputErrorKey: too long only when it is, else refused characters (#328)", () => {
+  const cases = [
+    ["a".repeat(501), "comments.tooLong"],
+    ["咖".repeat(501), "comments.tooLong"],
+    ["a".repeat(500), "comments.badChars"],
+    ["好喝\u200b", "comments.badChars"],
+    ["  " + "a".repeat(500) + "  ", "comments.badChars"],
+  ];
+  for (const [body, want] of cases) assert.equal(commentInputErrorKey(body), want, JSON.stringify(body.slice(0, 8)));
+  assert.equal(commentInputErrorKey("abc", 2), "comments.tooLong");
 });

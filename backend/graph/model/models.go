@@ -90,6 +90,8 @@ type Report struct {
 	HandledByID *string          `json:"-"`
 	HandledAt   *time.Time       `json:"handledAt,omitempty"`
 	CreatedAt   time.Time        `json:"createdAt"`
+	// Set only on resolveReport's answer (#336).
+	ClosedCount *int `json:"closedCount,omitempty"`
 }
 
 // AuditEntry is one audit-log row (#224); actor resolves from ActorID.

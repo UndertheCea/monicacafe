@@ -2,7 +2,9 @@ import { pluralKey } from "@/lib/plural";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SHOPS } from "@/lib/api";
-import { parsePage, type SearchParams } from "@/lib/coffeeFilters";
+import { pageHref, parsePage, type SearchParams } from "@/lib/coffeeFilters";
+import { pastLastPage } from "@/lib/pagination";
+import { PastLastPage } from "@/components/PastLastPage";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -73,7 +75,9 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
         {(shops.total > 1 || q) && <ShopListSortForm locale={locale} sort={sort} q={q} />}
       </div>
 
-      {shops.nodes.length === 0 ? (
+      {shops.nodes.length === 0 && pastLastPage(shops.total, page, SHOPS_PAGE_SIZE) ? (
+        <PastLastPage locale={locale} href={pageHref(sp, 1, "/shops")} />
+      ) : shops.nodes.length === 0 ? (
         <Card className="p-10 text-center text-muted">
           <p>{q ? t(locale, "shops.emptySearch", { q }) : t(locale, "shops.empty")}</p>
           {q && (

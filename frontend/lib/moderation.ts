@@ -89,15 +89,19 @@ export function reportTargetHref(r: ReportTargetLinks): string | null {
 
 /**
  * The open-report list after one is resolved: the API closes every open
- * report on the same target, so all their rows go and the total drops by as
- * many as were shown.
+ * report on the same target, so all their rows go. The total drops by
+ * `closed` (resolveReport's closedCount, which includes reports on pages not
+ * loaded yet, #336), or by as many rows as were shown when it isn't known.
  */
 export function withoutTarget<T extends { targetType: string; targetId: string }>(
   page: { total: number; nodes: T[] },
   target: { targetType: string; targetId: string },
+  closed?: number | null,
 ) {
   const nodes = page.nodes.filter((r) => !(r.targetType === target.targetType && r.targetId === target.targetId));
-  return { total: Math.max(0, page.total - (page.nodes.length - nodes.length)), nodes };
+  const shown = page.nodes.length - nodes.length;
+  const drop = typeof closed === "number" && closed >= shown ? closed : shown;
+  return { total: Math.max(0, page.total - drop), nodes };
 }
 
 /** Appends a fetched page to the rows already shown, skipping ids already there (offset paging can shift). */

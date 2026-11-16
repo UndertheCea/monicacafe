@@ -575,10 +575,10 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if err := noNewContactInfo("city", p.City, current.City); err != nil {
 		return nil, err
 	}
-	if p.LogoURL, err = r.mediaURL("logoUrl", input.LogoURL, storage.ShopPrefix(id)); err != nil {
+	if p.LogoURL, err = r.mediaURL("logoUrl", input.LogoURL, storage.ShopPrefix(current.ID)); err != nil {
 		return nil, err
 	}
-	if p.BannerURL, err = r.mediaURL("bannerUrl", input.BannerURL, storage.ShopPrefix(id)); err != nil {
+	if p.BannerURL, err = r.mediaURL("bannerUrl", input.BannerURL, storage.ShopPrefix(current.ID)); err != nil {
 		return nil, err
 	}
 	if err := validateCoords(input.Lat, input.Lng); err != nil {
@@ -787,7 +787,7 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if err := noNewContactInfoNotes(p.FlavorNotes, current.FlavorNotes); err != nil {
 		return nil, err
 	}
-	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, id); err != nil {
+	if p.ImageURLs, err = r.coffeeImageURLs(input.ImageUrls, current.ID); err != nil {
 		return nil, err
 	}
 	// Required since #176: they can be changed, never blanked.
@@ -1049,7 +1049,7 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 			return nil, err
 		}
 		shopID = sh.ID
-		prefix, kind = storage.ShopPrefix(input.TargetID), "logo"
+		prefix, kind = storage.ShopPrefix(sh.ID), "logo"
 		if input.Kind == model.ImageKindShopBanner {
 			kind = "banner"
 		}
@@ -1059,7 +1059,22 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 			return nil, err
 		}
 		shopID = co.ShopID
-		prefix, kind = storage.CoffeePrefix(input.TargetID), "photo"
+		prefix, kind = storage.CoffeePrefix(co.ID), "photo"
+	}
+	// Prefixes come from the loaded rows (canonical lowercase ids), never
+	// the client's spelling of the id: the sweep, thumbnails and the
+	// saved-URL checks only recognise canonical keys (#333).
+	key, err := storage.NewKey(prefix, kind, ext)
+	if err != nil {
+		return nil, err
+	}
+	thumbKey := ""
+	if input.ThumbnailByteSize != nil {
+		// The thumbnail's key is derived from the original's, beside it (#235).
+		// Checked before the quota is spent.
+		if thumbKey = storage.ThumbKey(key); thumbKey == "" {
+			return nil, errBadInput("targetId", "cannot derive a thumbnail key")
+		}
 	}
 	// Every upload target belongs to a shop: its daily byte budget applies
 	// (declared sizes; the presigned PUT is pinned to the same length).
@@ -1068,23 +1083,14 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	} else if err != nil {
 		return nil, err
 	}
-	key, err := storage.NewKey(prefix, kind, ext)
-	if err != nil {
-		return nil, err
-	}
 	up := r.Media.PresignPut(key, strings.ToLower(strings.TrimSpace(input.ContentType)), int64(input.ByteSize))
 	headers := make([]*model.UploadHeader, 0, len(up.Headers))
 	for k, v := range up.Headers {
 		headers = append(headers, &model.UploadHeader{Name: k, Value: v})
 	}
 	out := &model.ImageUpload{UploadURL: up.UploadURL, PublicURL: up.PublicURL, Headers: headers, ExpiresAt: up.ExpiresAt}
-	if input.ThumbnailByteSize != nil {
-		// The thumbnail's key is derived from the original's, beside it (#235).
-		tk := storage.ThumbKey(key)
-		if tk == "" {
-			return nil, errBadInput("targetId", "cannot derive a thumbnail key")
-		}
-		tu := r.Media.PresignPut(tk, storage.ThumbContentType, int64(*input.ThumbnailByteSize))
+	if thumbKey != "" {
+		tu := r.Media.PresignPut(thumbKey, storage.ThumbContentType, int64(*input.ThumbnailByteSize))
 		out.Thumbnail = &model.ImageUpload{
 			UploadURL: tu.UploadURL, PublicURL: tu.PublicURL, ExpiresAt: tu.ExpiresAt,
 			Headers: []*model.UploadHeader{{Name: "Content-Type", Value: storage.ThumbContentType}},

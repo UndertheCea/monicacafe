@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-16 (after Session 44)
+Last updated: 2026-11-16 (after Session 45)
 
 ---
 
@@ -78,9 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 44**: only the owner's #331 was pickable (no owner answers): the drawer's heading is now screen-reader only, 首頁 /
-Home comes first (drawer and /menu), and the language switch has a 語言 / Language label. New `e2e/nav.test.mjs` passed
-locally against `next start`; stack / smoke / axe only in CI. ECPay vector still blocked (docs host not reachable).
+**Session 45**: no owner answers and no pickable slices, so an audit of uploads, listings and /admin became #333–#336: upload keys
+from the canonical id (an upper-case id leaked unsweepable objects), past-the-end `?page=` links back, the upload progress bar is
+named, and `resolveReport` returns `closedCount` so /admin's total stays right. Integration tests ran on PostgreSQL 16;
+stack / smoke / e2e only in CI. ECPay vector still blocked (docs host not reachable).
 
 ## Current focus
 

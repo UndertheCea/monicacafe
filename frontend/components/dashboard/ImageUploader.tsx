@@ -116,6 +116,7 @@ export function ImageUploader({
       {progress !== null && (
         <div
           role="progressbar"
+          aria-label={t(locale, "img.progress")}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={progress ?? 0}

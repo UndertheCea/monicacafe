@@ -106,7 +106,7 @@ func TestReports(t *testing.T) {
 		reporter { id } handledBy { id }
 		comment { id body } shop { id } coffee { id } } } }`
 	const resolveQ = `mutation($id: ID!, $a: ReportResolution!, $r: String) {
-		resolveReport(id: $id, action: $a, reason: $r) { id status handledBy { id } } }`
+		resolveReport(id: $id, action: $a, reason: $r) { id status closedCount handledBy { id } } }`
 	anon.expectCode(graph.CodeUnauthenticated, listQ, nil)
 	buyer.expectCode(graph.CodeForbidden, listQ, nil)
 	seller.expectCode(graph.CodeForbidden, listQ, nil)
@@ -153,14 +153,16 @@ func TestReports(t *testing.T) {
 	// ── Resolve ───────────────────────────────────────────────────────────────
 	type resolved struct {
 		ResolveReport struct {
-			Status    string
-			HandledBy *struct{ ID string }
+			Status      string
+			ClosedCount *int
+			HandledBy   *struct{ ID string }
 		}
 	}
 	var res resolved
 	// Taking the comment down deletes it, in the same transaction.
 	admin.mustDo(resolveQ, map[string]any{"id": c.ID, "a": "REMOVE", "r": "contact details"}, &res)
-	if res.ResolveReport.Status != "ACTIONED" || res.ResolveReport.HandledBy == nil || res.ResolveReport.HandledBy.ID != adminAuth.User.ID {
+	if res.ResolveReport.Status != "ACTIONED" || res.ResolveReport.HandledBy == nil || res.ResolveReport.HandledBy.ID != adminAuth.User.ID ||
+		res.ResolveReport.ClosedCount == nil || *res.ResolveReport.ClosedCount != 1 {
 		t.Fatalf("resolved = %+v", res)
 	}
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM comments WHERE id = $1`, commentID).Scan(&n); err != nil || n != 0 {
@@ -170,12 +172,22 @@ func TestReports(t *testing.T) {
 
 	// Dismissing one report on the shop closes the other reporter's too.
 	admin.mustDo(resolveQ, map[string]any{"id": open["SHOP"][0].ID, "a": "DISMISS"}, &res)
-	if res.ResolveReport.Status != "DISMISSED" {
+	// closedCount says so, so /admin's total stays right (#336).
+	if res.ResolveReport.Status != "DISMISSED" || res.ResolveReport.ClosedCount == nil || *res.ResolveReport.ClosedCount != 2 {
 		t.Fatalf("dismissed = %+v", res)
 	}
 	admin.mustDo(resolveQ, map[string]any{"id": open["COFFEE"][0].ID, "a": "ACTIONED", "r": "talked to the seller"}, &res)
 	if left := list("OPEN"); len(left) != 0 {
 		t.Fatalf("open reports left: %+v", left)
+	}
+	var plain struct {
+		Reports struct{ Nodes []struct{ ClosedCount *int } }
+	}
+	admin.mustDo(`{ reports(status: DISMISSED, limit: 5) { nodes { closedCount } } }`, nil, &plain)
+	for _, r := range plain.Reports.Nodes {
+		if r.ClosedCount != nil {
+			t.Fatalf("closedCount outside resolveReport = %d, want null", *r.ClosedCount)
+		}
 	}
 	if d := list("DISMISSED"); len(d["SHOP"]) != 2 || d["SHOP"][0].HandledAt == nil {
 		t.Fatalf("dismissed shop reports: %+v", d)

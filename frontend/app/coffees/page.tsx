@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
 import { cardSearchFields, findSearchMatch } from "@/lib/searchMatch";
 import Link from "next/link";
+import { pastLastPage } from "@/lib/pagination";
+import { PastLastPage } from "@/components/PastLastPage";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
 import { activeFilterCount, filterChips } from "@/lib/filterChips";
@@ -106,7 +108,9 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
           <p aria-live="polite" className="mb-4 text-sm text-muted">{t(locale, pluralKey("coffees.count", list.total), { n: list.total })}</p>
           <FilterChips locale={locale} chips={chips} names={names} clearHref={clearFiltersHref(q, sort)} />
 
-          {list.nodes.length === 0 ? (
+          {list.nodes.length === 0 && pastLastPage(list.total, page, PAGE_SIZE) ? (
+            <PastLastPage locale={locale} href={pageHref(sp, 1)} />
+          ) : list.nodes.length === 0 ? (
             <Card className="p-10 text-center text-muted">
               <p>{q ? t(locale, "coffees.emptySearch", { q }) : t(locale, "coffees.empty")}</p>
               {(q || filtered) && (

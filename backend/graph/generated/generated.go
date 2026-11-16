@@ -233,19 +233,20 @@ type ComplexityRoot struct {
 	}
 
 	Report struct {
-		Coffee     func(childComplexity int) int
-		Comment    func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
-		HandledAt  func(childComplexity int) int
-		HandledBy  func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Note       func(childComplexity int) int
-		Reason     func(childComplexity int) int
-		Reporter   func(childComplexity int) int
-		Shop       func(childComplexity int) int
-		Status     func(childComplexity int) int
-		TargetID   func(childComplexity int) int
-		TargetType func(childComplexity int) int
+		ClosedCount func(childComplexity int) int
+		Coffee      func(childComplexity int) int
+		Comment     func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		HandledAt   func(childComplexity int) int
+		HandledBy   func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Note        func(childComplexity int) int
+		Reason      func(childComplexity int) int
+		Reporter    func(childComplexity int) int
+		Shop        func(childComplexity int) int
+		Status      func(childComplexity int) int
+		TargetID    func(childComplexity int) int
+		TargetType  func(childComplexity int) int
 	}
 
 	ReportConnection struct {
@@ -1578,6 +1579,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Query.ShopsForMap(childComplexity), true
 
+	case "Report.closedCount":
+		if e.ComplexityRoot.Report.ClosedCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Report.ClosedCount(childComplexity), true
 	case "Report.coffee":
 		if e.ComplexityRoot.Report.Coffee == nil {
 			break
@@ -2410,6 +2417,10 @@ type Report {
   handledBy: User
   handledAt: Time
   createdAt: Time!
+  # Only on resolveReport's answer: how many open reports it closed, this one
+  # included (every open report on the same target closes together, #336).
+  # null everywhere else.
+  closedCount: Int
 }
 
 type ReportConnection {
@@ -3153,6 +3164,8 @@ func (ec *executionContext) childFields_Report(ctx context.Context, field graphq
 		return ec.fieldContext_Report_handledAt(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Report_createdAt(ctx, field)
+	case "closedCount":
+		return ec.fieldContext_Report_closedCount(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Report", field.Name)
 }
@@ -9573,6 +9586,29 @@ func (ec *executionContext) fieldContext_Report_createdAt(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Report", field, false, false, "Time")
 }
 
+func (ec *executionContext) _Report_closedCount(ctx context.Context, field graphql.CollectedField, obj *model.Report) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Report_closedCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ClosedCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Report_closedCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Report", field, false, false, "Int")
+}
+
 func (ec *executionContext) _ReportConnection_nodes(ctx context.Context, field graphql.CollectedField, obj *model.ReportConnection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -14262,6 +14298,11 @@ func (ec *executionContext) _Report(ctx context.Context, sel ast.SelectionSet, o
 		case "createdAt":
 			out.Values[i] = ec._Report_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "closedCount":
+			out.Values[i] = ec._Report_closedCount(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		default:

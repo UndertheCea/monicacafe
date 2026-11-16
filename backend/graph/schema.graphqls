@@ -326,6 +326,10 @@ type Report {
   handledBy: User
   handledAt: Time
   createdAt: Time!
+  # Only on resolveReport's answer: how many open reports it closed, this one
+  # included (every open report on the same target closes together, #336).
+  # null everywhere else.
+  closedCount: Int
 }
 
 type ReportConnection {

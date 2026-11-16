@@ -12,3 +12,11 @@ export function pagerShortcuts(page: number, pages: number): { first: number | n
   if (pages <= PAGER_SHORTCUT_PAGES) return { first: null, last: null };
   return { first: page > 2 ? 1 : null, last: page < pages - 1 ? pages : null };
 }
+
+/**
+ * True when the list has items but `page` (1-based) is beyond the last page, so
+ * an empty page means "you went too far", not "nothing here" (#334).
+ */
+export function pastLastPage(total: number, page: number, pageSize: number): boolean {
+  return total > 0 && page > Math.ceil(total / pageSize);
+}

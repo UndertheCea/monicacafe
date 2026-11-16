@@ -139,6 +139,17 @@ test("withoutTarget drops every open report on the resolved target", () => {
   assert.deepEqual(got.nodes.map((r) => r.id), ["r2", "r4"]);
   assert.equal(got.total, 8);
   assert.equal(withoutTarget({ total: 0, nodes: rows }, rows[0]).total, 0, "never below zero");
+  // #336: the API also closed reports on pages not loaded yet.
+  const cases = [
+    ["closedCount includes unloaded reports", 4, 6],
+    ["closedCount null: rows shown", null, 8],
+    ["closedCount undefined: rows shown", undefined, 8],
+    ["closedCount below rows shown (stale list): rows shown", 1, 8],
+  ];
+  for (const [name, closed, want] of cases) {
+    assert.equal(withoutTarget({ total: 10, nodes: rows }, { targetType: "COMMENT", targetId: "x" }, closed).total, want, name);
+  }
+  assert.equal(withoutTarget({ total: 3, nodes: rows }, rows[0], 9).total, 0, "never below zero with closedCount");
 });
 
 test("appendRows skips ids already shown; withUpdatedRow replaces one row", () => {

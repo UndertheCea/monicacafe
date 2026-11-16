@@ -274,14 +274,16 @@ func (r *Resolver) resolveReport(ctx context.Context, id string, action model.Re
 			return nil
 		}
 	}
-	rep, err := r.Store.ResolveReport(ctx, c.UserID, id, status, why, takeDown)
+	rep, closed, err := r.Store.ResolveReport(ctx, c.UserID, id, status, why, takeDown)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("report")
 	}
 	if err != nil {
 		return nil, noChange(err, "the report is already closed")
 	}
-	return toReport(rep), nil
+	out := toReport(rep)
+	out.ClosedCount = &closed
+	return out, nil
 }
 
 // reportUser resolves Report.reporter / Report.handledBy: nil for a deleted account.

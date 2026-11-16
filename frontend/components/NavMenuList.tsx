@@ -4,15 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useId } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { authHref, navMenu, type NavViewer } from "@/lib/navMenu";
+import { authHref, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu, type NavViewer } from "@/lib/navMenu";
 import { useAuth } from "./auth/AuthProvider";
 import { LanguageToggle } from "./LanguageToggle";
 import { LinkPending } from "./LinkPending";
 
 /**
  * The navigation drawer's contents (#175; the only site navigation since #185), also the body of the no-JavaScript
- * /menu page: section headings in small caps on the left, their links beside
- * them, then the language switch. `onNavigate` lets the drawer close when a
+ * /menu page: a Home link first, then section headings in small caps on the left with their links
+ * beside them, then the language switch labelled the same way (#331). `onNavigate` lets the drawer close when a
  * link is followed. While the session is loading (and without JavaScript) the
  * signed-out links are shown.
  */
@@ -38,11 +38,19 @@ export function NavMenuList({
     : { signedIn: false };
   const linkCls = "block py-1.5 text-base text-ink underline-offset-4 hover:underline";
 
+  const rowCls = "grid grid-cols-[6.5rem_1fr] gap-3 py-4";
+
   return (
     <div>
+      <p className="pb-3">
+        <Link href={NAV_HOME.href} className={`${linkCls} font-bold`} onClick={onNavigate}>
+          {t(locale, NAV_HOME.label)}
+          <LinkPending />
+        </Link>
+      </p>
       <ul className="divide-y divide-line border-y border-line">
         {navMenu(viewer).map((s) => (
-          <li key={s.label} className="grid grid-cols-[6.5rem_1fr] gap-3 py-4">
+          <li key={s.label} className={rowCls}>
             <Heading id={`${idBase}-${s.label}`} className="label-caps pt-2.5 text-muted">
               {t(locale, s.label)}
             </Heading>
@@ -74,8 +82,14 @@ export function NavMenuList({
           </li>
         ))}
       </ul>
-      <div className="mt-5">
-        <LanguageToggle locale={locale} />
+      {/* Labelled like a section (#331); a control, not a list of pages. */}
+      <div role="group" aria-labelledby={`${idBase}-lang`} className={`${rowCls} border-b border-line`}>
+        <span id={`${idBase}-lang`} className="label-caps pt-2.5 text-muted">
+          {t(locale, NAV_LANGUAGE_LABEL)}
+        </span>
+        <div>
+          <LanguageToggle locale={locale} />
+        </div>
       </div>
     </div>
   );

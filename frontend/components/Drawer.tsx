@@ -8,8 +8,13 @@ interface Props {
   id: string;
   open: boolean;
   onClose: () => void;
-  /** Visible heading inside the panel (also its accessible name). */
+  /** Heading inside the panel (also its accessible name). */
   title: string;
+  /**
+   * Keep the heading for screen readers only (#331): the dialog stays named
+   * and the headings inside it keep their level, but only the × shows.
+   */
+  hideTitle?: boolean;
   /** The close button's label. */
   closeLabel: string;
   /**
@@ -28,7 +33,7 @@ interface Props {
  * and the close button close it too, and the page doesn't scroll behind it.
  * Black and white only (rule 11): the dim is the only tint, with no blur.
  */
-export function Drawer({ id, open, onClose, title, closeLabel, inlineClassName = "", children }: Props) {
+export function Drawer({ id, open, onClose, title, hideTitle = false, closeLabel, inlineClassName = "", children }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = `${id}-title`;
 
@@ -63,8 +68,8 @@ export function Drawer({ id, open, onClose, title, closeLabel, inlineClassName =
       }}
       className={`group max-h-none max-w-none border-0 bg-transparent p-0 text-ink [&:not([open])]:static [&:not([open])]:w-auto ${inlineClassName} open:fixed open:block open:inset-y-0 open:left-0 open:right-auto open:m-0 open:h-dvh open:w-[85vw] open:max-w-[24rem] sm:open:w-[24rem] open:overflow-y-auto open:bg-white open:p-4 motion-safe:open:animate-[drawer-in_160ms_ease-out] backdrop:bg-black/40`}
     >
-      <div className="mb-3 hidden items-center justify-between group-open:flex">
-        <h2 id={titleId} className="text-base font-bold text-ink">
+      <div className={`mb-3 hidden items-center group-open:flex ${hideTitle ? "justify-end" : "justify-between"}`}>
+        <h2 id={titleId} className={hideTitle ? "sr-only" : "text-base font-bold text-ink"}>
           {title}
         </h2>
         <button

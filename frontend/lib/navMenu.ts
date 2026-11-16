@@ -12,6 +12,7 @@ export type NavViewer =
 
 /** A dictionary key for a menu label (keys live in lib/i18n/dict.ts). */
 export type NavLabel =
+  | "nav.home"
   | "nav.coffees"
   | "nav.shops"
   | "nav.map"
@@ -36,6 +37,15 @@ export interface NavSection {
   label: NavLabel;
   items: NavItem[];
 }
+
+/**
+ * The first entry, above the sections and outside them (owner, #331): the
+ * wordmark links home too, but a menu should name the way back.
+ */
+export const NAV_HOME: { label: NavLabel; href: string } = { label: "nav.home", href: "/" };
+
+/** The language switch's row label below the sections (#331), styled like a section heading. */
+export const NAV_LANGUAGE_LABEL = "nav.language" as const;
 
 /**
  * The drawer's sections, top to bottom. The language switch goes below them

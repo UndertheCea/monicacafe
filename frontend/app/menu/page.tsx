@@ -17,7 +17,8 @@ export default async function MenuPage() {
   return (
     <Page className="py-10">
     <div className="mx-auto max-w-md">
-      <PageTitle className="mb-6">{t(locale, "nav.menuTitle")}</PageTitle>
+      {/* Named for screen readers only, like the drawer (#331). */}
+      <PageTitle className="sr-only">{t(locale, "nav.menuTitle")}</PageTitle>
       <nav aria-label={t(locale, "nav.menuTitle")}>
         <NavMenuList locale={locale} headingLevel={2} />
       </nav>

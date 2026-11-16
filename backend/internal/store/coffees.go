@@ -242,7 +242,10 @@ const fromPriceJoin = ` LEFT JOIN LATERAL (SELECT min(v.price_twd) AS p FROM var
 const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id
 		AND cm.user_id NOT IN (` + suspendedUserIDs + `)) cc ON true`
 
-const saveCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM saved_coffees sv WHERE sv.coffee_id = c.id) sc ON true`
+// saveCountJoin counts saves like SaveCountsByCoffeeIDs: suspended accounts'
+// saves don't count (#327).
+const saveCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM saved_coffees sv
+		WHERE sv.coffee_id = c.id AND sv.user_id NOT IN (` + suspendedUserIDs + `)) sc ON true`
 
 // orderBy returns the extra join a sort needs and its ORDER BY list. Every
 // order ends on newest-then-id so offset paging is stable; sold-out coffees
@@ -675,17 +678,21 @@ func (s *Store) UpdateVariant(ctx context.Context, id string, p UpdateVariantPar
 }
 
 // ReserveStock takes n units of a variant atomically: it succeeds only while
-// the variant is live, available and has at least n left, so concurrent
-// orders can never take more than exists. ErrInsufficientStock otherwise.
+// the variant is live, available and has at least n left, and its coffee is
+// one buyers can see (publicCoffee: published, not taken down or archived, shop
+// not suspended, #326), so concurrent orders can never take more than exists
+// and a cart read before a takedown can't buy afterwards. ErrInsufficientStock
+// otherwise.
 // Call it inside the order's transaction (InTx) so a failed checkout
 // releases nothing it didn't take.
 func (s *Store) ReserveStock(ctx context.Context, variantID string, n int) error {
-	if n <= 0 {
+	if n <= 0 || n > MaxHoldQuantity {
 		return fmt.Errorf("store: reserve %d units", n)
 	}
 	tag, err := s.db.Exec(ctx, `
 		UPDATE variants SET stock = stock - $2
-		WHERE id = $1 AND archived_at IS NULL AND is_available AND stock >= $2`, variantID, n)
+		WHERE id = $1 AND archived_at IS NULL AND is_available AND stock >= $2
+		  AND EXISTS (SELECT 1 FROM coffees c WHERE c.id = variants.coffee_id AND `+publicCoffee+`)`, variantID, n)
 	if err != nil {
 		return mapErr(err)
 	}

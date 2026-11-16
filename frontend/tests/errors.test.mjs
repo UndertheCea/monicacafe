@@ -44,9 +44,9 @@ test("retryAfterSeconds", () => {
 
 test("authErrorMessage", () => {
   const cases = [
-    { args: ["login", "RATE_LIMITED", undefined, 30], want: { key: "error.rateLimitedSec", vars: { n: 30 } } },
-    { args: ["login", "RATE_LIMITED", undefined, 61], want: { key: "error.rateLimitedMin", vars: { n: 2 } } },
-    { args: ["register", "RATE_LIMITED"], want: { key: "error.rateLimitedMin", vars: { n: 1 } } },
+    { args: ["login", "RATE_LIMITED", undefined, 30], want: { key: "error.rateLimitedSec.other", vars: { n: 30 } } },
+    { args: ["login", "RATE_LIMITED", undefined, 61], want: { key: "error.rateLimitedMin.other", vars: { n: 2 } } },
+    { args: ["register", "RATE_LIMITED"], want: { key: "error.rateLimitedMin.one", vars: { n: 1 } } },
     { args: ["login", "UNAUTHENTICATED"], want: { key: "auth.error.invalid" } },
     { args: ["register", "UNAUTHENTICATED"], want: { key: "auth.error.generic" } },
     { args: ["register", "CONFLICT", "email"], want: { key: "auth.error.taken" } },
@@ -63,11 +63,11 @@ test("authErrorMessage", () => {
 
 test("rateLimitMessage", () => {
   const cases = [
-    [1, { key: "error.rateLimitedSec", vars: { n: 1 } }],
-    [59, { key: "error.rateLimitedSec", vars: { n: 59 } }],
-    [60, { key: "error.rateLimitedMin", vars: { n: 1 } }],
-    [3600, { key: "error.rateLimitedMin", vars: { n: 60 } }],
-    [undefined, { key: "error.rateLimitedMin", vars: { n: 1 } }],
+    [1, { key: "error.rateLimitedSec.one", vars: { n: 1 } }],
+    [59, { key: "error.rateLimitedSec.other", vars: { n: 59 } }],
+    [60, { key: "error.rateLimitedMin.one", vars: { n: 1 } }],
+    [3600, { key: "error.rateLimitedMin.other", vars: { n: 60 } }],
+    [undefined, { key: "error.rateLimitedMin.one", vars: { n: 1 } }],
   ];
   for (const [s, want] of cases) assert.deepEqual(rateLimitMessage(s), want, String(s));
 });

@@ -70,6 +70,7 @@ func TestStockEdits(t *testing.T) {
 		{"reserve 2", func() error { return s.ReserveStock(ctx, v.ID, 2) }, nil, 3},
 		{"reserve more than left", func() error { return s.ReserveStock(ctx, v.ID, 4) }, store.ErrInsufficientStock, 3},
 		{"reserve zero is a bug", func() error { return s.ReserveStock(ctx, v.ID, 0) }, errAny, 3},
+		{"reserve more than a hold allows", func() error { return s.ReserveStock(ctx, v.ID, store.MaxHoldQuantity+1) }, errAny, 3},
 		{"edit with stale expected stock", func() error {
 			_, err := s.UpdateVariant(ctx, v.ID, store.UpdateVariantParams{Stock: ip(20), ExpectedStock: ip(5)})
 			return err
@@ -153,5 +154,59 @@ func committedVariant(t *testing.T, s *store.Store, stock int) (*store.Variant, 
 		cleanup()
 		t.Fatal(err)
 	}
+	// Published, so buyers could see it and ReserveStock may take from it (#326).
+	if _, err := s.RawDB().Exec(ctx, `UPDATE coffees SET is_published = true WHERE id = $1`, co.ID); err != nil {
+		cleanup()
+		t.Fatal(err)
+	}
 	return v, cleanup
+}
+
+// TestReserveStockOnlyPublic (#326): stock is taken only from coffees buyers
+// can see. A draft, a taken-down coffee and a suspended shop all answer
+// ErrInsufficientStock and keep their stock; restoring the shop allows it again.
+func TestReserveStockOnlyPublic(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	v, cleanup := committedVariant(t, s, 5)
+	defer cleanup()
+	db := s.RawDB()
+	exec := func(q string) func() {
+		return func() {
+			if _, err := db.Exec(ctx, q, v.CoffeeID); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	shopOf := `(SELECT shop_id FROM coffees WHERE id = $1)`
+	steps := []struct {
+		name  string
+		setup func()
+		want  error
+	}{
+		{"draft", exec(`UPDATE coffees SET is_published = false WHERE id = $1`), store.ErrInsufficientStock},
+		{"published again", exec(`UPDATE coffees SET is_published = true WHERE id = $1`), nil},
+		{"taken down", exec(`UPDATE coffees SET is_published = false, removed_at = now() WHERE id = $1`), store.ErrInsufficientStock},
+		{"restored", exec(`UPDATE coffees SET is_published = true, removed_at = NULL WHERE id = $1`), nil},
+		{"shop suspended", exec(`UPDATE shops SET suspended_at = now() WHERE id = ` + shopOf), store.ErrInsufficientStock},
+		{"shop restored", exec(`UPDATE shops SET suspended_at = NULL WHERE id = ` + shopOf), nil},
+	}
+	stock := 5
+	for _, st := range steps {
+		st.setup()
+		err := s.ReserveStock(ctx, v.ID, 1)
+		if !errors.Is(err, st.want) {
+			t.Fatalf("%s: err = %v, want %v", st.name, err, st.want)
+		}
+		if err == nil {
+			stock--
+		}
+		got, err := s.VariantByID(ctx, v.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Stock != stock {
+			t.Fatalf("%s: stock = %d, want %d", st.name, got.Stock, stock)
+		}
+	}
 }

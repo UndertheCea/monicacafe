@@ -510,6 +510,10 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
+	// The city shows on every shop card and the map list (#325).
+	if err := noContactInfo("city", city); err != nil {
+		return nil, err
+	}
 
 	var sh *store.Shop
 	err = r.Store.InTx(ctx, func(tx *store.Store) error {
@@ -566,6 +570,9 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 		return nil, err
 	}
 	if p.City, err = cleanOptText("city", input.City, 1, 40); err != nil {
+		return nil, err
+	}
+	if err := noNewContactInfo("city", p.City, current.City); err != nil {
 		return nil, err
 	}
 	if p.LogoURL, err = r.mediaURL("logoUrl", input.LogoURL, storage.ShopPrefix(id)); err != nil {

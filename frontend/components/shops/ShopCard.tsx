@@ -3,6 +3,7 @@ import type { ShopSummary } from "@/lib/api";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { ShopLogo } from "./ShopLogo";
 import { Card, Picture } from "@/components/ui";
+import { pluralKey } from "@/lib/plural";
 
 export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }) {
   return (
@@ -25,7 +26,7 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
         <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-sm">
           <span className="text-muted">
             {shop.coffeeCount > 0
-              ? t(locale, "shops.coffeesCount", { n: shop.coffeeCount })
+              ? t(locale, pluralKey("shops.coffeesCount", shop.coffeeCount), { n: shop.coffeeCount })
               : t(locale, "shops.cardNoCoffees")}
             {shop.followerCount > 0 && <> · {t(locale, "follow.count", { n: shop.followerCount })}</>}
           </span>

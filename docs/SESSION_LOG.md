@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 43 — 2026-11-16 — Audit: moderation gaps, stock holds, English plurals (six slices)
+PR: #330
+
+No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions. Only #324 was pickable, so an
+Explore agent audited the store, resolvers, worker and frontend strings; its confirmed findings became #325–#329. A Sonnet
+sub-agent built #329 in a worktree (cherry-picked; #324's `listCountKey` folded into its `pluralKey`).
+
+### Shipped (one line per slice: area — what — key files)
+- #324 frontend — `coffees.count` / `shops.count` `.one` / `.other` ("1 coffee", "1 shop") on /coffees, /shops, /account lists.
+- #325 cross-cutting — `createShop` / `updateShop` run the city through `noContactInfo` / `noNewContactInfo` (stored cities can
+  be sent back); both shop forms already place the error under the named field. `TestContactInfoRefused` cases.
+- #326 backend — `ReserveStock`'s UPDATE also requires `publicCoffee` (draft, taken down, suspended shop → `ErrInsufficientStock`);
+  `MaxHoldQuantity` = 1000 (stock_holds' CHECK) refused before SQL. `TestReserveStockOnlyPublic`, `TestHoldOrder` cases;
+  `committedVariant` now publishes its coffee.
+- #327 backend — `SaveCountsByCoffeeIDs`, `FollowerCountsByShopIDs`, `saveCountJoin`, `shopFollowerCountJoin` skip suspended
+  users. `TestSuspendedUsersDontCount` (counts + MOST_SAVED / MOST_FOLLOWED, suspend and lift).
+- #328 frontend — `commentInputErrorKey`: BAD_USER_INPUT on add / edit is "too long" only when over 500, else
+  `comments.badChars` (invisible characters, e.g. a pasted zero-width space).
+- #329 frontend — `pluralKey` (`lib/plural.ts`) for `coffees.comments`, `shops.coffeesCount`, `dash.variantsCount`, `map.count`,
+  `map.moreShops`, `comments.remaining`, `error.rateLimited{Sec,Min}` (`rateLimitMessage()` now "1 minute"); unused-key test
+  counts `x.one` / `x.other` as used when `x` is referenced.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`).
+- Frontend: tsc, lint, `npm test` (314), `next build`; `docker compose config --quiet`, `check_brief.sh`.
+- Not run here: the compose stack, smoke and Playwright (image builds can't reach the Go / npm proxies). CI's `stack` job runs them.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- A reservation on a coffee buyers can't see answers like a sold-out one (`ErrInsufficientStock`); checkout can re-read the cart
+  to say which line went away.
+- Saves / follows by suspended accounts are kept, only not counted, so lifting a suspension restores them.
+
 ## Session 42 — 2026-11-15 — Audit of the cart and dashboard; dependabot majors (six slices)
 PR: #323
 

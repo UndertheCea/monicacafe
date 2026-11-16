@@ -1,3 +1,4 @@
+import { pluralKey } from "@/lib/plural";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SHOPS } from "@/lib/api";
@@ -66,7 +67,7 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div aria-live="polite">
           {q && <SectionTitle>{t(locale, "shops.results", { q })}</SectionTitle>}
-          <p className="text-sm text-muted">{t(locale, "shops.count", { n: shops.total })}</p>
+          <p className="text-sm text-muted">{t(locale, pluralKey("shops.count", shops.total), { n: shops.total })}</p>
         </div>
         {/* Hidden only while the platform has a single shop and nobody searched. */}
         {(shops.total > 1 || q) && <ShopListSortForm locale={locale} sort={sort} q={q} />}

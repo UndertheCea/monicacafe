@@ -9,6 +9,7 @@ import { t, type Locale } from "@/lib/i18n/dict";
 import { appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Button, Card, SectionTitle } from "@/components/ui";
+import { pluralKey } from "@/lib/plural";
 
 type List = { total: number; nodes: ShopSummary[] };
 type State =
@@ -78,7 +79,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
       <SectionTitle id="followed-shops">
         {t(locale, "account.followedShops")}
         {s.state === "ready" && s.list.total > 0 && (
-          <span className="ml-2 text-sm font-normal text-muted">{t(locale, "shops.count", { n: s.list.total })}</span>
+          <span className="ml-2 text-sm font-normal text-muted">{t(locale, pluralKey("shops.count", s.list.total), { n: s.list.total })}</span>
         )}
       </SectionTitle>
 
@@ -111,7 +112,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
                   {sh.name}
                 </Link>
                 <p className="truncate text-sm text-muted">
-                  {[sh.city, t(locale, "shops.coffeesCount", { n: sh.coffeeCount })].filter(Boolean).join(" · ")}
+                  {[sh.city, t(locale, pluralKey("shops.coffeesCount", sh.coffeeCount), { n: sh.coffeeCount })].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <Button

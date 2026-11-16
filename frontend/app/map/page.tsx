@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { ShopMap } from "@/components/map/ShopMap";
 import { Page } from "@/components/Page";
 import { Card, Label, PageTitle, SectionTitle } from "@/components/ui";
+import { pluralKey } from "@/lib/plural";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -45,7 +46,7 @@ export default async function MapPage() {
         <PageTitle>{t(locale, "map.title")}</PageTitle>
         <p className="mt-2 text-muted">{t(locale, "map.subtitle")}</p>
       </header>
-      <p className="mb-4 text-sm text-muted">{t(locale, "map.count", { n: located })}</p>
+      <p className="mb-4 text-sm text-muted">{t(locale, pluralKey("map.count", located), { n: located })}</p>
 
       <ShopMap
         pins={pins}
@@ -84,7 +85,7 @@ export default async function MapPage() {
                 {more > 0 && (
                   <p className="mt-3 text-sm">
                     <Link href="/shops" className="text-muted underline-offset-4 hover:text-ink hover:underline">
-                      {t(locale, "map.moreShops", { n: more })}
+                      {t(locale, pluralKey("map.moreShops", more), { n: more })}
                     </Link>
                   </p>
                 )}

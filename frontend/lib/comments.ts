@@ -68,6 +68,16 @@ export function commentEditState(draft: string, saved: string, max = COMMENT_MAX
   return { len, tooLong, unchanged, canSave: len > 0 && !tooLong && !unchanged };
 }
 
+/**
+ * Message key for a comment the API refused as BAD_USER_INPUT (#328): "too
+ * long" only when it is; otherwise the text holds characters the API refuses
+ * (control or invisible formatting ones, e.g. a zero-width space pasted from
+ * a chat app), which the length can't explain.
+ */
+export function commentInputErrorKey(body: string, max = COMMENT_MAX_CHARS): "comments.tooLong" | "comments.badChars" {
+  return commentLength(body) > max ? "comments.tooLong" : "comments.badChars";
+}
+
 /** Message key for a failed updateComment (RATE_LIMITED is handled by the caller with its wait time). */
 export function commentEditErrorKey(code: string): "comments.tooLong" | "comments.editGone" | "comments.editError" {
   if (code === "BAD_USER_INPUT") return "comments.tooLong";

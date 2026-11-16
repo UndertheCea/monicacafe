@@ -42,7 +42,8 @@ func (s *Store) FollowedShopIDs(ctx context.Context, userID string, shopIDs []st
 func (s *Store) FollowerCountsByShopIDs(ctx context.Context, shopIDs []string) (map[string]int, error) {
 	rows, err := s.db.Query(ctx, `
 		SELECT shop_id, count(*) FROM shop_follows
-		WHERE shop_id = ANY($1::uuid[]) GROUP BY shop_id`, shopIDs)
+		WHERE shop_id = ANY($1::uuid[]) AND user_id NOT IN (`+suspendedUserIDs+`)
+		GROUP BY shop_id`, shopIDs)
 	if err != nil {
 		return nil, mapErr(err)
 	}

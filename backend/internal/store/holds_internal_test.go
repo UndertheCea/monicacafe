@@ -21,6 +21,8 @@ func TestHoldOrder(t *testing.T) {
 		{"duplicate option", []StockLine{l("a", 1), l("b", 1), l("a", 2)}, nil, ErrDuplicateLine},
 		{"zero bags", []StockLine{l("a", 0)}, nil, errAnyHold},
 		{"negative bags", []StockLine{l("a", 1), l("b", -1)}, nil, errAnyHold},
+		{"most bags a hold allows", []StockLine{l("a", MaxHoldQuantity)}, []int{0}, nil},
+		{"more bags than a hold allows", []StockLine{l("a", MaxHoldQuantity+1)}, nil, errAnyHold},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

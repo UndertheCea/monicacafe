@@ -13,6 +13,11 @@ type StockLine struct {
 	Quantity  int
 }
 
+// MaxHoldQuantity is the most bags one line can take, the same bound as
+// stock_holds.quantity's CHECK (migration 027), so a bigger line is refused
+// here instead of failing the INSERT with an unmapped constraint error (#326).
+const MaxHoldQuantity = 1000
+
 // ErrDuplicateLine: an order listed the same option twice; merge lines first.
 var ErrDuplicateLine = errors.New("store: an option appears twice in one order")
 
@@ -22,7 +27,7 @@ var ErrDuplicateLine = errors.New("store: an option appears twice in one order")
 func holdOrder(lines []StockLine) ([]int, error) {
 	idx := make([]int, len(lines))
 	for i := range lines {
-		if lines[i].Quantity <= 0 {
+		if lines[i].Quantity <= 0 || lines[i].Quantity > MaxHoldQuantity {
 			return nil, fmt.Errorf("store: hold %d units", lines[i].Quantity)
 		}
 		idx[i] = i

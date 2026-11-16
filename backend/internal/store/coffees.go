@@ -675,17 +675,21 @@ func (s *Store) UpdateVariant(ctx context.Context, id string, p UpdateVariantPar
 }
 
 // ReserveStock takes n units of a variant atomically: it succeeds only while
-// the variant is live, available and has at least n left, so concurrent
-// orders can never take more than exists. ErrInsufficientStock otherwise.
+// the variant is live, available and has at least n left, and its coffee is
+// one buyers can see (publicCoffee: published, not taken down or archived, shop
+// not suspended, #326), so concurrent orders can never take more than exists
+// and a cart read before a takedown can't buy afterwards. ErrInsufficientStock
+// otherwise.
 // Call it inside the order's transaction (InTx) so a failed checkout
 // releases nothing it didn't take.
 func (s *Store) ReserveStock(ctx context.Context, variantID string, n int) error {
-	if n <= 0 {
+	if n <= 0 || n > MaxHoldQuantity {
 		return fmt.Errorf("store: reserve %d units", n)
 	}
 	tag, err := s.db.Exec(ctx, `
 		UPDATE variants SET stock = stock - $2
-		WHERE id = $1 AND archived_at IS NULL AND is_available AND stock >= $2`, variantID, n)
+		WHERE id = $1 AND archived_at IS NULL AND is_available AND stock >= $2
+		  AND EXISTS (SELECT 1 FROM coffees c WHERE c.id = variants.coffee_id AND `+publicCoffee+`)`, variantID, n)
 	if err != nil {
 		return mapErr(err)
 	}

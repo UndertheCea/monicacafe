@@ -16,6 +16,8 @@ import { FollowButton } from "@/components/shops/FollowButton";
 import { ReportButton } from "@/components/ReportButton";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
+import { PastLastPage } from "@/components/PastLastPage";
+import { pastLastPage } from "@/lib/pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, Picture, SectionTitle } from "@/components/ui";
@@ -127,7 +129,9 @@ export default async function ShopPage({
             <span className="text-sm text-muted">{t(locale, pluralKey("shops.coffeesCount", shop.coffees.total), { n: shop.coffees.total })}</span>
           </div>
 
-          {shop.coffees.nodes.length === 0 ? (
+          {shop.coffees.nodes.length === 0 && pastLastPage(shop.coffees.total, at.page, PAGE_SIZE) ? (
+            <PastLastPage locale={locale} href={shopPageHref(shop.slug, { ...at, page: 1 })} />
+          ) : shop.coffees.nodes.length === 0 ? (
             <Card className="p-10 text-center text-muted">
               <p>{t(locale, archive.total > 0 ? "shops.allSoldOut" : "shops.noCoffees")}</p>
             </Card>
@@ -157,11 +161,15 @@ export default async function ShopPage({
                 <span className="text-sm text-muted">{t(locale, pluralKey("shops.coffeesCount", archive.total), { n: archive.total })}</span>
               </div>
               {/* Greyscale on the photo / tile only (.archive-grid, globals.css): text keeps full contrast (#231). */}
-              <div className="archive-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {archive.nodes.map((c) => (
-                  <CoffeeCard key={c.id} coffee={c} locale={locale} />
-                ))}
-              </div>
+              {archive.nodes.length === 0 && pastLastPage(archive.total, at.archive, PAGE_SIZE) ? (
+                <PastLastPage locale={locale} href={shopPageHref(shop.slug, { ...at, archive: 1 }, "archive")} />
+              ) : (
+                <div className="archive-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {archive.nodes.map((c) => (
+                    <CoffeeCard key={c.id} coffee={c} locale={locale} />
+                  ))}
+                </div>
+              )}
               <Pagination
                 locale={locale}
                 sp={{}}

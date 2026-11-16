@@ -31,9 +31,9 @@ test("t() interpolates and leaves unknown placeholders alone", async (tt) => {
   const cases = [
     { locale: "zh-TW", key: "nav.map", vars: undefined, want: "地圖" },
     { locale: "en", key: "nav.map", vars: undefined, want: "Map" },
-    { locale: "en", key: "map.count", vars: { n: 3 }, want: "3 shops on the map" },
-    { locale: "zh-TW", key: "map.count", vars: { n: 3 }, want: "地圖上共 3 間店家" },
-    { locale: "en", key: "map.count", vars: {}, want: "{n} shops on the map" },
+    { locale: "en", key: "map.count.other", vars: { n: 3 }, want: "3 shops on the map" },
+    { locale: "zh-TW", key: "map.count.other", vars: { n: 3 }, want: "地圖上共 3 間店家" },
+    { locale: "en", key: "map.count.other", vars: {}, want: "{n} shops on the map" },
   ];
   for (const c of cases) {
     await tt.test(`${c.locale} ${c.key}`, () => assert.equal(t(c.locale, c.key, c.vars), c.want));
@@ -59,6 +59,7 @@ test("localeFromLang reads <html lang> and falls back to zh-TW", () => {
 
 // A string nothing shows is a string nobody keeps correct (#196). Keys are looked up either as a
 // quoted literal or through a template such as `roast.${level}`, whose prefix covers its family.
+// A plural pair `x.one` / `x.other` is referenced through its base `x` (see lib/plural.ts).
 test("every dictionary key is referenced in app/, components/ or lib/", () => {
   const root = new URL("..", import.meta.url).pathname;
   const walk = (dir) =>
@@ -73,7 +74,7 @@ test("every dictionary key is referenced in app/, components/ or lib/", () => {
   const prefixes = [...new Set([...src.matchAll(/`([A-Za-z0-9_.]+\.)\$\{/g)].map((m) => m[1]))];
   assert.ok(prefixes.includes("roast."), "template lookups are detected");
   const unused = Object.keys(DICTS["zh-TW"]).filter(
-    (k) => !src.includes(`"${k}"`) && !prefixes.some((p) => k.startsWith(p)),
+    (k) => !src.includes(`"${k}"`) && !src.includes(`"${k.replace(/\.(one|other)$/, "")}"`) && !prefixes.some((p) => k.startsWith(p)),
   );
   assert.deepEqual(unused, []);
 });

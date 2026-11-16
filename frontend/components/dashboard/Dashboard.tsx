@@ -29,6 +29,7 @@ import { FormError, LoginNeeded, Notice } from "./ui";
 import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
 import { Badge, Button, Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
 import { ICON_BUTTON } from "@/lib/ui";
+import { pluralKey } from "@/lib/plural";
 
 // lastPage: size of the last coffee page fetched (a short one means the end).
 type Load =
@@ -255,7 +256,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     <p className="mt-1 text-sm text-muted">
                       {c.variants.length === 0
                         ? t(locale, "dash.noVariants")
-                        : t(locale, "dash.variantsCount", { n: c.variants.length })}
+                        : t(locale, pluralKey("dash.variantsCount", c.variants.length), { n: c.variants.length })}
                       {price !== null && ` · ${t(locale, "dash.from", { price: formatTWD(price) })}`}
                       {engagementParts(c)
                         .map((p) => ` · ${t(locale, p.key, { n: p.n })}`)

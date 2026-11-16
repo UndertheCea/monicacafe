@@ -19,6 +19,7 @@ import { Pagination } from "@/components/Pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, Picture, SectionTitle } from "@/components/ui";
+import { pluralKey } from "@/lib/plural";
 
 type Params = Promise<{ slug: string }>;
 
@@ -123,7 +124,7 @@ export default async function ShopPage({
             <SectionTitle id="shop-coffees">
               {t(locale, "shops.coffees")}
             </SectionTitle>
-            <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: shop.coffees.total })}</span>
+            <span className="text-sm text-muted">{t(locale, pluralKey("shops.coffeesCount", shop.coffees.total), { n: shop.coffees.total })}</span>
           </div>
 
           {shop.coffees.nodes.length === 0 ? (
@@ -153,7 +154,7 @@ export default async function ShopPage({
                 <SectionTitle id="shop-archive">
                   {t(locale, "shops.archive")}
                 </SectionTitle>
-                <span className="text-sm text-muted">{t(locale, "shops.coffeesCount", { n: archive.total })}</span>
+                <span className="text-sm text-muted">{t(locale, pluralKey("shops.coffeesCount", archive.total), { n: archive.total })}</span>
               </div>
               {/* Greyscale on the photo / tile only (.archive-grid, globals.css): text keeps full contrast (#231). */}
               <div className="archive-grid grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

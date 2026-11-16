@@ -7,6 +7,7 @@ import type { SearchMatch } from "@/lib/searchMatch";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { Badge, Card, Picture } from "@/components/ui";
+import { pluralKey } from "@/lib/plural";
 
 export function CoffeeCard({
   coffee,
@@ -99,7 +100,7 @@ export function CoffeeCard({
           <span className={price === null ? "text-sm text-muted" : "text-base font-bold text-ink"}>
             {price === null ? t(locale, "coffees.soldOut") : t(locale, "coffees.from", { price: formatTWD(price) })}
           </span>
-          <span className="text-xs text-muted">{t(locale, "coffees.comments", { n: coffee.commentCount })}</span>
+          <span className="text-xs text-muted">{t(locale, pluralKey("coffees.comments", coffee.commentCount), { n: coffee.commentCount })}</span>
         </div>
       </div>
     </Card>

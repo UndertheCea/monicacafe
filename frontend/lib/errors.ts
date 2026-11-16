@@ -82,14 +82,17 @@ export function loadErrorKey(code: string): "error.unavailable" | "error.notFoun
 }
 
 /** Bilingual "try again in N seconds / minutes" message for RATE_LIMITED. */
-export type RateLimitMessage = { key: "error.rateLimitedSec" | "error.rateLimitedMin"; vars: { n: number } };
+export type RateLimitMessage = {
+  key: "error.rateLimitedSec.one" | "error.rateLimitedSec.other" | "error.rateLimitedMin.one" | "error.rateLimitedMin.other";
+  vars: { n: number };
+};
 
 /** Message for a RATE_LIMITED error; unknown waits read as one minute. */
 export function rateLimitMessage(retryAfter?: number): RateLimitMessage {
   const s = retryAfter ?? 60;
-  return s < 60
-    ? { key: "error.rateLimitedSec", vars: { n: s } }
-    : { key: "error.rateLimitedMin", vars: { n: Math.ceil(s / 60) } };
+  if (s < 60) return { key: s === 1 ? "error.rateLimitedSec.one" : "error.rateLimitedSec.other", vars: { n: s } };
+  const m = Math.ceil(s / 60);
+  return { key: m === 1 ? "error.rateLimitedMin.one" : "error.rateLimitedMin.other", vars: { n: m } };
 }
 
 /** HTTP status the /api/auth route handlers answer with for a backend error code. */

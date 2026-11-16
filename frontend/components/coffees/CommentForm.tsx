@@ -13,6 +13,7 @@ import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
 import { isContactInfoError } from "@/lib/moderation";
 import { CARD } from "@/lib/ui";
+import { pluralKey } from "@/lib/plural";
 
 const ORDER = ["body"] as const;
 
@@ -94,7 +95,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
         <span id="comment-count" className={tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
           {tooLong
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX })
-            : t(locale, "comments.remaining", { n: COMMENT_MAX - len })}
+            : t(locale, pluralKey("comments.remaining", COMMENT_MAX - len), { n: COMMENT_MAX - len })}
         </span>
         <Button type="submit" disabled={busy || len === 0 || tooLong}>
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { listCountKey } from "@/lib/listCount";
+import { pluralKey } from "@/lib/plural";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -80,7 +80,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
         {t(locale, "account.savedCoffees")}
         {s.state === "ready" && s.list.total > 0 && (
           <span className="ml-2 text-sm font-normal text-muted">
-            {t(locale, listCountKey("coffees.count", s.list.total), { n: s.list.total })}
+            {t(locale, pluralKey("coffees.count", s.list.total), { n: s.list.total })}
           </span>
         )}
       </SectionTitle>

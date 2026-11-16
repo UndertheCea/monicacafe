@@ -12,6 +12,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { isContactInfoError } from "@/lib/moderation";
 import { Button, Field, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
+import { pluralKey } from "@/lib/plural";
 
 const ORDER = ["body"] as const;
 
@@ -130,7 +131,7 @@ export function CommentBody({
         <span id={`${fieldId}-count`} className={st.tooLong ? "text-xs text-danger" : "text-xs text-muted"}>
           {st.tooLong
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX_CHARS })
-            : t(locale, "comments.remaining", { n: COMMENT_MAX_CHARS - st.len })}
+            : t(locale, pluralKey("comments.remaining", COMMENT_MAX_CHARS - st.len), { n: COMMENT_MAX_CHARS - st.len })}
         </span>
         <span className="flex gap-2">
           <Button

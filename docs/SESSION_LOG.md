@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 44 — 2026-11-16 — Navigation drawer tidy-up (one slice)
-PR: (this session's PR)
+PR: #332
 
 No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions. The only pickable slice was the
 owner's #331; everything else waits on #199 / #200 / #201 / #205. Session 43 had just audited the code, so no new slices

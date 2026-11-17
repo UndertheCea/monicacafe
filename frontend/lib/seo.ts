@@ -188,11 +188,11 @@ export interface JsonLdShop {
 
 /**
  * A schema.org Store for a shop page: name, description, images, the city as
- * its locality in Taiwan, coordinates when the seller set valid ones, and an
- * OfferCatalog naming the coffees passed in (the ones listed on the page; pass
- * none to leave the catalogue out, e.g. on a filtered list).
+ * its locality in Taiwan, and coordinates when the seller set valid ones.
+ * The coffees go in a separate ItemList (shopCoffeesJsonLd): price-less Offers
+ * around offer-less Products fail Google's Rich Results checks (#355).
  */
-export function shopJsonLd(s: JsonLdShop, coffees: { id: string; name: string }[], base: string): Record<string, unknown> {
+export function shopJsonLd(s: JsonLdShop, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/shops/${encodeURIComponent(s.slug)}`, base) ?? base;
   const ld: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -219,22 +219,31 @@ export function shopJsonLd(s: JsonLdShop, coffees: { id: string; name: string }[
   ) {
     ld.geo = { "@type": "GeoCoordinates", latitude: lat, longitude: lng };
   }
-  if (coffees.length > 0) {
-    ld.hasOfferCatalog = {
-      "@type": "OfferCatalog",
-      name: s.name,
-      itemListElement: coffees.map((c, i) => {
-        const href = absoluteUrl(`/coffees/${encodeURIComponent(c.id)}`, base) ?? base;
-        return {
-          "@type": "Offer",
-          position: i + 1,
-          url: href,
-          itemOffered: { "@type": "Product", "@id": href, name: c.name, url: href },
-        };
-      }),
-    };
-  }
   return ld;
+}
+
+/**
+ * A schema.org ItemList of the coffees listed on a shop page (url + name each, no price: the
+ * coffee's own page carries the Product). `offset` is the number of coffees on earlier pages, so
+ * positions keep counting across pages. null when there are none.
+ */
+export function shopCoffeesJsonLd(
+  coffees: { id: string; name: string }[],
+  base: string,
+  offset = 0,
+): Record<string, unknown> | null {
+  if (coffees.length === 0) return null;
+  const start = Number.isSafeInteger(offset) && offset > 0 ? offset : 0;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: coffees.map((c, i) => ({
+      "@type": "ListItem",
+      position: start + i + 1,
+      url: absoluteUrl(`/coffees/${encodeURIComponent(c.id)}`, base) ?? base,
+      name: c.name,
+    })),
+  };
 }
 
 /**

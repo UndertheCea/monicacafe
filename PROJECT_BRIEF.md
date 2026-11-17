@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-17 (after Session 46)
+Last updated: 2026-11-17 (after Session 47)
 
 ---
 
@@ -69,7 +69,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
 | Moderation: suspend users / shops, audit log, `cmd/admin` (#224); reports + `/admin` (#225); takedowns stick until `adminRestoreCoffee`, suspended shops read-only (#282); token version checked on queries too (#284); contact filter normalises and covers names / notes / city, reserved display names, role private (#286, #325); suspended accounts' saves / follows don't count (#327) | Done |
 | Observability: `/metrics` on an internal port, `/health/live` + `/health/ready`, `/api/health`, Sentry-compatible reporting when `SENTRY_DSN` is set, sweeps awaited + advisory-locked, `docs/DEPLOY.md` | Done (#221) |
-| Backups: nightly `age`-encrypted `pg_dump` streamed to S3 or a directory, days-based retention, shrink guard, `BACKUP_PING_URL` + healthcheck, all-or-nothing `restore.sh`, encrypted S3 drill in CI (#289); images mirrored (`BACKUP_MEDIA`), guarded sweep, no cached errors (#288) | Done (#220, #222, #288, #289) |
+| Backups: nightly `age`-encrypted `pg_dump` streamed to S3 or a directory, days-based retention, shrink guard vs the largest dump (#348), `BACKUP_PING_URL` + healthcheck, all-or-nothing `restore.sh`, encrypted S3 drill in CI (#289); images mirrored (`BACKUP_MEDIA`), guarded sweep, no cached errors (#288) | Done (#220, #222, #288, #289) |
 | Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
 | Text hygiene: control / format characters refused, DB length CHECKs, daily upload budget per shop, paged orphan sweep; photo metadata (EXIF / GPS) stripped in the browser (#285) | Done (#217, #285) |
 | Exposure: nginx on 127.0.0.1 unless `HTTP_BIND`, `REAL_IP_FROM`, production refuses dev CORS / http SITE_URL / seed / default S3 keys (#287); ≤ 20 root fields, scan costs, control chars refused before SQL (#283) | Done |
@@ -78,10 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 46**: no owner answers and no pickable slices, so an audit of the auth BFF, /account, dashboard forms, cart and comments
-became #338–#345: "load more" no longer resurrects removed rows, logout during a refresh stays logged out, seller forms explain
-suspension / rate limits, unchanged display names don't spend the limit, invisible characters and vanished cart lines / comments
-get real messages, and the password minimum counts characters. Integration tests ran on PostgreSQL 16; stack / e2e only in CI.
+**Session 47**: no owner answers and no pickable slices, so an audit of areas earlier audits skipped became #347–#355: failed
+coffee / shop pages are noindex, JSON-LD offers follow in-stock options and shops list coffees as an ItemList, sold-out options
+say so, Retry-After rounds up, "Costa Rica" searches as one synonym, sign-in links keep `?page=`, the backup shrink guard holds
+every night (`BACKUP_ACCEPT_SHRINK`), and every migration has a checked baseline marker. Stack / e2e only in CI.
 
 ## Current focus
 
@@ -91,7 +91,7 @@ get real messages, and the password minimum counts characters. Integration tests
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
-3. No open unblocked slices left (Sessions 43, 45, 46 audited the code): stage 1 is done except #219, #223, #226 (blocked); #306 picks UI ideas. Orders wait on #205;
+3. No open unblocked slices left (Sessions 43, 45–47 audited the code): stage 1 is done except #219, #223, #226 (blocked); #306 picks UI ideas. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

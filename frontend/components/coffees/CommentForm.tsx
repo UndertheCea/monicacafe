@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
-import { commentInputErrorKey } from "@/lib/comments";
+import { commentInputErrorKey, deleteOutcome } from "@/lib/comments";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
-import { t, type Locale } from "@/lib/i18n/dict";
+import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button, ConfirmButton, Field, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
@@ -122,27 +122,35 @@ export function DeleteCommentButton({
   const { user, request } = useAuth();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
   const [, startTransition] = useTransition();
 
   if (!user || (user.id !== authorId && user.role !== "ADMIN")) return null;
 
   async function remove() {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
       await request(DELETE_COMMENT_DOC, { id: commentId });
       onDeleted?.(commentId);
       startTransition(() => router.refresh());
-    } catch {
-      setFailed(true);
+    } catch (err) {
+      const e = toApiError(err);
+      const outcome = deleteOutcome(e.code);
+      if (outcome === "gone") {
+        // Already deleted elsewhere: same end state as a successful delete.
+        onDeleted?.(commentId);
+        startTransition(() => router.refresh());
+        return;
+      }
+      setFailed(outcome === "rateLimited" ? rateLimitMessage(e.retryAfter) : { key: "comments.deleteError" });
       setBusy(false);
     }
   }
 
   return (
     <span className="inline-flex items-center gap-2">
-      {failed && <span className="text-xs text-danger">{t(locale, "comments.deleteError")}</span>}
+      {failed && <span role="alert" className="text-xs text-danger">{t(locale, failed.key, failed.vars)}</span>}
       <ConfirmButton
         question={t(locale, "comments.deleteConfirm")}
         confirmLabel={t(locale, "comments.delete")}

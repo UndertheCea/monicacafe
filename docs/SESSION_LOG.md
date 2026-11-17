@@ -15,6 +15,39 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 46 — 2026-11-17 — Audit: error messages, load-more races, logout race (eight slices)
+PR: #346
+
+No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice is blocked. An
+Explore agent audited the auth BFF, /account, dashboard forms, cart, /map and comment UI (rules 2, 6, 10, 12 found clean); its
+confirmed findings became #338–#345. Two Sonnet sub-agents built #339 / #341 and #342 / #343 / #345 in worktrees (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #338 frontend — "Load more" with removals in flight: `useLoadMore` (`components/useLoadMore.ts`, `lib/loadMore.ts`) subtracts rows
+  removed since the load began from the offset, refetches a page a removal overtook, and merges into the list as it is now
+  minus removed ids. Saved coffees, followed shops, both comment feeds.
+- #339 frontend — `dashWriteError` (`lib/dashboard/writeError.ts`): SHOP_SUSPENDED / TAKEN_DOWN / RATE_LIMITED messages in every
+  seller form (shop profile, create shop, coffee details, new coffee, options, uploader, shop images, gallery).
+- #340 cross-cutting — `updateProfile` with the unchanged name returns the user without writing or spending `ProfileUser`; the form
+  skips the request (`displayNameChanged`) and shows the wait on RATE_LIMITED. `TestAccount` cases.
+- #341 frontend — BAD_USER_INPUT on shop / profile text names invisible characters (`lib/textInput.ts`, `form.error.badChars`)
+  unless the value really is too long; CreateShopForm handles `description`.
+- #342 frontend — deleting an already-deleted comment removes the row (`deleteOutcome`); RATE_LIMITED shows the wait.
+- #343 frontend (stage 2) — a cart problem whose line vanished on reload shows above the lines (`orphanProblem`).
+- #344 frontend — logout during a token refresh: `createAuthEpoch` drops refresh results that started before a login / logout
+  (here or another tab); logout waits for the in-flight refresh and posts under the cross-tab refresh lock.
+- #345 frontend — password minimum counted in characters like `auth.ValidatePassword` (`lib/auth/password.ts`), max 72 bytes.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`).
+  Frontend: tsc, lint, `npm test` (all pass), `next build`; `check_brief.sh`.
+- Not run here: compose stack, smoke, Playwright (CI `stack`). None of the UI changes were exercised in a browser; the races
+  (#338, #344) are covered by the pure helpers' tests only.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- A display-name save with the same name is a no-op and is not rate limited (the limit counts changes).
+- #339 doesn't add the "shop suspended" banner to the dashboard sub-pages; each write now explains it instead.
+
 ## Session 45 — 2026-11-16 — Audit: upload keys, past-the-end pages, /admin count (four slices)
 PR: #337
 

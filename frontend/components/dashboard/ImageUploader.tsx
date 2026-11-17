@@ -6,7 +6,7 @@ import { CREATE_IMAGE_UPLOAD, type ImageKind } from "@/lib/dashboard/queries";
 import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent, uploadSignErrorKey } from "@/lib/dashboard/upload";
 import { makeThumbnail, shrinkImage, stripImage, stripThumbnail } from "./shrinkImage";
 import { toApiError } from "@/lib/graphql";
-import { rateLimitMessage } from "@/lib/errors";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { Button } from "@/components/ui";
 
@@ -85,7 +85,8 @@ export function ImageUploader({
       await onUploaded(r.createImageUpload.publicUrl);
     } catch (err) {
       const e2 = toApiError(err);
-      if (step === "sign" && e2.code === "RATE_LIMITED") setError(rateLimitMessage(e2.retryAfter));
+      const blocked = step === "put" ? null : dashWriteError(e2.code, e2.retryAfter);
+      if (blocked) setError(blocked);
       else if (step === "sign") setError({ key: uploadSignErrorKey(e2.code) });
       else setError({ key: step === "put" ? "img.error.upload" : "img.error.save" });
     } finally {

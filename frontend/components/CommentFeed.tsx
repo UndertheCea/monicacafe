@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthorBadge } from "@/components/coffees/AuthorBadge";
 import { CommentBody } from "@/components/coffees/CommentBody";
 import { DeleteCommentButton } from "@/components/coffees/CommentForm";
-import { COMMENT_LIST_PAGE, appendComments, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
+import { useLoadMore } from "@/components/useLoadMore";
+import { COMMENT_LIST_PAGE, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
 import type { CommentPage } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
@@ -41,6 +42,8 @@ export function CommentFeed({
 }) {
   const [s, setS] = useState<State>({ state: "loading" });
 
+  const more = useLoadMore(fetchPage);
+
   useEffect(() => {
     let live = true;
     fetchPage(0).then(
@@ -52,27 +55,29 @@ export function CommentFeed({
     };
   }, [fetchPage]);
 
-  const loadMore = useCallback(async () => {
+  async function loadMore() {
     if (s.state !== "ready") return;
-    const shown = s.page;
-    setS({ ...s, more: "loading" });
+    const shown = s.page.nodes.length;
+    setS((cur) => (cur.state === "ready" ? { ...cur, more: "loading" } : cur));
     try {
-      const next = await fetchPage(shown.nodes.length);
-      setS({
-        state: "ready",
-        page: { total: next.total, nodes: appendComments(shown.nodes, next.nodes) },
-        lastPage: next.nodes.length,
-        more: "idle",
-      });
+      const next = await more.fetchMore(shown);
+      // Merge into the list as it is now: rows removed meanwhile stay gone (#338).
+      setS((cur) =>
+        cur.state === "ready"
+          ? { ...cur, page: more.merge(cur.page, next), lastPage: next.nodes.length, more: "idle" }
+          : cur,
+      );
     } catch {
-      setS({ ...s, more: "error" });
+      setS((cur) => (cur.state === "ready" ? { ...cur, more: "error" } : cur));
     }
-  }, [s, fetchPage]);
+  }
 
   const edited = (e: { id: string; body: string; editedAt: string | null }) =>
     setS((cur) => (cur.state === "ready" ? { ...cur, page: withEditedComment(cur.page, e) } : cur));
-  const removed = (cid: string) =>
+  const removed = (cid: string) => {
+    more.removed(cid);
     setS((cur) => (cur.state === "ready" ? { ...cur, page: withoutComment(cur.page, cid) } : cur));
+  };
 
   return (
     <section aria-labelledby={id}>

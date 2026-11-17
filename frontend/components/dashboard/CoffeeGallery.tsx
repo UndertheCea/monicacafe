@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { dashWriteError, type DashWriteError } from "@/lib/dashboard/writeError";
+import { toApiError } from "@/lib/graphql";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
 import { MAX_COFFEE_IMAGES, moveItem, removeAt } from "@/lib/dashboard/upload";
-import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
 import { Badge, Button, Card, ConfirmButton, Picture } from "@/components/ui";
 
@@ -20,7 +22,7 @@ export function CoffeeGallery({
 }) {
   const { request } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<DashWriteError | null>(null);
   const urls = coffee.imageUrls;
 
   async function save(next: string[]) {
@@ -33,8 +35,9 @@ export function CoffeeGallery({
     setError(null);
     try {
       await save(next);
-    } catch {
-      setError("img.error.save");
+    } catch (err) {
+      const e = toApiError(err);
+      setError(dashWriteError(e.code, e.retryAfter) ?? { key: "img.error.save" });
     } finally {
       setBusy(false);
     }
@@ -110,7 +113,7 @@ export function CoffeeGallery({
       </div>
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">
-          {t(locale, error)}
+          {t(locale, error.key, error.vars)}
         </p>
       )}
     </Card>

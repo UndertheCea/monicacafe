@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useLoadMore } from "@/components/useLoadMore";
 import { MY_FOLLOWED_SHOPS, UNFOLLOW_SHOP, type ShopSummary } from "@/lib/api";
 import { FOLLOWED_PAGE } from "@/lib/follows";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
+import { hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Button, Card, SectionTitle } from "@/components/ui";
 import { pluralKey } from "@/lib/plural";
@@ -33,6 +34,8 @@ export function FollowedShops({ locale }: { locale: Locale }) {
     [request],
   );
 
+  const more = useLoadMore(fetchPage);
+
   useEffect(() => {
     let live = true;
     fetchPage(0).then(
@@ -46,18 +49,18 @@ export function FollowedShops({ locale }: { locale: Locale }) {
 
   async function loadMore() {
     if (s.state !== "ready") return;
-    const shown = s.list;
-    setS({ ...s, more: "loading" });
+    const shown = s.list.nodes.length;
+    setS((cur) => (cur.state === "ready" ? { ...cur, more: "loading" } : cur));
     try {
-      const next = await fetchPage(shown.nodes.length);
-      setS({
-        state: "ready",
-        list: { total: next.total, nodes: appendSaved(shown.nodes, next.nodes) },
-        lastPage: next.nodes.length,
-        more: "idle",
-      });
+      const next = await more.fetchMore(shown);
+      // Merge into the list as it is now: rows removed meanwhile stay gone (#338).
+      setS((cur) =>
+        cur.state === "ready"
+          ? { ...cur, list: more.merge(cur.list, next), lastPage: next.nodes.length, more: "idle" }
+          : cur,
+      );
     } catch {
-      setS({ ...s, more: "error" });
+      setS((cur) => (cur.state === "ready" ? { ...cur, more: "error" } : cur));
     }
   }
 
@@ -66,6 +69,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
     setRemoveError(false);
     try {
       await request(UNFOLLOW_SHOP, { id });
+      more.removed(id);
       setS((cur) => (cur.state === "ready" ? { ...cur, list: withoutSaved(cur.list, id) } : cur));
     } catch {
       setRemoveError(true);

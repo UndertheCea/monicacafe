@@ -4,9 +4,10 @@ import { pluralKey } from "@/lib/plural";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useLoadMore } from "@/components/useLoadMore";
 import { MY_SAVED_COFFEES, UNSAVE_COFFEE, fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
-import { SAVED_PAGE, appendSaved, hasMoreSaved, withoutSaved } from "@/lib/saved";
+import { SAVED_PAGE, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { Button, Card, Picture, SectionTitle } from "@/components/ui";
@@ -33,6 +34,8 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
     [request],
   );
 
+  const more = useLoadMore(fetchPage);
+
   useEffect(() => {
     let live = true;
     fetchPage(0).then(
@@ -46,18 +49,18 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
 
   async function loadMore() {
     if (s.state !== "ready") return;
-    const shown = s.list;
-    setS({ ...s, more: "loading" });
+    const shown = s.list.nodes.length;
+    setS((cur) => (cur.state === "ready" ? { ...cur, more: "loading" } : cur));
     try {
-      const next = await fetchPage(shown.nodes.length);
-      setS({
-        state: "ready",
-        list: { total: next.total, nodes: appendSaved(shown.nodes, next.nodes) },
-        lastPage: next.nodes.length,
-        more: "idle",
-      });
+      const next = await more.fetchMore(shown);
+      // Merge into the list as it is now: rows removed meanwhile stay gone (#338).
+      setS((cur) =>
+        cur.state === "ready"
+          ? { ...cur, list: more.merge(cur.list, next), lastPage: next.nodes.length, more: "idle" }
+          : cur,
+      );
     } catch {
-      setS({ ...s, more: "error" });
+      setS((cur) => (cur.state === "ready" ? { ...cur, more: "error" } : cur));
     }
   }
 
@@ -66,6 +69,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
     setRemoveError(false);
     try {
       await request(UNSAVE_COFFEE, { id });
+      more.removed(id);
       setS((cur) => (cur.state === "ready" ? { ...cur, list: withoutSaved(cur.list, id) } : cur));
     } catch {
       setRemoveError(true);

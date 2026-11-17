@@ -18,6 +18,7 @@ import {
   type VariantDraft,
 } from "@/lib/dashboard/validate";
 import { query, toApiError } from "@/lib/graphql";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
 import { draftKey, isEmptyDraft, makeDraft, parseDraft } from "@/lib/dashboard/session";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -248,7 +249,10 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       router.push("/dashboard");
     } catch (err) {
       const e2 = toApiError(err);
-      if (e2.code === "LIMIT_REACHED") {
+      const blocked = dashWriteError(e2.code, e2.retryAfter);
+      if (blocked) {
+        fe.fail({ fields: {}, form: blocked });
+      } else if (e2.code === "LIMIT_REACHED") {
         fe.fail({ fields: {}, form: { key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } } });
       } else {
         const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(e2.code)

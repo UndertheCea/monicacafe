@@ -12,6 +12,7 @@ import { MY_COMMENTS } from "@/lib/dashboard/queries";
 import {
   accountDeletionBlock,
   cleanDisplayName,
+  displayNameChanged,
   deleteAccountErrorKey,
   passwordChangeProblem,
   passwordErrorKey,
@@ -19,6 +20,7 @@ import {
 import { MY_DATA_EXPORT, UPDATE_PROFILE } from "@/lib/auth/session";
 import { exportFileName, formatExport } from "@/lib/auth/account";
 import { rateLimitMessage } from "@/lib/errors";
+import { hasInvisibleChars } from "@/lib/textInput";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { Button, Field, Input, SectionTitle, useFormErrors } from "@/components/ui";
@@ -119,8 +121,14 @@ function ProfileForm({ locale }: { locale: Locale }) {
     const clean = cleanDisplayName(name);
     setSaved(false);
     if (!clean) return fe.failField("displayName", { key: "auth.error.displayName" });
-    setBusy(true);
     fe.clear();
+    if (!displayNameChanged(clean, user?.displayName)) {
+      // Nothing to send: the name is already saved (#340).
+      setName(clean);
+      setSaved(true);
+      return;
+    }
+    setBusy(true);
     try {
       await request(UPDATE_PROFILE, { input: { displayName: clean } });
       setName(clean);
@@ -128,7 +136,10 @@ function ProfileForm({ locale }: { locale: Locale }) {
       setSaved(true);
     } catch (err) {
       const e2 = toApiError(err);
-      if (e2.code === "BAD_USER_INPUT" || e2.code === "CONTACT_INFO_NOT_ALLOWED") fe.failField("displayName", { key: "auth.error.displayName" });
+      // The length passed above, so a refused name holds invisible characters or a reserved word (#341).
+      if (e2.code === "BAD_USER_INPUT" && hasInvisibleChars(clean)) fe.failField("displayName", { key: "form.error.badChars" });
+      else if (e2.code === "BAD_USER_INPUT" || e2.code === "CONTACT_INFO_NOT_ALLOWED") fe.failField("displayName", { key: "auth.error.displayName" });
+      else if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
       else fe.fail({ fields: {}, form: { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.generic" } });
     } finally {
       setBusy(false);

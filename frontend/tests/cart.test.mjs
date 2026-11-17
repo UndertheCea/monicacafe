@@ -16,6 +16,7 @@ import {
   cartProblem,
   groupByShop,
   inCartFor,
+  orphanProblem,
   parseCartChoice,
   quantityChoices,
   shouldReloadCart,
@@ -190,4 +191,13 @@ test("cartLineName: the coffee's name, else grind and weight", () => {
     [{ coffee: null, variant }, "Whole bean · 200 g"],
   ];
   for (const [l, want] of cases) assert.equal(cartLineName(l, "Whole bean"), want);
+});
+
+test("orphanProblem", () => {
+  const p = { key: "cart.error.gone" };
+  const lines = [line("1", shopA, 100), line("2", shopA, 200)];
+  assert.equal(orphanProblem(null, lines), null);
+  assert.equal(orphanProblem({ line: "1", p }, lines), null);
+  assert.equal(orphanProblem({ line: "9", p }, lines), p);
+  assert.equal(orphanProblem({ line: "9", p }, []), p);
 });

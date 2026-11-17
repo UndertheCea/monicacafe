@@ -14,7 +14,10 @@ import (
 // Requires TEST_DATABASE_URL.
 func TestAccount(t *testing.T) {
 	url, _ := newTestServerWith(t, func(r *graph.Resolver) {
-		r.Limits = graph.Limits{PasswordUser: ratelimit.New(ratelimit.Rule{Burst: 4, Per: time.Hour})}
+		r.Limits = graph.Limits{
+			PasswordUser: ratelimit.New(ratelimit.Rule{Burst: 4, Per: time.Hour}),
+			ProfileUser:  ratelimit.New(ratelimit.Rule{Burst: 2, Per: time.Hour}),
+		}
 	})
 	run := fmt.Sprintf("%d", time.Now().UnixNano())
 	email := "account+" + run + "@example.com"
@@ -34,6 +37,17 @@ func TestAccount(t *testing.T) {
 		t.Fatalf("updateProfile = %+v", up.UpdateProfile)
 	}
 	c.expectCode("BAD_USER_INPUT", update, map[string]any{"in": map[string]any{"displayName": " "}})
+	// Saving the unchanged name is free (#340): it answers the user, many times
+	// over, without spending the limit (2 per hour here, one used above).
+	for i := 0; i < 5; i++ {
+		c.mustDo(update, map[string]any{"in": map[string]any{"displayName": "新名字"}}, &up)
+		if up.UpdateProfile.DisplayName != "新名字" || up.UpdateProfile.Email == nil {
+			t.Fatalf("unchanged updateProfile = %+v", up.UpdateProfile)
+		}
+	}
+	c.mustDo(update, map[string]any{"in": map[string]any{"displayName": "第二個名字"}}, nil)
+	c.expectCode("RATE_LIMITED", update, map[string]any{"in": map[string]any{"displayName": "第三個名字"}})
+	c.mustDo(update, map[string]any{"in": map[string]any{"displayName": "第二個名字"}}, nil) // still free when limited
 	anon.expectCode("UNAUTHENTICATED", update, map[string]any{"in": map[string]any{"displayName": "x"}})
 
 	// A second session that must not survive the password change.

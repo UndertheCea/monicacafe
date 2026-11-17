@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  createAuthEpoch,
   SESSION_HINT_COOKIE,
   bearerToken,
   clientAddress,
@@ -86,6 +87,12 @@ test("validateCredentials", () => {
     // 24 CJK chars = 72 UTF-8 bytes (bcrypt's limit) is fine; 25 is not.
     { args: ["a@b.tw", "咖".repeat(24)], want: null },
     { args: ["a@b.tw", "咖".repeat(25)], want: "password" },
+    // The minimum counts characters, like the API: 5 CJK chars (15 bytes) is too short, 8 is fine.
+    { args: ["a@b.tw", "密碼密碼測"], want: "password" },
+    { args: ["a@b.tw", "密碼密碼測試好長"], want: null },
+    { args: ["a@b.tw", "😀".repeat(7)], want: "password" },
+    { args: ["a@b.tw", "😀".repeat(8)], want: null },
+    { args: ["a@b.tw", "😀".repeat(19)], want: "password" },
     { args: ["a@b.tw", null], want: null },
     { args: ["a@b.tw", "password1", "  "], want: "displayName" },
     { args: ["a@b.tw", "password1", "小明"], want: null },
@@ -169,4 +176,19 @@ test("refreshOutcome: only a 401 ends the session (#228)", async () => {
 test("refreshRetryDelayMs: 2 s, 5 s, 15 s, then every minute (#228)", async () => {
   const { refreshRetryDelayMs } = await import("../lib/auth/token.ts");
   assert.deepEqual([0, 1, 2, 3, 4, 50].map(refreshRetryDelayMs), [2000, 5000, 15000, 60000, 60000, 60000]);
+});
+
+test("createAuthEpoch: a refresh started before a logout or login is stale (#344)", () => {
+  const e = createAuthEpoch();
+  const refreshA = e.current();
+  assert.equal(e.stale(refreshA), false, "nothing happened meanwhile");
+  e.bump(); // logout
+  assert.equal(e.stale(refreshA), true, "logout overtook the refresh");
+  const refreshB = e.current();
+  e.bump(); // login
+  e.bump(); // logout again
+  assert.equal(e.stale(refreshB), true);
+  assert.equal(e.stale(e.current()), false, "a refresh started now is current");
+  // Each epoch is independent (one per module / test).
+  assert.equal(createAuthEpoch().current(), 0);
 });

@@ -28,6 +28,7 @@ import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import type { CoffeeFieldKey } from "./coffeeFormErrors";
 import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
@@ -168,8 +169,11 @@ export function CoffeeDetailsForm({
       setDraft({ ...s, notes: s.flavorNotes.join(", ") });
       setSaveMsg("cf.saved");
     } catch (err) {
-      const { code, field } = toApiError(err);
-      const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(code)
+      const { code, field, retryAfter } = toApiError(err);
+      const blocked = dashWriteError(code, retryAfter);
+      const failed: FormErrors<CoffeeFieldKey> = blocked
+        ? { fields: {}, form: blocked }
+        : isContactInfoError(code)
         ? placeError(field ?? "description", { key: "contact.error" }, EDIT_ORDER, COFFEE_API_ALIASES)
         : code === "BAD_USER_INPUT"
           ? coffeeBadInput(field, next.flavorNotes.length, EDIT_ORDER)

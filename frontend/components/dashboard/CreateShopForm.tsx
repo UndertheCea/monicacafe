@@ -5,11 +5,13 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_SHOP } from "@/lib/dashboard/queries";
 import { LIMITS, normaliseShopSlug, runes, suggestSlug } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
 import { isContactInfoError } from "@/lib/moderation";
+import { textInputErrorKey } from "@/lib/textInput";
 
 type ShopField = "name" | "city" | "slug" | "description";
 const ORDER: readonly ShopField[] = ["name", "city", "slug", "description"];
@@ -40,13 +42,22 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
     } catch (err) {
       const e2 = toApiError(err);
       // CONFLICT: the slug is taken (or you already have a shop: no field, so the summary says "couldn't save").
+      const blocked = dashWriteError(e2.code, e2.retryAfter);
       fe.fail(
-        isContactInfoError(e2.code)
+        blocked
+          ? { fields: {}, form: blocked }
+          : isContactInfoError(e2.code)
           ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
           : e2.code === "CONFLICT" && e2.field === "slug"
           ? placeError("slug", { key: "dash.error.slugTaken" }, ORDER)
-          : e2.code === "BAD_USER_INPUT" && ["slug", "name", "city"].includes(e2.field ?? "")
-            ? placeError(e2.field, { key: e2.field === "slug" ? "dash.error.slug" : "dash.error.required" }, ORDER)
+          : e2.code === "BAD_USER_INPUT" && e2.field === "slug"
+            ? placeError("slug", { key: "dash.error.slug" }, ORDER)
+            : e2.code === "BAD_USER_INPUT" && e2.field === "name"
+            ? placeError("name", { key: textInputErrorKey(name, LIMITS.shopName, "shop.error.name") }, ORDER)
+            : e2.code === "BAD_USER_INPUT" && e2.field === "city"
+            ? placeError("city", { key: textInputErrorKey(city, LIMITS.city, "shop.error.city") }, ORDER)
+            : e2.code === "BAD_USER_INPUT" && e2.field === "description"
+            ? placeError("description", { key: textInputErrorKey(description, LIMITS.shopDescription, "shop.error.description") }, ORDER)
             : { fields: {}, form: { key: e2.code === "CONFLICT" ? "dash.error.slugTaken" : "dash.error.generic" } },
       );
       setBusy(false);

@@ -115,6 +115,19 @@ export function cartProblem(code: string, field?: string, available?: number): C
   return { key: cartErrorKey(code, field) };
 }
 
+/**
+ * A problem whose line is no longer in the cart (it was removed elsewhere, so
+ * the reload dropped it) has no row to show under; the page shows it above the
+ * lines instead. Returns that problem, or null when its line is still listed.
+ */
+export function orphanProblem(
+  problem: { line: string; p: CartProblem } | null,
+  lines: Pick<CartLine, "id">[],
+): CartProblem | null {
+  if (!problem || lines.some((l) => l.id === problem.line)) return null;
+  return problem.p;
+}
+
 /** Bags of one option a cart holds. */
 export function inCartFor(items: Pick<CartLine, "quantity" | "variant">[], variantId: string): number {
   return items.reduce((sum, l) => (l.variant.id === variantId ? sum + l.quantity : sum), 0);

@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-16 (after Session 45)
+Last updated: 2026-11-17 (after Session 46)
 
 ---
 
@@ -78,10 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 45**: no owner answers and no pickable slices, so an audit of uploads, listings and /admin became #333–#336: upload keys
-from the canonical id (an upper-case id leaked unsweepable objects), past-the-end `?page=` links back, the upload progress bar is
-named, and `resolveReport` returns `closedCount` so /admin's total stays right. Integration tests ran on PostgreSQL 16;
-stack / smoke / e2e only in CI. ECPay vector still blocked (docs host not reachable).
+**Session 46**: no owner answers and no pickable slices, so an audit of the auth BFF, /account, dashboard forms, cart and comments
+became #338–#345: "load more" no longer resurrects removed rows, logout during a refresh stays logged out, seller forms explain
+suspension / rate limits, unchanged display names don't spend the limit, invisible characters and vanished cart lines / comments
+get real messages, and the password minimum counts characters. Integration tests ran on PostgreSQL 16; stack / e2e only in CI.
 
 ## Current focus
 
@@ -91,7 +91,7 @@ stack / smoke / e2e only in CI. ECPay vector still blocked (docs host not reacha
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
-3. No open unblocked slices left: stage 1 is done except #219, #223, #226 (blocked); #306 picks UI ideas. Orders wait on #205;
+3. No open unblocked slices left (Sessions 43, 45, 46 audited the code): stage 1 is done except #219, #223, #226 (blocked); #306 picks UI ideas. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

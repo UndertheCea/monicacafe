@@ -1,5 +1,7 @@
 // Pure auth helpers shared by the /api/auth route handlers and the browser
-// AuthProvider. No imports, so `node --test` can load this file directly.
+// AuthProvider. Only imports with a .ts extension, so `node --test` can load
+// this file directly.
+import { passwordLengthOk } from "./password.ts";
 
 /** Cookie holding the refresh token (httpOnly, scoped to /api/auth). */
 export const REFRESH_COOKIE = "mc_rt";
@@ -101,10 +103,7 @@ export function validateCredentials(
   displayName?: string,
 ): "email" | "password" | "displayName" | null {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "email";
-  if (password !== null) {
-    const bytes = new TextEncoder().encode(password).length;
-    if (bytes < 8 || bytes > 72) return "password";
-  }
+  if (password !== null && !passwordLengthOk(password)) return "password";
   if (displayName !== undefined) {
     const n = [...displayName.trim()].length;
     if (n < 1 || n > 50) return "displayName";
@@ -142,4 +141,18 @@ export function clientAddress(realIp: string | null): string | undefined {
 export function bearerToken(header: string | null): string | null {
   const m = /^Bearer\s+(\S+)\s*$/i.exec(header ?? "");
   return m ? m[1] : null;
+}
+
+/**
+ * Counts sign-ins and sign-outs in this tab (#344). A refresh that started
+ * under an older count finished after the user logged out (or in as someone
+ * else), so its result must not be applied: it would sign them back in.
+ */
+export function createAuthEpoch() {
+  let n = 0;
+  return {
+    current: () => n,
+    bump: () => ++n,
+    stale: (startedAt: number) => startedAt !== n,
+  };
 }

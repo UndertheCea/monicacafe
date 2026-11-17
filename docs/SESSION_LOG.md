@@ -39,8 +39,8 @@ worker, i18n, migrate / backup / restore scripts); its confirmed findings became
 - #355 frontend — shop JSON-LD: coffees as a separate `ItemList` (positions continue across pages), no price-less Offers.
 
 ### Verification (what ran and passed; what was NOT tested and why)
-- Backend: gofmt, build, vet, `go test -race ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`).
-  `migrate_selftest.sh` (all 27 markers) and `backup_selftest.sh` locally; the backup self-test fails against the old script.
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`); the local
+  `-race` run hit a 10-minute limit, so race checking is CI's. `migrate_selftest.sh` (all 27 markers) and `backup_selftest.sh` locally; the backup self-test fails against the old script.
   Frontend: tsc, lint, `npm test` (334), `next build`; `docker compose config`, `check_brief.sh`.
 - Not run here: compose stack, smoke, Playwright, the S3 backup drill (CI `stack`). JSON-LD not run through Google's validator.
 

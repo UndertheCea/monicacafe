@@ -126,7 +126,7 @@ func (r *Runner) runLocked(ctx context.Context, job Job) (string, int) {
 
 // PGLocker takes session-level Postgres advisory locks on a dedicated pool
 // connection. The connection is held for the whole job, so it counts against
-// the pool's maximum.
+// the pool's maximum (config.DBPool keeps it at 5 or more, #357).
 type PGLocker struct{ Pool *pgxpool.Pool }
 
 // TryLock implements Locker with pg_try_advisory_lock.

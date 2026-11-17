@@ -242,7 +242,14 @@ func (c Config) UploadDailyBytes() (int64, error) {
 // would cancel ordinary queries under load; 1000 connections exceeds any sane
 // Postgres max_connections for one API instance.
 const (
-	maxDBConns          = 1000
+	maxDBConns = 1000
+	// minDBConns: each of the API's three background sweeps (token, cart and
+	// media prune) holds one connection for its advisory lock while its SQL
+	// runs on another, and they can all start together. Three lock
+	// connections + one to make progress + one for requests (#357); below
+	// this a startup sweep can wait forever for a connection and every
+	// request with it.
+	minDBConns          = 5
 	minStatementTimeout = time.Second
 )
 
@@ -253,8 +260,8 @@ func (c Config) DBPool() (maxConns int32, statementTimeout time.Duration, err er
 		v = "10"
 	}
 	n, err := strconv.Atoi(v)
-	if err != nil || n < 1 || n > maxDBConns {
-		return 0, 0, fmt.Errorf("config: DB_MAX_CONNS must be a whole number from 1 to %d, got %q", maxDBConns, c.DBMaxConns)
+	if err != nil || n < minDBConns || n > maxDBConns {
+		return 0, 0, fmt.Errorf("config: DB_MAX_CONNS must be a whole number from %d to %d (the background sweeps hold up to 4 connections), got %q", minDBConns, maxDBConns, c.DBMaxConns)
 	}
 	v = strings.TrimSpace(c.DBStatementTimeout)
 	if v != "" && v != "0" {

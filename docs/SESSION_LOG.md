@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 47 — 2026-11-17 — Audit: SEO on errors and stock, backup / migrate guards, search phrases (nine slices)
-PR: #TBD
+PR: #356
 
 No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice is blocked. An
 Explore agent audited the areas earlier audits skipped (coffee / shop page SEO, sitemap, save / follow, search, rate limiter,

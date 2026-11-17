@@ -76,12 +76,15 @@ test("variantProblems", () => {
     { ...ok, weightG: "250", priceTwd: "4.5" },
     { ...ok, weightG: "300", stock: "-2" },
     { ...ok }, // duplicate of row 0
+    { ...ok, weightG: "500", priceTwd: "0" }, // NT$0 can't be bought (#358)
+    { ...ok, weightG: "1000", priceTwd: "1" },
   ]);
   assert.deepEqual([...problems.entries()], [
     [2, "weight"],
     [3, "price"],
     [4, "stock"],
     [5, "duplicate"],
+    [6, "price"],
   ]);
 });
 

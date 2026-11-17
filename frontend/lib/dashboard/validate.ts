@@ -12,6 +12,8 @@ export const LIMITS = {
   flavorNote: 30,
   variants: 10,
   weightG: 10_000,
+  /** An option costs at least NT$1, what a cart accepts (#358, #292 2a). */
+  minPriceTwd: 1,
   priceTwd: 1_000_000,
   stock: 100_000,
   provenance: 100,
@@ -78,7 +80,7 @@ export function variantProblems(rows: VariantDraft[]): Map<number, VariantProble
   rows.forEach((r, i) => {
     const w = parseWhole(r.weightG, 1, LIMITS.weightG);
     if (w === null) return void out.set(i, "weight");
-    if (parseWhole(r.priceTwd, 0, LIMITS.priceTwd) === null) return void out.set(i, "price");
+    if (parseWhole(r.priceTwd, LIMITS.minPriceTwd, LIMITS.priceTwd) === null) return void out.set(i, "price");
     if (parseWhole(r.stock, 0, LIMITS.stock) === null) return void out.set(i, "stock");
     const key = `${r.grind}/${w}`;
     if (seen.has(key)) return void out.set(i, "duplicate");

@@ -239,7 +239,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           variants: rows.map((r) => ({
             grind: r.grind as GrindOption,
             weightG: parseWhole(r.weightG, 1, LIMITS.weightG)!,
-            priceTwd: parseWhole(r.priceTwd, 0, LIMITS.priceTwd)!,
+            priceTwd: parseWhole(r.priceTwd, LIMITS.minPriceTwd, LIMITS.priceTwd)!,
             stock: parseWhole(r.stock, 0, LIMITS.stock)!,
           })),
         },

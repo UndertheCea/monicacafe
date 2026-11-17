@@ -701,9 +701,11 @@ func validateVariant(v *model.VariantInput) (store.CreateVariantParams, error) {
 	}, nil
 }
 
+// checkPrice: an option costs NT$1 or more, the cart's minimum
+// (MinCartPriceTWD); an NT$0 option could never be bought (#358).
 func checkPrice(p int) error {
-	if p < 0 || p > maxPriceTWD {
-		return errBadInput("variants", fmt.Sprintf("priceTwd must be 0–%d", maxPriceTWD))
+	if p < MinCartPriceTWD || p > maxPriceTWD {
+		return errBadInput("variants", fmt.Sprintf("priceTwd must be %d–%d", MinCartPriceTWD, maxPriceTWD))
 	}
 	return nil
 }

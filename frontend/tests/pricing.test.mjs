@@ -35,16 +35,30 @@ import { coffeeAvailability, variantState } from "../lib/pricing.ts";
 
 test("variantState: an option with no stock reads sold out (#350)", () => {
   const cases = [
-    [{ stock: 5, isAvailable: true }, { kind: "inStock", n: 5 }],
-    [{ stock: 0, isAvailable: true }, { kind: "soldOut" }],
-    [{ stock: 4, isAvailable: false }, { kind: "soldOut" }],
-    [{ stock: 0, isAvailable: false }, { kind: "soldOut" }],
+    [{ stock: 5, isAvailable: true, priceTwd: 400 }, { kind: "inStock", n: 5 }],
+    [{ stock: 0, isAvailable: true, priceTwd: 400 }, { kind: "soldOut" }],
+    [{ stock: 4, isAvailable: false, priceTwd: 400 }, { kind: "soldOut" }],
+    [{ stock: 0, isAvailable: false, priceTwd: 400 }, { kind: "soldOut" }],
+    // An NT$0 option can't be bought, so it isn't "in stock" (#358).
+    [{ stock: 4, isAvailable: true, priceTwd: 0 }, { kind: "soldOut" }],
+    [{ stock: 4, isAvailable: true, priceTwd: 1 }, { kind: "inStock", n: 4 }],
   ];
   for (const [input, want] of cases) assert.deepEqual(variantState(input), want, JSON.stringify(input));
 });
 import { coffeeJsonLd } from "../lib/seo.ts";
 
 const v = (priceTwd, weightG, stock, isAvailable = true) => ({ priceTwd, weightG, stock, isAvailable });
+
+test("coffeeAvailability and JSON-LD skip NT$0 options (#358)", () => {
+  assert.deepEqual(coffeeAvailability([v(0, 200, 3), v(500, 200, 2)]), { kind: "from", price: 500, per100g: 250 });
+  assert.deepEqual(coffeeAvailability([v(0, 200, 3)]), { kind: "soldOut" });
+  const ld = coffeeJsonLd(
+    { id: "c1", name: "Free", description: "", flavorNotes: [], imageUrls: [], variants: [v(0, 200, 3)], shop: { name: "S", slug: "s" } },
+    "https://example.com",
+  );
+  // No buyable option and no price above NT$0: no InStock offer.
+  assert.doesNotMatch(JSON.stringify(ld), /\/InStock/);
+});
 
 test("coffeeAvailability: in stock, mixed, sold out, none", () => {
   assert.deepEqual(coffeeAvailability([v(450, 200, 3), v(900, 500, 2)]), { kind: "from", price: 450, per100g: 225 });

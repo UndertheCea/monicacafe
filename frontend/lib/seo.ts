@@ -132,8 +132,8 @@ const PROVENANCE_NAMES: Record<ProvenanceKey, string> = {
 export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/coffees/${c.id}`, base) ?? base;
   const images = c.imageUrls.map((s) => absoluteUrl(s, base)).filter((s): s is string => s !== null);
-  // Same rule as the page's "from NT$X" (coffeeAvailability): buyable = available and in stock (#349).
-  const buyable = c.variants.filter((v) => v.isAvailable && v.stock > 0);
+  // Same rule as the page's "from NT$X" (coffeeAvailability / isBuyable): available, in stock, ≥ NT$1 (#349, #358).
+  const buyable = c.variants.filter((v) => v.isAvailable && v.stock > 0 && v.priceTwd >= 1);
   const inStock = buyable.length > 0;
   const available = c.variants.filter((v) => v.isAvailable);
   const priced = inStock ? buyable : available.length > 0 ? available : c.variants;

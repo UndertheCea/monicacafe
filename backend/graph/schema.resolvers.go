@@ -1389,6 +1389,7 @@ func (r *mutationResolver) SaveCoffee(ctx context.Context, id string) (*model.Co
 		}
 		return nil, err
 	}
+	r.loadersFor(ctx).ClearSaved(co.ID)
 	return toCoffee(co), nil
 }
 
@@ -1409,6 +1410,7 @@ func (r *mutationResolver) UnsaveCoffee(ctx context.Context, id string) (*model.
 	if err := r.Store.UnsaveCoffee(ctx, c.UserID, id); err != nil {
 		return nil, err
 	}
+	r.loadersFor(ctx).ClearSaved(id)
 	co, err := r.Store.CoffeeByID(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, nil
@@ -1456,6 +1458,7 @@ func (r *mutationResolver) FollowShop(ctx context.Context, id string) (*model.Sh
 		}
 		return nil, err
 	}
+	r.loadersFor(ctx).ClearFollowed(sh.ID)
 	return toShop(sh), nil
 }
 
@@ -1474,6 +1477,7 @@ func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.
 	if err := r.Store.UnfollowShop(ctx, c.UserID, id); err != nil {
 		return nil, err
 	}
+	r.loadersFor(ctx).ClearFollowed(id)
 	sh, err := r.Store.ShopByID(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, nil

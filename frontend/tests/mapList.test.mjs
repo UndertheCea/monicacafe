@@ -2,7 +2,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cardLines } from "../lib/coffeeCard.ts";
-import { cityGroups } from "../lib/mapList.ts";
+import { cityGroups, cityShopsHref } from "../lib/mapList.ts";
+import { shopListHref } from "../lib/shopQuery.ts";
+
+test("cityShopsHref: encoded city link, null for the no-city group", () => {
+  assert.equal(cityShopsHref("台中市"), "/shops?city=%E5%8F%B0%E4%B8%AD%E5%B8%82");
+  assert.equal(cityShopsHref("A & B"), "/shops?city=A+%26+B");
+  assert.equal(cityShopsHref("—"), null);
+  assert.equal(cityShopsHref("  "), null);
+});
+
+test("shopListHref: keeps the city with search and sort", () => {
+  assert.equal(shopListHref({ city: "台中市", sort: "name" }), "/shops?city=%E5%8F%B0%E4%B8%AD%E5%B8%82&sort=name");
+  assert.equal(shopListHref({ q: "a", city: " " }), "/shops?q=a");
+  assert.equal(shopListHref({}), "/shops");
+});
 
 const shop = (id, city) => ({ id, city });
 

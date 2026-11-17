@@ -15,6 +15,46 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 48 — 2026-11-17 — Audit: pool floor, NT$0 options, error caching, map / admin / drawer fixes (ten slices)
+PR: #368
+
+No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice was blocked. Two
+general-purpose agents audited less-covered code (backend: loaders, config, sweeps, listings; frontend: home, /map, /menu, /admin,
+graphql client, Leaflet, i18n); their confirmed findings became #357–#367. Sonnet sub-agents built #360, #362 / #363 / #365 and
+#364 / #366 in worktrees (cherry-picked); the rest were built here.
+
+### Shipped (one line per slice: area — what — key files)
+- #357 backend — `DB_MAX_CONNS` must be ≥ 5: each sweep holds a lock connection while its SQL needs another, so 1–3 could hang
+  the pool and every request (`config.DBPool`, `minDBConns`; `.env.example`).
+- #358 backend (+ frontend) — options cost ≥ NT$1 (`checkPrice`, #292 2a); stored NT$0 rows aren't buyable: one `buyableVariant`
+  rule in `buyableCond`, the from-price join, the price filter and similar's in-stock order; `isBuyable` (`lib/pricing.ts`),
+  JSON-LD and the dashboard forms (`LIMITS.minPriceTwd`) follow. Integration test `free_option_integration_test.go`.
+- #359 cross-cutting — `METRICS_ADDR=` (set, empty) disables /metrics (`getOrEmpty`); compose uses `${METRICS_ADDR-:9100}`.
+- #360 backend — `saveCoffee` / `unsaveCoffee` / `followShop` / `unfollowShop` clear their loader keys (`ClearSaved`,
+  `ClearFollowed`), so a later alias in the same request sees the write.
+- #361 frontend — `cachedServerQuery` caches the parsed answer with `unstable_cache` (same 60 s + tags), not the HTTP 200, so a
+  GraphQL error isn't served to everyone for a minute (`catalogueClient`, `catalogueCacheKey`, `tests/catalogueCache.test.mjs`).
+- #362 frontend — `ReportButton` keeps its `Drawer` mounted so Esc / × returns focus to "Report"; a test forbids `&& <Drawer`.
+- #363 frontend — Leaflet zoom titles + popup close label translated (`mapControlLabels`), plain attribution prefix (no yellow
+  flag) on /map and the dashboard `LocationPicker`.
+- #364 frontend — /map "N more — see all" links to `/shops?city=` (`cityShopsHref`); /shops reads `city` with a removable chip,
+  noindex like `?q=`, canonical unchanged; `shops.emptyCity`.
+- #365 frontend — footer year via `taipeiYear()` (moved to `lib/taipei.ts`).
+- #366 frontend — /admin "More" drops pages from an older search (`mergeAdminPage`, generation ref) and shows `admin.loadError`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`); `-race` left
+  to CI. Frontend: tsc, lint, `npm test` (345), `next build`; `docker compose config`, `check_brief.sh`.
+- #361 checked live: API + `next start` behind a fake GraphQL proxy answering 200 + `errors`: the home page showed "unavailable",
+  then data on the very next request once the proxy recovered; four further home loads made no API request (cache still works).
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack`). Drawer focus and the Leaflet labels were
+  not checked in a browser here; e2e covers /map and the report flow in CI.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- NT$0 options follow #292's safe default 2a (NT$1 minimum for anything a cart can hold); stored rows aren't rewritten.
+- New slice #367 (no-JS language switch on /menu) left open, unclaimed. Audit leftovers not filed: `ErrorState` pages answer
+  HTTP 200, an IPv4-mapped CIDR in `TRUSTED_PROXIES` matches nothing, the audit log doesn't refresh after a moderation action.
+
 ## Session 47 — 2026-11-17 — Audit: SEO on errors and stock, backup / migrate guards, search phrases (nine slices)
 PR: #356
 

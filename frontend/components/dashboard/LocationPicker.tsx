@@ -3,6 +3,7 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import { roundCoord, type Coords } from "@/lib/dashboard/validate";
+import type { MapControlLabels } from "@/lib/mapControls";
 
 const TAIWAN_CENTER: [number, number] = [23.7, 120.96];
 
@@ -17,12 +18,15 @@ export function LocationPicker({
   ariaLabel,
   loadingLabel,
   failedLabel,
+  controlLabels: { zoomIn, zoomOut },
 }: {
   value: Coords | null;
   onPick: (c: Coords) => void;
   ariaLabel: string;
   loadingLabel: string;
   failedLabel: string;
+  /** Leaflet's zoom buttons, translated (#363). */
+  controlLabels: MapControlLabels;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
@@ -33,6 +37,8 @@ export function LocationPicker({
     onPickRef.current = onPick;
   }, [onPick]);
   const initial = useRef(value);
+  // The map is built once; the locale doesn't change while it's on screen.
+  const zoomTitles = useRef({ zoomInTitle: zoomIn, zoomOutTitle: zoomOut });
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
 
   useEffect(() => {
@@ -43,10 +49,13 @@ export function LocationPicker({
         if (cancelled || !el.current) return;
         LRef.current = L;
         const start = initial.current;
-        const map = L.map(el.current, { scrollWheelZoom: false }).setView(
+        const map = L.map(el.current, { zoomControl: false, scrollWheelZoom: false }).setView(
           start ? [start.lat, start.lng] : TAIWAN_CENTER,
           start ? 15 : 7,
         );
+        L.control.zoom(zoomTitles.current).addTo(map);
+        // The default prefix carries a blue/yellow flag; keep it plain (static text, not seller-supplied).
+        map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
         mapRef.current = map;
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,

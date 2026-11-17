@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-17 (after Session 47)
+Last updated: 2026-11-17 (after Session 48)
 
 ---
 
@@ -78,10 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 47**: no owner answers and no pickable slices, so an audit of areas earlier audits skipped became #347–#355: failed
-coffee / shop pages are noindex, JSON-LD offers follow in-stock options and shops list coffees as an ItemList, sold-out options
-say so, Retry-After rounds up, "Costa Rica" searches as one synonym, sign-in links keep `?page=`, the backup shrink guard holds
-every night (`BACKUP_ACCEPT_SHRINK`), and every migration has a checked baseline marker. Stack / e2e only in CI.
+**Session 48**: no owner answers and no pickable slices, so two audits (less-audited backend + frontend code) became #357–#367:
+`DB_MAX_CONNS` ≥ 5 (sweeps could hang the pool), `METRICS_ADDR=` disables metrics, NT$0 options refused and never "in stock",
+save / follow loaders cleared after writes, the catalogue cache keeps only good answers, Report drawer returns focus, Leaflet
+controls translated without the yellow flag, /map "see all" opens `/shops?city=`, footer year in Taipei, /admin load-more races.
 
 ## Current focus
 
@@ -91,7 +91,7 @@ every night (`BACKUP_ACCEPT_SHRINK`), and every migration has a checked baseline
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
-3. No open unblocked slices left (Sessions 43, 45–47 audited the code): stage 1 is done except #219, #223, #226 (blocked); #306 picks UI ideas. Orders wait on #205;
+3. Open unblocked: #367 (no-JS language switch on /menu). Sessions 43, 45–48 audited the code; else stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
@@ -239,7 +239,7 @@ Open questions for the owner (answer by commenting on the issue):
   "take down" reuses #224's suspend / unpublish / delete. `ContainsContactInfo` checks every seller text field, comments
   and display names when written or changed, never stored rows. Filters only raise the cost (#286); the report is the backstop.
 - **Cart rules on #292's safe defaults (#291)**: NT$1 minimum, no buying from your own shop, lines deleted 90 days after their
-  last change (hourly sweep), 20 bags per line. The price snapshot changes only on `acceptCartPrice`. **Stock is taken per
+  last change (hourly sweep), 20 bags per line, options ≥ NT$1 (stored NT$0 rows read sold out, #358). The price snapshot changes only on `acceptCartPrice`. **Stock is taken per
   order** with `ReserveLines` (sorted variant ids, one hold row per line) and returned with `ReleaseHold` (exactly once, #310).
 - **Accepted until #223 (#295)**: register says when an email is taken, and the per-email failed-login cap lets someone lock a
   seller out for 10 minutes; both need email verification / reset. Integration tests leave rows, so they get their own DB

@@ -33,7 +33,7 @@ func TestCoffeeSortOrderBy(t *testing.T) {
 			if !strings.Contains(join, tc.joinHas) {
 				t.Errorf("join %q lacks %q", join, tc.joinHas)
 			}
-			if strings.Contains(order, "fp.") && !strings.Contains(join, "v.is_available AND v.stock > 0") {
+			if strings.Contains(order, "fp.") && !strings.Contains(join, buyableVariant) {
 				t.Errorf("price sort must only count available, in-stock variants: %q", join)
 			}
 		})
@@ -42,7 +42,7 @@ func TestCoffeeSortOrderBy(t *testing.T) {
 
 func TestCoffeeFilterWhere(t *testing.T) {
 	id, lo, year, alt := "x", int64(100), 2025, 1500
-	const stock = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
+	const stock = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= 1)"
 	cases := []struct {
 		name     string
 		f        CoffeeFilter
@@ -60,7 +60,7 @@ func TestCoffeeFilterWhere(t *testing.T) {
 		{"search term covers flavour notes", CoffeeFilter{SearchTerms: []string{"茉莉花"}}, " WHERE " + publicCoffee + " AND " + fmt.Sprintf(searchCond, 1), 1},
 		{"shop + in stock", CoffeeFilter{ShopID: &id, InStock: true, IncludeUnpublished: true}, " WHERE c.archived_at IS NULL AND c.shop_id = $1 AND " + stock, 1},
 		{"min price keeps its own in-stock check", CoffeeFilter{MinPriceTWD: &lo, IncludeUnpublished: true},
-			" WHERE c.archived_at IS NULL AND EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= $1)", 1},
+			" WHERE c.archived_at IS NULL AND EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND v.price_twd >= 1 AND v.price_twd >= $1)", 1},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

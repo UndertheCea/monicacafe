@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SHOPS_FOR_MAP, hasCoords } from "@/lib/api";
-import { cityGroups } from "@/lib/mapList";
+import { cityGroups, cityShopsHref } from "@/lib/mapList";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { ErrorState } from "@/components/ErrorState";
+import { mapControlLabels } from "@/lib/mapControls";
 import { ShopMap } from "@/components/map/ShopMap";
 import { Page } from "@/components/Page";
 import { Card, Label, PageTitle, SectionTitle } from "@/components/ui";
@@ -54,6 +55,7 @@ export default async function MapPage() {
         loadingLabel={t(locale, "map.loading")}
         failedLabel={t(locale, "map.loadFailed")}
         twoFingersLabel={t(locale, "map.twoFingers")}
+        controlLabels={mapControlLabels(locale)}
       />
 
       {/* Text list: the accessible, no-JS equivalent of the map. */}
@@ -84,7 +86,7 @@ export default async function MapPage() {
                 </ul>
                 {more > 0 && (
                   <p className="mt-3 text-sm">
-                    <Link href="/shops" className="text-muted underline-offset-4 hover:text-ink hover:underline">
+                    <Link href={cityShopsHref(city) ?? "/shops"} className="text-muted underline-offset-4 hover:text-ink hover:underline">
                       {t(locale, pluralKey("map.moreShops", more), { n: more })}
                     </Link>
                   </p>

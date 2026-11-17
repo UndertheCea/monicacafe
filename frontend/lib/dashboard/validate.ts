@@ -1,6 +1,8 @@
 // Pure seller-form checks mirroring backend/graph/helpers.go, so sellers see
-// mistakes before a round-trip. No imports: `node --test` loads this directly.
+// mistakes before a round-trip. Only a pure sibling import: `node --test` loads this directly.
 // The backend stays the source of truth and re-validates everything.
+
+import { taipeiYear } from "../taipei.ts";
 
 export const LIMITS = {
   shopName: 80,
@@ -12,6 +14,8 @@ export const LIMITS = {
   flavorNote: 30,
   variants: 10,
   weightG: 10_000,
+  /** An option costs at least NT$1, what a cart accepts (#358, #292 2a). */
+  minPriceTwd: 1,
   priceTwd: 1_000_000,
   stock: 100_000,
   provenance: 100,
@@ -78,7 +82,7 @@ export function variantProblems(rows: VariantDraft[]): Map<number, VariantProble
   rows.forEach((r, i) => {
     const w = parseWhole(r.weightG, 1, LIMITS.weightG);
     if (w === null) return void out.set(i, "weight");
-    if (parseWhole(r.priceTwd, 0, LIMITS.priceTwd) === null) return void out.set(i, "price");
+    if (parseWhole(r.priceTwd, LIMITS.minPriceTwd, LIMITS.priceTwd) === null) return void out.set(i, "price");
     if (parseWhole(r.stock, 0, LIMITS.stock) === null) return void out.set(i, "stock");
     const key = `${r.grind}/${w}`;
     if (seen.has(key)) return void out.set(i, "duplicate");
@@ -118,11 +122,6 @@ export interface CoffeeDetails {
  */
 export type CoffeeDetailsProblem =
   | "required" | "variety" | "producer" | "region" | "notesRequired" | "notes" | "altitude" | "harvest";
-
-/** The calendar year in Taiwan (UTC+8, no DST): what the API compares crop years with. */
-export function taipeiYear(now: Date = new Date()): number {
-  return new Date(now.getTime() + 8 * 60 * 60 * 1000).getUTCFullYear();
-}
 
 /**
  * Parse the harvest-year box: blank → null (not given); a whole year from

@@ -1,8 +1,9 @@
 // query() for server components and other server-side renders.
 import { headers } from "next/headers";
 import { clientAddress } from "./auth/token";
-import { cachedClient, forwardingClient, query, type TypedDocument } from "./graphql";
-import { catalogueFetchOptions, type CatalogueTag } from "./catalogueCache";
+import { unstable_cache } from "next/cache";
+import { catalogueClient, forwardingClient, query, type TypedDocument } from "./graphql";
+import { catalogueCacheKey, catalogueFetchOptions, type CatalogueTag } from "./catalogueCache";
 
 /**
  * Run an anonymous query from the server, passing the visitor's address on
@@ -29,11 +30,16 @@ export async function serverQuery<TData, TVars extends Record<string, unknown>>(
  * seconds (#235). Use only for data that is the same for everyone. Because the
  * request carries nothing per-visitor it counts against this server's own
  * address in the API's per-IP limit, which is fine at one request per minute.
+ *
+ * The parsed answer is cached, not the HTTP response: graphql-request throws on
+ * a body with `errors` (sent as HTTP 200), and a thrown call is never stored,
+ * so one failed query doesn't break the page for everyone for a minute (#361).
  */
 export function cachedServerQuery<TData, TVars extends Record<string, unknown>>(
   doc: TypedDocument<TData, TVars>,
   tags: CatalogueTag[],
   vars?: TVars,
 ): Promise<TData> {
-  return query(doc, vars, cachedClient(catalogueFetchOptions(tags)));
+  const run = unstable_cache(() => query(doc, vars, catalogueClient), catalogueCacheKey(doc, vars), catalogueFetchOptions(tags));
+  return run();
 }

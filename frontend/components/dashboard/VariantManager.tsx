@@ -188,7 +188,7 @@ function VariantRow({
   const fe = useFormErrors<"price" | "stock">(`variant-${v.id}`, ROW_ORDER);
   const [saved, setSaved] = useState(false);
 
-  const p = parseWhole(price, 0, LIMITS.priceTwd);
+  const p = parseWhole(price, LIMITS.minPriceTwd, LIMITS.priceTwd);
   const s = parseWhole(stock, 0, LIMITS.stock);
   const dirty = variantRowDirty(v, { priceTwd: p, stock: s, onSale });
   useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
@@ -351,7 +351,7 @@ function AddVariantForm({
         input: {
           grind: row.grind as GrindOption,
           weightG: parseWhole(row.weightG, 1, LIMITS.weightG)!,
-          priceTwd: parseWhole(row.priceTwd, 0, LIMITS.priceTwd)!,
+          priceTwd: parseWhole(row.priceTwd, LIMITS.minPriceTwd, LIMITS.priceTwd)!,
           stock: parseWhole(row.stock, 0, LIMITS.stock)!,
         },
       });

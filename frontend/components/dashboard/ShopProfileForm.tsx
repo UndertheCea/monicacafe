@@ -14,6 +14,7 @@ import {
   type ShopProfile,
   type ShopProfileProblem,
 } from "@/lib/dashboard/validate";
+import { mapControlLabels } from "@/lib/mapControls";
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -263,6 +264,7 @@ function ProfileEditor({
           ariaLabel={t(locale, "shop.mapAria")}
           loadingLabel={t(locale, "map.loading")}
           failedLabel={t(locale, "map.loadFailed")}
+          controlLabels={mapControlLabels(locale)}
         />
         <div className="grid grid-cols-2 gap-4">
           <label className={FIELD_LABEL}>

@@ -161,7 +161,7 @@ func (f CoffeeFilter) where() (string, []any) {
 			args = append(args, *f.MaxPriceTWD)
 			priceConds = append(priceConds, fmt.Sprintf("v.price_twd <= $%d", len(args)))
 		}
-		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0 AND "+
+		conds = append(conds, "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND "+buyableVariant+" AND "+
 			strings.Join(priceConds, " AND ")+")")
 	}
 	if len(f.BrewMethods) > 0 {
@@ -185,8 +185,13 @@ func (f CoffeeFilter) where() (string, []any) {
 	return " WHERE " + strings.Join(conds, " AND "), args
 }
 
-// buyableCond: the coffee has at least one available, in-stock variant.
-const buyableCond = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0)"
+// buyableVariant: what a cart accepts (graph.MinCartPriceTWD): available, in
+// stock and at least NT$1. NT$0 rows written before #358 are never buyable, so
+// the catalogue doesn't call them in stock or sort them first by price.
+const buyableVariant = "v.is_available AND v.stock > 0 AND v.price_twd >= 1"
+
+// buyableCond: the coffee has at least one buyable variant.
+const buyableCond = "EXISTS (SELECT 1 FROM variants v WHERE v.coffee_id = c.id AND " + buyableVariant + ")"
 
 // searchCond matches one search word against every text a buyer might type:
 // names in both languages, notes, provenance, the shop. $N is an array of
@@ -237,7 +242,7 @@ const (
 // Lowest price among a coffee's available, in-stock variants (what the card
 // shows as "from NT$…"); NULL when it's sold out.
 const fromPriceJoin = ` LEFT JOIN LATERAL (SELECT min(v.price_twd) AS p FROM variants v
-		WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) fp ON true`
+		WHERE v.coffee_id = c.id AND ` + buyableVariant + `) fp ON true`
 
 const commentCountJoin = ` LEFT JOIN LATERAL (SELECT count(*) AS n FROM comments cm WHERE cm.coffee_id = c.id
 		AND cm.user_id NOT IN (` + suspendedUserIDs + `)) cc ON true`
@@ -338,7 +343,7 @@ func (s *Store) SimilarCoffees(ctx context.Context, coffeeID string, limit int) 
 			+ LEAST($6::int, (SELECT count(DISTINCT lower(n)) FROM unnest(c.flavor_notes) n
 				WHERE lower(n) = ANY(src.notes)))::int AS score) sc
 		CROSS JOIN LATERAL (SELECT EXISTS (SELECT 1 FROM variants v
-			WHERE v.coffee_id = c.id AND v.is_available AND v.stock > 0) AS ok) st
+			WHERE v.coffee_id = c.id AND `+buyableVariant+`) AS ok) st
 		WHERE `+publicCoffee+` AND c.shop_id <> src.shop_id AND sc.score >= $7
 		ORDER BY st.ok DESC,
 			sc.score + CASE WHEN c.brew_method = src.brew_method THEN $8::int ELSE 0 END DESC,

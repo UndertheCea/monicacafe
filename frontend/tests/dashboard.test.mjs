@@ -12,7 +12,6 @@ import {
   parseAltitude,
   parseCoords,
   parseHarvestYear,
-  taipeiYear,
   parseFlavorNotes,
   parseWhole,
   shopProfilePatch,
@@ -20,6 +19,7 @@ import {
   suggestSlug,
   variantProblems,
 } from "../lib/dashboard/validate.ts";
+import { taipeiYear } from "../lib/taipei.ts";
 
 test("normaliseShopSlug mirrors the backend rule", () => {
   const cases = [
@@ -76,12 +76,15 @@ test("variantProblems", () => {
     { ...ok, weightG: "250", priceTwd: "4.5" },
     { ...ok, weightG: "300", stock: "-2" },
     { ...ok }, // duplicate of row 0
+    { ...ok, weightG: "500", priceTwd: "0" }, // NT$0 can't be bought (#358)
+    { ...ok, weightG: "1000", priceTwd: "1" },
   ]);
   assert.deepEqual([...problems.entries()], [
     [2, "weight"],
     [3, "price"],
     [4, "stock"],
     [5, "duplicate"],
+    [6, "price"],
   ]);
 });
 
@@ -330,4 +333,9 @@ test("filledOptionalCount counts the folded details (#182, #176)", () => {
 test("isOptionalProblem: only problems inside the fold open it", () => {
   for (const p of ["harvest"]) assert.equal(isOptionalProblem(p), true, p);
   for (const p of ["required", "variety", "producer", "region", "altitude", "notes", "notesRequired", null]) assert.equal(isOptionalProblem(p), false, String(p));
+});
+
+test("taipeiYear: footer year rolls over at 00:00 Taipei (#365)", () => {
+  assert.equal(taipeiYear(new Date("2026-12-31T16:30:00Z")), 2027);
+  assert.equal(taipeiYear(new Date("2026-12-31T15:59:00Z")), 2026);
 });

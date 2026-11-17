@@ -30,3 +30,12 @@ test("menu and pagination links show a pending dot", () => {
     assert.match(readFileSync(join(root, f), "utf8"), /<LinkPending \/>/, f);
   }
 });
+
+// #362: unmounting a <Drawer> removes the <dialog> before it can close(), so
+// focus can't return to the opener. Keep it mounted and drive it with `open`.
+test("no component conditionally mounts a Drawer", () => {
+  const bad = [...files(join(root, "components")), ...files(join(root, "app"))]
+    .filter((p) => /\.tsx$/.test(p))
+    .filter((p) => /&&\s*\(?\s*<Drawer\b/.test(readFileSync(join(root, p), "utf8")));
+  assert.deepEqual(bad, []);
+});

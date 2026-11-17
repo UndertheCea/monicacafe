@@ -4,7 +4,7 @@ import { SHOP_SORT_PARAMS, type ShopSortParam } from "@/lib/shopQuery";
 import { Button, Input, Select } from "@/components/ui";
 
 /** Search + sort for the /shops list (newest / name / most coffees). */
-export function ShopListSortForm({ locale, sort, q }: { locale: Locale; sort: ShopSortParam; q?: string }) {
+export function ShopListSortForm({ locale, sort, q, city }: { locale: Locale; sort: ShopSortParam; q?: string; city?: string }) {
   return (
     <SortForm
       locale={locale}
@@ -13,6 +13,8 @@ export function ShopListSortForm({ locale, sort, q }: { locale: Locale; sort: Sh
       options={SHOP_SORT_PARAMS.map((p) => ({ value: p, label: t(locale, `shopSort.${p || "newest"}`) }))}
       submit="filter.search"
     >
+      {/* Keeps the ?city= the visitor arrived with through a search / sort (#364). */}
+      {city && <input type="hidden" name="city" value={city} />}
       <SearchField locale={locale} q={q} label="shops.search" placeholder="shops.searchPlaceholder" />
     </SortForm>
   );

@@ -29,9 +29,18 @@ export type CoffeeAvailability =
 
 export type VariantState = { kind: "inStock"; n: number } | { kind: "soldOut" };
 
-/** One option's stock cell: in stock only when it is available and has stock left (same rule as coffeeAvailability). */
-export function variantState(v: { stock: number; isAvailable: boolean }): VariantState {
-  return v.isAvailable && v.stock > 0 ? { kind: "inStock", n: v.stock } : { kind: "soldOut" };
+/**
+ * Whether a buyer can pick an option now: available, in stock and at least
+ * NT$1, the API's rule for the catalogue and the cart (#358). An NT$0 option
+ * stored before that rule reads as sold out.
+ */
+export function isBuyable(v: { stock: number; isAvailable: boolean; priceTwd: number }): boolean {
+  return v.isAvailable && v.stock > 0 && v.priceTwd >= 1;
+}
+
+/** One option's stock cell: in stock only when it is buyable (same rule as coffeeAvailability). */
+export function variantState(v: { stock: number; isAvailable: boolean; priceTwd: number }): VariantState {
+  return isBuyable(v) ? { kind: "inStock", n: v.stock } : { kind: "soldOut" };
 }
 
 /**
@@ -43,7 +52,7 @@ export function coffeeAvailability(variants: AvailabilityVariant[]): CoffeeAvail
   if (variants.length === 0) return { kind: "none" };
   let best: AvailabilityVariant | null = null;
   for (const v of variants) {
-    if (v.isAvailable && v.stock > 0 && (best === null || v.priceTwd < best.priceTwd)) best = v;
+    if (isBuyable(v) && (best === null || v.priceTwd < best.priceTwd)) best = v;
   }
   if (best === null) return { kind: "soldOut" };
   return { kind: "from", price: best.priceTwd, per100g: pricePer100g(best.priceTwd, best.weightG) };

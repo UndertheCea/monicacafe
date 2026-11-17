@@ -86,6 +86,12 @@ test("validateCredentials", () => {
     // 24 CJK chars = 72 UTF-8 bytes (bcrypt's limit) is fine; 25 is not.
     { args: ["a@b.tw", "咖".repeat(24)], want: null },
     { args: ["a@b.tw", "咖".repeat(25)], want: "password" },
+    // The minimum counts characters, like the API: 5 CJK chars (15 bytes) is too short, 8 is fine.
+    { args: ["a@b.tw", "密碼密碼測"], want: "password" },
+    { args: ["a@b.tw", "密碼密碼測試好長"], want: null },
+    { args: ["a@b.tw", "😀".repeat(7)], want: "password" },
+    { args: ["a@b.tw", "😀".repeat(8)], want: null },
+    { args: ["a@b.tw", "😀".repeat(19)], want: "password" },
     { args: ["a@b.tw", null], want: null },
     { args: ["a@b.tw", "password1", "  "], want: "displayName" },
     { args: ["a@b.tw", "password1", "小明"], want: null },

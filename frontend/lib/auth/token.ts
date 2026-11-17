@@ -1,5 +1,7 @@
 // Pure auth helpers shared by the /api/auth route handlers and the browser
-// AuthProvider. No imports, so `node --test` can load this file directly.
+// AuthProvider. Only imports with a .ts extension, so `node --test` can load
+// this file directly.
+import { passwordLengthOk } from "./password.ts";
 
 /** Cookie holding the refresh token (httpOnly, scoped to /api/auth). */
 export const REFRESH_COOKIE = "mc_rt";
@@ -101,10 +103,7 @@ export function validateCredentials(
   displayName?: string,
 ): "email" | "password" | "displayName" | null {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return "email";
-  if (password !== null) {
-    const bytes = new TextEncoder().encode(password).length;
-    if (bytes < 8 || bytes > 72) return "password";
-  }
+  if (password !== null && !passwordLengthOk(password)) return "password";
   if (displayName !== undefined) {
     const n = [...displayName.trim()].length;
     if (n < 1 || n > 50) return "displayName";

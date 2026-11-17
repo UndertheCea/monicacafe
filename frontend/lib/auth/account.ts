@@ -1,13 +1,13 @@
-// Pure checks for the /account forms. No imports, so `node --test` can load
-// this file directly. The backend re-validates everything.
+// Pure checks for the /account forms. Only imports with a .ts extension, so
+// `node --test` can load this file directly. The backend re-validates everything.
+import { passwordLengthOk } from "./password.ts";
 
 export type PasswordChangeProblem = "current" | "password" | "same" | "mismatch";
 
 /** First problem with a change-password form, or null when it can be sent. */
 export function passwordChangeProblem(current: string, next: string, confirm: string): PasswordChangeProblem | null {
   if (!current) return "current";
-  const bytes = new TextEncoder().encode(next).length;
-  if ([...next].length < 8 || bytes > 72) return "password";
+  if (!passwordLengthOk(next)) return "password";
   if (next === current) return "same";
   if (next !== confirm) return "mismatch";
   return null;

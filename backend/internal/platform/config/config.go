@@ -120,6 +120,16 @@ func get(k, d string) string {
 	return d
 }
 
+// getOrEmpty is get for a variable whose empty value means "off": unset
+// gives the default, set-but-empty gives "" (#359: METRICS_ADDR= disables
+// /metrics, as .env.example says).
+func getOrEmpty(k, d string) string {
+	if v, ok := os.LookupEnv(k); ok {
+		return v
+	}
+	return d
+}
+
 // RedisURL and MeiliURL* are reserved and optional (#222): nothing reads them yet
 // and compose starts those services only under the cache / search profiles.
 func Load() Config {
@@ -179,7 +189,7 @@ func Load() Config {
 
 		// Loopback by default (a bare `go run` must not expose metrics);
 		// compose sets ":9100", reachable on the compose network only.
-		MetricsAddr:   get("METRICS_ADDR", "127.0.0.1:9100"),
+		MetricsAddr:   getOrEmpty("METRICS_ADDR", "127.0.0.1:9100"),
 		SentryDSN:     get("SENTRY_DSN", ""),
 		SentryRelease: get("SENTRY_RELEASE", ""),
 	}

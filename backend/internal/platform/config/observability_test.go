@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestMetricsListen(t *testing.T) {
 	tests := []struct {
@@ -31,10 +34,16 @@ func TestMetricsListen(t *testing.T) {
 
 func TestObservabilityDefaultsAndValidation(t *testing.T) {
 	t.Setenv("METRICS_ADDR", "")
+	os.Unsetenv("METRICS_ADDR") // t.Setenv restores it after the test
 	t.Setenv("SENTRY_DSN", "")
 	c := Load()
 	if c.MetricsAddr != "127.0.0.1:9100" || c.SentryDSN != "" {
 		t.Fatalf("defaults: metrics %q dsn %q", c.MetricsAddr, c.SentryDSN)
+	}
+	// Set but empty turns metrics off (#359).
+	t.Setenv("METRICS_ADDR", "")
+	if addr, err := Load().MetricsListen(); addr != "" || err != nil {
+		t.Fatalf("METRICS_ADDR= should disable metrics, got %q, %v", addr, err)
 	}
 	t.Setenv("METRICS_ADDR", ":9200")
 	t.Setenv("SENTRY_DSN", "https://k@o1.ingest.sentry.io/5")

@@ -73,7 +73,7 @@ x-backend-env: &backend-env
     MEDIA_CLEANUP_DRY_RUN: ${MEDIA_CLEANUP_DRY_RUN:-false}
     # Prometheus /metrics on its own port, reachable from the compose network
     # only: not published below and not routed by nginx (#221).
-    METRICS_ADDR: ${METRICS_ADDR:-:9100}
+    METRICS_ADDR: ${METRICS_ADDR-:9100}
     SENTRY_DSN: ${SENTRY_DSN:-}
     SENTRY_RELEASE: ${SENTRY_RELEASE:-}
 

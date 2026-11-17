@@ -68,6 +68,21 @@ func NewLoaders(st *store.Store) *Loaders {
 	}
 }
 
+// ClearSaved drops the cached isSaved / saveCount for a coffee. The loaders
+// live for the whole request, so a mutation must call this after its write or
+// a later alias in the same request reads the pre-write value (#360). Keys are
+// the plain coffee id (the loaders are request-scoped, so one viewer).
+func (l *Loaders) ClearSaved(coffeeID string) {
+	l.SavedByCoffee.Clear(coffeeID)
+	l.SaveCountByCoffee.Clear(coffeeID)
+}
+
+// ClearFollowed is ClearSaved for a shop's isFollowed / followerCount.
+func (l *Loaders) ClearFollowed(shopID string) {
+	l.FollowedByShop.Clear(shopID)
+	l.FollowerCountByShop.Clear(shopID)
+}
+
 // onceLoader runs load at most once per request (the Loaders are request
 // scoped) and hands every caller the same result. The first caller's context
 // runs the query.

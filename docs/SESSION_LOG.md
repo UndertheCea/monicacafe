@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 46 — 2026-11-17 — Audit: error messages, load-more races, logout race (eight slices)
-PR: #PRNUM
+PR: #346
 
 No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice is blocked. An
 Explore agent audited the auth BFF, /account, dashboard forms, cart, /map and comment UI (rules 2, 6, 10, 12 found clean); its

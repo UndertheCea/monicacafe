@@ -8,7 +8,7 @@ import { PAGE_SIZE, type SearchParams } from "@/lib/coffeeFilters";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
-import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
+import { errorPageMetadata, serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { parseShopPagePages, shopPageHref } from "@/lib/shopQuery";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
@@ -68,7 +68,7 @@ export async function generateMetadata({
       }),
     };
   } catch {
-    return { title: t(locale, "shops.title") };
+    return errorPageMetadata(t(locale, "shops.title"));
   }
 }
 

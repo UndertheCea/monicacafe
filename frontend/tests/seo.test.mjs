@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   absoluteUrl,
   coffeeJsonLd,
+  errorPageMetadata,
   listingCanonicalPath,
   listingRobots,
   serializeJsonLd,
@@ -191,4 +192,8 @@ test("home and listing pages build their share card with shareMetadata (#195)", 
     assert.match(src, /listingCanonicalPath\(/, f);
     assert.match(src, /robots: listingRobots\(/, f);
   }
+});
+
+test("errorPageMetadata keeps the title and blocks indexing", () => {
+  assert.deepEqual(errorPageMetadata("Coffees"), { title: "Coffees", robots: { index: false, follow: true } });
 });

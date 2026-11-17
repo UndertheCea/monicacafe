@@ -6,6 +6,17 @@ import { coffeeAvailability } from "./pricing.ts";
 
 export type ShareLocale = "zh-TW" | "en";
 
+/**
+ * Metadata for a page whose data failed to load: the page renders an error
+ * panel, which search engines must not index (links on it may still be followed).
+ * generateMetadata and the page share one React `cache()`d load, so both see the
+ * same result (a rejected promise is memoised too); the page body itself cannot
+ * set robots in Next, so the metadata catch is the one place to do it.
+ */
+export function errorPageMetadata(title: string): { title: string; robots: { index: false; follow: true } } {
+  return { title, robots: { index: false, follow: true } };
+}
+
 export interface ShareInput {
   /** Public origin from siteBase(SITE_URL), no trailing slash. */
   base: string;

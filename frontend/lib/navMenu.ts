@@ -95,3 +95,14 @@ export function authHref(path: "/login" | "/register", from: string | null | und
   }
   return `${path}?next=${encodeURIComponent(from)}`;
 }
+
+/**
+ * The login link from a page with a query string (`?page=2`, `?archive=3`):
+ * `?next=` keeps the pathname and the search so the visitor lands back on the
+ * same page of the list. `search` is `useSearchParams().toString()`, with or
+ * without a leading "?". Same-site rules as authHref.
+ */
+export function loginHrefFrom(pathname: string, search: string | null | undefined): string {
+  const q = (search ?? "").replace(/^\?/, "");
+  return authHref("/login", q ? `${pathname}?${q}` : pathname);
+}

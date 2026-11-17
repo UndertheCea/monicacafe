@@ -16,10 +16,14 @@ test("map control labels exist in both locales and differ between them", () => {
   assert.notEqual(zh.closePopup, en.closePopup);
 });
 
-test("ShopMap hides the default zoom control and the attribution flag", () => {
-  const src = readFileSync(new URL("../components/map/ShopMap.tsx", import.meta.url), "utf8");
-  assert.match(src, /zoomControl:\s*false/);
-  assert.match(src, /L\.control\.zoom\(/);
-  assert.match(src, /attributionControl\.setPrefix\(\s*'<a href="https:\/\/leafletjs\.com">Leaflet<\/a>'\s*\)/);
-  assert.match(src, /leaflet-popup-close-button/);
+test("every Leaflet map translates its zoom control and hides the attribution flag", () => {
+  for (const file of ["../components/map/ShopMap.tsx", "../components/dashboard/LocationPicker.tsx"]) {
+    const src = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(src, /zoomControl:\s*false/, file);
+    assert.match(src, /L\.control\.zoom\(/, file);
+    assert.match(src, /zoomInTitle/, file);
+    assert.match(src, /attributionControl\.setPrefix\(\s*'<a href="https:\/\/leafletjs\.com">Leaflet<\/a>'\s*\)/, file);
+  }
+  const map = readFileSync(new URL("../components/map/ShopMap.tsx", import.meta.url), "utf8");
+  assert.match(map, /leaflet-popup-close-button/);
 });

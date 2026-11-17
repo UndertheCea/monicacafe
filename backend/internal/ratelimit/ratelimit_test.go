@@ -76,6 +76,21 @@ func TestLimiterAllow(t *testing.T) {
 			},
 		},
 		{
+			name: "a fractional wait rounds up, and waiting it is enough (#351)",
+			rule: Rule{Burst: 25, Per: time.Minute}, // one token per 2.4 s
+			steps: func() []step {
+				s := make([]step, 0, 28)
+				for range 25 {
+					s = append(s, step{0, "a", true, 0})
+				}
+				return append(s,
+					step{0, "a", false, 3 * time.Second},           // 2.4 s → 3 s, not 2 s
+					step{2 * time.Second, "a", false, time.Second}, // 0.4 s left
+					step{time.Second, "a", true, 0},
+				)
+			}(),
+		},
+		{
 			name: "retry-after is at least a second",
 			rule: Rule{Burst: 100, Per: time.Second},
 			steps: func() []step {
@@ -208,6 +223,23 @@ func TestCheckDoesNotSpend(t *testing.T) {
 		}
 		if ok != c.wantOK || l.Len() != c.wantN {
 			t.Errorf("%s: Check = %v, Len = %d; want %v, %d", c.name, ok, l.Len(), c.wantOK, c.wantN)
+		}
+	}
+}
+
+func TestCeilSecond(t *testing.T) {
+	cases := []struct{ in, want time.Duration }{
+		{0, time.Second},
+		{time.Millisecond, time.Second},
+		{time.Second, time.Second},
+		{1200 * time.Millisecond, 2 * time.Second},
+		{2 * time.Second, 2 * time.Second},
+		{2*time.Second + time.Nanosecond, 3 * time.Second},
+		{59900 * time.Millisecond, time.Minute},
+	}
+	for _, c := range cases {
+		if got := ceilSecond(c.in); got != c.want {
+			t.Errorf("ceilSecond(%v) = %v; want %v", c.in, got, c.want)
 		}
 	}
 }

@@ -31,7 +31,17 @@ test("pricePer100g rejects unusable inputs", () => {
   }
 });
 
-import { coffeeAvailability } from "../lib/pricing.ts";
+import { coffeeAvailability, variantState } from "../lib/pricing.ts";
+
+test("variantState: an option with no stock reads sold out (#350)", () => {
+  const cases = [
+    [{ stock: 5, isAvailable: true }, { kind: "inStock", n: 5 }],
+    [{ stock: 0, isAvailable: true }, { kind: "soldOut" }],
+    [{ stock: 4, isAvailable: false }, { kind: "soldOut" }],
+    [{ stock: 0, isAvailable: false }, { kind: "soldOut" }],
+  ];
+  for (const [input, want] of cases) assert.deepEqual(variantState(input), want, JSON.stringify(input));
+});
 import { coffeeJsonLd } from "../lib/seo.ts";
 
 const v = (priceTwd, weightG, stock, isAvailable = true) => ({ priceTwd, weightG, stock, isAvailable });

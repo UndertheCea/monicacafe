@@ -25,6 +25,7 @@ import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } fro
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
 import { isContactInfoError } from "@/lib/moderation";
+import { textInputErrorKey } from "@/lib/textInput";
 import { FIELD_LABEL } from "@/lib/ui";
 
 // Leaflet touches `window`; load the picker on the client only.
@@ -175,7 +176,12 @@ function ProfileEditor({
       setSaved(true);
     } catch (err) {
       const e2 = toApiError(err);
-      const key = e2.code === "BAD_USER_INPUT" ? API_KEY[e2.field ?? ""] : undefined;
+      let key = e2.code === "BAD_USER_INPUT" ? API_KEY[e2.field ?? ""] : undefined;
+      // A text field the length can't explain holds invisible characters (#341).
+      const text = { name, city, description }[e2.field as "name" | "city" | "description"];
+      if (key && text !== undefined) {
+        key = textInputErrorKey(text, LIMITS[e2.field === "name" ? "shopName" : e2.field === "city" ? "city" : "shopDescription"], key);
+      }
       const blocked = dashWriteError(e2.code, e2.retryAfter);
       fe.fail(
         blocked

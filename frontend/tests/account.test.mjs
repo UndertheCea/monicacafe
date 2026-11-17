@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   accountDeletionBlock,
   cleanDisplayName,
+  displayNameChanged,
   deleteAccountErrorKey,
   passwordChangeProblem,
   passwordErrorKey,
@@ -79,4 +80,14 @@ test("formatExport pretty-prints and refuses non-JSON", async () => {
   const { formatExport } = await import("../lib/auth/account.ts");
   assert.equal(formatExport('{"a":[1],"b":null}'), '{\n  "a": [\n    1\n  ],\n  "b": null\n}\n');
   assert.throws(() => formatExport("<html>"));
+});
+
+test("displayNameChanged: an unchanged name needs no request (#340)", () => {
+  const cases = [
+    { clean: "Moni", current: "Moni", want: false },
+    { clean: "Moni", current: "moni", want: true },
+    { clean: "新名字", current: "舊名字", want: true },
+    { clean: "Moni", current: undefined, want: true },
+  ];
+  for (const c of cases) assert.equal(displayNameChanged(c.clean, c.current), c.want, JSON.stringify(c));
 });

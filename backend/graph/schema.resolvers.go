@@ -369,14 +369,10 @@ func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.Update
 	if err != nil {
 		return nil, err
 	}
-	if err := allowKey(r.Limits.ProfileUser, c.UserID); err != nil {
-		return nil, err
-	}
 	name, err := cleanText("displayName", input.DisplayName, 1, 50)
 	if err != nil {
 		return nil, err
 	}
-	// Only a changed name is checked, so saving the same one never fails.
 	cur, err := r.Store.UserByID(ctx, c.UserID)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errUnauthenticated()
@@ -384,10 +380,18 @@ func (r *mutationResolver) UpdateProfile(ctx context.Context, input model.Update
 	if err != nil {
 		return nil, err
 	}
-	if name != cur.DisplayName {
-		if err := checkDisplayName(c, name); err != nil {
-			return nil, err
-		}
+	// Saving the same name is a no-op: it never fails, writes nothing and
+	// doesn't spend the hourly limit, which counts changes only (#340).
+	if name == cur.DisplayName {
+		user := toUser(cur)
+		user.RevealEmail = true
+		return user, nil
+	}
+	if err := allowKey(r.Limits.ProfileUser, c.UserID); err != nil {
+		return nil, err
+	}
+	if err := checkDisplayName(c, name); err != nil {
+		return nil, err
 	}
 	u, err := r.Store.UpdateDisplayName(ctx, c.UserID, name)
 	if errors.Is(err, store.ErrNotFound) {

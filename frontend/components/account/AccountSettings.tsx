@@ -12,6 +12,7 @@ import { MY_COMMENTS } from "@/lib/dashboard/queries";
 import {
   accountDeletionBlock,
   cleanDisplayName,
+  displayNameChanged,
   deleteAccountErrorKey,
   passwordChangeProblem,
   passwordErrorKey,
@@ -119,8 +120,14 @@ function ProfileForm({ locale }: { locale: Locale }) {
     const clean = cleanDisplayName(name);
     setSaved(false);
     if (!clean) return fe.failField("displayName", { key: "auth.error.displayName" });
-    setBusy(true);
     fe.clear();
+    if (!displayNameChanged(clean, user?.displayName)) {
+      // Nothing to send: the name is already saved (#340).
+      setName(clean);
+      setSaved(true);
+      return;
+    }
+    setBusy(true);
     try {
       await request(UPDATE_PROFILE, { input: { displayName: clean } });
       setName(clean);
@@ -129,6 +136,7 @@ function ProfileForm({ locale }: { locale: Locale }) {
     } catch (err) {
       const e2 = toApiError(err);
       if (e2.code === "BAD_USER_INPUT" || e2.code === "CONTACT_INFO_NOT_ALLOWED") fe.failField("displayName", { key: "auth.error.displayName" });
+      else if (e2.code === "RATE_LIMITED") fe.fail({ fields: {}, form: rateLimitMessage(e2.retryAfter) });
       else fe.fail({ fields: {}, form: { key: e2.code === "UNAVAILABLE" ? "auth.error.unavailable" : "account.error.generic" } });
     } finally {
       setBusy(false);

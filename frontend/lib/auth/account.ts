@@ -20,6 +20,14 @@ export function cleanDisplayName(name: string): string | null {
   return n >= 1 && n <= 50 ? v : null;
 }
 
+/**
+ * Whether saving the display-name form needs a request: not when the cleaned
+ * name is the one already saved (the API would answer the same user; #340).
+ */
+export function displayNameChanged(clean: string, current: string | undefined): boolean {
+  return clean !== current;
+}
+
 /** Message key for a backend error from changePassword. */
 export function passwordErrorKey(
   code: string,

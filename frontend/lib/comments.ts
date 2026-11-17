@@ -1,5 +1,16 @@
 // Comment paging helpers (pure, no imports, so `npm test` can load them).
 
+/**
+ * What a failed comment delete means: NOT_FOUND is "already deleted" (another
+ * tab or an admin got there first), so the row should go; RATE_LIMITED shows
+ * the wait; anything else is a plain failure.
+ */
+export function deleteOutcome(code: string): "gone" | "rateLimited" | "failed" {
+  if (code === "NOT_FOUND") return "gone";
+  if (code === "RATE_LIMITED") return "rateLimited";
+  return "failed";
+}
+
 /** Comments per page: the first page is server-rendered, "load more" fetches the next. */
 export const COMMENTS_PAGE = 20;
 

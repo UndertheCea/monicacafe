@@ -10,6 +10,7 @@ import {
   commentAuthorBadge,
   commentCoffeeHref,
   commentEditErrorKey,
+  deleteOutcome,
   commentInputErrorKey,
   commentEditState,
   commentLength,
@@ -142,4 +143,15 @@ test("commentInputErrorKey: too long only when it is, else refused characters (#
   ];
   for (const [body, want] of cases) assert.equal(commentInputErrorKey(body), want, JSON.stringify(body.slice(0, 8)));
   assert.equal(commentInputErrorKey("abc", 2), "comments.tooLong");
+});
+
+test("deleteOutcome", () => {
+  const cases = [
+    ["NOT_FOUND", "gone"],
+    ["RATE_LIMITED", "rateLimited"],
+    ["FORBIDDEN", "failed"],
+    ["UNAVAILABLE", "failed"],
+    ["INTERNAL_SERVER_ERROR", "failed"],
+  ];
+  for (const [code, want] of cases) assert.equal(deleteOutcome(code), want, code);
 });

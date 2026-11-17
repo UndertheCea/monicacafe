@@ -1,6 +1,8 @@
 // Pure seller-form checks mirroring backend/graph/helpers.go, so sellers see
-// mistakes before a round-trip. No imports: `node --test` loads this directly.
+// mistakes before a round-trip. Only a pure sibling import: `node --test` loads this directly.
 // The backend stays the source of truth and re-validates everything.
+
+import { taipeiYear } from "../taipei.ts";
 
 export const LIMITS = {
   shopName: 80,
@@ -120,11 +122,6 @@ export interface CoffeeDetails {
  */
 export type CoffeeDetailsProblem =
   | "required" | "variety" | "producer" | "region" | "notesRequired" | "notes" | "altitude" | "harvest";
-
-/** The calendar year in Taiwan (UTC+8, no DST): what the API compares crop years with. */
-export function taipeiYear(now: Date = new Date()): number {
-  return new Date(now.getTime() + 8 * 60 * 60 * 1000).getUTCFullYear();
-}
 
 /**
  * Parse the harvest-year box: blank → null (not given); a whole year from

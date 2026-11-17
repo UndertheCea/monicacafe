@@ -12,7 +12,6 @@ import {
   parseAltitude,
   parseCoords,
   parseHarvestYear,
-  taipeiYear,
   parseFlavorNotes,
   parseWhole,
   shopProfilePatch,
@@ -20,6 +19,7 @@ import {
   suggestSlug,
   variantProblems,
 } from "../lib/dashboard/validate.ts";
+import { taipeiYear } from "../lib/taipei.ts";
 
 test("normaliseShopSlug mirrors the backend rule", () => {
   const cases = [
@@ -333,4 +333,9 @@ test("filledOptionalCount counts the folded details (#182, #176)", () => {
 test("isOptionalProblem: only problems inside the fold open it", () => {
   for (const p of ["harvest"]) assert.equal(isOptionalProblem(p), true, p);
   for (const p of ["required", "variety", "producer", "region", "altitude", "notes", "notesRequired", null]) assert.equal(isOptionalProblem(p), false, String(p));
+});
+
+test("taipeiYear: footer year rolls over at 00:00 Taipei (#365)", () => {
+  assert.equal(taipeiYear(new Date("2026-12-31T16:30:00Z")), 2027);
+  assert.equal(taipeiYear(new Date("2026-12-31T15:59:00Z")), 2026);
 });

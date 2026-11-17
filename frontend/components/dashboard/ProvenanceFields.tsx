@@ -1,6 +1,7 @@
 "use client";
 
-import { LIMITS, taipeiYear } from "@/lib/dashboard/validate";
+import { LIMITS } from "@/lib/dashboard/validate";
+import { taipeiYear } from "@/lib/taipei";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Field, Input } from "@/components/ui";
 import { fieldMessage } from "@/components/FormSummary";

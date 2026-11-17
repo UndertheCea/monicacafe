@@ -82,57 +82,55 @@ export function ReportButton({
       <Button variant="quiet" size="sm" onClick={() => setOpen(true)} aria-haspopup="dialog">
         {t(locale, "report.action")}
       </Button>
-      {open && (
-        <Drawer
-          id={`report-${id}`}
-          open={open}
-          onClose={close}
-          title={t(locale, TITLE[targetType])}
-          closeLabel={t(locale, "report.close")}
-        >
-          {done ? (
-            <p role="status" className="text-sm text-ink">
-              {t(locale, "report.done")}
-            </p>
-          ) : (
-            <form onSubmit={onSubmit} className="space-y-4 text-sm">
-              <fieldset className="m-0 min-w-0 border-0 p-0">
-                <legend className="mb-2 font-semibold text-ink">{t(locale, "report.reasonLegend")}</legend>
-                <div className="divide-y divide-line border-y border-line">
-                  {REPORT_REASONS.map((r) => (
-                    <label key={r} className="flex min-h-11 cursor-pointer items-center gap-3 py-2 text-ink">
-                      <input
-                        type="radio"
-                        name={`report-reason-${id}`}
-                        value={r}
-                        checked={reason === r}
-                        onChange={() => (setReason(r), setError(null))}
-                        className="h-4 w-4 accent-black"
-                      />
-                      {t(locale, `report.reason.${r}`)}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <Field
-                id={`report-note-${id}`}
-                label={t(locale, "report.note")}
-                error={noteTooLong ? t(locale, "report.noteTooLong", { max: REPORT_NOTE_MAX }) : undefined}
-              >
-                {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} rows={3} />}
-              </Field>
-              {error && (
-                <p role="alert" className="text-danger">
-                  {t(locale, error.key, error.vars)}
-                </p>
-              )}
-              <Button type="submit" pending={busy} disabled={!canSubmitReport(reason, note)}>
-                {busy ? t(locale, "report.sending") : t(locale, "report.submit")}
-              </Button>
-            </form>
-          )}
-        </Drawer>
-      )}
+      <Drawer
+        id={`report-${id}`}
+        open={open}
+        onClose={close}
+        title={t(locale, TITLE[targetType])}
+        closeLabel={t(locale, "report.close")}
+      >
+        {done ? (
+          <p role="status" className="text-sm text-ink">
+            {t(locale, "report.done")}
+          </p>
+        ) : (
+          <form onSubmit={onSubmit} className="space-y-4 text-sm">
+            <fieldset className="m-0 min-w-0 border-0 p-0">
+              <legend className="mb-2 font-semibold text-ink">{t(locale, "report.reasonLegend")}</legend>
+              <div className="divide-y divide-line border-y border-line">
+                {REPORT_REASONS.map((r) => (
+                  <label key={r} className="flex min-h-11 cursor-pointer items-center gap-3 py-2 text-ink">
+                    <input
+                      type="radio"
+                      name={`report-reason-${id}`}
+                      value={r}
+                      checked={reason === r}
+                      onChange={() => (setReason(r), setError(null))}
+                      className="h-4 w-4 accent-black"
+                    />
+                    {t(locale, `report.reason.${r}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <Field
+              id={`report-note-${id}`}
+              label={t(locale, "report.note")}
+              error={noteTooLong ? t(locale, "report.noteTooLong", { max: REPORT_NOTE_MAX }) : undefined}
+            >
+              {(p) => <Textarea {...p} value={note} onChange={(e) => setNote(e.target.value)} rows={3} />}
+            </Field>
+            {error && (
+              <p role="alert" className="text-danger">
+                {t(locale, error.key, error.vars)}
+              </p>
+            )}
+            <Button type="submit" pending={busy} disabled={!canSubmitReport(reason, note)}>
+              {busy ? t(locale, "report.sending") : t(locale, "report.submit")}
+            </Button>
+          </form>
+        )}
+      </Drawer>
     </>
   );
 }

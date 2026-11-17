@@ -15,6 +15,40 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 47 — 2026-11-17 — Audit: SEO on errors and stock, backup / migrate guards, search phrases (nine slices)
+PR: #356
+
+No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice is blocked. An
+Explore agent audited the areas earlier audits skipped (coffee / shop page SEO, sitemap, save / follow, search, rate limiter,
+worker, i18n, migrate / backup / restore scripts); its confirmed findings became #347–#355. Two Sonnet sub-agents built
+#347 / #353 and #349 / #350 / #355 in worktrees (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #347 frontend — coffee / shop pages whose data failed to load are `noindex, follow` (`errorPageMetadata`, `lib/seo.ts`).
+- #348 cross-cutting — `backup.sh` compares with the **largest** stored dump, so the shrink guard holds every night until an
+  operator runs once with `BACKUP_ACCEPT_SHRINK=true`; a failed S3 listing fails the run. `scripts/backup_selftest.sh` (fake
+  pg_dump, local target) in CI; docs/BACKUP.md, `.env.example`.
+- #349 frontend — coffee JSON-LD offers priced from options that are available **and** in stock (as the page); else OutOfStock.
+- #350 frontend — options table: available but 0 stock reads sold out (`variantState`, `lib/pricing.ts`).
+- #351 backend — `ratelimit` rounds the wait **up** (`ceilSecond`): waiting Retry-After is enough (2.4 s was reported as 2 s).
+- #352 cross-cutting — `migrate.sh`: marker for 024 (every migration has one; the self-test checks each is false before and true
+  after its migration via `MIGRATE_PRINT_MARKER`), error lists the versions, server wait by the clock + `PGCONNECT_TIMEOUT`.
+- #353 frontend — Save / Follow sign-in links keep `?page=` / `?archive=` (`loginHrefFrom`, `lib/navMenu.ts`).
+- #354 backend — coffee search joins adjacent words spelling a synonym member ("Costa Rica" → 哥斯大黎加), `search.Phrases`;
+  `searchTerms` query reports it as one term. Shop / admin search unchanged.
+- #355 frontend — shop JSON-LD: coffees as a separate `ItemList` (positions continue across pages), no price-less Offers.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` with `TEST_DATABASE_URL` (PostgreSQL 16, fresh `scripts/test_db.sh`); the local
+  `-race` run hit a 10-minute limit, so race checking is CI's. `migrate_selftest.sh` (all 27 markers) and `backup_selftest.sh` locally; the backup self-test fails against the old script.
+  Frontend: tsc, lint, `npm test` (334), `next build`; `docker compose config`, `check_brief.sh`.
+- Not run here: compose stack, smoke, Playwright, the S3 backup drill (CI `stack`). JSON-LD not run through Google's validator.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `BACKUP_ACCEPT_SHRINK` is per run only (not in compose's environment), so the guard can't be left off by accident.
+- Audit leftovers not filed: the worker's River concurrency equals its DB pool (only a noop job exists yet; revisit with real
+  jobs), and `CommentForm`'s sign-in link (coffee pages carry no list query, so nothing is lost today).
+
 ## Session 46 — 2026-11-17 — Audit: error messages, load-more races, logout race (eight slices)
 PR: #346
 

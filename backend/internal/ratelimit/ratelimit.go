@@ -164,7 +164,16 @@ func (l *Limiter) consume(key string, spend bool) (bool, time.Duration) {
 		return true, 0
 	}
 	wait := time.Duration((1 - b.tokens) / rate)
-	return false, max(wait, time.Second).Round(time.Second)
+	return false, ceilSecond(wait)
+}
+
+// ceilSecond rounds a wait up to whole seconds, at least one: a client that
+// waits exactly the Retry-After it was given must find a token (#351).
+func ceilSecond(d time.Duration) time.Duration {
+	if d <= time.Second {
+		return time.Second
+	}
+	return (d + time.Second - 1).Truncate(time.Second)
 }
 
 // sweep drops buckets that have refilled completely (indistinguishable from a

@@ -9,7 +9,7 @@ import { MORE_FROM_SHOP, SIMILAR_COFFEES, alsoLike, moreFromShop } from "@/lib/m
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
 import { provenanceFacts } from "@/lib/provenance";
-import { coffeeJsonLd, serializeJsonLd, shareMetadata } from "@/lib/seo";
+import { coffeeJsonLd, errorPageMetadata, serializeJsonLd, shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { CommentList } from "@/components/coffees/CommentList";
@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
       }),
     };
   } catch {
-    return { title: t(locale, "coffees.title") };
+    return errorPageMetadata(t(locale, "coffees.title"));
   }
 }
 

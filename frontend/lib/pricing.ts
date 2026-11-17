@@ -27,6 +27,13 @@ export type CoffeeAvailability =
   | { kind: "soldOut" }
   | { kind: "from"; price: number; per100g: number | null };
 
+export type VariantState = { kind: "inStock"; n: number } | { kind: "soldOut" };
+
+/** One option's stock cell: in stock only when it is available and has stock left (same rule as coffeeAvailability). */
+export function variantState(v: { stock: number; isAvailable: boolean }): VariantState {
+  return v.isAvailable && v.stock > 0 ? { kind: "inStock", n: v.stock } : { kind: "soldOut" };
+}
+
 /**
  * What a buyer sees first on a coffee: no options yet, sold out (no option is
  * both available and in stock), or the cheapest buyable option's price and its

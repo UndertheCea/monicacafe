@@ -4,7 +4,7 @@ import { brewLongKey } from "@/lib/brew";
 import { flavorNoteHref } from "@/lib/coffeeQuery";
 import { knownHarvestYear } from "@/lib/harvest";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
-import { coffeeAvailability, pricePer100g } from "@/lib/pricing";
+import { coffeeAvailability, pricePer100g, variantState } from "@/lib/pricing";
 import { provenanceFacts } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
@@ -148,7 +148,9 @@ export function CoffeeDetailView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {coffee.variants.map((v) => (
+                {coffee.variants.map((v) => {
+                  const state = variantState(v);
+                  return (
                   <tr key={v.id}>
                     <td className="px-4 py-2">{t(locale, `grind.${v.grind}`)}</td>
                     <td className="px-4 py-2">{v.weightG} g</td>
@@ -156,11 +158,12 @@ export function CoffeeDetailView({
                       <span className="font-semibold">NT${formatTWD(v.priceTwd)}</span>
                       <Per100g locale={locale} priceTwd={v.priceTwd} weightG={v.weightG} />
                     </td>
-                    <td className={v.isAvailable ? "px-4 py-2" : "px-4 py-2 text-muted"}>
-                      {v.isAvailable ? t(locale, "coffee.inStock", { n: v.stock }) : t(locale, "coffees.soldOut")}
+                    <td className={state.kind === "inStock" ? "px-4 py-2" : "px-4 py-2 text-muted"}>
+                      {state.kind === "inStock" ? t(locale, "coffee.inStock", { n: state.n }) : t(locale, "coffees.soldOut")}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}

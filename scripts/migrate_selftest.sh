@@ -9,6 +9,8 @@
 #    then brought up to date with MIGRATE_BASELINE, ending with the same columns
 #    as the fresh one. Run again, it changes nothing.
 # 3. A failing migration rolls back: nothing it created is left, nothing is recorded.
+# 4. Every migration has a baseline marker, false just before it runs and true
+#    after (#352), so MIGRATE_BASELINE works at any version.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -18,6 +20,7 @@ query=""
 case "$url" in *\?*) query="?${url#*\?}"; base="${url%%\?*}"; base="${base%/*}" ;; esac
 fresh="mig_selftest_fresh"
 old="mig_selftest_old"
+marks="mig_selftest_marks"
 admin="$base/postgres$query"
 db() { echo "$base/$1$query"; }
 
@@ -30,11 +33,11 @@ upto=$(basename "${migrations[total-2]}" | cut -c1-3)
 scratch=$(mktemp -d)
 cleanup() {
   rm -rf "$scratch"
-  psql "$admin" -X -q -c "DROP DATABASE IF EXISTS $fresh" -c "DROP DATABASE IF EXISTS $old" >/dev/null 2>&1 || true
+  psql "$admin" -X -q -c "DROP DATABASE IF EXISTS $fresh" -c "DROP DATABASE IF EXISTS $old" -c "DROP DATABASE IF EXISTS $marks" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 psql "$admin" -X -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $fresh" -c "DROP DATABASE IF EXISTS $old" \
-  -c "CREATE DATABASE $fresh" -c "CREATE DATABASE $old" 2>/dev/null
+  -c "DROP DATABASE IF EXISTS $marks" -c "CREATE DATABASE $fresh" -c "CREATE DATABASE $old" -c "CREATE DATABASE $marks" 2>/dev/null
 
 fail=0
 ok() { echo "ok   $*"; }
@@ -92,5 +95,21 @@ if MIGRATIONS_DIR="$scratch" DATABASE_URL="$(db $fresh)" "$root/scripts/migrate.
 fi
 left=$(psql "$(db $fresh)" -X -At -c "SELECT (to_regclass('selftest_half_done') IS NOT NULL)::int + (SELECT count(*) FROM schema_migrations WHERE version LIKE '999%')")
 [[ "$left" == "0" ]] && ok "a failing migration is rolled back and not recorded" || bad "a failing migration left $left things behind"
+
+# 4 ─ every migration's baseline marker (#352)
+marker_fail=0
+for f in "${migrations[@]}"; do
+  v=$(basename "$f" | cut -c1-3)
+  if ! cond=$(MIGRATE_PRINT_MARKER="$v" "$root/scripts/migrate.sh" 2>/dev/null); then
+    bad "migration $v has no baseline marker in scripts/migrate.sh"; marker_fail=1; continue
+  fi
+  before=$(psql "$(db $marks)" -X -At -c "SELECT $cond" 2>&1)
+  psql "$(db $marks)" -X -q -v ON_ERROR_STOP=1 -f "$f" >/dev/null 2>&1 || bad "applying $(basename "$f") by hand"
+  after=$(psql "$(db $marks)" -X -At -c "SELECT $cond" 2>&1)
+  if [[ "$before" != "f" || "$after" != "t" ]]; then
+    bad "marker for $v is '$before' before and '$after' after it (want f, t)"; marker_fail=1
+  fi
+done
+(( marker_fail == 0 )) && ok "all $total baseline markers are false before their migration and true after"
 
 (( fail == 0 )) && echo "migrate self-test passed" || { echo "migrate self-test FAILED"; exit 1; }

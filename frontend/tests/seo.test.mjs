@@ -5,12 +5,14 @@ import { readFileSync } from "node:fs";
 import {
   absoluteUrl,
   coffeeJsonLd,
+  errorPageMetadata,
   listingCanonicalPath,
   listingRobots,
   serializeJsonLd,
   shareDescription,
   shareMetadata,
   shopJsonLd,
+  shopCoffeesJsonLd,
 } from "../lib/seo.ts";
 
 const base = "https://moni.cafe";
@@ -72,7 +74,7 @@ const coffee = {
   ],
 };
 
-test("coffeeJsonLd describes the product and an aggregate TWD offer over available options", () => {
+test("coffeeJsonLd describes the product and an aggregate TWD offer over the in-stock options", () => {
   const ld = coffeeJsonLd(coffee, base);
   assert.equal(ld["@type"], "Product");
   assert.equal(ld.url, `${base}/coffees/${coffee.id}`);
@@ -83,12 +85,33 @@ test("coffeeJsonLd describes the product and an aggregate TWD offer over availab
   assert.deepEqual(ld.offers, {
     "@type": "AggregateOffer",
     priceCurrency: "TWD",
-    lowPrice: 450, // the unavailable NT$100 option isn't offered
+    lowPrice: 800, // the NT$450 option has no stock and the NT$100 one is unavailable: neither is offered
     highPrice: 800,
-    offerCount: 2,
+    offerCount: 1,
     availability: "https://schema.org/InStock",
     url: `${base}/coffees/${coffee.id}`,
   });
+});
+
+test("coffeeJsonLd offers follow the page: in-stock options only, else the rest as OutOfStock (#349)", () => {
+  const o = (variants) => coffeeJsonLd({ ...coffee, variants }, base).offers;
+  const mixed = o([
+    { priceTwd: 300, weightG: 100, stock: 0, isAvailable: true },
+    { priceTwd: 600, weightG: 200, stock: 5, isAvailable: true },
+  ]);
+  assert.equal(mixed.lowPrice, 600);
+  assert.equal(mixed.highPrice, 600);
+  assert.equal(mixed.offerCount, 1);
+  assert.equal(mixed.availability, "https://schema.org/InStock");
+  const soldOut = o([
+    { priceTwd: 300, weightG: 100, stock: 0, isAvailable: true },
+    { priceTwd: 600, weightG: 200, stock: 0, isAvailable: true },
+    { priceTwd: 100, weightG: 200, stock: 9, isAvailable: false },
+  ]);
+  assert.equal(soldOut.availability, "https://schema.org/OutOfStock");
+  assert.equal(soldOut.lowPrice, 300);
+  assert.equal(soldOut.highPrice, 600);
+  assert.equal(soldOut.offerCount, 2);
 });
 
 test("coffeeJsonLd: sold out, no options, no photos", () => {
@@ -122,7 +145,7 @@ const shop = {
 };
 
 test("shopJsonLd describes a Store in Taiwan with geo and the listed coffees", () => {
-  const ld = shopJsonLd(shop, [{ id: "c1", name: "耶加雪菲" }, { id: "c2", name: "Kenya AA" }], base);
+  const ld = shopJsonLd(shop, base);
   assert.equal(ld["@type"], "Store");
   assert.equal(ld.url, "https://moni.cafe/shops/moon-roast");
   assert.equal(ld.description, "台中的小烘豆室 手工烘焙");
@@ -130,11 +153,22 @@ test("shopJsonLd describes a Store in Taiwan with geo and the listed coffees", (
   assert.deepEqual(ld.image, ["https://moni.cafe/media/shops/1/banner.jpg", "https://moni.cafe/media/shops/1/logo.png"]);
   assert.deepEqual(ld.address, { "@type": "PostalAddress", addressCountry: "TW", addressLocality: "台中市" });
   assert.deepEqual(ld.geo, { "@type": "GeoCoordinates", latitude: 24.1477, longitude: 120.6736 });
-  const items = ld.hasOfferCatalog.itemListElement;
-  assert.equal(items.length, 2);
-  assert.equal(items[1].position, 2);
-  assert.equal(items[1].url, "https://moni.cafe/coffees/c2");
-  assert.equal(items[0].itemOffered.name, "耶加雪菲");
+  assert.equal(ld.hasOfferCatalog, undefined);
+});
+
+test("shopCoffeesJsonLd lists coffees as an ItemList without offers (#355)", () => {
+  const coffees = [{ id: "c1", name: "耶加雪菲" }, { id: "c2", name: "Kenya AA" }];
+  const ld = shopCoffeesJsonLd(coffees, base);
+  assert.equal(ld["@type"], "ItemList");
+  assert.deepEqual(ld.itemListElement, [
+    { "@type": "ListItem", position: 1, url: "https://moni.cafe/coffees/c1", name: "耶加雪菲" },
+    { "@type": "ListItem", position: 2, url: "https://moni.cafe/coffees/c2", name: "Kenya AA" },
+  ]);
+  // page 2 of a 12-per-page list continues the numbering
+  assert.deepEqual(shopCoffeesJsonLd(coffees, base, 12).itemListElement.map((i) => i.position), [13, 14]);
+  assert.deepEqual(shopCoffeesJsonLd(coffees, base, -3).itemListElement.map((i) => i.position), [1, 2]);
+  assert.equal(shopCoffeesJsonLd([], base), null);
+  assert.ok(!serializeJsonLd(shopCoffeesJsonLd([{ id: "c1", name: "</script>" }], base)).includes("<"));
 });
 
 test("shopJsonLd leaves out what the shop doesn't have", () => {
@@ -147,16 +181,15 @@ test("shopJsonLd leaves out what the shop doesn't have", () => {
     { name: "no description", patch: { description: "   " }, absent: ["description"] },
   ];
   for (const c of cases) {
-    const ld = shopJsonLd({ ...shop, ...c.patch }, [], base);
+    const ld = shopJsonLd({ ...shop, ...c.patch }, base);
     for (const key of c.absent) assert.equal(ld[key], undefined, `${c.name}: ${key}`);
-    assert.equal(ld.hasOfferCatalog, undefined, `${c.name}: catalogue without coffees`);
   }
-  const noCity = shopJsonLd({ ...shop, city: "" }, [], base);
+  const noCity = shopJsonLd({ ...shop, city: "" }, base);
   assert.deepEqual(noCity.address, { "@type": "PostalAddress", addressCountry: "TW" });
 });
 
 test("shopJsonLd output stays inside its script element", () => {
-  const out = serializeJsonLd(shopJsonLd({ ...shop, name: "</script><script>alert(1)</script>" }, [], base));
+  const out = serializeJsonLd(shopJsonLd({ ...shop, name: "</script><script>alert(1)</script>" }, base));
   assert.ok(!out.includes("<"), out);
 });
 
@@ -191,4 +224,8 @@ test("home and listing pages build their share card with shareMetadata (#195)", 
     assert.match(src, /listingCanonicalPath\(/, f);
     assert.match(src, /robots: listingRobots\(/, f);
   }
+});
+
+test("errorPageMetadata keeps the title and blocks indexing", () => {
+  assert.deepEqual(errorPageMetadata("Coffees"), { title: "Coffees", robots: { index: false, follow: true } });
 });

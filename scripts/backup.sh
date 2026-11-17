@@ -26,6 +26,8 @@
 #   BACKUP_PING_URL      optional dead-man's switch, healthchecks.io style: GET on
 #                        success, GET $BACKUP_PING_URL/fail on any failure. A failed
 #                        ping only logs a warning; it never fails the backup.
+#   BACKUP_ACCEPT_SHRINK=true  for ONE run after a deliberate large deletion: prune
+#                        even though the dump is under 50 % of the largest stored one.
 #   BACKUP_MARKER        optional file that gets the epoch seconds of the last
 #                        success (the compose healthcheck reads it).
 #
@@ -33,9 +35,12 @@
 # Retention, by date: the newest dump of each of the 7 most recent days that have
 # one, plus the newest dump of each of the 4 most recent Sundays (Taipei). Extra
 # dumps on one day (a restart with BACKUP_RUN_NOW) replace each other and never
-# push older days out. A dump under 50 % of the previous one's size is still kept,
+# push older days out. A dump under 50 % of the LARGEST stored dump is still kept,
 # but nothing is pruned, it logs loudly, pings /fail and exits 1 (an emptied
-# database must not age the good dumps out).
+# database must not age the good dumps out). That repeats every night until an
+# operator looks: after a deliberate large deletion, run once with
+# BACKUP_ACCEPT_SHRINK=true to prune again (#348). A failed listing of the store
+# fails the run rather than reading as "no dumps yet".
 # Exits non-zero on any failure and prints one JSON line at the end:
 #   {"file":"…","bytes":N,"seconds":N,"pruned":N,"media_objects":N}  (-1 = media not mirrored)
 # POSIX sh (runs in alpine); no tzdata needed, Taipei is a fixed UTC+8.
@@ -89,6 +94,8 @@ if [ -z "$recipient" ] && [ "${BACKUP_ALLOW_PLAINTEXT:-false}" != "true" ]; then
   die "BACKUP_AGE_RECIPIENT is not set; refusing an unencrypted dump (BACKUP_ALLOW_PLAINTEXT=true allows it, dev/CI only)"
 fi
 
+accept_shrink="${BACKUP_ACCEPT_SHRINK:-false}"
+case "$accept_shrink" in true|false) ;; *) die "BACKUP_ACCEPT_SHRINK must be true or false, got '$accept_shrink'" ;; esac
 media="${BACKUP_MEDIA:-false}"
 case "$media" in true|false) ;; *) die "BACKUP_MEDIA must be true or false, got '$media'" ;; esac
 if [ "$media" = true ]; then
@@ -134,9 +141,12 @@ store_list() { # file names, oldest first (names sort by date)
   if [ "$mode" = local ]; then
     find "$target" -maxdepth 1 -type f -name 'monicacafe_*.dump*' -exec basename {} \; | sort
   else
-    aws_s3 s3api list-objects-v2 --bucket "$BACKUP_S3_BUCKET" --prefix "$prefix" \
-      --delimiter / --query 'Contents[].Key' --output text | tr '\t' '\n' | sed -e '/^None$/d' -e "s|^$prefix||" \
-      | grep '^monicacafe_.*\.dump' | sort || true
+    # Listed into a variable first: in a pipeline aws's exit status would be lost
+    # and a failed listing would look like an empty store (#348).
+    keys=$(aws_s3 s3api list-objects-v2 --bucket "$BACKUP_S3_BUCKET" --prefix "$prefix" \
+      --delimiter / --query 'Contents[].Key' --output text) || return 1
+    printf '%s\n' "$keys" | tr '\t' '\n' | sed -e '/^None$/d' -e "s|^$prefix||" \
+      | { grep '^monicacafe_.*\.dump' || true; } | sort
   fi
 }
 store_put() { # local file, name
@@ -207,21 +217,32 @@ fi
 bytes=$(wc -c <"$work/$name" | tr -d ' ')
 [ "$bytes" -gt 0 ] || die "dump is empty"
 
-# Size of the newest earlier dump, to catch a dump of an emptied database.
-prev=$(store_list | grep '^monicacafe_[0-9]\{8\}_' | tail -n 1)
+# Size of the largest earlier dump, to catch a dump of an emptied database. The
+# largest, not the newest: otherwise the second small dump in a row would pass
+# the check and the good ones would be pruned from then on (#348).
+earlier=$(store_list) || die "could not list the stored dumps"
+prev=""
 prev_bytes=0
-[ -z "$prev" ] || prev_bytes=$(store_size "$prev")
+for f in $(echo "$earlier" | grep '^monicacafe_[0-9]\{8\}_' || true); do
+  size=$(store_size "$f") || die "could not read the size of $f"
+  if [ "$size" -gt "$prev_bytes" ]; then prev="$f"; prev_bytes="$size"; fi
+done
 
 store_put "$work/$name" "$name"
 
 # --- retention ---------------------------------------------------------------
-all=$(store_list)
+all=$(store_list) || die "could not list the stored dumps"
 echo "$all" | grep -qxF "$name" || die "uploaded $name but it is not in the store listing"
 shrunk=0
 if [ "$prev_bytes" -gt 0 ] && [ $((bytes * 2)) -lt "$prev_bytes" ]; then
-  shrunk=1
-  say "ERROR: $name is $bytes bytes, under 50% of the previous dump $prev ($prev_bytes bytes)."
-  say "ERROR: the database may have been emptied. Kept the new dump, pruned NOTHING; check before the next run."
+  if [ "$accept_shrink" = true ]; then
+    say "warning: $name is under 50% of the largest stored dump $prev ($prev_bytes bytes); pruning anyway (BACKUP_ACCEPT_SHRINK=true)"
+  else
+    shrunk=1
+    say "ERROR: $name is $bytes bytes, under 50% of the largest stored dump $prev ($prev_bytes bytes)."
+    say "ERROR: the database may have been emptied. Kept the new dump, pruned NOTHING, and every run will do the same"
+    say "ERROR: until it is checked. After a deliberate deletion, run once with BACKUP_ACCEPT_SHRINK=true (docs/BACKUP.md)."
+  fi
 fi
 
 # One dump per day (the newest of it) for the 7 latest days, and for the 4 latest

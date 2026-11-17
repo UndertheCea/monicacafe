@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authHref, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
+import { authHref, loginHrefFrom, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
 import { t } from "../lib/i18n/dict.ts";
 
 const flat = (sections) =>
@@ -90,4 +90,16 @@ test("the header is the same at every width", () => {
     assert.doesNotMatch(src, /\b(sm|md|lg|xl):(hidden|flex|block|inline-flex)\b/, f);
     assert.doesNotMatch(src, /matchMedia/, f);
   }
+});
+
+test("loginHrefFrom: keeps the query, encoded; no trailing ? when empty", () => {
+  const cases = [
+    ["/shops/moni", "", "/login?next=%2Fshops%2Fmoni"],
+    ["/shops/moni", "?", "/login?next=%2Fshops%2Fmoni"],
+    ["/shops/moni", null, "/login?next=%2Fshops%2Fmoni"],
+    ["/shops/moni", "page=2&archive=3", "/login?next=%2Fshops%2Fmoni%3Fpage%3D2%26archive%3D3"],
+    ["/coffees/abc", "?page=2", "/login?next=%2Fcoffees%2Fabc%3Fpage%3D2"],
+    ["//evil.example", "page=2", "/login"],
+  ];
+  for (const [path, search, want] of cases) assert.equal(loginHrefFrom(path, search), want, `${path} ${search}`);
 });

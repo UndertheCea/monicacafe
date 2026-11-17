@@ -8,7 +8,7 @@ import { PAGE_SIZE, type SearchParams } from "@/lib/coffeeFilters";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
-import { serializeJsonLd, shareMetadata, shopJsonLd } from "@/lib/seo";
+import { errorPageMetadata, serializeJsonLd, shareMetadata, shopCoffeesJsonLd, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { parseShopPagePages, shopPageHref } from "@/lib/shopQuery";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
@@ -68,7 +68,7 @@ export async function generateMetadata({
       }),
     };
   } catch {
-    return { title: t(locale, "shops.title") };
+    return errorPageMetadata(t(locale, "shops.title"));
   }
 }
 
@@ -93,12 +93,17 @@ export default async function ShopPage({
   const pageCount = (total: number) => Math.max(1, Math.ceil(total / PAGE_SIZE));
   const archive = shop.archive;
   const nonce = (await headers()).get("x-nonce") ?? undefined;
-  const jsonLd = shopJsonLd(shop, shop.coffees.nodes, siteBase(process.env.SITE_URL));
+  const base = siteBase(process.env.SITE_URL);
+  const jsonLd = shopJsonLd(shop, base);
+  const coffeesLd = shopCoffeesJsonLd(shop.coffees.nodes, base, (at.page - 1) * PAGE_SIZE);
 
   return (
     <div>
       {/* Structured data (anonymous fetch: published coffees only); serializeJsonLd escapes seller text. */}
       <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }} />
+      {coffeesLd && (
+        <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: serializeJsonLd(coffeesLd) }} />
+      )}
       {/* No banner: no block at all, just white space (#112). */}
       {shop.bannerUrl && (
         <div className="relative h-48 border-b border-line md:h-64">

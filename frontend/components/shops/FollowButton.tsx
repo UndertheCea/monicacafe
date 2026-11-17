@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FOLLOW_SHOP, SHOP_FOLLOWED, UNFOLLOW_SHOP } from "@/lib/api";
@@ -8,6 +8,7 @@ import { rateLimitMessage } from "@/lib/errors";
 import { followControl, settleFollow, toggleFollow, type FollowState } from "@/lib/follows";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { loginHrefFrom } from "@/lib/navMenu";
 import { Button } from "@/components/ui";
 
 /**
@@ -29,6 +30,7 @@ export function FollowButton({
 }) {
   const { status, user, request } = useAuth();
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [state, setState] = useState<FollowState>({ following: false, count: followerCount });
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -59,7 +61,7 @@ export function FollowButton({
     return (
       <p className="mt-3 flex flex-wrap items-center gap-3">
         {control === "login" && (
-          <Button href={`/login?next=${encodeURIComponent(pathname)}`} variant="secondary">
+          <Button href={loginHrefFrom(pathname, search)} variant="secondary">
             <span aria-hidden>＋</span> {t(locale, "follow.loginToFollow")}
           </Button>
         )}

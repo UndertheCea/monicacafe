@@ -76,3 +76,30 @@ func TestExpandCap(t *testing.T) {
 		}
 	}
 }
+
+func TestPhrases(t *testing.T) {
+	cases := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{"empty", nil, []string{}},
+		{"single words stay", []string{"Geisha", "淺焙"}, []string{"Geisha", "淺焙"}},
+		{"two words of one member join", []string{"Costa", "Rica"}, []string{"Costa Rica"}},
+		{"case and position", []string{"淺焙", "costa", "RICA", "Geisha"}, []string{"淺焙", "costa RICA", "Geisha"}},
+		{"reversed order is not the member", []string{"Rica", "Costa"}, []string{"Rica", "Costa"}},
+		{"split spelling of a one-word member joins", []string{"Yirga", "Cheffe"}, []string{"Yirga Cheffe"}},
+		{"half a member stays", []string{"Costa"}, []string{"Costa"}},
+		{"two single-word members are not joined", []string{"Guji", "Geisha"}, []string{"Guji", "Geisha"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := Phrases(tc.in); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("Phrases(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+	if got := Expand("Costa Rica"); !reflect.DeepEqual(got, []string{"Costa Rica", "哥斯大黎加", "哥斯達黎加"}) {
+		t.Errorf("Expand(Costa Rica) = %q", got)
+	}
+}

@@ -2,9 +2,18 @@
 // Pure, no imports, so `npm test` can load it; pages pass the result to Next's
 // generateMetadata.
 
-import { coffeeAvailability } from "./pricing.ts";
-
 export type ShareLocale = "zh-TW" | "en";
+
+/**
+ * Metadata for a page whose data failed to load: the page renders an error
+ * panel, which search engines must not index (links on it may still be followed).
+ * generateMetadata and the page share one React `cache()`d load, so both see the
+ * same result (a rejected promise is memoised too); the page body itself cannot
+ * set robots in Next, so the metadata catch is the one place to do it.
+ */
+export function errorPageMetadata(title: string): { title: string; robots: { index: false; follow: true } } {
+  return { title, robots: { index: false, follow: true } };
+}
 
 export interface ShareInput {
   /** Public origin from siteBase(SITE_URL), no trailing slash. */
@@ -115,17 +124,20 @@ const PROVENANCE_NAMES: Record<ProvenanceKey, string> = {
 
 /**
  * A schema.org Product for a published coffee. The offer covers the options a
- * buyer can pick (available ones); it's InStock when any of them has stock.
+ * buyer can pick now (available and in stock), InStock. With none in stock it
+ * prices the available options (else all) and is OutOfStock.
  * No variants → no offer. Producer / region / altitude, the brew method and the
  * harvest year, when set, become additionalProperty PropertyValues.
  */
 export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/coffees/${c.id}`, base) ?? base;
   const images = c.imageUrls.map((s) => absoluteUrl(s, base)).filter((s): s is string => s !== null);
+  // Same rule as the page's "from NT$X" (coffeeAvailability): buyable = available and in stock (#349).
+  const buyable = c.variants.filter((v) => v.isAvailable && v.stock > 0);
+  const inStock = buyable.length > 0;
   const available = c.variants.filter((v) => v.isAvailable);
-  const priced = available.length > 0 ? available : c.variants;
+  const priced = inStock ? buyable : available.length > 0 ? available : c.variants;
   const prices = priced.map((v) => v.priceTwd).filter((p) => Number.isInteger(p) && p > 0);
-  const inStock = coffeeAvailability(c.variants).kind === "from";
 
   const ld: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -176,11 +188,11 @@ export interface JsonLdShop {
 
 /**
  * A schema.org Store for a shop page: name, description, images, the city as
- * its locality in Taiwan, coordinates when the seller set valid ones, and an
- * OfferCatalog naming the coffees passed in (the ones listed on the page; pass
- * none to leave the catalogue out, e.g. on a filtered list).
+ * its locality in Taiwan, and coordinates when the seller set valid ones.
+ * The coffees go in a separate ItemList (shopCoffeesJsonLd): price-less Offers
+ * around offer-less Products fail Google's Rich Results checks (#355).
  */
-export function shopJsonLd(s: JsonLdShop, coffees: { id: string; name: string }[], base: string): Record<string, unknown> {
+export function shopJsonLd(s: JsonLdShop, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/shops/${encodeURIComponent(s.slug)}`, base) ?? base;
   const ld: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -207,22 +219,31 @@ export function shopJsonLd(s: JsonLdShop, coffees: { id: string; name: string }[
   ) {
     ld.geo = { "@type": "GeoCoordinates", latitude: lat, longitude: lng };
   }
-  if (coffees.length > 0) {
-    ld.hasOfferCatalog = {
-      "@type": "OfferCatalog",
-      name: s.name,
-      itemListElement: coffees.map((c, i) => {
-        const href = absoluteUrl(`/coffees/${encodeURIComponent(c.id)}`, base) ?? base;
-        return {
-          "@type": "Offer",
-          position: i + 1,
-          url: href,
-          itemOffered: { "@type": "Product", "@id": href, name: c.name, url: href },
-        };
-      }),
-    };
-  }
   return ld;
+}
+
+/**
+ * A schema.org ItemList of the coffees listed on a shop page (url + name each, no price: the
+ * coffee's own page carries the Product). `offset` is the number of coffees on earlier pages, so
+ * positions keep counting across pages. null when there are none.
+ */
+export function shopCoffeesJsonLd(
+  coffees: { id: string; name: string }[],
+  base: string,
+  offset = 0,
+): Record<string, unknown> | null {
+  if (coffees.length === 0) return null;
+  const start = Number.isSafeInteger(offset) && offset > 0 ? offset : 0;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    itemListElement: coffees.map((c, i) => ({
+      "@type": "ListItem",
+      position: start + i + 1,
+      url: absoluteUrl(`/coffees/${encodeURIComponent(c.id)}`, base) ?? base,
+      name: c.name,
+    })),
+  };
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { COFFEE_SAVED, SAVE_COFFEE, UNSAVE_COFFEE } from "@/lib/api";
@@ -8,6 +8,7 @@ import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { settleSave, toggleSave, type SaveState } from "@/lib/saved";
+import { loginHrefFrom } from "@/lib/navMenu";
 import { Button } from "@/components/ui";
 
 /**
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui";
 export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; saveCount: number; locale: Locale }) {
   const { status, request } = useAuth();
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const [state, setState] = useState<SaveState>({ saved: false, count: saveCount });
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -49,7 +51,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
     return (
       <p className="mt-3 flex flex-wrap items-center gap-3">
         {status === "anonymous" ? (
-          <Button href={`/login?next=${encodeURIComponent(pathname)}`} variant="secondary">
+          <Button href={loginHrefFrom(pathname, search)} variant="secondary">
             <span aria-hidden>♡</span> {t(locale, "save.loginToSave")}
           </Button>
         ) : null}

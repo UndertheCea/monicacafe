@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 48 — 2026-11-17 — Audit: pool floor, NT$0 options, error caching, map / admin / drawer fixes (ten slices)
-PR: #PRNUM
+PR: #368
 
 No session PR open (only dependabot's #252 / #314–#316) and no owner answers on questions; every open slice was blocked. Two
 general-purpose agents audited less-covered code (backend: loaders, config, sweeps, listings; frontend: home, /map, /menu, /admin,

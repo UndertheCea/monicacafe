@@ -78,8 +78,8 @@ run_file() { # run a psql script from a file
 }
 
 # SQL condition that is true when the newest object migration $1 created exists.
-# Only versions that could be a baseline are listed: those that existed when
-# MIGRATE_BASELINE was the way to adopt an old database.
+# Every migration has one (scripts/migrate_selftest.sh checks each is false just
+# before its migration and true after it), so any version can be a baseline.
 col() { echo "EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$1' AND column_name = '$2')"; }
 baseline_marker() {
   case "$1" in
@@ -106,12 +106,20 @@ baseline_marker() {
     021) echo "to_regclass('public.river_queue') IS NOT NULL" ;;
     022) echo "to_regclass('public.cart_items') IS NOT NULL" ;;
     023) col coffees removed_at ;;
+    024) echo "EXISTS (SELECT 1 FROM coffee_varieties WHERE name = 'Mixed')" ;;
     025) echo "EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'shops_location_pair')" ;;
     026) echo "EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'touch_coffee_from_variant' AND prosrc LIKE '%to_jsonb(NEW)%')" ;;
     027) echo "to_regclass('public.stock_holds') IS NOT NULL" ;;
     *) return 1 ;;
   esac
 }
+
+# MIGRATE_PRINT_MARKER=NNN prints migration NNN's marker condition and exits
+# (for the self-test; touches no database).
+if [ -n "${MIGRATE_PRINT_MARKER:-}" ]; then
+  baseline_marker "$MIGRATE_PRINT_MARKER" || die "no marker for $MIGRATE_PRINT_MARKER"
+  exit 0
+fi
 
 [ -d "$dir" ] || die "no migrations folder at $dir"
 case "$baseline" in
@@ -125,10 +133,13 @@ case "$lock_timeout" in
 esac
 
 # The server may still be starting (compose starts this next to Postgres).
-i=0
+# By the clock, not by attempts: a host that drops packets makes each attempt
+# take connect_timeout, not a moment (#352).
+case "$wait_s" in ""|*[!0-9]*) die "MIGRATE_WAIT must be a number of seconds, got '$wait_s'" ;; esac
+PGCONNECT_TIMEOUT="${PGCONNECT_TIMEOUT:-5}"; export PGCONNECT_TIMEOUT
+wait_start=$(date +%s)
 until q "SELECT 1" >/dev/null 2>&1; do
-  i=$((i + 1))
-  [ "$i" -ge "$wait_s" ] && die "database not reachable after ${wait_s}s"
+  [ $(($(date +%s) - wait_start)) -ge "$wait_s" ] && die "database not reachable after ${wait_s}s"
   sleep 1
 done
 
@@ -154,8 +165,9 @@ if [ "$tracked" != "t" ]; then
 fi
 
 if [ "$tracked" != "t" ] && [ -n "$baseline" ]; then
-  cond=$(baseline_marker "$baseline") || die "MIGRATE_BASELINE=$baseline has no known marker (001-023 do), so it cannot be verified.
-  Add a case for it to baseline_marker in scripts/migrate.sh, or pick a version that is listed there."
+  known=$(for f in $files; do v=$(basename "$f" | cut -c1-3); baseline_marker "$v" >/dev/null && printf "%s " "$v"; done)
+  cond=$(baseline_marker "$baseline") || die "MIGRATE_BASELINE=$baseline has no known marker, so it cannot be verified.
+  Versions that have one: ${known:-none}. Add a case for it to baseline_marker in scripts/migrate.sh, or pick one of those."
   [ "$(q "SELECT $cond")" = "t" ] || die "MIGRATE_BASELINE=$baseline is not true of this database: what migration $baseline created is missing.
   Recording it would mark migrations as applied that never ran. Use the highest version this database really has."
 fi

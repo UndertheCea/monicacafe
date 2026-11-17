@@ -2,8 +2,6 @@
 // Pure, no imports, so `npm test` can load it; pages pass the result to Next's
 // generateMetadata.
 
-import { coffeeAvailability } from "./pricing.ts";
-
 export type ShareLocale = "zh-TW" | "en";
 
 /**
@@ -126,17 +124,20 @@ const PROVENANCE_NAMES: Record<ProvenanceKey, string> = {
 
 /**
  * A schema.org Product for a published coffee. The offer covers the options a
- * buyer can pick (available ones); it's InStock when any of them has stock.
+ * buyer can pick now (available and in stock), InStock. With none in stock it
+ * prices the available options (else all) and is OutOfStock.
  * No variants → no offer. Producer / region / altitude, the brew method and the
  * harvest year, when set, become additionalProperty PropertyValues.
  */
 export function coffeeJsonLd(c: JsonLdCoffee, base: string): Record<string, unknown> {
   const url = absoluteUrl(`/coffees/${c.id}`, base) ?? base;
   const images = c.imageUrls.map((s) => absoluteUrl(s, base)).filter((s): s is string => s !== null);
+  // Same rule as the page's "from NT$X" (coffeeAvailability): buyable = available and in stock (#349).
+  const buyable = c.variants.filter((v) => v.isAvailable && v.stock > 0);
+  const inStock = buyable.length > 0;
   const available = c.variants.filter((v) => v.isAvailable);
-  const priced = available.length > 0 ? available : c.variants;
+  const priced = inStock ? buyable : available.length > 0 ? available : c.variants;
   const prices = priced.map((v) => v.priceTwd).filter((p) => Number.isInteger(p) && p > 0);
-  const inStock = coffeeAvailability(c.variants).kind === "from";
 
   const ld: Record<string, unknown> = {
     "@context": "https://schema.org",

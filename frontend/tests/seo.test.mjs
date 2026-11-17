@@ -73,7 +73,7 @@ const coffee = {
   ],
 };
 
-test("coffeeJsonLd describes the product and an aggregate TWD offer over available options", () => {
+test("coffeeJsonLd describes the product and an aggregate TWD offer over the in-stock options", () => {
   const ld = coffeeJsonLd(coffee, base);
   assert.equal(ld["@type"], "Product");
   assert.equal(ld.url, `${base}/coffees/${coffee.id}`);
@@ -84,12 +84,33 @@ test("coffeeJsonLd describes the product and an aggregate TWD offer over availab
   assert.deepEqual(ld.offers, {
     "@type": "AggregateOffer",
     priceCurrency: "TWD",
-    lowPrice: 450, // the unavailable NT$100 option isn't offered
+    lowPrice: 800, // the NT$450 option has no stock and the NT$100 one is unavailable: neither is offered
     highPrice: 800,
-    offerCount: 2,
+    offerCount: 1,
     availability: "https://schema.org/InStock",
     url: `${base}/coffees/${coffee.id}`,
   });
+});
+
+test("coffeeJsonLd offers follow the page: in-stock options only, else the rest as OutOfStock (#349)", () => {
+  const o = (variants) => coffeeJsonLd({ ...coffee, variants }, base).offers;
+  const mixed = o([
+    { priceTwd: 300, weightG: 100, stock: 0, isAvailable: true },
+    { priceTwd: 600, weightG: 200, stock: 5, isAvailable: true },
+  ]);
+  assert.equal(mixed.lowPrice, 600);
+  assert.equal(mixed.highPrice, 600);
+  assert.equal(mixed.offerCount, 1);
+  assert.equal(mixed.availability, "https://schema.org/InStock");
+  const soldOut = o([
+    { priceTwd: 300, weightG: 100, stock: 0, isAvailable: true },
+    { priceTwd: 600, weightG: 200, stock: 0, isAvailable: true },
+    { priceTwd: 100, weightG: 200, stock: 9, isAvailable: false },
+  ]);
+  assert.equal(soldOut.availability, "https://schema.org/OutOfStock");
+  assert.equal(soldOut.lowPrice, 300);
+  assert.equal(soldOut.highPrice, 600);
+  assert.equal(soldOut.offerCount, 2);
 });
 
 test("coffeeJsonLd: sold out, no options, no photos", () => {

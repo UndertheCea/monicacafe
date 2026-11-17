@@ -17,6 +17,7 @@ import {
   canSubmitReport,
   isAdminViewer,
   isContactInfoError,
+  mergeAdminPage,
   moderationReasonProblem,
   reportErrorKey,
   reportTargetHref,
@@ -25,6 +26,17 @@ import {
 } from "../lib/moderation.ts";
 
 const root = new URL("..", import.meta.url).pathname;
+
+test("mergeAdminPage: appends a current load-more page, drops one from an older search", () => {
+  const cur = { state: "ready", total: 2, nodes: [{ id: "a" }, { id: "b" }] };
+  const page = { total: 9, nodes: [{ id: "b" }, { id: "c" }] };
+  assert.deepEqual(mergeAdminPage(cur, page, 3, 3), { state: "ready", total: 9, nodes: [{ id: "a" }, { id: "b" }, { id: "c" }] });
+  assert.equal(mergeAdminPage(cur, page, 2, 3), cur, "stale generation leaves the list alone");
+  const loading = { state: "loading" };
+  assert.equal(mergeAdminPage(loading, page, 3, 3), loading);
+  const error = { state: "error" };
+  assert.equal(mergeAdminPage(error, page, 3, 3), error);
+});
 
 test("the contact-info code is one the backend sends", () => {
   assert.ok(API_ERROR_CODES.includes(CONTACT_INFO_CODE));

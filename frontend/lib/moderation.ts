@@ -110,6 +110,21 @@ export function appendRows<T extends { id: string }>(shown: T[], page: T[]): T[]
   return [...shown, ...page.filter((r) => !seen.has(r.id))];
 }
 
+/**
+ * The list after a "load more" page arrives. A page fetched before the list was reloaded (a new search or tab,
+ * `gen` older than `currentGen`) is dropped, so it can't mix unfiltered rows and total into the new list (#366).
+ */
+export function mergeAdminPage<T extends { id: string }, C extends { state: string }>(
+  current: C,
+  page: { total: number; nodes: T[] },
+  gen: number,
+  currentGen: number,
+): C | { state: "ready"; total: number; nodes: T[] } {
+  if (gen !== currentGen || current.state !== "ready") return current;
+  const nodes = (current as unknown as { nodes: T[] }).nodes;
+  return { state: "ready", total: page.total, nodes: appendRows(nodes, page.nodes) };
+}
+
 /** A list with one row replaced by the API's updated copy (a suspended user or shop). */
 export function withUpdatedRow<T extends { id: string }>(page: { total: number; nodes: T[] }, row: T) {
   return { total: page.total, nodes: page.nodes.map((n) => (n.id === row.id ? { ...n, ...row } : n)) };

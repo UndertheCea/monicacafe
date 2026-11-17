@@ -19,7 +19,28 @@ export const CACHE_TAGS = {
 
 export type CatalogueTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];
 
-/** The `next` option of a cached catalogue fetch. */
+/** The revalidate / tags options of a cached catalogue query. */
 export function catalogueFetchOptions(tags: CatalogueTag[]): { revalidate: number; tags: string[] } {
   return { revalidate: CATALOGUE_REVALIDATE, tags: [...tags] };
+}
+
+/**
+ * Cache key of a catalogue query: the document and its variables, with object
+ * keys sorted so `{limit, offset}` and `{offset, limit}` share one entry (#361).
+ */
+export function catalogueCacheKey(doc: string, vars?: Record<string, unknown>): string[] {
+  return ["catalogue", doc, stableJson(vars ?? {})];
+}
+
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v !== null && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o)
+      .sort()
+      .filter((k) => o[k] !== undefined)
+      .map((k) => `${JSON.stringify(k)}:${stableJson(o[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
 }

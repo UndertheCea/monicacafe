@@ -58,7 +58,16 @@ test("every image goes through <Picture>", () => {
 
 test("cached queries carry no viewer state", () => {
   const graphql = readFileSync("lib/graphql.ts", "utf8");
-  const body = graphql.slice(graphql.indexOf("export function cachedClient"), graphql.indexOf("export function authedClient"));
-  assert.ok(body.includes("next }"), "cachedClient passes next.revalidate");
-  assert.ok(!/credentials|Authorization|headers|no-store/.test(body.replace(/\/\*[\s\S]*?\*\//, "")), "cachedClient must not send cookies, tokens or per-visitor headers");
+  const start = graphql.indexOf("export const catalogueClient");
+  const body = graphql.slice(start, graphql.indexOf("\n", start));
+  assert.ok(start > 0, "catalogueClient exists");
+  assert.ok(!/credentials|Authorization|headers|next:/.test(body), "catalogueClient must not send cookies, tokens or per-visitor headers");
+  assert.ok(body.includes('cache: "no-store"'), "the HTTP response is never cached, only the parsed answer (#361)");
+});
+
+test("cachedServerQuery caches the parsed answer, not the fetch (#361)", () => {
+  const src = readFileSync("lib/serverQuery.ts", "utf8");
+  const body = src.slice(src.indexOf("export function cachedServerQuery"));
+  assert.match(body, /unstable_cache\(\(\) => query\(doc, vars, catalogueClient\)/);
+  assert.ok(!/forwardingClient|headers\(\)/.test(body), "no per-visitor state inside the shared cache");
 });

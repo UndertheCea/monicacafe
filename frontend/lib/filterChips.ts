@@ -18,7 +18,8 @@ export type FilterChip =
   | { kind: "origin" | "variety" | "process"; id: string; href: string }
   | { kind: "price"; min?: number; max?: number; href: string }
   | { kind: "instock"; href: string }
-  | { kind: "search"; text: string; href: string };
+  | { kind: "search"; text: string; href: string }
+  | { kind: "city"; name: string; href: string };
 
 type Params = Record<string, string | string[] | undefined>;
 

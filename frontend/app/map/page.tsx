@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SHOPS_FOR_MAP, hasCoords } from "@/lib/api";
-import { cityGroups } from "@/lib/mapList";
+import { cityGroups, cityShopsHref } from "@/lib/mapList";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -86,7 +86,7 @@ export default async function MapPage() {
                 </ul>
                 {more > 0 && (
                   <p className="mt-3 text-sm">
-                    <Link href="/shops" className="text-muted underline-offset-4 hover:text-ink hover:underline">
+                    <Link href={cityShopsHref(city) ?? "/shops"} className="text-muted underline-offset-4 hover:text-ink hover:underline">
                       {t(locale, pluralKey("map.moreShops", more), { n: more })}
                     </Link>
                   </p>

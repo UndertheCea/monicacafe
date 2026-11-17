@@ -34,6 +34,8 @@ export function chipLabel(locale: Locale, c: FilterChip, names?: Map<string, str
     }
     case "search":
       return t(locale, "chip.search", { q: c.text });
+    case "city":
+      return t(locale, "chip.city", { city: c.name });
     case "instock":
       return t(locale, "filter.inStock");
   }

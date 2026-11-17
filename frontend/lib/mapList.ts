@@ -15,6 +15,12 @@ export interface CityGroup<T extends Listed> {
   more: number;
 }
 
+/** The /shops list for one city (#364); null for the "—" group of shops without a city. */
+export function cityShopsHref(city: string): string | null {
+  const c = city.trim();
+  return !c || c === "—" ? null : `/shops?${new URLSearchParams({ city: c })}`;
+}
+
 /** Cities with the most shops first (ties by name, zh-TW collation); each keeps its first `limit` shops in order. */
 export function cityGroups<T extends Listed>(pins: T[], limit = MAP_LIST_SHOPS_PER_CITY): CityGroup<T>[] {
   const groups = new Map<string, T[]>();

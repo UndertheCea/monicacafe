@@ -29,10 +29,12 @@ export function shopSortForApi(p: ShopSortParam): ShopSort {
  * A /shops URL for a search + sort (page 1). Blank / default values are left
  * out, so "clear search" with the default sort is just /shops.
  */
-export function shopListHref(p: { q?: string; sort?: ShopSortParam }): string {
+export function shopListHref(p: { q?: string; sort?: ShopSortParam; city?: string }): string {
   const params = new URLSearchParams();
   const q = p.q?.trim();
   if (q) params.set("q", q);
+  const city = p.city?.trim();
+  if (city) params.set("city", city);
   if (p.sort) params.set("sort", p.sort);
   const qs = params.toString();
   return qs ? `/shops?${qs}` : "/shops";

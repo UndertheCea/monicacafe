@@ -14,6 +14,8 @@ import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { ShopCard } from "@/components/shops/ShopCard";
 import { ShopListSortForm } from "@/components/shops/ShopSortForm";
+import { FilterChips } from "@/components/coffees/FilterChips";
+import { hrefWithout } from "@/lib/filterChips";
 import { parseSearchParam } from "@/lib/coffeeQuery";
 import { parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
 import { Page } from "@/components/Page";
@@ -34,7 +36,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       images: [],
       locale,
     }),
-    robots: listingRobots(parseSearchParam(sp.q)),
+    robots: listingRobots(parseSearchParam(sp.q) ?? parseSearchParam(sp.city)),
   };
 }
 
@@ -44,12 +46,14 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
   const page = parsePage(sp);
   const sort = parseShopSortParam(sp.sort);
   const q = parseSearchParam(sp.q);
+  const city = parseSearchParam(sp.city);
 
   let shops;
   try {
     shops = (
       await serverQuery(SHOPS, {
         search: q,
+        city,
         sort: shopSortForApi(sort),
         limit: SHOPS_PAGE_SIZE,
         offset: (page - 1) * SHOPS_PAGE_SIZE,
@@ -66,23 +70,30 @@ export default async function ShopsPage({ searchParams }: { searchParams: Promis
         <PageTitle>{t(locale, "shops.title")}</PageTitle>
         <p className="mt-2 text-muted">{t(locale, "shops.subtitle")}</p>
       </header>
+      {city && (
+        <FilterChips
+          locale={locale}
+          chips={[{ kind: "city", name: city, href: hrefWithout("/shops", sp, ["city"]) }]}
+          clearHref={shopListHref({ q, sort })}
+        />
+      )}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div aria-live="polite">
           {q && <SectionTitle>{t(locale, "shops.results", { q })}</SectionTitle>}
           <p className="text-sm text-muted">{t(locale, pluralKey("shops.count", shops.total), { n: shops.total })}</p>
         </div>
         {/* Hidden only while the platform has a single shop and nobody searched. */}
-        {(shops.total > 1 || q) && <ShopListSortForm locale={locale} sort={sort} q={q} />}
+        {(shops.total > 1 || q || city) && <ShopListSortForm locale={locale} sort={sort} q={q} city={city} />}
       </div>
 
       {shops.nodes.length === 0 && pastLastPage(shops.total, page, SHOPS_PAGE_SIZE) ? (
         <PastLastPage locale={locale} href={pageHref(sp, 1, "/shops")} />
       ) : shops.nodes.length === 0 ? (
         <Card className="p-10 text-center text-muted">
-          <p>{q ? t(locale, "shops.emptySearch", { q }) : t(locale, "shops.empty")}</p>
+          <p>{q ? t(locale, "shops.emptySearch", { q }) : city ? t(locale, "shops.emptyCity", { city }) : t(locale, "shops.empty")}</p>
           {q && (
             <Link
-              href={shopListHref({ sort })}
+              href={shopListHref({ sort, city })}
               className="mt-4 inline-block text-sm font-semibold text-ink underline-offset-4 hover:underline"
             >
               {t(locale, "shops.clearSearch")}

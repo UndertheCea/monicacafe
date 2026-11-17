@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { bagCountKey, cartLineName, cartProblem, groupByShop, lineQuantityChoices, shouldReloadCart, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
+import { bagCountKey, cartLineName, cartProblem, groupByShop, lineQuantityChoices, orphanProblem, shouldReloadCart, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
 import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
 import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -49,9 +49,15 @@ export function CartView({ locale }: { locale: Locale }) {
   if (load.state === "error") return <p role="alert" className="text-danger">{t(locale, "cart.loadError")}</p>;
 
   const cart = load.cart;
+  const orphan = orphanProblem(problem, cart.items);
   if (cart.items.length === 0) {
     return (
       <div className="space-y-4">
+        {orphan && (
+          <p role="alert" className="text-sm text-danger">
+            {t(locale, orphan.key, orphan.vars)}
+          </p>
+        )}
         <p className="text-muted">{t(locale, "cart.empty")}</p>
         <Button href="/coffees" variant="secondary">
           {t(locale, "cart.browse")}
@@ -92,6 +98,11 @@ export function CartView({ locale }: { locale: Locale }) {
 
   return (
     <div className="space-y-6">
+      {orphan && (
+        <p role="alert" className="text-sm text-danger">
+          {t(locale, orphan.key, orphan.vars)}
+        </p>
+      )}
       {groupByShop(cart.items).map((g) => (
         <Card as="section" key={g.shop?.slug ?? "gone"} className="p-4 sm:p-6" aria-label={g.shop?.name ?? t(locale, "cart.gone")}>
           <SectionTitle>

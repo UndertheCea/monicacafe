@@ -108,6 +108,37 @@ var index = func() map[string][]string {
 	return m
 }()
 
+// maxPhraseWords is the most space-separated words any group member has.
+var maxPhraseWords = func() int {
+	n := 1
+	for _, g := range groups {
+		for _, term := range g {
+			n = max(n, len(strings.Fields(term)))
+		}
+	}
+	return n
+}()
+
+// Phrases rejoins adjacent search words that together spell a multi-word
+// group member ("Costa" "Rica" → "Costa Rica"), so the group's other names
+// are searched for them (#354). Longest match first; other words are kept as
+// they are, in order.
+func Phrases(words []string) []string {
+	out := make([]string, 0, len(words))
+	for i := 0; i < len(words); {
+		n := 1
+		for k := min(maxPhraseWords, len(words)-i); k > 1; k-- {
+			if _, ok := index[key(strings.Join(words[i:i+k], ""))]; ok {
+				n = k
+				break
+			}
+		}
+		out = append(out, strings.Join(words[i:i+n], " "))
+		i += n
+	}
+	return out
+}
+
 // Expand returns the alternatives for one search word: the word itself first,
 // then its traditional-character form when it differs, then the other members
 // of its synonym group. Alternatives are distinct case-insensitively and at

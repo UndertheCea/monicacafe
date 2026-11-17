@@ -275,6 +275,11 @@ func TestSearchTerms(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(f.SearchTerms, []string{"a", "b"}) {
 		t.Errorf("storeFilter search: %+v %v", f.SearchTerms, err)
 	}
+	// The coffee search keeps a multi-word synonym together (#354).
+	f, err = storeFilter(&model.CoffeeFilter{Search: strPtr("Costa Rica  淺焙")})
+	if err != nil || !reflect.DeepEqual(f.SearchTerms, []string{"Costa Rica", "淺焙"}) {
+		t.Errorf("storeFilter phrase: %+v %v", f.SearchTerms, err)
+	}
 }
 
 // TestSearchTermsQuery: the searchTerms query (#274) returns each word with
@@ -289,6 +294,7 @@ func TestSearchTermsQuery(t *testing.T) {
 		{"  ", [][]string{}, false},
 		{"ristretto", [][]string{{"ristretto"}}, false},
 		{"瑰夏 bourbon", [][]string{{"瑰夏", "Geisha", "Gesha", "藝伎", "藝妓"}, {"bourbon", "波旁"}}, false},
+		{"costa rica 瑰夏", [][]string{{"costa rica", "哥斯大黎加", "哥斯達黎加"}, {"瑰夏", "Geisha", "Gesha", "藝伎", "藝妓"}}, false},
 		{"a b c d e f g h i", nil, true},
 	}
 	for _, tc := range cases {

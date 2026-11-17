@@ -1747,7 +1747,7 @@ func (r *queryResolver) ProcessingMethods(ctx context.Context) ([]*model.Process
 
 // SearchTerms is the resolver for the searchTerms field.
 func (r *queryResolver) SearchTerms(ctx context.Context, q string) ([][]string, error) {
-	words, err := searchTerms(q)
+	words, err := coffeeSearchTerms(q)
 	if err != nil {
 		return nil, err
 	}

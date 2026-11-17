@@ -908,6 +908,17 @@ func searchTerms(s string) ([]string, error) {
 	return out, nil
 }
 
+// coffeeSearchTerms is searchTerms for the coffee search, where synonyms
+// apply: adjacent words spelling a multi-word synonym ("Costa Rica") become one
+// term, so its other names match (#354).
+func coffeeSearchTerms(s string) ([]string, error) {
+	words, err := searchTerms(s)
+	if err != nil || words == nil {
+		return words, err
+	}
+	return search.Phrases(words), nil
+}
+
 // expandSearch returns each search word's alternatives as the coffee search
 // matches them (search.Expand); never nil, so a blank query is [].
 func expandSearch(words []string) [][]string {
@@ -953,7 +964,7 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		}
 	}
 	if f.Search != nil {
-		terms, err := searchTerms(*f.Search)
+		terms, err := coffeeSearchTerms(*f.Search)
 		if err != nil {
 			return out, err
 		}

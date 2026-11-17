@@ -7,7 +7,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, authedClient, toApiError, unavailable, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
-import { hasSessionHint, refreshDelayMs, refreshOutcome, refreshRetryDelayMs } from "@/lib/auth/token";
+import { createAuthEpoch, hasSessionHint, refreshDelayMs, refreshOutcome, refreshRetryDelayMs } from "@/lib/auth/token";
 import { rateLimitedFromStatus, retryAfterSeconds } from "@/lib/errors";
 
 type State =
@@ -45,6 +45,17 @@ const CHANNEL = "mc-auth";
 // backend revokes every session when a refresh token is reused).
 let inflight: Promise<SessionPayload | null> | null = null;
 
+// Bumped on login, register and logout (here or in another tab): a refresh
+// that started before the bump is dropped when it lands (#344).
+const epoch = createAuthEpoch();
+
+/** Runs fn under the cross-tab refresh lock (directly where there is none). */
+function withRefreshLock<T>(fn: () => Promise<T>): Promise<T> {
+  return typeof navigator !== "undefined" && "locks" in navigator
+    ? navigator.locks.request("mc-auth-refresh", fn).then((v) => v)
+    : fn();
+}
+
 // Resolves to the new session, or null when the server says the session is
 // over (401). Anything else (network error, 5xx, 429) rejects: the session may
 // still be fine, so callers keep it and try again later (#228).
@@ -62,11 +73,8 @@ function refreshSession(): Promise<SessionPayload | null> {
       if (outcome === "retry") throw await asError(res);
       return (await res.json()) as SessionPayload;
     };
-    const p: Promise<SessionPayload | null> =
-      typeof navigator !== "undefined" && "locks" in navigator
-        ? // lib.dom types the result as Promise<Promise<T>>; .then flattens it.
-          navigator.locks.request("mc-auth-refresh", run).then((v) => v)
-        : run();
+    // lib.dom types locks.request as Promise<Promise<T>>; withRefreshLock's .then flattens it.
+    const p: Promise<SessionPayload | null> = withRefreshLock(run);
     const tracked = p.finally(() => {
       inflight = null;
     });
@@ -121,11 +129,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [retryAttempt, setRetryAttempt] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
+    const startedAt = epoch.current();
     try {
-      const s = apply(await refreshSession());
+      const got = await refreshSession();
+      if (epoch.stale(startedAt)) {
+        // Logged out (or in) while this refresh was in flight: keep that state.
+        const cur = stateRef.current;
+        return cur.status === "authenticated" ? cur.session.user : null;
+      }
+      const s = apply(got);
       setRetryAttempt(null);
       return s?.user ?? null;
     } catch {
+      if (epoch.stale(startedAt)) return null;
       // A hiccup, not a verdict (#228): keep the current session (a seller's
       // form stays usable) and retry with backoff. Only a first load with
       // nothing to keep shows the signed-out UI meanwhile.
@@ -145,8 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initial load + cross-tab sync.
   useEffect(() => {
     // Visitors who never signed in (no hint cookie) make no auth request at all (#234).
+    const startedAt = epoch.current();
     const initial = hasSessionHint(document.cookie) ? refreshSession() : Promise.resolve(null);
-    initial.then(apply, () => {
+    initial.then((s) => {
+      if (!epoch.stale(startedAt)) apply(s);
+    }, () => {
+      if (epoch.stale(startedAt)) return;
       // Server unreachable on first load: signed-out UI for now, retry with backoff (#228).
       apply(null);
       setRetryAttempt(0);
@@ -155,7 +175,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const ch = new BroadcastChannel(CHANNEL);
     channelRef.current = ch;
     ch.onmessage = (e: MessageEvent<"login" | "logout">) => {
-      if (e.data === "logout") apply(null);
+      if (e.data === "logout") {
+        epoch.bump();
+        apply(null);
+      }
       else void reload();
     };
     return () => {
@@ -175,6 +198,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const s = await postAuth("login", { email, password });
+      epoch.bump();
       apply(s);
       channelRef.current?.postMessage("login");
       return s.user;
@@ -185,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     async (email: string, password: string, displayName: string) => {
       const s = await postAuth("register", { email, password, displayName });
+      epoch.bump();
       apply(s);
       channelRef.current?.postMessage("login");
       return s.user;
@@ -194,10 +219,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     setRetryAttempt(null);
+    // A refresh still in flight must not sign the user back in (#344): its
+    // result is dropped, and the logout waits for it (and, under the refresh
+    // lock, for other tabs' refreshes) so it revokes the newest cookie.
+    epoch.bump();
     try {
+      await inflight?.catch(() => null);
       // The route handler revokes the session named by the httpOnly cookie.
-      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+      await withRefreshLock(() => fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }));
     } finally {
+      epoch.bump();
       apply(null);
       channelRef.current?.postMessage("logout");
     }

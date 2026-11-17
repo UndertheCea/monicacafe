@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  createAuthEpoch,
   SESSION_HINT_COOKIE,
   bearerToken,
   clientAddress,
@@ -175,4 +176,19 @@ test("refreshOutcome: only a 401 ends the session (#228)", async () => {
 test("refreshRetryDelayMs: 2 s, 5 s, 15 s, then every minute (#228)", async () => {
   const { refreshRetryDelayMs } = await import("../lib/auth/token.ts");
   assert.deepEqual([0, 1, 2, 3, 4, 50].map(refreshRetryDelayMs), [2000, 5000, 15000, 60000, 60000, 60000]);
+});
+
+test("createAuthEpoch: a refresh started before a logout or login is stale (#344)", () => {
+  const e = createAuthEpoch();
+  const refreshA = e.current();
+  assert.equal(e.stale(refreshA), false, "nothing happened meanwhile");
+  e.bump(); // logout
+  assert.equal(e.stale(refreshA), true, "logout overtook the refresh");
+  const refreshB = e.current();
+  e.bump(); // login
+  e.bump(); // logout again
+  assert.equal(e.stale(refreshB), true);
+  assert.equal(e.stale(e.current()), false, "a refresh started now is current");
+  // Each epoch is independent (one per module / test).
+  assert.equal(createAuthEpoch().current(), 0);
 });

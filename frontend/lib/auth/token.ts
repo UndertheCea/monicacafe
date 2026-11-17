@@ -142,3 +142,17 @@ export function bearerToken(header: string | null): string | null {
   const m = /^Bearer\s+(\S+)\s*$/i.exec(header ?? "");
   return m ? m[1] : null;
 }
+
+/**
+ * Counts sign-ins and sign-outs in this tab (#344). A refresh that started
+ * under an older count finished after the user logged out (or in as someone
+ * else), so its result must not be applied: it would sign them back in.
+ */
+export function createAuthEpoch() {
+  let n = 0;
+  return {
+    current: () => n,
+    bump: () => ++n,
+    stale: (startedAt: number) => startedAt !== n,
+  };
+}

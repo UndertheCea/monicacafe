@@ -8,6 +8,7 @@ import { getLocale } from "@/lib/i18n/server";
 import { shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { ErrorState } from "@/components/ErrorState";
+import { mapControlLabels } from "@/lib/mapControls";
 import { ShopMap } from "@/components/map/ShopMap";
 import { Page } from "@/components/Page";
 import { Card, Label, PageTitle, SectionTitle } from "@/components/ui";
@@ -54,6 +55,7 @@ export default async function MapPage() {
         loadingLabel={t(locale, "map.loading")}
         failedLabel={t(locale, "map.loadFailed")}
         twoFingersLabel={t(locale, "map.twoFingers")}
+        controlLabels={mapControlLabels(locale)}
       />
 
       {/* Text list: the accessible, no-JS equivalent of the map. */}

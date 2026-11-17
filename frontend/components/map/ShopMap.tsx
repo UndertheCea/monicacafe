@@ -3,6 +3,7 @@
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { hasCoords, type ShopPin } from "@/lib/api";
+import type { MapControlLabels } from "@/lib/mapControls";
 
 // Taiwan main island, used when there are no pins to fit.
 const TAIWAN_CENTER: [number, number] = [23.7, 120.96];
@@ -22,6 +23,7 @@ export function ShopMap({
   loadingLabel,
   failedLabel,
   twoFingersLabel,
+  controlLabels: { zoomIn, zoomOut, closePopup },
 }: {
   pins: ShopPin[];
   ariaLabel: string;
@@ -29,6 +31,8 @@ export function ShopMap({
   failedLabel: string;
   /** Hint shown on touch screens, where one finger scrolls the page and two move the map. */
   twoFingersLabel: string;
+  /** Leaflet's zoom buttons and popup close button, translated (#363). */
+  controlLabels: MapControlLabels;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("loading");
@@ -50,7 +54,13 @@ export function ShopMap({
 
         // On touch screens one finger must scroll the page (a 60vh map would trap it): dragging is off and
         // pinch-zoom (two fingers) also pans.
-        map = L.map(el.current, { scrollWheelZoom: false, dragging: !L.Browser.mobile }).setView(TAIWAN_CENTER, TAIWAN_ZOOM);
+        map = L.map(el.current, { zoomControl: false, scrollWheelZoom: false, dragging: !L.Browser.mobile }).setView(TAIWAN_CENTER, TAIWAN_ZOOM);
+        L.control.zoom({ zoomInTitle: zoomIn, zoomOutTitle: zoomOut }).addTo(map);
+        // The default prefix carries a blue/yellow flag; keep it plain (static text, not seller-supplied).
+        map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+        map.on("popupopen", (e) => {
+          e.popup.getElement()?.querySelector(".leaflet-popup-close-button")?.setAttribute("aria-label", closePopup);
+        });
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -100,7 +110,7 @@ export function ShopMap({
       cancelled = true;
       map?.remove();
     };
-  }, [pins]);
+  }, [pins, zoomIn, zoomOut, closePopup]);
 
   return (
     <div className="relative overflow-hidden rounded-box ring-1 ring-line">

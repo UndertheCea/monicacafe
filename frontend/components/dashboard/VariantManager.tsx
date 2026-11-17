@@ -16,6 +16,7 @@ import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
 import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
 import { toApiError } from "@/lib/graphql";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
 import { CoffeeGallery } from "./CoffeeGallery";
@@ -205,11 +206,11 @@ function VariantRow({
       onSaved(r.updateVariant);
       setSaved(true);
     } catch (err) {
-      const code = toApiError(err).code;
+      const { code, retryAfter } = toApiError(err);
       // The row keeps what the seller typed; the reload brings the new stored
       // stock, so the next save is checked against it.
       if (code === "STOCK_CHANGED") onStale();
-      fe.fail({ fields: {}, form: { key: variantSaveErrorKey(code) } });
+      fe.fail({ fields: {}, form: dashWriteError(code, retryAfter) ?? { key: variantSaveErrorKey(code) } });
     } finally {
       setBusy(false);
     }
@@ -224,7 +225,10 @@ function VariantRow({
       onDeleted();
     } catch (err) {
       const e = toApiError(err);
-      fe.fail({ fields: {}, form: { key: e.code === "BAD_USER_INPUT" ? "cf.error.lastVariant" : "cf.error.generic" } });
+      fe.fail({
+        fields: {},
+        form: dashWriteError(e.code, e.retryAfter) ?? { key: e.code === "BAD_USER_INPUT" ? "cf.error.lastVariant" : "cf.error.generic" },
+      });
       setBusy(false);
     }
   }
@@ -354,9 +358,9 @@ function AddVariantForm({
       setRow({ grind: row.grind, weightG: "", priceTwd: "", stock: "0" });
       onAdded();
     } catch (err) {
-      const code = toApiError(err).code;
+      const { code, retryAfter } = toApiError(err);
       if (code === "CONFLICT") fe.failField("weight", { key: "cf.error.duplicate" });
-      else fe.fail({ fields: {}, form: { key: variantSaveErrorKey(code) } });
+      else fe.fail({ fields: {}, form: dashWriteError(code, retryAfter) ?? { key: variantSaveErrorKey(code) } });
     } finally {
       setBusy(false);
     }

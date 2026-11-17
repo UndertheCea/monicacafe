@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { dashWriteError, type DashWriteError } from "@/lib/dashboard/writeError";
+import { toApiError } from "@/lib/graphql";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_SHOP, type EditableShop } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -18,7 +20,7 @@ export function ShopImages({
   onSaved: (s: EditableShop) => void;
 }) {
   const { request } = useAuth();
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<DashWriteError | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function save(field: "logoUrl" | "bannerUrl", url: string) {
@@ -31,8 +33,9 @@ export function ShopImages({
     setError(null);
     try {
       await save(field, "");
-    } catch {
-      setError("img.error.save");
+    } catch (err) {
+      const e = toApiError(err);
+      setError(dashWriteError(e.code, e.retryAfter) ?? { key: "img.error.save" });
     } finally {
       setBusy(false);
     }
@@ -94,7 +97,7 @@ export function ShopImages({
       </div>
       {error && (
         <p role="alert" className="text-sm text-danger">
-          {t(locale, error)}
+          {t(locale, error.key, error.vars)}
         </p>
       )}
     </Card>

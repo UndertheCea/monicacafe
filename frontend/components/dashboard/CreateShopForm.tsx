@@ -5,6 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_SHOP } from "@/lib/dashboard/queries";
 import { LIMITS, normaliseShopSlug, runes, suggestSlug } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
@@ -40,8 +41,11 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
     } catch (err) {
       const e2 = toApiError(err);
       // CONFLICT: the slug is taken (or you already have a shop: no field, so the summary says "couldn't save").
+      const blocked = dashWriteError(e2.code, e2.retryAfter);
       fe.fail(
-        isContactInfoError(e2.code)
+        blocked
+          ? { fields: {}, form: blocked }
+          : isContactInfoError(e2.code)
           ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
           : e2.code === "CONFLICT" && e2.field === "slug"
           ? placeError("slug", { key: "dash.error.slugTaken" }, ORDER)

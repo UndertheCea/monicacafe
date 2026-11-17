@@ -15,6 +15,7 @@ import {
   type ShopProfileProblem,
 } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
+import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { ShopImages } from "./ShopImages";
 import { SignInAgain } from "./SignInAgain";
@@ -175,8 +176,11 @@ function ProfileEditor({
     } catch (err) {
       const e2 = toApiError(err);
       const key = e2.code === "BAD_USER_INPUT" ? API_KEY[e2.field ?? ""] : undefined;
+      const blocked = dashWriteError(e2.code, e2.retryAfter);
       fe.fail(
-        isContactInfoError(e2.code)
+        blocked
+          ? { fields: {}, form: blocked }
+          : isContactInfoError(e2.code)
           ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
           : key
           ? placeError(e2.field, { key }, ORDER)

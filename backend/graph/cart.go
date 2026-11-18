@@ -129,9 +129,9 @@ func (r *Resolver) addToCart(ctx context.Context, variantID string, quantity int
 		if err != nil {
 			return err
 		}
-		have, snapshot := 0, int64(0)
+		have, lineID := 0, ""
 		if l, err := tx.CartLineForVariant(ctx, c.UserID, variantID); err == nil {
-			have, snapshot = l.Quantity, l.AddedPriceTWD
+			have, lineID = l.Quantity, l.ID
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return err
 		}
@@ -144,11 +144,15 @@ func (r *Resolver) addToCart(ctx context.Context, variantID string, quantity int
 		}
 		// A new line snapshots today's price; adding to a line keeps its
 		// snapshot, so a "price changed" notice stays until it is accepted.
-		price := cv.Variant.PriceTWD
-		if have > 0 {
-			price = snapshot
+		// Only the quantity changes, so a price accepted meanwhile stays (#379);
+		// a line the hourly sweep removed since it was read starts again.
+		if lineID != "" {
+			err := tx.SetCartLineQuantity(ctx, c.UserID, lineID, have+quantity)
+			if !errors.Is(err, store.ErrNotFound) {
+				return err
+			}
 		}
-		return tx.SetCartLine(ctx, c.UserID, variantID, have+quantity, price)
+		return tx.SetCartLine(ctx, c.UserID, variantID, quantity, cv.Variant.PriceTWD)
 	})
 	if err != nil {
 		return nil, err
@@ -181,8 +185,13 @@ func (r *Resolver) updateCartItem(ctx context.Context, id string, quantity int) 
 		if err := cartUpdateProblem(l, quantity); err != nil {
 			return err
 		}
-		// The snapshot stays: only acceptCartPrice takes today's price (#291).
-		return tx.SetCartLine(ctx, c.UserID, l.Variant.ID, quantity, l.AddedPriceTWD)
+		// The snapshot stays: only acceptCartPrice takes today's price (#291),
+		// and one it took meanwhile isn't overwritten (#379).
+		err = tx.SetCartLineQuantity(ctx, c.UserID, l.ID, quantity)
+		if errors.Is(err, store.ErrNotFound) {
+			return errNotFound("cart item")
+		}
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -203,7 +212,15 @@ func (r *Resolver) acceptCartPrice(ctx context.Context, id string, expected mone
 	if !isUUID(id) {
 		return nil, errNotFound("cart item")
 	}
-	if err := r.Store.AcceptCartPrice(ctx, c.UserID, id, int64(expected)); errors.Is(err, store.ErrNotFound) {
+	// Under the cart lock like every other cart write, so an add or a
+	// quantity change can't interleave with it (#379).
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		if err := tx.LockCart(ctx, c.UserID); err != nil {
+			return err
+		}
+		return tx.AcceptCartPrice(ctx, c.UserID, id, int64(expected))
+	})
+	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("cart item")
 	} else if errors.Is(err, store.ErrPriceMoved) {
 		return nil, errBadInput("expectedPriceTwd", "the price changed again; check the new price")
@@ -224,7 +241,13 @@ func (r *Resolver) removeFromCart(ctx context.Context, id string) (*model.Cart, 
 	if !isUUID(id) {
 		return nil, errNotFound("cart item")
 	}
-	if err := r.Store.DeleteCartLine(ctx, c.UserID, id); errors.Is(err, store.ErrNotFound) {
+	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		if err := tx.LockCart(ctx, c.UserID); err != nil {
+			return err
+		}
+		return tx.DeleteCartLine(ctx, c.UserID, id)
+	})
+	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("cart item")
 	} else if err != nil {
 		return nil, err

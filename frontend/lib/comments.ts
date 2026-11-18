@@ -108,6 +108,18 @@ export function withEditedComment<T extends { id: string; body: string; editedAt
 }
 
 /**
+ * The comment to show: the viewer's own saved edit while it is at least as new
+ * as the props (same id, `editedAt` not older; null is oldest), otherwise the
+ * props, so a later change that reaches the list wins over a stale local copy.
+ */
+export function pickComment<T extends { id: string; editedAt: string | null }>(props: T, local: T | null): T {
+  if (!local || local.id !== props.id) return props;
+  const l = local.editedAt === null ? -Infinity : Date.parse(local.editedAt);
+  const p = props.editedAt === null ? -Infinity : Date.parse(props.editedAt);
+  return l >= p ? local : props;
+}
+
+/**
  * The badge next to a comment's author: the roaster's own replies are marked
  * so buyers can tell them from other buyers. null for everyone else.
  */

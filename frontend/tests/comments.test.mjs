@@ -15,6 +15,7 @@ import {
   commentEditState,
   commentLength,
   hasMoreComments,
+  pickComment,
   withEditedComment,
   withoutComment,
 } from "../lib/comments.ts";
@@ -154,4 +155,19 @@ test("deleteOutcome", () => {
     ["INTERNAL_SERVER_ERROR", "failed"],
   ];
   for (const [code, want] of cases) assert.equal(deleteOutcome(code), want, code);
+});
+
+test("pickComment keeps the local edit only while it is at least as new as the props", () => {
+  const c = (id, body, editedAt) => ({ id, body, editedAt });
+  const cases = [
+    ["no local copy", c("a", "p", null), null, "p"],
+    ["other comment's local copy", c("a", "p", "2026-01-02T00:00:00Z"), c("b", "l", "2026-01-03T00:00:00Z"), "p"],
+    ["props not edited yet", c("a", "p", null), c("a", "l", "2026-01-02T00:00:00Z"), "l"],
+    ["same time", c("a", "p", "2026-01-02T00:00:00Z"), c("a", "l", "2026-01-02T00:00:00Z"), "l"],
+    ["local newer", c("a", "p", "2026-01-02T00:00:00Z"), c("a", "l", "2026-01-03T00:00:00Z"), "l"],
+    ["props newer", c("a", "p", "2026-01-04T00:00:00Z"), c("a", "l", "2026-01-03T00:00:00Z"), "p"],
+    ["local never edited, props edited", c("a", "p", "2026-01-04T00:00:00Z"), c("a", "l", null), "p"],
+    ["both null", c("a", "p", null), c("a", "l", null), "l"],
+  ];
+  for (const [name, props, local, body] of cases) assert.equal(pickComment(props, local).body, body, name);
 });

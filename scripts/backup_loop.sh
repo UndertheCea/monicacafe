@@ -10,7 +10,23 @@ here=$(cd "$(dirname "$0")" && pwd)
 hour="${BACKUP_HOUR:-3}"
 case "$hour" in [0-9]|[01][0-9]|2[0-3]) ;; *) echo "backup_loop: BACKUP_HOUR must be 0-23, got '$hour'" >&2; exit 1 ;; esac
 
-run() { sh "$here/backup.sh" || echo "backup_loop: backup FAILED, trying again tomorrow" >&2; }
+# This script is PID 1 in the container: docker stop sends it SIGTERM. Children run in the
+# background so the signal interrupts wait; the backup gets the signal too and is waited for,
+# so its EXIT trap (ping /fail, clean up) runs before the container goes (#381).
+child=""
+on_term() {
+  if [ -n "$child" ]; then kill -TERM "$child" 2>/dev/null || true; wait "$child" 2>/dev/null || true; fi
+  exit 143
+}
+trap on_term TERM INT
+
+run() {
+  sh "$here/backup.sh" &
+  child=$!
+  rc=0; wait "$child" || rc=$?
+  child=""
+  [ "$rc" = 0 ] || echo "backup_loop: backup FAILED, trying again tomorrow" >&2
+}
 
 # Strip a leading zero so arithmetic never reads "08" as octal.
 num() { n="${1#0}"; echo "${n:-0}"; }
@@ -28,6 +44,9 @@ while :; do
   wait=$(( $(num "$hour") * 3600 - since ))
   [ "$wait" -gt 0 ] || wait=$(( wait + 86400 ))
   echo "backup_loop: next backup in ${wait}s"
-  sleep "$wait"
+  sleep "$wait" &
+  child=$!
+  wait "$child" || true
+  child=""
   run
 done

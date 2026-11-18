@@ -281,6 +281,10 @@ services:
       context: ./scripts
       dockerfile: backup.Dockerfile
     command: ["sh", "/monicacafe/scripts/backup_loop.sh"]
+    # A tiny init as PID 1 forwards SIGTERM; backup_loop.sh and backup.sh stop a running
+    # dump on it and ping /fail (#381). The grace period covers that ping's retries.
+    init: true
+    stop_grace_period: 30s
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
       MIGRATIONS_DIR: /monicacafe/migrations

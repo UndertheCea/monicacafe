@@ -76,6 +76,23 @@ cleanup() {
   [ "$finished" = 1 ] || ping /fail
 }
 trap cleanup EXIT
+# A stop (docker stop: SIGTERM) or Ctrl-C ends the run through the EXIT trap above,
+# so it still pings /fail and removes the work dir and a half-written local copy (#381).
+# A foreground child would hold the shell until it ends, so the long steps run through
+# bg(), whose wait a signal interrupts; on_term then stops the children first.
+children=""
+on_term() {
+  for c in $children; do kill "$c" 2>/dev/null || true; done
+  exit 143
+}
+trap on_term TERM INT
+bg() { # run a command so that TERM can interrupt it; returns its status
+  "$@" &
+  children="$!"
+  rc=0; wait "$children" || rc=$?
+  children=""
+  return "$rc"
+}
 
 # Keep the password out of the process list (ps): postgres://user:PASSWORD@host/db
 # becomes PGPASSWORD plus a URL without it. (A URL-encoded password, with %, stays.)
@@ -167,9 +184,9 @@ store_markers() { # names of shrink-accepted markers (#380), oldest first; never
 store_put() { # local file, name
   if [ "$mode" = local ]; then
     partial="$target/.$2.partial"
-    cp "$1" "$partial" && mv "$partial" "$target/$2" && partial=""
+    bg cp "$1" "$partial" && mv "$partial" "$target/$2" && partial=""
   else
-    aws_s3 s3 cp --only-show-errors "$1" "s3://$BACKUP_S3_BUCKET/$prefix$2"
+    bg aws_s3 s3 cp --only-show-errors "$1" "s3://$BACKUP_S3_BUCKET/$prefix$2"
   fi
 }
 store_size() { # name -> bytes
@@ -206,9 +223,9 @@ mirror_media() { # sets media_objects
   mkdir -p "$dest" || return 1
   # No --delete: an image removed from the bucket (by a cleanup gone wrong, say)
   # stays in the backup.
-  media_aws s3 sync --only-show-errors "s3://$S3_BUCKET" "$dest" || return 1
+  bg media_aws s3 sync --only-show-errors "s3://$S3_BUCKET" "$dest" || return 1
   if [ "$mode" = s3 ]; then
-    aws_s3 s3 sync --only-show-errors "$dest" "s3://$BACKUP_S3_BUCKET/${prefix}media" || return 1
+    bg aws_s3 s3 sync --only-show-errors "$dest" "s3://$BACKUP_S3_BUCKET/${prefix}media" || return 1
   fi
   media_objects=$(find "$dest" -type f | wc -l | tr -d ' ')
 }
@@ -219,15 +236,23 @@ dow=$(TZ=UTC-8 date +%a | tr 'A-Z' 'a-z')
 name="monicacafe_${stamp}_${dow}.dump"
 
 # Custom format: compressed, and pg_restore can pick parts out of it. Encrypted
-# dumps are streamed into age: no plaintext copy is ever written. (POSIX sh has no
-# pipefail, so pg_dump's exit status travels through a file.)
+# dumps are streamed into age through a named pipe: no plaintext copy is ever
+# written, and both processes are children TERM can stop (#381).
 if [ -n "$recipient" ]; then
-  { rc=0; pg_dump --format=custom --no-owner --dbname "$pg_url" || rc=$?; echo "$rc" >"$work/dump.rc"; } \
-    | age -r "$recipient" -o "$work/$name.age"
-  [ "$(cat "$work/dump.rc")" = 0 ] || die "pg_dump failed"
+  mkfifo "$work/dump.fifo"
+  age -r "$recipient" -o "$work/$name.age" <"$work/dump.fifo" &
+  age_pid=$!
+  pg_dump --format=custom --no-owner --dbname "$pg_url" >"$work/dump.fifo" &
+  pg_pid=$!
+  children="$age_pid $pg_pid"
+  pg_rc=0; wait "$pg_pid" || pg_rc=$?
+  age_rc=0; wait "$age_pid" || age_rc=$?
+  children=""
+  [ "$pg_rc" = 0 ] || die "pg_dump failed"
+  [ "$age_rc" = 0 ] || die "age failed"
   name="$name.age"
 else
-  pg_dump --format=custom --no-owner --dbname "$pg_url" --file "$work/$name"
+  bg pg_dump --format=custom --no-owner --dbname "$pg_url" --file "$work/$name" || die "pg_dump failed"
   say "WARNING: BACKUP_ALLOW_PLAINTEXT=true, this dump is not encrypted"
 fi
 bytes=$(wc -c <"$work/$name" | tr -d ' ')

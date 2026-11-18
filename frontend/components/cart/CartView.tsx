@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { bagCountKey, cartLineName, cartProblem, groupByShop, lineQuantityChoices, orphanProblem, shouldReloadCart, type CartData, type CartLine, type CartProblem } from "@/lib/cart";
+import { chosenQuantity, focusTargetAfterRemove, quantityChanged } from "@/lib/cartUi";
 import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
 import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -21,6 +22,10 @@ export function CartView({ locale }: { locale: Locale }) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ line: string; p: Problem } | null>(null);
+  // Unsaved quantity choices per line; saved with "Update", once (#374).
+  const [drafts, setDrafts] = useState<Record<string, number>>({});
+  // Where focus goes once the cart re-renders after a remove (#374).
+  const focusAfter = useRef<ReturnType<typeof focusTargetAfterRemove> | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -37,6 +42,17 @@ export function CartView({ locale }: { locale: Locale }) {
       live = false;
     };
   }, [status, request]);
+
+  useEffect(() => {
+    const target = focusAfter.current;
+    if (!target || busy !== null) return;
+    focusAfter.current = null;
+    const el =
+      target.kind === "line"
+        ? document.querySelector<HTMLElement>(`[data-line-focus="${CSS.escape(target.id)}"]`)
+        : document.getElementById("cart-heading");
+    el?.focus();
+  }, [load, busy]);
 
   if (status === "anonymous") {
     return (
@@ -67,6 +83,7 @@ export function CartView({ locale }: { locale: Locale }) {
   }
 
   async function write(line: string, run: () => Promise<CartData>) {
+    if (busy !== null) return; // aria-disabled controls stay focusable, so guard here (#374)
     setBusy(line);
     setProblem(null);
     try {
@@ -91,10 +108,22 @@ export function CartView({ locale }: { locale: Locale }) {
     }
   }
   const setQty = (l: CartLine, quantity: number) =>
-    write(l.id, async () => (await request(UPDATE_CART_ITEM, { id: l.id, quantity })).updateCartItem);
+    write(l.id, async () => {
+      const next = (await request(UPDATE_CART_ITEM, { id: l.id, quantity })).updateCartItem;
+      setDrafts((d) => Object.fromEntries(Object.entries(d).filter(([id]) => id !== l.id)));
+      return next;
+    });
   const acceptPrice = (l: CartLine) =>
     write(l.id, async () => (await request(ACCEPT_CART_PRICE, { id: l.id, expectedPriceTwd: l.priceTwd })).acceptCartPrice);
-  const remove = (l: CartLine) => write(l.id, async () => (await request(REMOVE_FROM_CART, { id: l.id })).removeFromCart);
+  const remove = (l: CartLine) => {
+    if (busy !== null) return;
+    const shown = groupByShop(cart.items).flatMap((g) => g.lines.map((x) => x.id));
+    return write(l.id, async () => {
+      const next = (await request(REMOVE_FROM_CART, { id: l.id })).removeFromCart;
+      focusAfter.current = focusTargetAfterRemove(shown, l.id); // only once the line is really gone
+      return next;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -142,7 +171,7 @@ export function CartView({ locale }: { locale: Locale }) {
                           size="sm"
                           variant="secondary"
                           aria-label={t(locale, "cart.acceptPriceFor", { name })}
-                          disabled={busy !== null}
+                          aria-disabled={busy !== null}
                           onClick={() => void acceptPrice(l)}
                         >
                           {t(locale, "cart.acceptPrice")}
@@ -154,10 +183,14 @@ export function CartView({ locale }: { locale: Locale }) {
                   <label className="block w-20 text-xs font-medium text-muted">
                     {t(locale, "cart.quantity")}
                     <Select
-                      value={l.quantity}
+                      value={chosenQuantity(l.quantity, drafts[l.id])}
                       aria-label={t(locale, "cart.quantityFor", { name })}
-                      disabled={busy !== null}
-                      onChange={(e) => void setQty(l, Number(e.target.value))}
+                      aria-disabled={busy !== null}
+                      data-line-focus={l.id}
+                      onChange={(e) => {
+                        if (busy !== null) return;
+                        setDrafts((d) => ({ ...d, [l.id]: Number(e.target.value) }));
+                      }}
                       className="mt-1"
                     >
                       {lineQuantityChoices(l).map((n) => (
@@ -167,6 +200,19 @@ export function CartView({ locale }: { locale: Locale }) {
                       ))}
                     </Select>
                   </label>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={t(locale, "cart.updateFor", { name })}
+                    aria-disabled={busy !== null || !quantityChanged(l.quantity, drafts[l.id])}
+                    className={busy !== null || !quantityChanged(l.quantity, drafts[l.id]) ? "opacity-50" : undefined}
+                    onClick={() => {
+                      const q = drafts[l.id];
+                      if (busy === null && quantityChanged(l.quantity, q)) void setQty(l, q);
+                    }}
+                  >
+                    {t(locale, "cart.update")}
+                  </Button>
                   <p className={`ml-auto w-24 text-right font-semibold ${l.available ? "text-ink" : "text-muted line-through"}`}>
                     NT${formatTWD(l.lineTotalTwd)}
                   </p>
@@ -174,8 +220,8 @@ export function CartView({ locale }: { locale: Locale }) {
                     size="sm"
                     variant="secondary"
                     aria-label={t(locale, "cart.removeNamed", { name })}
-                    pending={busy === l.id}
-                    disabled={busy !== null}
+                    aria-busy={busy === l.id || undefined}
+                    aria-disabled={busy !== null}
                     onClick={() => void remove(l)}
                   >
                     {t(locale, "cart.remove")}

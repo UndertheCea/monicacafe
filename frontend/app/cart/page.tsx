@@ -15,7 +15,7 @@ export default async function CartPage() {
   return (
     <Page className="py-10">
       <div className="mx-auto max-w-2xl">
-        <PageTitle className="mb-6">{t(locale, "cart.title")}</PageTitle>
+        <PageTitle id="cart-heading" tabIndex={-1} className="mb-6">{t(locale, "cart.title")}</PageTitle>
         <CartView locale={locale} />
       </div>
     </Page>

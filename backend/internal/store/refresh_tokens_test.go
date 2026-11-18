@@ -167,3 +167,69 @@ func TestRevokeRefreshToken(t *testing.T) {
 		})
 	}
 }
+
+// TestRevokeAllThenStaleReplay (#397): after every session is revoked on
+// purpose (password change, sign out everywhere), replaying an older token of
+// a rotation chain is refused as revoked, not treated as theft, so the
+// session issued afterwards survives.
+func TestRevokeAllThenStaleReplay(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	exp := time.Now().Add(time.Hour)
+
+	cases := []struct {
+		name  string
+		chain []string // rotations before the revoke: tok → chain[0] → chain[1] …
+	}{
+		{name: "one rotation", chain: []string{"b"}},
+		{name: "two rotations", chain: []string{"b", "c"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := func(s string) string { return s + "-" + tc.name + "-" + suffix }
+			err := s.InTx(ctx, func(tx *store.Store) error {
+				u, err := tx.CreateUser(ctx, h("stale")+"@example.test", "x", "s")
+				if err != nil {
+					return err
+				}
+				if err := tx.SaveRefreshToken(ctx, u.ID, h("a"), exp); err != nil {
+					return err
+				}
+				prev := h("a")
+				for _, next := range tc.chain {
+					if err := tx.RotateRefreshToken(ctx, prev, u.ID, h(next), exp, 0); err != nil {
+						return err
+					}
+					prev = h(next)
+				}
+				if err := tx.RevokeUserRefreshTokens(ctx, u.ID); err != nil {
+					return err
+				}
+				// The session issued after the revocation (e.g. by changePassword).
+				if err := tx.SaveRefreshToken(ctx, u.ID, h("fresh"), exp); err != nil {
+					return err
+				}
+				for _, stale := range append([]string{"a"}, tc.chain...) {
+					err := tx.RotateRefreshToken(ctx, h(stale), u.ID, h("replay-"+stale), exp, 0)
+					if errors.Is(err, store.ErrRefreshReuse) {
+						t.Errorf("replaying %s after revoke-all was treated as theft", stale)
+					} else if err == nil {
+						t.Errorf("replaying %s after revoke-all was accepted", stale)
+					}
+				}
+				var revoked bool
+				if err := tx.QueryRowForTest(ctx, `SELECT revoked_at IS NOT NULL FROM refresh_tokens WHERE token_hash = $1`, h("fresh")).Scan(&revoked); err != nil {
+					return err
+				}
+				if revoked {
+					t.Error("the session issued after revoke-all was revoked")
+				}
+				return errRollback
+			})
+			if !errors.Is(err, errRollback) {
+				t.Fatal(err)
+			}
+		})
+	}
+}

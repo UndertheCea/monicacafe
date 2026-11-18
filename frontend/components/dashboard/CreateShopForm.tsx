@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_SHOP } from "@/lib/dashboard/queries";
+import { createShopConflict } from "@/lib/dashboard/createShop";
 import { LIMITS, normaliseShopSlug, runes, suggestSlug } from "@/lib/dashboard/validate";
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
@@ -33,6 +34,10 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
     if (!name.trim()) return fe.failField("name", { key: "dash.error.required" });
     if (!city) return fe.failField("city", { key: "dash.error.required" });
     if (!cleanSlug) return fe.failField("slug", { key: "dash.error.slug" });
+    // Lengths in characters like the API (native maxLength counts UTF-16 units, #395).
+    if (runes(name.trim()) > LIMITS.shopName) return fe.failField("name", { key: "shop.error.name" });
+    if (runes(city) > LIMITS.city) return fe.failField("city", { key: "shop.error.city" });
+    if (runes(description) > LIMITS.shopDescription) return fe.failField("description", { key: "shop.error.description" });
     setBusy(true);
     fe.clear();
     try {
@@ -41,14 +46,24 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
       onCreated();
     } catch (err) {
       const e2 = toApiError(err);
-      // CONFLICT: the slug is taken (or you already have a shop: no field, so the summary says "couldn't save").
+      const conflict = createShopConflict(e2.code, e2.field);
+      if (conflict === "hasShop") {
+        // Already a seller (e.g. opened the shop in another tab): load it instead of blaming the URL name (#392).
+        try {
+          await reload();
+          onCreated();
+          return;
+        } catch {
+          // fall through to "couldn't save"
+        }
+      }
       const blocked = dashWriteError(e2.code, e2.retryAfter);
       fe.fail(
         blocked
           ? { fields: {}, form: blocked }
           : isContactInfoError(e2.code)
           ? placeError(e2.field ?? "description", { key: "contact.error" }, ORDER)
-          : e2.code === "CONFLICT" && e2.field === "slug"
+          : conflict === "slugTaken"
           ? placeError("slug", { key: "dash.error.slugTaken" }, ORDER)
           : e2.code === "BAD_USER_INPUT" && e2.field === "slug"
             ? placeError("slug", { key: "dash.error.slug" }, ORDER)
@@ -58,7 +73,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
             ? placeError("city", { key: textInputErrorKey(city, LIMITS.city, "shop.error.city") }, ORDER)
             : e2.code === "BAD_USER_INPUT" && e2.field === "description"
             ? placeError("description", { key: textInputErrorKey(description, LIMITS.shopDescription, "shop.error.description") }, ORDER)
-            : { fields: {}, form: { key: e2.code === "CONFLICT" ? "dash.error.slugTaken" : "dash.error.generic" } },
+            : { fields: {}, form: { key: "dash.error.generic" } },
       );
       setBusy(false);
     }
@@ -83,7 +98,6 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
                 if (!slugTouched) setSlug(suggestSlug(e.target.value));
               }}
               required
-              maxLength={LIMITS.shopName}
             />
           )}
         </Field>
@@ -94,7 +108,6 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
               name="city"
               onChange={() => fe.clearField("city")}
               required
-              maxLength={LIMITS.city}
               placeholder={t(locale, "dash.cityPlaceholder")}
             />
           )}
@@ -135,11 +148,6 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
               {...p}
               name="description"
               rows={4}
-              maxLength={LIMITS.shopDescription}
-              onInput={(e) => {
-                const el = e.currentTarget;
-                if (runes(el.value) > LIMITS.shopDescription) el.value = [...el.value].slice(0, LIMITS.shopDescription).join("");
-              }}
             />
           )}
         </Field>

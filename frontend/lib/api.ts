@@ -128,11 +128,8 @@ export const SEARCH_TERMS = typed<{ searchTerms: string[][] }, { q: string }>(/*
   }
 `);
 
-/** Lowest available variant price in whole NT$, or null if sold out. */
-export function fromPrice(c: Pick<CoffeeCardData, "variants">): number | null {
-  const prices = c.variants.filter((v) => v.isAvailable).map((v) => v.priceTwd);
-  return prices.length ? Math.min(...prices) : null;
-}
+// fromPrice lives in ./pricing (testable without the GraphQL client); re-exported for existing imports.
+export { fromPrice } from "./pricing";
 
 // ---------------------------------------------------------------------------
 // Coffee detail

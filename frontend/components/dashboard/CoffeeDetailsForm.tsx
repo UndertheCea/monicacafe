@@ -29,6 +29,7 @@ import type { CoffeeFieldKey } from "./coffeeFormErrors";
 import { brewLongKey } from "@/lib/brew";
 import { query, toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
+import { capChars } from "@/lib/textInput";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
@@ -230,9 +231,8 @@ export function CoffeeDetailsForm({
             <Input
               {...p}
               value={draft.name}
-              onChange={(e) => set({ name: e.target.value })}
+              onChange={(e) => set({ name: capChars(e.target.value, LIMITS.coffeeName) })}
               required
-              maxLength={LIMITS.coffeeName}
             />
           )}
         </Field>
@@ -287,9 +287,8 @@ export function CoffeeDetailsForm({
             <Textarea
               {...p}
               value={draft.description}
-              onChange={(e) => set({ description: e.target.value })}
+              onChange={(e) => set({ description: capChars(e.target.value, LIMITS.coffeeDescription) })}
               rows={5}
-              maxLength={LIMITS.coffeeDescription}
             />
           )}
         </Field>

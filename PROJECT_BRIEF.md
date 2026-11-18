@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-18 (after Session 50)
+Last updated: 2026-11-18 (after Session 51)
 
 ---
 
@@ -78,10 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 50**: no owner answers; three audits became #378–#390. ECPay `CheckMacValue` matches ECPay's documented example; cart
-writes all take `LockCart` and quantity changes keep the price snapshot; backups: an accepted shrink stops failing nightly, clean
-SIGTERM, local target must be the volume; nginx no longer pins failed chunks for a year; migrate bootstrap locked; dashboard,
-option editor and photo gallery apply results to the current state (no lost saves), inline sign-in can't double-submit.
+**Session 51**: no owner answers; #389 plus two audits (#392–#397). /account confirm rows keep focus; cards' "from NT$X" skips
+NT$0 options; "you already have a shop" loads it; revoke-all detaches refresh chains (a stale replay no longer ends the new
+session); staff words in display names match whole words only; local comment edits yield to newer props; text limits count characters.
 
 ## Current focus
 
@@ -91,7 +90,7 @@ option editor and photo gallery apply results to the current state (no lost save
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. Open: #389 (/account confirm focus, p3). Sessions 43, 45–50 audited the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–51 audited the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

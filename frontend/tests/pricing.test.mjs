@@ -84,3 +84,16 @@ test("coffeeAvailability agrees with the JSON-LD availability", () => {
     assert.equal(ld.offers.availability, inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock");
   }
 });
+
+test("fromPrice: buyable options only, NT$0 reads as sold out (#393)", async () => {
+  const { fromPrice } = await import("../lib/pricing.ts");
+  const v = (priceTwd, isAvailable = true) => ({ priceTwd, isAvailable });
+  const cases = [
+    { name: "cheapest available", variants: [v(600), v(450)], want: 450 },
+    { name: "unavailable ignored", variants: [v(300, false), v(450)], want: 450 },
+    { name: "only NT$0", variants: [v(0)], want: null },
+    { name: "NT$0 next to a real price", variants: [v(0), v(450)], want: 450 },
+    { name: "none", variants: [], want: null },
+  ];
+  for (const c of cases) assert.equal(fromPrice({ variants: c.variants }), c.want, c.name);
+});

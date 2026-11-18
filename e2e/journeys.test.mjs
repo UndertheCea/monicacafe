@@ -110,6 +110,24 @@ describe("buyer", () => {
       await page.getByRole("link", { name: coffeeName }).first().waitFor();
       await page.getByRole("link", { name: shopName }).first().waitFor();
     });
+    await step(page, "account-confirm-focus", async () => {
+      // #389: the confirm rows move focus to "Yes" and back to the trigger, never to <body>.
+      await page.goto("/account");
+      const focused = () => page.evaluate(() => document.activeElement?.textContent?.trim() ?? "");
+      await page.getByRole("button", { name: "Sign out of all devices" }).click();
+      await page.getByRole("button", { name: "Yes, sign out everywhere" }).waitFor();
+      assert.equal(await focused(), "Yes, sign out everywhere");
+      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Sign out of all devices" }).waitFor();
+      assert.equal(await focused(), "Sign out of all devices");
+      await page.getByLabel("Enter your password to confirm").fill("not-the-password");
+      await page.getByRole("button", { name: "Delete my account" }).click();
+      await page.getByRole("button", { name: "Yes, delete it" }).waitFor();
+      assert.equal(await focused(), "Yes, delete it");
+      await page.getByRole("group", { name: /delete/i }).getByRole("button", { name: "Cancel" }).click();
+      await page.getByRole("button", { name: "Delete my account" }).waitFor();
+      assert.equal(await focused(), "Delete my account");
+    });
     await step(page, "download-my-data", async () => {
       await page.goto("/account");
       const [download] = await Promise.all([

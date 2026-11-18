@@ -209,7 +209,6 @@ function ProfileEditor({
               value={name}
               onChange={(e) => (setName(e.target.value), edited("name"))}
               required
-              maxLength={LIMITS.shopName}
             />
           )}
         </Field>
@@ -220,7 +219,6 @@ function ProfileEditor({
               value={city}
               onChange={(e) => (setCity(e.target.value), edited("city"))}
               required
-              maxLength={LIMITS.city}
               placeholder={t(locale, "dash.cityPlaceholder")}
             />
           )}
@@ -238,7 +236,6 @@ function ProfileEditor({
               value={description}
               onChange={(e) => (setDescription(e.target.value), edited("description"))}
               rows={5}
-              maxLength={LIMITS.shopDescription}
             />
           )}
         </Field>

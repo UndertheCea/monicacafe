@@ -15,6 +15,41 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 51 — 2026-11-18 — Audit: confirm focus, NT$0 card price, refresh chains, display names, char limits (seven slices)
+PR: #398
+
+No session PR open (only dependabot's #252 / #314–#316 / #377), no owner answers on questions, one pickable slice (#389). Two
+Sonnet audits (backend: auth, twfmt, account / shop / comment resolvers, CHECKs vs Go; frontend: login / register, shop forms,
+coffee page, lib helpers) gave #392–#397. A Sonnet sub-agent built #394 / #395 in a worktree (cherry-picked); the rest here.
+
+### Shipped (one line per slice: area — what — key files)
+- #389 frontend — /account "sign out everywhere" / "delete account" rows: Yes focused on open (and after a failed sign-out),
+  trigger refocused on Cancel / Esc / failed delete (`useConfirmFocus`, `confirmFocusTarget`); e2e step `account-confirm-focus`.
+- #393 frontend — `fromPrice` (moved to `lib/pricing.ts`, re-exported from `lib/api.ts`) skips NT$0 options like `isBuyable`.
+- #392 frontend — create shop: `CONFLICT` on `owner` reloads and shows the existing shop; only `slug` says "URL taken"
+  (`lib/dashboard/createShop.ts`).
+- #397 backend — `RevokeUserRefreshTokens` clears `replaced_by` on the user's tokens, so replaying an older chain token after
+  password change / sign out everywhere is refused, not treated as theft (which ended the new session). Integration test.
+- #396 backend — `IsReservedDisplayName`: admin / staff / support / official / moderator match whole ASCII words (case-change
+  split, single letters joined, plural s); brand and CJK words still match anywhere. "Badminton", "Stafford" accepted.
+- #394 frontend — `pickComment`: a local edit wins only while its `editedAt` is not older than the props'.
+- #395 frontend — native `maxLength` dropped where limits are in characters (display name, shop create / profile, producer /
+  region); coffee name / description cut by characters (`capChars` / `capInput`); create-shop checks lengths by runes;
+  `tests/maxLength.test.mjs` allows only slug 48, year 4, admin search 100, `SEARCH_MAX_CHARS`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (PostgreSQL 16 here); the #397 test
+  fails without the fix (replay reported as theft) and passes with it.
+- Frontend: tsc, lint, `npm test` (369), `next build`; `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe incl. the new /account focus step (CI `stack` runs it).
+  Form changes (#392, #394, #395) checked by helper tests, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Not filed: the contact filter refuses "Honey.Me" / "Natural.Top" (bare `name.tld` with no space after a full stop) — a
+  deliberate trade-off of #286 (filters only raise the cost); revisit if sellers complain. An unconfirmed note: two concurrent
+  refreshes of one token could leave a browser holding the revoked successor; the BFF serialises refreshes, so not filed.
+- New `question` issues: none.
+
 ## Session 50 — 2026-11-18 — ECPay vector, cart write locking, backup / ops fixes, dashboard state races (twelve slices)
 PR: #391
 

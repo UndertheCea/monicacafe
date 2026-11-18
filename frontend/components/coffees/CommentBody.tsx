@@ -3,7 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UPDATE_COMMENT } from "@/lib/api";
-import { COMMENT_MAX_CHARS, canEditComment, commentEditErrorKey, commentEditState, commentInputErrorKey } from "@/lib/comments";
+import { COMMENT_MAX_CHARS, canEditComment, commentEditErrorKey, commentEditState, commentInputErrorKey, pickComment } from "@/lib/comments";
 import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
@@ -44,7 +44,7 @@ export function CommentBody({
   const [busy, setBusy] = useState(false);
   const fe = useFormErrors<"body">(`comment-edit-${fieldId}`, ORDER);
 
-  const current = saved && saved.id === comment.id ? saved : comment;
+  const current = pickComment(comment, saved);
   const editable = canEditComment(user?.id, comment.user.id, coffeePublished);
 
   const editedMark = current.editedAt && (

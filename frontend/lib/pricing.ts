@@ -57,3 +57,13 @@ export function coffeeAvailability(variants: AvailabilityVariant[]): CoffeeAvail
   if (best === null) return { kind: "soldOut" };
   return { kind: "from", price: best.priceTwd, per100g: pricePer100g(best.priceTwd, best.weightG) };
 }
+
+/**
+ * Lowest buyable variant price in whole NT$, or null if sold out. Same rule as the coffee page's
+ * `isBuyable` (#358, #393): `isAvailable` already means on sale and in stock, and a stored NT$0 option
+ * reads as sold out rather than "from NT$0".
+ */
+export function fromPrice(c: { variants: { priceTwd: number; isAvailable: boolean }[] }): number | null {
+  const prices = c.variants.filter((v) => v.isAvailable && v.priceTwd >= 1).map((v) => v.priceTwd);
+  return prices.length ? Math.min(...prices) : null;
+}

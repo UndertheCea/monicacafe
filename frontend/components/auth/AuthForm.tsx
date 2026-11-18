@@ -108,7 +108,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
           hint={t(locale, "auth.displayNameHint")}
           error={msg("displayName")}
         >
-          {(p) => <Input {...p} name="displayName" required maxLength={50} autoComplete="nickname" />}
+          {(p) => <Input {...p} name="displayName" required autoComplete="nickname" />}
         </Field>
       )}
       <Field id={fe.id("email")} label={t(locale, "auth.email")} error={msg("email")}>

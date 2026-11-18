@@ -1,5 +1,5 @@
 // Package ecpay implements ECPay (綠界) request signing. Stdlib only.
-// Deferred to stage 3 (checkout). Parked here for future use.
+// Stage 2: the checkout and the payment callback (not built yet) sign and verify with it.
 package ecpay
 
 import (

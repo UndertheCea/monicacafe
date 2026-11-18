@@ -27,7 +27,9 @@
 #                        success, GET $BACKUP_PING_URL/fail on any failure. A failed
 #                        ping only logs a warning; it never fails the backup.
 #   BACKUP_ACCEPT_SHRINK=true  for ONE run after a deliberate large deletion: prune
-#                        even though the dump is under 50 % of the largest stored one.
+#                        even though the dump is under 50 % of the largest stored one. The run
+#                        stores a marker object shrink_accepted_<stamp>; later runs compare
+#                        only with dumps from that run on (#380).
 #   BACKUP_MARKER        optional file that gets the epoch seconds of the last
 #                        success (the compose healthcheck reads it).
 #
@@ -39,7 +41,8 @@
 # but nothing is pruned, it logs loudly, pings /fail and exits 1 (an emptied
 # database must not age the good dumps out). That repeats every night until an
 # operator looks: after a deliberate large deletion, run once with
-# BACKUP_ACCEPT_SHRINK=true to prune again (#348). A failed listing of the store
+# BACKUP_ACCEPT_SHRINK=true to prune again (#348); it stores a shrink_accepted_<stamp>
+# marker and later runs compare only with dumps from then on (#380). A failed listing of the store
 # fails the run rather than reading as "no dumps yet".
 # Exits non-zero on any failure and prints one JSON line at the end:
 #   {"file":"…","bytes":N,"seconds":N,"pruned":N,"media_objects":N}  (-1 = media not mirrored)
@@ -65,9 +68,11 @@ ping() { # $1: "" (success) or "/fail"; best effort
 }
 # Any exit before the final line (die, a failing command, a signal) pings /fail.
 work=""
+partial=""
 finished=0
 cleanup() {
   [ -z "$work" ] || rm -rf "$work"
+  [ -z "$partial" ] || rm -f "$partial"
   [ "$finished" = 1 ] || ping /fail
 }
 trap cleanup EXIT
@@ -149,9 +154,20 @@ store_list() { # file names, oldest first (names sort by date)
       | { grep '^monicacafe_.*\.dump' || true; } | sort
   fi
 }
+store_markers() { # names of shrink-accepted markers (#380), oldest first; never dumps
+  if [ "$mode" = local ]; then
+    find "$target" -maxdepth 1 -type f -name 'shrink_accepted_*' -exec basename {} \; | sort
+  else
+    keys=$(aws_s3 s3api list-objects-v2 --bucket "$BACKUP_S3_BUCKET" --prefix "${prefix}shrink_accepted_" \
+      --delimiter / --query 'Contents[].Key' --output text) || return 1
+    printf '%s\n' "$keys" | tr '\t' '\n' | sed -e '/^None$/d' -e "s|^$prefix||" \
+      | { grep '^shrink_accepted_' || true; } | sort
+  fi
+}
 store_put() { # local file, name
   if [ "$mode" = local ]; then
-    cp "$1" "$target/.$2.partial" && mv "$target/.$2.partial" "$target/$2"
+    partial="$target/.$2.partial"
+    cp "$1" "$partial" && mv "$partial" "$target/$2" && partial=""
   else
     aws_s3 s3 cp --only-show-errors "$1" "s3://$BACKUP_S3_BUCKET/$prefix$2"
   fi
@@ -219,11 +235,17 @@ bytes=$(wc -c <"$work/$name" | tr -d ' ')
 
 # Size of the largest earlier dump, to catch a dump of an emptied database. The
 # largest, not the newest: otherwise the second small dump in a row would pass
-# the check and the good ones would be pruned from then on (#348).
+# the check and the good ones would be pruned from then on (#348). Only dumps from
+# the newest shrink-accepted marker on count (#380): after a deliberate deletion the
+# older, bigger dumps stay for retention but are no longer the baseline.
 earlier=$(store_list) || die "could not list the stored dumps"
+newest_marker=$(store_markers) || die "could not list the shrink markers"
+newest_marker=$(echo "$newest_marker" | sed '/^$/d' | tail -n 1)
+baseline_from=""
+[ -z "$newest_marker" ] || baseline_from="monicacafe_${newest_marker#shrink_accepted_}"
 prev=""
 prev_bytes=0
-for f in $(echo "$earlier" | grep '^monicacafe_[0-9]\{8\}_' || true); do
+for f in $(echo "$earlier" | grep '^monicacafe_[0-9]\{8\}_' | awk -v from="$baseline_from" '$0 >= from' || true); do
   size=$(store_size "$f") || die "could not read the size of $f"
   if [ "$size" -gt "$prev_bytes" ]; then prev="$f"; prev_bytes="$size"; fi
 done
@@ -237,6 +259,10 @@ shrunk=0
 if [ "$prev_bytes" -gt 0 ] && [ $((bytes * 2)) -lt "$prev_bytes" ]; then
   if [ "$accept_shrink" = true ]; then
     say "warning: $name is under 50% of the largest stored dump $prev ($prev_bytes bytes); pruning anyway (BACKUP_ACCEPT_SHRINK=true)"
+    # Record it (#380): later runs compare only with dumps from this one on.
+    marker="shrink_accepted_${stamp}"
+    : >"$work/$marker"
+    store_put "$work/$marker" "$marker" || die "could not store the shrink marker $marker"
   else
     shrunk=1
     say "ERROR: $name is $bytes bytes, under 50% of the largest stored dump $prev ($prev_bytes bytes)."

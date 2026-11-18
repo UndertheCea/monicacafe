@@ -62,7 +62,20 @@ grep -q 'BACKUP_ACCEPT_SHRINK must be' "$tmp/err" || fail "no message for a bad 
 grep -q '"pruned":6' "$tmp/out" || fail "expected 6 pruned, got: $(cat "$tmp/out")"
 [ "$(count)" = 7 ] || fail "expected 7 dumps after pruning, found $(count)"
 
-# 5. A normal-sized dump after that: still compared with the largest kept (10000).
-[ "$(run 6000)" = 0 ] || fail "a dump over 50% of the largest should succeed: $(cat "$tmp/err")"
+# 5. The accepted shrink left a marker, and it is not a dump: never counted, never pruned.
+ls "$tmp/store"/shrink_accepted_* >/dev/null 2>&1 || fail "no shrink_accepted marker stored (#380)"
+[ "$(find "$tmp/store" -maxdepth 1 -name 'shrink_accepted_*' | wc -l | tr -d ' ')" = 1 ] || fail "expected one marker"
+
+# 6. The next night is just as small. The old big dumps are still kept, but the
+# baseline starts at the accepted dump, so this passes and prunes (#380).
+[ "$(run 100)" = 0 ] || fail "a small dump after an accepted shrink should pass (#380): $(cat "$tmp/err")"
+grep -q '"pruned":1' "$tmp/out" || fail "expected 1 pruned (the accepted dump, same day), got: $(cat "$tmp/out")"
+[ "$(count)" = 7 ] || fail "expected 7 dumps, found $(count)"
+ls "$tmp/store"/shrink_accepted_* >/dev/null 2>&1 || fail "the marker was pruned"
+
+# 7. A normal dump, then a further big drop: still caught against the new baseline.
+[ "$(run 6000)" = 0 ] || fail "a bigger dump should succeed: $(cat "$tmp/err")"
+[ "$(run 2000)" = 1 ] || fail "a further drop under 50% should still exit 1 (#380)"
+grep -q 'under 50% of the largest' "$tmp/err" || fail "no shrink error logged for the further drop"
 
 echo "backup_selftest: ok"

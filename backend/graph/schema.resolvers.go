@@ -16,6 +16,7 @@ import (
 	"github.com/underthecea/monicacafe/backend/graph/generated"
 	"github.com/underthecea/monicacafe/backend/graph/model"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
+	"github.com/underthecea/monicacafe/backend/internal/platform/money"
 	"github.com/underthecea/monicacafe/backend/internal/storage"
 	"github.com/underthecea/monicacafe/backend/internal/store"
 )
@@ -201,8 +202,8 @@ func (r *mutationResolver) RemoveFromCart(ctx context.Context, id string) (*mode
 }
 
 // AcceptCartPrice is the resolver for the acceptCartPrice field.
-func (r *mutationResolver) AcceptCartPrice(ctx context.Context, id string) (*model.Cart, error) {
-	return r.acceptCartPrice(ctx, id)
+func (r *mutationResolver) AcceptCartPrice(ctx context.Context, id string, expectedPriceTwd money.TWD) (*model.Cart, error) {
+	return r.acceptCartPrice(ctx, id, expectedPriceTwd)
 }
 
 // Register is the resolver for the register field.

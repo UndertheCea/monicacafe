@@ -93,7 +93,7 @@ export function CartView({ locale }: { locale: Locale }) {
   const setQty = (l: CartLine, quantity: number) =>
     write(l.id, async () => (await request(UPDATE_CART_ITEM, { id: l.id, quantity })).updateCartItem);
   const acceptPrice = (l: CartLine) =>
-    write(l.id, async () => (await request(ACCEPT_CART_PRICE, { id: l.id })).acceptCartPrice);
+    write(l.id, async () => (await request(ACCEPT_CART_PRICE, { id: l.id, expectedPriceTwd: l.priceTwd })).acceptCartPrice);
   const remove = (l: CartLine) => write(l.id, async () => (await request(REMOVE_FROM_CART, { id: l.id })).removeFromCart);
 
   return (

@@ -88,6 +88,8 @@ export function cartErrorKey(code: string, field?: string): MessageKey {
   if (code === "OWN_SHOP") return "cart.error.ownShop";
   if (code === "LIMIT_REACHED") return "cart.error.full";
   if (code === "BAD_USER_INPUT" && field === "quantity") return "cart.error.quantity";
+  // The seller moved the price after the cart loaded; the reload shows it (#371).
+  if (code === "BAD_USER_INPUT" && field === "expectedPriceTwd") return "cart.error.priceMoved";
   if (code === "BAD_USER_INPUT" || code === "NOT_FOUND") return "cart.error.unavailable";
   return "cart.error.generic";
 }

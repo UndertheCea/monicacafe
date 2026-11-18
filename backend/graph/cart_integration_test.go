@@ -116,10 +116,20 @@ func TestCart(t *testing.T) {
 	if l := a.AddToCart.Items[1]; !l.PriceChanged || l.Quantity != 4 || l.AddedPriceTwd != 450 {
 		t.Fatalf("after update + add: %+v", l)
 	}
-	accept := `mutation($id: ID!) { acceptCartPrice(id: $id) { ` + cartFields + ` } }`
-	other.expectCode(graph.CodeNotFound, accept, map[string]any{"id": manyLine})
+	accept := `mutation($id: ID!, $p: TWD!) { acceptCartPrice(id: $id, expectedPriceTwd: $p) { ` + cartFields + ` } }`
+	other.expectCode(graph.CodeNotFound, accept, map[string]any{"id": manyLine, "p": 500})
+	// Accepting a price the buyer wasn't shown is refused and keeps the
+	// snapshot (#371): the seller moved it again after the cart loaded.
+	if r := buyer.do(accept, map[string]any{"id": manyLine, "p": 480}, nil); len(r.Errors) == 0 ||
+		r.Errors[0].Extensions["code"] != graph.CodeBadInput || r.Errors[0].Extensions["field"] != "expectedPriceTwd" {
+		t.Fatalf("accept a stale price: %+v", r.Errors)
+	}
+	buyer.mustDo(get, nil, &g)
+	if l := g.Cart.Items[1]; !l.PriceChanged || l.AddedPriceTwd != 450 {
+		t.Fatalf("after refused accept: %+v", l)
+	}
 	var acc struct{ AcceptCartPrice cart }
-	buyer.mustDo(accept, map[string]any{"id": manyLine}, &acc)
+	buyer.mustDo(accept, map[string]any{"id": manyLine, "p": 500}, &acc)
 	if l := acc.AcceptCartPrice.Items[1]; l.PriceChanged || l.Quantity != 4 || l.AddedPriceTwd != 500 {
 		t.Fatalf("after accept: %+v", l)
 	}

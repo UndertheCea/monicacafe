@@ -65,6 +65,8 @@ test("cartErrorKey maps API errors to messages", () => {
   assert.equal(cartErrorKey("BAD_USER_INPUT", "quantity"), "cart.error.quantity");
   assert.equal(cartErrorKey("BAD_USER_INPUT", "variantId"), "cart.error.unavailable");
   assert.equal(cartErrorKey("NOT_FOUND"), "cart.error.unavailable");
+  assert.equal(cartErrorKey("BAD_USER_INPUT", "expectedPriceTwd"), "cart.error.priceMoved");
+  assert.equal(shouldReloadCart("BAD_USER_INPUT"), true); // so the newer price shows
   assert.equal(cartErrorKey("INTERNAL_SERVER_ERROR"), "cart.error.generic");
 });
 

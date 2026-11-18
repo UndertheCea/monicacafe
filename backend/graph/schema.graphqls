@@ -76,8 +76,11 @@ type Mutation {
   # this line can hold), lowering always works.
   updateCartItem(id: ID!, quantity: Int!): Cart!
   removeFromCart(id: ID!): Cart!
-  # Takes today's price as the line's snapshot (clears priceChanged).
-  acceptCartPrice(id: ID!): Cart!
+  # Takes today's price as the line's snapshot (clears priceChanged), but only
+  # while it still equals expectedPriceTwd, the price the buyer was shown: if
+  # the seller changed it again, BAD_USER_INPUT (field expectedPriceTwd) and
+  # the snapshot stays, so the buyer sees the newer price first (#371).
+  acceptCartPrice(id: ID!, expectedPriceTwd: TWD!): Cart!
 
   # Auth
   register(input: RegisterInput!): AuthPayload!

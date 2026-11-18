@@ -31,9 +31,20 @@ func ParsePrefixes(s string) ([]netip.Prefix, error) {
 		if err != nil {
 			return nil, fmt.Errorf("trusted proxies: %q is not an IP or CIDR", part)
 		}
-		out = append(out, p.Masked())
+		out = append(out, unmapPrefix(p).Masked())
 	}
 	return out, nil
+}
+
+// unmapPrefix turns an IPv4-mapped IPv6 prefix (::ffff:10.0.0.0/104) into the
+// IPv4 prefix it covers (10.0.0.0/8). Client addresses are unmapped before
+// they are matched, so a mapped prefix would otherwise match nothing. A mapped
+// prefix shorter than /96 reaches outside ::ffff:0:0/96 and stays IPv6.
+func unmapPrefix(p netip.Prefix) netip.Prefix {
+	if a := p.Addr(); a.Is4In6() && p.Bits() >= 96 {
+		return netip.PrefixFrom(a.Unmap(), p.Bits()-96)
+	}
+	return p
 }
 
 func trusted(a netip.Addr, proxies []netip.Prefix) bool {

@@ -91,6 +91,8 @@ func TestValidate(t *testing.T) {
 		{"TRUSTED_PROXIES unset", func(c *Config) { c.TrustedProxies = "" }, "TRUSTED_PROXIES"},
 		{"TRUSTED_PROXIES built-in default", func(c *Config) { c.TrustedProxies = DefaultTrustedProxies }, "TRUSTED_PROXIES"},
 		{"TRUSTED_PROXIES everyone", func(c *Config) { c.TrustedProxies = "10.0.0.1, 0.0.0.0/0" }, "TRUSTED_PROXIES"},
+		{"TRUSTED_PROXIES everyone, IPv4-mapped", func(c *Config) { c.TrustedProxies = "::ffff:0.0.0.0/96" }, "TRUSTED_PROXIES"},
+		{"TRUSTED_PROXIES everyone, IPv6", func(c *Config) { c.TrustedProxies = " ::/0" }, "TRUSTED_PROXIES"},
 		{"TRUSTED_PROXIES one load balancer", func(c *Config) { c.TrustedProxies = "203.0.113.7/32" }, ""},
 		{"SEED_DEMO_DATA true", func(c *Config) { c.SeedDemoData = "true" }, "SEED_DEMO_DATA"},
 		{"SEED_DEMO_DATA 1", func(c *Config) { c.SeedDemoData = "1" }, "SEED_DEMO_DATA"},

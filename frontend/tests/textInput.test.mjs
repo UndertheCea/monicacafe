@@ -1,7 +1,7 @@
 // Naming refused text (lib/textInput.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hasInvisibleChars, textInputErrorKey, textLength } from "../lib/textInput.ts";
+import { capChars, capInput, hasInvisibleChars, textInputErrorKey, textLength } from "../lib/textInput.ts";
 
 test("textLength counts code points of the trimmed text", () => {
   assert.equal(textLength("  abc  "), 3);
@@ -23,4 +23,16 @@ test("hasInvisibleChars finds control and format characters only", () => {
   assert.equal(hasInvisibleChars("a⁠b"), true);
   assert.equal(hasInvisibleChars("Moni 咖啡 ☕"), false);
   assert.equal(hasInvisibleChars("  padded  "), false);
+});
+
+test("capChars / capInput cut by characters, not UTF-16 units (#395)", () => {
+  const astral = "𠮷".repeat(30);
+  assert.equal(astral.length, 60);
+  assert.equal(capChars(astral, 30), astral);
+  assert.equal([...capChars(astral + "x", 30)].length, 30);
+  assert.equal(capChars("abc", 5), "abc");
+  assert.equal(capChars("abcdef", 3), "abc");
+  const el = { value: "😀".repeat(5) };
+  capInput(el, 3);
+  assert.equal(el.value, "😀😀😀");
 });

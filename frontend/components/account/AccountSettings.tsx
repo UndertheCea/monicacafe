@@ -168,7 +168,6 @@ function ProfileForm({ locale }: { locale: Locale }) {
               setName(e.target.value);
               fe.clearField("displayName");
             }}
-            maxLength={50}
             autoComplete="nickname"
           />
         )}

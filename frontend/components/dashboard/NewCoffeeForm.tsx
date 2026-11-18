@@ -21,6 +21,7 @@ import { query, toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
 import { draftKey, isEmptyDraft, makeDraft, parseDraft } from "@/lib/dashboard/session";
+import { capInput } from "@/lib/textInput";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { brewOptions, coffeeBadInput, detailsMessage } from "./CoffeeDetailsForm";
 import { COFFEE_API_ALIASES, COFFEE_ORDER, OPTIONAL_ORDER, isOptionalField, problemField, variantField } from "@/lib/dashboard/coffeeFields";
@@ -326,7 +327,13 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
               className="sm:col-span-2"
             >
               {(p) => (
-                <Input {...p} name="name" required maxLength={LIMITS.coffeeName} placeholder={t(locale, "cf.namePlaceholder")} />
+                <Input
+                  {...p}
+                  name="name"
+                  required
+                  onInput={(e) => capInput(e.currentTarget, LIMITS.coffeeName)}
+                  placeholder={t(locale, "cf.namePlaceholder")}
+                />
               )}
             </Field>
             {select(
@@ -450,7 +457,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
               error={fieldMessage(locale, fe.errors, "description")}
               className="sm:col-span-2"
             >
-              {(p) => <Textarea {...p} name="description" rows={5} maxLength={LIMITS.coffeeDescription} />}
+              {(p) => <Textarea {...p} name="description" rows={5} onInput={(e) => capInput(e.currentTarget, LIMITS.coffeeDescription)} />}
             </Field>
             {select("brew", "cf.brew", brewOptions(locale), false)}
             <HarvestYearField locale={locale} fe={fe} />

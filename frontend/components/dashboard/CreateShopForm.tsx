@@ -34,6 +34,10 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
     if (!name.trim()) return fe.failField("name", { key: "dash.error.required" });
     if (!city) return fe.failField("city", { key: "dash.error.required" });
     if (!cleanSlug) return fe.failField("slug", { key: "dash.error.slug" });
+    // Lengths in characters like the API (native maxLength counts UTF-16 units, #395).
+    if (runes(name.trim()) > LIMITS.shopName) return fe.failField("name", { key: "shop.error.name" });
+    if (runes(city) > LIMITS.city) return fe.failField("city", { key: "shop.error.city" });
+    if (runes(description) > LIMITS.shopDescription) return fe.failField("description", { key: "shop.error.description" });
     setBusy(true);
     fe.clear();
     try {
@@ -94,7 +98,6 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
                 if (!slugTouched) setSlug(suggestSlug(e.target.value));
               }}
               required
-              maxLength={LIMITS.shopName}
             />
           )}
         </Field>
@@ -105,7 +108,6 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
               name="city"
               onChange={() => fe.clearField("city")}
               required
-              maxLength={LIMITS.city}
               placeholder={t(locale, "dash.cityPlaceholder")}
             />
           )}
@@ -146,11 +148,6 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
               {...p}
               name="description"
               rows={4}
-              maxLength={LIMITS.shopDescription}
-              onInput={(e) => {
-                const el = e.currentTarget;
-                if (runes(el.value) > LIMITS.shopDescription) el.value = [...el.value].slice(0, LIMITS.shopDescription).join("");
-              }}
             />
           )}
         </Field>

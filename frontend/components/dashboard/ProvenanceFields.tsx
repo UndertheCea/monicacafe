@@ -1,6 +1,5 @@
 "use client";
 
-import { LIMITS } from "@/lib/dashboard/validate";
 import { taipeiYear } from "@/lib/taipei";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Field, Input } from "@/components/ui";
@@ -53,7 +52,6 @@ export function ProvenanceFields({
             {...bind("producer")}
             {...p}
             required
-            maxLength={LIMITS.provenance}
             placeholder={t(locale, "cf.producerPlaceholder")}
           />
         )}
@@ -64,7 +62,6 @@ export function ProvenanceFields({
             {...bind("region")}
             {...p}
             required
-            maxLength={LIMITS.provenance}
             placeholder={t(locale, "cf.regionPlaceholder")}
           />
         )}

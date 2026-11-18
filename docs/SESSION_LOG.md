@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 50 — 2026-11-18 — ECPay vector, cart write locking, backup / ops fixes, dashboard state races (twelve slices)
-PR: #PR
+PR: #391
 
 No session PR open (only dependabot's #252 / #314–#316 / #377), no owner answers on questions, no pickable slices. Three
 general-purpose audits (backend Stage 2 code, ops scripts / nginx / compose, dashboard / account / auth UI) gave the findings

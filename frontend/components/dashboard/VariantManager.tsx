@@ -14,6 +14,7 @@ import {
 } from "@/lib/dashboard/queries";
 import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
+import { afterReload, mergeCoffeeFields, replaceVariant, type EditorLoad } from "@/lib/dashboard/editorState";
 import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
@@ -30,7 +31,7 @@ import { Badge, Button, Card, ConfirmButton, ErrorSummary, Input, SectionTitle, 
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { CARD } from "@/lib/ui";
 
-type Load = { state: "loading" } | { state: "missing" } | { state: "error" } | { state: "ready"; coffee: EditableCoffee };
+type Load = EditorLoad<EditableCoffee>;
 
 /** One problem's message under an option row, named by the control's `aria-describedby` (see useFormErrors.control). */
 function RowProblem({ id, children }: { id: string; children?: string }) {
@@ -59,7 +60,16 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
       return { state: "error" };
     }
   }, [coffeeId, request]);
-  const fetchCoffee = useCallback(() => loadCoffee().then(setLoad), [loadCoffee]);
+  // Reloads after add / delete / STOCK_CHANGED: a failure keeps the editor (and unsaved input) and shows an inline retry (#387).
+  const [reloadFailed, setReloadFailed] = useState(false);
+  const fetchCoffee = useCallback(
+    () =>
+      loadCoffee().then((next) => {
+        setReloadFailed(next.state === "error");
+        setLoad((cur) => afterReload(cur, next));
+      }),
+    [loadCoffee],
+  );
 
   // Fetch on sign-in; setState happens in the promise callback, and a stale
   // response (status changed meanwhile) is dropped.
@@ -83,8 +93,9 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
   }
 
   const coffee = load.coffee;
-  const replace = (v: DashboardVariant) =>
-    setLoad({ state: "ready", coffee: { ...coffee, variants: coffee.variants.map((x) => (x.id === v.id ? v : x)) } });
+  // Functional updates: rows save independently, so never build from this render's coffee.
+  const replace = (v: DashboardVariant) => setLoad((cur) => replaceVariant(cur, v));
+  const merge = (c: Omit<EditableCoffee, "variants">) => setLoad((cur) => mergeCoffeeFields(cur, c));
 
   return (
     <div className="space-y-6">
@@ -109,16 +120,25 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           )}
         </div>
 
+        {reloadFailed && (
+          <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-danger">
+            <span>{t(locale, "cf.reloadFailed")}</span>
+            <Button type="button" size="sm" variant="secondary" onClick={() => void fetchCoffee()}>
+              {t(locale, "cf.reloadRetry")}
+            </Button>
+          </div>
+        )}
+
         <CoffeeDetailsForm
           coffee={coffee}
           locale={locale}
-          onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
+          onSaved={merge}
         />
 
         <CoffeeGallery
           coffee={coffee}
           locale={locale}
-          onSaved={(c) => setLoad({ state: "ready", coffee: { ...coffee, ...c } })}
+          onSaved={merge}
         />
 
         <Card as="section" className="p-4 sm:p-6">

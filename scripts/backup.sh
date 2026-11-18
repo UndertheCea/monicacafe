@@ -11,7 +11,10 @@
 #   BACKUP_AGE_RECIPIENT age PUBLIC key. The private key stays offline with the owner
 #                        (docs/BACKUP.md). Unset: refused, unless BACKUP_ALLOW_PLAINTEXT=true
 #                        (CI drill and dev only; the dump is then unencrypted).
-#   BACKUP_TARGET        a local directory (/path or file:///path). Unset: S3, below.
+#   BACKUP_TARGET        a local directory (/path or file:///path). Unset: S3, below. Only
+#                        /backups (the compose volume), a path under it, or a mount point is
+#                        accepted: anywhere else in a container is lost when it is recreated
+#                        (#382). BACKUP_TARGET_ANY=true skips that check (host cron, CI drills).
 #   BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY, and optionally
 #   BACKUP_S3_ENDPOINT (non-AWS providers), BACKUP_S3_REGION, BACKUP_S3_PREFIX
 #                        (default "monicacafe/"). Must not be the media bucket.
@@ -27,7 +30,9 @@
 #                        success, GET $BACKUP_PING_URL/fail on any failure. A failed
 #                        ping only logs a warning; it never fails the backup.
 #   BACKUP_ACCEPT_SHRINK=true  for ONE run after a deliberate large deletion: prune
-#                        even though the dump is under 50 % of the largest stored one.
+#                        even though the dump is under 50 % of the largest stored one. The run
+#                        stores a marker object shrink_accepted_<stamp>; later runs compare
+#                        only with dumps from that run on (#380).
 #   BACKUP_MARKER        optional file that gets the epoch seconds of the last
 #                        success (the compose healthcheck reads it).
 #
@@ -39,7 +44,8 @@
 # but nothing is pruned, it logs loudly, pings /fail and exits 1 (an emptied
 # database must not age the good dumps out). That repeats every night until an
 # operator looks: after a deliberate large deletion, run once with
-# BACKUP_ACCEPT_SHRINK=true to prune again (#348). A failed listing of the store
+# BACKUP_ACCEPT_SHRINK=true to prune again (#348); it stores a shrink_accepted_<stamp>
+# marker and later runs compare only with dumps from then on (#380). A failed listing of the store
 # fails the run rather than reading as "no dumps yet".
 # Exits non-zero on any failure and prints one JSON line at the end:
 #   {"file":"…","bytes":N,"seconds":N,"pruned":N,"media_objects":N}  (-1 = media not mirrored)
@@ -65,12 +71,31 @@ ping() { # $1: "" (success) or "/fail"; best effort
 }
 # Any exit before the final line (die, a failing command, a signal) pings /fail.
 work=""
+partial=""
 finished=0
 cleanup() {
   [ -z "$work" ] || rm -rf "$work"
+  [ -z "$partial" ] || rm -f "$partial"
   [ "$finished" = 1 ] || ping /fail
 }
 trap cleanup EXIT
+# A stop (docker stop: SIGTERM) or Ctrl-C ends the run through the EXIT trap above,
+# so it still pings /fail and removes the work dir and a half-written local copy (#381).
+# A foreground child would hold the shell until it ends, so the long steps run through
+# bg(), whose wait a signal interrupts; on_term then stops the children first.
+children=""
+on_term() {
+  for c in $children; do kill "$c" 2>/dev/null || true; done
+  exit 143
+}
+trap on_term TERM INT
+bg() { # run a command so that TERM can interrupt it; returns its status
+  "$@" &
+  children="$!"
+  rc=0; wait "$children" || rc=$?
+  children=""
+  return "$rc"
+}
 
 # Keep the password out of the process list (ps): postgres://user:PASSWORD@host/db
 # becomes PGPASSWORD plus a URL without it. (A URL-encoded password, with %, stays.)
@@ -96,6 +121,8 @@ fi
 
 accept_shrink="${BACKUP_ACCEPT_SHRINK:-false}"
 case "$accept_shrink" in true|false) ;; *) die "BACKUP_ACCEPT_SHRINK must be true or false, got '$accept_shrink'" ;; esac
+target_any="${BACKUP_TARGET_ANY:-false}"
+case "$target_any" in true|false) ;; *) die "BACKUP_TARGET_ANY must be true or false, got '$target_any'" ;; esac
 media="${BACKUP_MEDIA:-false}"
 case "$media" in true|false) ;; *) die "BACKUP_MEDIA must be true or false, got '$media'" ;; esac
 if [ "$media" = true ]; then
@@ -133,6 +160,22 @@ if [ "$mode" = s3 ]; then
     if [ -n "${BACKUP_S3_ENDPOINT:-}" ]; then aws --endpoint-url "$BACKUP_S3_ENDPOINT" "$@"; else aws "$@"; fi
   }
 else
+  # Only /backups is a volume in compose: a target elsewhere would sit in the container's
+  # own layer and vanish on recreate, with every health signal still green (#382).
+  if [ "$target_any" != true ]; then
+    on_volume=false
+    case "$target" in
+      */../*|*/..) ;;
+      /backups|/backups/*) on_volume=true ;;
+    esac
+    if [ "$on_volume" = false ]; then
+      mount_dir="${target%/}"
+      if [ -r /proc/self/mountinfo ] && awk -v t="$mount_dir" '$5 == t { found = 1 } END { exit !found }' /proc/self/mountinfo; then
+        on_volume=true
+      fi
+    fi
+    [ "$on_volume" = true ] || die "BACKUP_TARGET $target is neither /backups (the compose volume), under it, nor a mount point, so the backups would be lost when the container is recreated; mount a volume there, or set BACKUP_TARGET_ANY=true (host cron, CI drills)"
+  fi
   mkdir -p "$target"
 fi
 
@@ -149,11 +192,22 @@ store_list() { # file names, oldest first (names sort by date)
       | { grep '^monicacafe_.*\.dump' || true; } | sort
   fi
 }
+store_markers() { # names of shrink-accepted markers (#380), oldest first; never dumps
+  if [ "$mode" = local ]; then
+    find "$target" -maxdepth 1 -type f -name 'shrink_accepted_*' -exec basename {} \; | sort
+  else
+    keys=$(aws_s3 s3api list-objects-v2 --bucket "$BACKUP_S3_BUCKET" --prefix "${prefix}shrink_accepted_" \
+      --delimiter / --query 'Contents[].Key' --output text) || return 1
+    printf '%s\n' "$keys" | tr '\t' '\n' | sed -e '/^None$/d' -e "s|^$prefix||" \
+      | { grep '^shrink_accepted_' || true; } | sort
+  fi
+}
 store_put() { # local file, name
   if [ "$mode" = local ]; then
-    cp "$1" "$target/.$2.partial" && mv "$target/.$2.partial" "$target/$2"
+    partial="$target/.$2.partial"
+    bg cp "$1" "$partial" && mv "$partial" "$target/$2" && partial=""
   else
-    aws_s3 s3 cp --only-show-errors "$1" "s3://$BACKUP_S3_BUCKET/$prefix$2"
+    bg aws_s3 s3 cp --only-show-errors "$1" "s3://$BACKUP_S3_BUCKET/$prefix$2"
   fi
 }
 store_size() { # name -> bytes
@@ -190,9 +244,9 @@ mirror_media() { # sets media_objects
   mkdir -p "$dest" || return 1
   # No --delete: an image removed from the bucket (by a cleanup gone wrong, say)
   # stays in the backup.
-  media_aws s3 sync --only-show-errors "s3://$S3_BUCKET" "$dest" || return 1
+  bg media_aws s3 sync --only-show-errors "s3://$S3_BUCKET" "$dest" || return 1
   if [ "$mode" = s3 ]; then
-    aws_s3 s3 sync --only-show-errors "$dest" "s3://$BACKUP_S3_BUCKET/${prefix}media" || return 1
+    bg aws_s3 s3 sync --only-show-errors "$dest" "s3://$BACKUP_S3_BUCKET/${prefix}media" || return 1
   fi
   media_objects=$(find "$dest" -type f | wc -l | tr -d ' ')
 }
@@ -203,15 +257,23 @@ dow=$(TZ=UTC-8 date +%a | tr 'A-Z' 'a-z')
 name="monicacafe_${stamp}_${dow}.dump"
 
 # Custom format: compressed, and pg_restore can pick parts out of it. Encrypted
-# dumps are streamed into age: no plaintext copy is ever written. (POSIX sh has no
-# pipefail, so pg_dump's exit status travels through a file.)
+# dumps are streamed into age through a named pipe: no plaintext copy is ever
+# written, and both processes are children TERM can stop (#381).
 if [ -n "$recipient" ]; then
-  { rc=0; pg_dump --format=custom --no-owner --dbname "$pg_url" || rc=$?; echo "$rc" >"$work/dump.rc"; } \
-    | age -r "$recipient" -o "$work/$name.age"
-  [ "$(cat "$work/dump.rc")" = 0 ] || die "pg_dump failed"
+  mkfifo "$work/dump.fifo"
+  age -r "$recipient" -o "$work/$name.age" <"$work/dump.fifo" &
+  age_pid=$!
+  pg_dump --format=custom --no-owner --dbname "$pg_url" >"$work/dump.fifo" &
+  pg_pid=$!
+  children="$age_pid $pg_pid"
+  pg_rc=0; wait "$pg_pid" || pg_rc=$?
+  age_rc=0; wait "$age_pid" || age_rc=$?
+  children=""
+  [ "$pg_rc" = 0 ] || die "pg_dump failed"
+  [ "$age_rc" = 0 ] || die "age failed"
   name="$name.age"
 else
-  pg_dump --format=custom --no-owner --dbname "$pg_url" --file "$work/$name"
+  bg pg_dump --format=custom --no-owner --dbname "$pg_url" --file "$work/$name" || die "pg_dump failed"
   say "WARNING: BACKUP_ALLOW_PLAINTEXT=true, this dump is not encrypted"
 fi
 bytes=$(wc -c <"$work/$name" | tr -d ' ')
@@ -219,11 +281,17 @@ bytes=$(wc -c <"$work/$name" | tr -d ' ')
 
 # Size of the largest earlier dump, to catch a dump of an emptied database. The
 # largest, not the newest: otherwise the second small dump in a row would pass
-# the check and the good ones would be pruned from then on (#348).
+# the check and the good ones would be pruned from then on (#348). Only dumps from
+# the newest shrink-accepted marker on count (#380): after a deliberate deletion the
+# older, bigger dumps stay for retention but are no longer the baseline.
 earlier=$(store_list) || die "could not list the stored dumps"
+newest_marker=$(store_markers) || die "could not list the shrink markers"
+newest_marker=$(echo "$newest_marker" | sed '/^$/d' | tail -n 1)
+baseline_from=""
+[ -z "$newest_marker" ] || baseline_from="monicacafe_${newest_marker#shrink_accepted_}"
 prev=""
 prev_bytes=0
-for f in $(echo "$earlier" | grep '^monicacafe_[0-9]\{8\}_' || true); do
+for f in $(echo "$earlier" | grep '^monicacafe_[0-9]\{8\}_' | awk -v from="$baseline_from" '$0 >= from' || true); do
   size=$(store_size "$f") || die "could not read the size of $f"
   if [ "$size" -gt "$prev_bytes" ]; then prev="$f"; prev_bytes="$size"; fi
 done
@@ -237,6 +305,10 @@ shrunk=0
 if [ "$prev_bytes" -gt 0 ] && [ $((bytes * 2)) -lt "$prev_bytes" ]; then
   if [ "$accept_shrink" = true ]; then
     say "warning: $name is under 50% of the largest stored dump $prev ($prev_bytes bytes); pruning anyway (BACKUP_ACCEPT_SHRINK=true)"
+    # Record it (#380): later runs compare only with dumps from this one on.
+    marker="shrink_accepted_${stamp}"
+    : >"$work/$marker"
+    store_put "$work/$marker" "$marker" || die "could not store the shrink marker $marker"
   else
     shrunk=1
     say "ERROR: $name is $bytes bytes, under 50% of the largest stored dump $prev ($prev_bytes bytes)."

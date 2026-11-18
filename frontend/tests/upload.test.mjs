@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  appendImage,
   MAX_IMAGE_BYTES,
   MAX_IMAGE_SIDE,
   MAX_SOURCE_BYTES,
@@ -108,4 +109,10 @@ test("uploadSignErrorKey", () => {
     ["UNAVAILABLE", "img.error.upload"],
   ];
   for (const [code, want] of cases) assert.equal(uploadSignErrorKey(code), want, code);
+});
+
+test("appendImage adds to the latest list, once, up to the limit", () => {
+  assert.deepEqual(appendImage(["a", "b"], "c"), ["a", "b", "c"]);
+  assert.deepEqual(appendImage(["a"], "a"), ["a"]);
+  assert.deepEqual(appendImage(["a", "b"], "c", 2), ["a", "b"]);
 });

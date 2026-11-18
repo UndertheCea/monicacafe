@@ -117,8 +117,9 @@ func (s *Store) CountCartLines(ctx context.Context, userID string) (int, error) 
 	return n, mapErr(err)
 }
 
-// SetCartLine creates the buyer's line for an option or replaces its quantity,
-// taking priceTWD as the new price snapshot.
+// SetCartLine creates the buyer's line for an option, snapshotting priceTWD.
+// On an existing line it replaces quantity and snapshot; changes to a line
+// use SetCartLineQuantity instead (#379).
 func (s *Store) SetCartLine(ctx context.Context, userID, variantID string, quantity int, priceTWD int64) error {
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO cart_items (user_id, variant_id, quantity, price_twd)
@@ -127,6 +128,23 @@ func (s *Store) SetCartLine(ctx context.Context, userID, variantID string, quant
 		SET quantity = EXCLUDED.quantity, price_twd = EXCLUDED.price_twd, updated_at = now()`,
 		userID, variantID, quantity, priceTWD)
 	return mapErr(err)
+}
+
+// SetCartLineQuantity changes the quantity of one of the buyer's lines and
+// leaves its price snapshot alone, so a price accepted meanwhile (or by
+// another tab) isn't written back to the old one. ErrNotFound if the line
+// isn't theirs or is gone (removed, or pruned).
+func (s *Store) SetCartLineQuantity(ctx context.Context, userID, id string, quantity int) error {
+	tag, err := s.db.Exec(ctx, `
+		UPDATE cart_items SET quantity = $3, updated_at = now() WHERE user_id = $1 AND id = $2`,
+		userID, id, quantity)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // ErrPriceMoved: the option's price is no longer the one the buyer accepted.

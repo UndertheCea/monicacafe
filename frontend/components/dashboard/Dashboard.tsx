@@ -1,9 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { fromPrice } from "@/lib/api";
-import { appendCoffeePage, canReorder, hasMoreCoffees, moveItem, withPublished } from "@/lib/dashboard/coffeePages";
+import {
+  appendCoffeePage,
+  canReorder,
+  hasMoreCoffees,
+  moveItem,
+  restoreOrder,
+  toggleId,
+  updateCoffees,
+  withPublished,
+} from "@/lib/dashboard/coffeePages";
 import { COMMENT_LIST_PAGE } from "@/lib/comments";
 import {
   MY_SHOP,
@@ -41,7 +50,9 @@ export function Dashboard({ locale }: { locale: Locale }) {
   const { status, request } = useAuth();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [rowError, setRowError] = useState<{ id: string; key: MessageKey } | null>(null);
-  const [pending, setPending] = useState<string | null>(null);
+  const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
+  // Ids deleted this session: a "load more" page fetched earlier must not bring them back.
+  const deletedIds = useRef<Set<string>>(new Set());
   const [more, setMore] = useState<"idle" | "loading" | "error">("idle");
   const [ordering, setOrdering] = useState(false);
   const [orderError, setOrderError] = useState(false);
@@ -86,18 +97,20 @@ export function Dashboard({ locale }: { locale: Locale }) {
 
   const shop = load.shop;
   const lastPage = load.lastPage;
-  const setCoffees = (coffees: DashboardShop["coffees"], last = lastPage) =>
-    setLoad({ state: "ready", shop: { ...shop, coffees }, lastPage: last });
+  // Every update is functional on the CURRENT state, never on the `shop`
+  // captured when an action started: actions overlap.
+  const editCoffees = (f: (c: DashboardShop["coffees"]) => DashboardShop["coffees"], last?: number) =>
+    setLoad((cur) => updateCoffees(cur, f, last));
 
   async function toggle(id: string, publish: boolean) {
-    setPending(id);
+    setPending((p) => toggleId(p, id, true));
     setRowError(null);
     try {
       // Update the row in place: a refetch would drop rows loaded with "load more".
       const isPublished = publish
         ? (await request(PUBLISH_COFFEE, { id })).publishCoffee.isPublished
         : (await request(UNPUBLISH_COFFEE, { id })).unpublishCoffee.isPublished;
-      setCoffees(withPublished(shop.coffees, id, isPublished));
+      editCoffees((c) => withPublished(c, id, isPublished));
     } catch (err) {
       const e = toApiError(err);
       setRowError({
@@ -107,7 +120,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
           (e.code === "BAD_USER_INPUT" && publish ? "dash.error.publishNeedsVariant" : "dash.error.generic"),
       });
     } finally {
-      setPending(null);
+      setPending((p) => toggleId(p, id, false));
     }
   }
 
@@ -119,11 +132,12 @@ export function Dashboard({ locale }: { locale: Locale }) {
     if (nodes === before.nodes) return;
     setOrdering(true);
     setOrderError(false);
-    setCoffees({ ...before, nodes: [...nodes] });
+    editCoffees((c) => restoreOrder(c, nodes.map((n) => n.id)));
     try {
       await request(REORDER_SHOP_COFFEES, { shopId: shop.id, coffeeIds: nodes.map((c) => c.id) });
     } catch {
-      setCoffees(before);
+      // Put the old order back on whatever the list is now (rows may have changed meanwhile).
+      editCoffees((c) => restoreOrder(c, before.nodes.map((n) => n.id)));
       setOrderError(true);
     } finally {
       setOrdering(false);
@@ -136,7 +150,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
       const r = await request(MY_SHOP_COFFEES, { offset: shop.coffees.nodes.length });
       const page = r.me?.shop?.coffees;
       if (!page) throw new Error("shop gone");
-      setCoffees(appendCoffeePage(shop.coffees, page), page.nodes.length);
+      editCoffees((c) => appendCoffeePage(c, page, deletedIds.current), page.nodes.length);
       setMore("idle");
     } catch {
       setMore("error");
@@ -292,13 +306,13 @@ export function Dashboard({ locale }: { locale: Locale }) {
                         confirmLabel={t(locale, "dash.unpublish")}
                         cancelLabel={t(locale, "confirm.cancel")}
                         variant="secondary"
-                        busy={pending === c.id}
+                        busy={pending.has(c.id)}
                         onConfirm={() => void toggle(c.id, false)}
                       >
                         {t(locale, "dash.unpublish")}
                       </ConfirmButton>
                     ) : (
-                      <Button disabled={pending === c.id} onClick={() => void toggle(c.id, true)} size="sm">
+                      <Button disabled={pending.has(c.id)} onClick={() => void toggle(c.id, true)} size="sm">
                         {t(locale, "dash.publish")}
                       </Button>
                     )}
@@ -307,7 +321,10 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       <DeleteCoffeeButton
                         coffeeId={c.id}
                         locale={locale}
-                        onDeleted={() => setCoffees(withoutCoffee(shop.coffees, c.id))}
+                        onDeleted={() => {
+                          deletedIds.current.add(c.id);
+                          editCoffees((list) => withoutCoffee(list, c.id));
+                        }}
                       />
                     )}
                   </div>

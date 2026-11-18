@@ -15,6 +15,49 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 50 — 2026-11-18 — ECPay vector, cart write locking, backup / ops fixes, dashboard state races (twelve slices)
+PR: #391
+
+No session PR open (only dependabot's #252 / #314–#316 / #377), no owner answers on questions, no pickable slices. Three
+general-purpose audits (backend Stage 2 code, ops scripts / nginx / compose, dashboard / account / auth UI) gave the findings
+filed as #379–#390; #378 is the ECPay vector (recomputed here and matched to ECPay's published value). Sonnet sub-agents built
+#380–#388 in worktrees (cherry-picked); #378, #379, #390 were built here. #389 was filed and left open.
+
+### Shipped (one line per slice: area — what — key files)
+- #378 backend — `TestCheckMacValueOfficialVector` holds ECPay's documented example (Apple iphone 15, NT$30000, stage
+  HashKey / HashIV → `6C51C9E6…B840`) and no longer skips; `Verify` table test (lowercase, missing, tampered, extra field).
+- #379 backend — `acceptCartPrice` / `removeFromCart` run under `LockCart`; existing lines change through `SetCartLineQuantity`
+  (quantity only, `ErrNotFound` if gone), so an accepted price isn't written back and a removed line isn't revived.
+- #380 cross-cutting — an accepted shrink stores a `shrink_accepted_<stamp>` marker; the size guard compares only with dumps
+  from then on (`store_markers`, `backup.sh`); self-test covers fail → accept → pass → fail again.
+- #381 cross-cutting — backup service `init: true` + 30 s grace; `backup.sh` traps TERM / INT (long steps run in the
+  background, age via a FIFO) so /fail is pinged and work dir / `.partial` removed; loop forwards TERM. Self-test cases 8–9.
+- #382 cross-cutting — local `BACKUP_TARGET` must be `/backups`, under it, or a mount point (`BACKUP_TARGET_ANY=true` to skip).
+- #383 cross-cutting — nginx `/_next/static/` sends immutable only for 200 / 206 / 304 (`$static_cache_control`); smoke check.
+- #384 cross-cutting — `migrate.sh` creates `schema_migrations` / baseline rows inside the advisory-locked transaction.
+- #385 cross-cutting — `.env.example` leaves `S3_ENDPOINT` empty so compose derives it from `HTTP_PORT`; HTTP_BIND comment fixed.
+- #386 frontend — Dashboard row actions update the current list (`updateCoffees`, `restoreOrder`, pending id Set, deleted ids
+  kept out of later "load more" pages).
+- #387 frontend — option editor: functional updates (`lib/dashboard/editorState.ts`); a failed refetch keeps the editor with
+  an inline retry (`cf.reloadFailed` / `cf.reloadRetry`).
+- #388 frontend — `ImageUploader` one busy phase until `onUploaded` settles, `onBusyChange`; gallery locks its buttons and
+  appends to the latest list (`appendImage`).
+- #390 frontend — `SignInAgain` ignores a second Enter while signing in (ref guard).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (PostgreSQL 16 here).
+- Frontend: tsc, lint, `npm test` (363), `next build`; `docker compose config`, `check_brief.sh`; `backup_selftest.sh`.
+- `migrate.sh`: two concurrent runs on fresh DBs (3 rounds × 2) exit 0 — the old script also passed, so the race was not
+  reproduced; the fix follows from the code.
+- Not run here (no Docker daemon): compose stack, smoke (incl. the new chunk-cache check), nginx `-t`, Playwright / axe, the
+  encrypted S3 backup drill (CI `stack` covers them). Backup S3-mode marker path untested locally. Dashboard / editor / gallery
+  races were checked by unit tests of the helpers, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- #389 (/account confirm steps lose focus) filed as an open p3 slice for the next session.
+- Not filed: the worker's 10 River slots can wait for connections when `DB_MAX_CONNS=5` (no deadlock; only a no-op job today).
+- New `question` issues: none.
+
 ## Session 49 — 2026-11-18 — No-JS language switch, cart price consent and a11y, proxy CIDRs (eight slices)
 PR: #376
 

@@ -11,9 +11,53 @@ type List<C> = { total: number; nodes: C[] };
  * there (pages are offset-based, so a change between fetches can shift rows),
  * and takes the newer total.
  */
-export function appendCoffeePage<C extends { id: string }>(list: List<C>, page: List<C>): List<C> {
+export function appendCoffeePage<C extends { id: string }>(
+  list: List<C>,
+  page: List<C>,
+  deleted: ReadonlySet<string> = new Set(),
+): List<C> {
   const seen = new Set(list.nodes.map((c) => c.id));
-  return { total: page.total, nodes: [...list.nodes, ...page.nodes.filter((c) => !seen.has(c.id))] };
+  // A page fetched before a delete can still carry the deleted row: drop it
+  // and take it off the (stale) total as well.
+  const gone = page.nodes.filter((c) => deleted.has(c.id)).length;
+  return {
+    total: Math.max(0, page.total - gone),
+    nodes: [...list.nodes, ...page.nodes.filter((c) => !seen.has(c.id) && !deleted.has(c.id))],
+  };
+}
+
+/**
+ * Applies `f` to the coffee list of the CURRENT load state. A no-op unless the
+ * state is ready with a shop. Use it as `setLoad((cur) => updateCoffees(cur, f))`
+ * so overlapping actions never overwrite each other with a stale snapshot.
+ */
+export function updateCoffees<C, S extends { coffees: List<C> }, L extends { state: string }>(
+  load: L,
+  f: (coffees: List<C>) => List<C>,
+  lastPage?: number,
+): L {
+  const cur = load as unknown as { state: string; shop?: S | null; lastPage?: number };
+  if (cur.state !== "ready" || !cur.shop) return load;
+  return { ...cur, shop: { ...cur.shop, coffees: f(cur.shop.coffees) }, lastPage: lastPage ?? cur.lastPage } as unknown as L;
+}
+
+/**
+ * Restores the order of `order` (ids) on the current list: ids not in `order`
+ * (rows added meanwhile) keep their relative order after the others, and rows
+ * missing from the current list are ignored.
+ */
+export function restoreOrder<C extends { id: string }>(list: List<C>, order: readonly string[]): List<C> {
+  const rank = new Map(order.map((id, i) => [id, i]));
+  const known = list.nodes.filter((c) => rank.has(c.id)).sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+  return { ...list, nodes: [...known, ...list.nodes.filter((c) => !rank.has(c.id))] };
+}
+
+/** A set of ids with one added or removed, as a new Set (for React state). */
+export function toggleId(set: ReadonlySet<string>, id: string, on: boolean): Set<string> {
+  const out = new Set(set);
+  if (on) out.add(id);
+  else out.delete(id);
+  return out;
 }
 
 /** Whether "load more" makes sense: fewer listed than the total and the last page was full. */

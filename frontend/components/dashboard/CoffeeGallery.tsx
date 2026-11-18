@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dashWriteError, type DashWriteError } from "@/lib/dashboard/writeError";
 import { toApiError } from "@/lib/graphql";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
-import { MAX_COFFEE_IMAGES, moveItem, removeAt } from "@/lib/dashboard/upload";
+import { MAX_COFFEE_IMAGES, appendImage, moveItem, removeAt } from "@/lib/dashboard/upload";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { ImageUploader } from "./ImageUploader";
 import { Badge, Button, Card, ConfirmButton, Picture } from "@/components/ui";
@@ -23,10 +23,18 @@ export function CoffeeGallery({
   const { request } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<DashWriteError | null>(null);
+  const [uploading, setUploading] = useState(false);
   const urls = coffee.imageUrls;
+  // The uploader's callback outlives the render that created it: read the newest list from here (#388).
+  const latest = useRef(urls);
+  useEffect(() => {
+    latest.current = urls;
+  }, [urls]);
+  const locked = busy || uploading;
 
   async function save(next: string[]) {
     const r = await request(UPDATE_COFFEE, { id: coffee.id, input: { imageUrls: next } });
+    latest.current = r.updateCoffee.imageUrls;
     onSaved(r.updateCoffee);
   }
 
@@ -63,7 +71,7 @@ export function CoffeeGallery({
               <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
                 <Button
                   type="button"
-                  disabled={busy || i === 0}
+                  disabled={locked || i === 0}
                   onClick={() => void change(moveItem(urls, i, i - 1))}
                   aria-label={t(locale, "img.moveEarlier", { n: i + 1 })}
                   variant="secondary"
@@ -76,7 +84,7 @@ export function CoffeeGallery({
                   confirmLabel={t(locale, "img.remove")}
                   cancelLabel={t(locale, "confirm.cancel")}
                   variant="secondary"
-                  busy={busy}
+                  busy={locked}
                   onConfirm={() => void change(removeAt(urls, i))}
                 >
                   <span aria-hidden="true">{t(locale, "img.remove")}</span>
@@ -84,7 +92,7 @@ export function CoffeeGallery({
                 </ConfirmButton>
                 <Button
                   type="button"
-                  disabled={busy || i === urls.length - 1}
+                  disabled={locked || i === urls.length - 1}
                   onClick={() => void change(moveItem(urls, i, i + 1))}
                   aria-label={t(locale, "img.moveLater", { n: i + 1 })}
                   variant="secondary"
@@ -104,8 +112,9 @@ export function CoffeeGallery({
             targetId={coffee.id}
             locale={locale}
             disabled={busy}
+            onBusyChange={setUploading}
             label={t(locale, "img.addPhoto")}
-            onUploaded={(u) => save([...urls, u])}
+            onUploaded={(u) => save(appendImage(latest.current, u))}
           />
         ) : (
           <p className="text-sm text-muted">{t(locale, "img.galleryFull", { max: MAX_COFFEE_IMAGES })}</p>

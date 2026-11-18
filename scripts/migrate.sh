@@ -179,6 +179,11 @@ trap 'rm -f "$script"' EXIT
 
 {
   line "SET client_min_messages = warning;"
+  # Bootstrap under the same advisory lock as each migration (#384): two runners
+  # on an empty database would otherwise race on CREATE TABLE IF NOT EXISTS
+  # (a unique violation on pg_type) or on the baseline INSERTs.
+  line "BEGIN;"
+  line "SELECT pg_advisory_xact_lock($lock_key) AS locked \\gset"
   line "CREATE TABLE IF NOT EXISTS schema_migrations ("
   line "  version    TEXT PRIMARY KEY,"
   line "  applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),"
@@ -191,6 +196,7 @@ trap 'rm -f "$script"' EXIT
       line "INSERT INTO schema_migrations (version, baselined) VALUES ('$v', true) ON CONFLICT DO NOTHING;"
     done
   fi
+  line "COMMIT;"
   for f in $files; do
     v=$(basename "$f" .sql)
     # Names are NNN_ plus letters, digits and underscores: safe to quote as-is.

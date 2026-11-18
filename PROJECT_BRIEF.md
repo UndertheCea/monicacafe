@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-17 (after Session 48)
+Last updated: 2026-11-18 (after Session 49)
 
 ---
 
@@ -78,10 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 48**: no owner answers and no pickable slices, so two audits (less-audited backend + frontend code) became #357–#367:
-`DB_MAX_CONNS` ≥ 5 (sweeps could hang the pool), `METRICS_ADDR=` disables metrics, NT$0 options refused and never "in stock",
-save / follow loaders cleared after writes, the catalogue cache keeps only good answers, Report drawer returns focus, Leaflet
-controls translated without the yellow flag, /map "see all" opens `/shops?city=`, footer year in Taipei, /admin load-more races.
+**Session 49**: no owner answers; built #367 and Session 48's leftovers, plus a cart audit (#369–#375): `acceptCartPrice` takes
+`expectedPriceTwd` (no silent second price change), IPv4-mapped `TRUSTED_PROXIES` CIDRs match, the language switch is a form
+(`POST /api/locale`, works without JS) whose name starts with its visible word, /admin audit log reloads after actions, coffee
+page shows the sign-in link without JS, /cart saves quantity with "Update" and keeps focus, honest "you can add N more" wording.
 
 ## Current focus
 
@@ -91,7 +91,7 @@ controls translated without the yellow flag, /map "see all" opens `/shops?city=`
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
-3. Open unblocked: #367 (no-JS language switch on /menu). Sessions 43, 45–48 audited the code; else stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–49 audited the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

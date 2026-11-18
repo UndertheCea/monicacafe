@@ -15,6 +15,42 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 49 — 2026-11-18 — No-JS language switch, cart price consent and a11y, proxy CIDRs (eight slices)
+PR: (this PR)
+
+No session PR open (only dependabot's #252 / #314–#316), no owner answers on questions, one pickable slice (#367). Session 48's
+audit leftovers and a general-purpose cart audit became #369–#375. Sonnet sub-agents built #367 / #373, #370 and #372 / #374 in
+worktrees (cherry-picked; one CartView conflict with #371 merged by hand); #369, #371, #375 were built here.
+
+### Shipped (one line per slice: area — what — key files)
+- #369 backend — `ParsePrefixes` turns `::ffff:a.b.c.d/N` (N ≥ 96) into the IPv4 prefix (clients are unmapped before matching);
+  the production guard refuses any entry covering a whole family, incl. `::ffff:0:0/96` (`trustsEveryone`, `config.go`).
+- #371 cross-cutting — `acceptCartPrice(id, expectedPriceTwd: TWD!)`: one CTE updates only while the option still costs that,
+  else `ErrPriceMoved` → BAD_USER_INPUT field `expectedPriceTwd`, /cart reloads with `cart.error.priceMoved`; integration test.
+- #370 frontend — /admin: a moderation action bumps a version that reloads the audit log's first page (`nextReloadVersion`).
+- #373 frontend — language switch's accessible name starts with its visible word (`lang.toggleAria`; WCAG 2.5.3).
+- #367 frontend — `LanguageToggle` is a `<form method=post action=/api/locale>`; the route checks Origin like the auth BFF, sets
+  the same cookie and 303s to `safeNext` (`lib/i18n/localeForm.ts`); JS path unchanged; e2e no-JS step on /menu.
+- #375 frontend — `cartProblem(code, field, available, "add" | "set")`: "you can add N more" / "no more" after an add, "at most N"
+  / "sold out" after a quantity change; `available` was never the stock.
+- #372 frontend — `AddToCart` shows the "Log in to add to cart" link while auth is loading (so in no-JS HTML), not a dead
+  button (`lib/cartUi.ts` `addToCartMode`); e2e no-JS step.
+- #374 frontend — /cart: quantity is a draft saved once by "Update"; busy controls `aria-disabled` + guards instead of
+  `disabled`; focus moves to the next / previous line or the heading after remove (`focusTargetAfterRemove`); e2e updated.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...` against a fresh `scripts/test_db.sh` DB (PostgreSQL 16 here); `-race` left to CI.
+- Frontend: tsc, lint, `npm test` (352), `next build`; `docker compose config`, `check_brief.sh`; e2e files syntax-checked.
+- `/api/locale` checked live on `next start`: same-site POST → 303 `/menu` + `locale=en; Path=/; Max-Age=31536000; SameSite=lax`;
+  foreign Origin → 403; `next=//evil.example` → `/`.
+- Not run here: compose stack, smoke, Playwright / axe (CI `stack`), so the no-JS steps, the Update button and focus moves are
+  checked only by CI. With JS, a signed-in visitor briefly sees the sign-in link until auth resolves (#372 trade-off).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Accepted, not filed: `ErrorState` pages answer HTTP 200 (they are `noindex` since #347; Next can't set a status from a server
+  component without losing the specific message).
+- New `question` issues: none.
+
 ## Session 48 — 2026-11-17 — Audit: pool floor, NT$0 options, error caching, map / admin / drawer fixes (ten slices)
 PR: #368
 

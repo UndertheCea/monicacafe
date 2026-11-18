@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   accountDeletionBlock,
   cleanDisplayName,
+  confirmFocusTarget,
   displayNameChanged,
   deleteAccountErrorKey,
   passwordChangeProblem,
@@ -90,4 +91,20 @@ test("displayNameChanged: an unchanged name needs no request (#340)", () => {
     { clean: "Moni", current: undefined, want: true },
   ];
   for (const c of cases) assert.equal(displayNameChanged(c.clean, c.current), c.want, JSON.stringify(c));
+});
+
+test("confirmFocusTarget (#389)", () => {
+  const idle = { confirming: false, busy: false };
+  const open = { confirming: true, busy: false };
+  const working = { confirming: true, busy: true };
+  const cases = [
+    { name: "opening focuses Yes", prev: idle, next: open, ret: false, want: "yes" },
+    { name: "failed sign-out re-enables Yes", prev: working, next: open, ret: false, want: "yes" },
+    { name: "starting the action moves nothing", prev: open, next: working, ret: false, want: null },
+    { name: "cancel returns to the trigger", prev: open, next: idle, ret: true, want: "trigger" },
+    { name: "failed delete returns to the trigger", prev: working, next: idle, ret: true, want: "trigger" },
+    { name: "typing the password closes without moving focus", prev: open, next: idle, ret: false, want: null },
+    { name: "no change", prev: idle, next: idle, ret: true, want: null },
+  ];
+  for (const c of cases) assert.equal(confirmFocusTarget(c.prev, c.next, c.ret), c.want, c.name);
 });

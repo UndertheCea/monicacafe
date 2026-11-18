@@ -7,6 +7,7 @@ import { FormError, Notice } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
 import { FollowedShops } from "@/components/account/FollowedShops";
 import { SavedCoffees } from "@/components/account/SavedCoffees";
+import { useConfirmFocus } from "@/components/account/useConfirmFocus";
 import { COMMENT_LIST_PAGE } from "@/lib/comments";
 import { MY_COMMENTS } from "@/lib/dashboard/queries";
 import {
@@ -310,6 +311,7 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<MessageKey | null>(null);
+  const { yes: yesRef, trigger: triggerRef, close: closeConfirm, onKeyDown: onConfirmKey } = useConfirmFocus(confirming, busy, setConfirming);
 
   async function onConfirm() {
     setBusy(true);
@@ -333,9 +335,15 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
       <p className="text-sm text-muted">{t(locale, "account.sessionsHint")}</p>
       {error && <FormError>{t(locale, error)}</FormError>}
       {confirming ? (
-        <div className="flex flex-wrap items-center gap-3">
+        <div
+          role="group"
+          aria-label={t(locale, "account.logoutAllConfirm")}
+          className="flex flex-wrap items-center gap-3"
+          onKeyDown={onConfirmKey}
+        >
           <span className="text-sm font-medium text-ink">{t(locale, "account.logoutAllConfirm")}</span>
           <Button
+            ref={yesRef}
             type="button"
             onClick={onConfirm}
             disabled={busy}
@@ -345,7 +353,7 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
           </Button>
           <Button
             type="button"
-            onClick={() => setConfirming(false)}
+            onClick={() => closeConfirm(true)}
             disabled={busy}
             variant="quiet"
             size="sm"
@@ -354,7 +362,7 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
           </Button>
         </div>
       ) : (
-        <Button type="button" onClick={() => setConfirming(true)}>
+        <Button ref={triggerRef} type="button" onClick={() => setConfirming(true)}>
           {t(locale, "account.logoutAll")}
         </Button>
       )}
@@ -411,6 +419,7 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Msg | null>(null);
+  const { yes: yesRef, trigger: triggerRef, close: closeConfirm, onKeyDown: onConfirmKey } = useConfirmFocus(confirming, busy, setConfirming);
   if (!user) return null;
   const block = accountDeletionBlock(user);
 
@@ -426,7 +435,7 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
       onLeave(false);
       const e = toApiError(err);
       setError(e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : { key: deleteAccountErrorKey(e.code, e.field) });
-      setConfirming(false);
+      closeConfirm(true);
       setBusy(false);
     }
   }
@@ -467,9 +476,15 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
           </div>
           {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
           {confirming ? (
-            <div className="flex flex-wrap items-center gap-3">
+            <div
+              role="group"
+              aria-label={t(locale, "account.delete.confirm")}
+              className="flex flex-wrap items-center gap-3"
+              onKeyDown={onConfirmKey}
+            >
               <span className="text-sm font-medium text-ink">{t(locale, "account.delete.confirm")}</span>
               <Button
+                ref={yesRef}
                 type="button"
                 onClick={onConfirm}
                 disabled={busy}
@@ -479,7 +494,7 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
               </Button>
               <Button
                 type="button"
-                onClick={() => setConfirming(false)}
+                onClick={() => closeConfirm(true)}
                 disabled={busy}
                 variant="quiet"
                 size="sm"
@@ -489,6 +504,7 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
             </div>
           ) : (
             <Button
+              ref={triggerRef}
               type="submit"
               disabled={!password}
               variant="danger"

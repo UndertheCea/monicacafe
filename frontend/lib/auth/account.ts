@@ -79,3 +79,18 @@ export function exportFileName(now: Date): string {
 export function formatExport(raw: string): string {
   return JSON.stringify(JSON.parse(raw), null, 2) + "\n";
 }
+
+/** The state of an inline "are you sure?" row on /account (#389). */
+export type ConfirmStep = { confirming: boolean; busy: boolean };
+
+/**
+ * Where focus goes when a hand-built confirm row changes (#389), so keyboard and screen-reader users never land on
+ * `<body>` when the focused button unmounts: "yes" when the row opens or comes back after a failed action (the Yes
+ * button was disabled while busy), "trigger" when it closes and the close asked for focus back (Cancel, Esc, a failed
+ * delete), otherwise null — e.g. typing in the password field closes the row without moving focus.
+ */
+export function confirmFocusTarget(prev: ConfirmStep, next: ConfirmStep, returnFocus: boolean): "yes" | "trigger" | null {
+  if (next.confirming && !next.busy && (!prev.confirming || prev.busy)) return "yes";
+  if (prev.confirming && !next.confirming && returnFocus) return "trigger";
+  return null;
+}

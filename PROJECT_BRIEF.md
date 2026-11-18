@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-18 (after Session 49)
+Last updated: 2026-11-18 (after Session 50)
 
 ---
 
@@ -78,10 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 49**: no owner answers; built #367 and Session 48's leftovers, plus a cart audit (#369–#375): `acceptCartPrice` takes
-`expectedPriceTwd` (no silent second price change), IPv4-mapped `TRUSTED_PROXIES` CIDRs match, the language switch is a form
-(`POST /api/locale`, works without JS) whose name starts with its visible word, /admin audit log reloads after actions, coffee
-page shows the sign-in link without JS, /cart saves quantity with "Update" and keeps focus, honest "you can add N more" wording.
+**Session 50**: no owner answers; three audits became #378–#390. ECPay `CheckMacValue` matches ECPay's documented example; cart
+writes all take `LockCart` and quantity changes keep the price snapshot; backups: an accepted shrink stops failing nightly, clean
+SIGTERM, local target must be the volume; nginx no longer pins failed chunks for a year; migrate bootstrap locked; dashboard,
+option editor and photo gallery apply results to the current state (no lost saves), inline sign-in can't double-submit.
 
 ## Current focus
 
@@ -90,8 +90,8 @@ page shows the sign-in link without JS, /cart saves quantity with "Update" and k
    RESTRICT` on variants) / `payments` (unique `merchant_trade_no`) / `payment_events` (idempotent on ECPay's trade number),
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
-2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service + ECPay vector.
-3. No open unblocked slices. Sessions 43, 45–49 audited the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
+3. Open: #389 (/account confirm focus, p3). Sessions 43, 45–50 audited the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

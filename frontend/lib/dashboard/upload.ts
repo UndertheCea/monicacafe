@@ -92,3 +92,8 @@ export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
 export function removeAt<T>(list: readonly T[], index: number): T[] {
   return list.filter((_, i) => i !== index);
 }
+
+/** `list` plus `item` at the end, unless it is already there or the list is full. */
+export function appendImage(list: readonly string[], item: string, max = MAX_COFFEE_IMAGES): string[] {
+  return list.includes(item) || list.length >= max ? [...list] : [...list, item];
+}

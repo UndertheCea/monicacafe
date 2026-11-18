@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { CREATE_IMAGE_UPLOAD, type ImageKind } from "@/lib/dashboard/queries";
 import { IMAGE_TYPES, MAX_IMAGE_BYTES, MAX_IMAGE_SIDE, MAX_SOURCE_BYTES, imageFileProblem, percent, uploadSignErrorKey } from "@/lib/dashboard/upload";
@@ -37,6 +37,7 @@ export function ImageUploader({
   locale,
   label,
   disabled,
+  onBusyChange,
   onUploaded,
 }: {
   kind: ImageKind;
@@ -44,13 +45,20 @@ export function ImageUploader({
   locale: Locale;
   label: string;
   disabled?: boolean;
+  /** Called with true from the moment a file is chosen until `onUploaded` has settled (#388). */
+  onBusyChange?: (busy: boolean) => void;
   onUploaded: (publicUrl: string) => Promise<void>;
 }) {
   const { request } = useAuth();
   const input = useRef<HTMLInputElement>(null);
-  const [progress, setProgress] = useState<number | null>(null);
+  // One phase from file choice to the end of onUploaded; the button stays disabled throughout (#388).
+  const [phase, setPhase] = useState<"idle" | "preparing" | "uploading">("idle");
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
-  const [shrinking, setShrinking] = useState(false);
+  const busy = phase !== "idle";
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const chosen = e.target.files?.[0];
@@ -60,18 +68,19 @@ export function ImageUploader({
     if (problem === "type") return setError({ key: "img.error.type" });
     if (problem) return setError({ key: "img.error.size", vars: { mb: MAX_SOURCE_BYTES / MB } });
     setError(null);
-    setShrinking(true);
-    const shrunk = await shrinkImage(chosen);
-    // Drop EXIF / XMP / GPS from whatever bytes will be uploaded, original or re-encoded (#285).
-    const file = await stripImage(shrunk).finally(() => setShrinking(false));
-    if (!file) return setError({ key: "img.error.metadata" });
-    // The API takes at most MAX_IMAGE_BYTES; a large file that couldn't shrink enough stops here.
-    if (imageFileProblem(file)) return setError({ key: "img.error.tooBig", vars: { mb: MAX_IMAGE_BYTES / MB } });
-    // A 640 px WebP stored beside the original, for cards and lists (#235); none if the browser can't make one.
-    const thumb = await stripThumbnail(await makeThumbnail(file));
+    setPhase("preparing");
     setProgress(0);
     let step: "sign" | "put" | "save" = "sign";
     try {
+      const shrunk = await shrinkImage(chosen);
+      // Drop EXIF / XMP / GPS from whatever bytes will be uploaded, original or re-encoded (#285).
+      const file = await stripImage(shrunk);
+      if (!file) return setError({ key: "img.error.metadata" });
+      // The API takes at most MAX_IMAGE_BYTES; a large file that couldn't shrink enough stops here.
+      if (imageFileProblem(file)) return setError({ key: "img.error.tooBig", vars: { mb: MAX_IMAGE_BYTES / MB } });
+      // A 640 px WebP stored beside the original, for cards and lists (#235); none if the browser can't make one.
+      const thumb = await stripThumbnail(await makeThumbnail(file));
+      setPhase("uploading");
       // Signed for the file actually sent: its type and size may differ from the chosen one.
       const r = await request(CREATE_IMAGE_UPLOAD, {
         input: { kind, targetId, contentType: file.type.toLowerCase(), byteSize: file.size, ...(thumb ? { thumbnailByteSize: thumb.size } : {}) },
@@ -90,11 +99,11 @@ export function ImageUploader({
       else if (step === "sign") setError({ key: uploadSignErrorKey(e2.code) });
       else setError({ key: step === "put" ? "img.error.upload" : "img.error.save" });
     } finally {
-      setProgress(null);
+      setPhase("idle");
+      setProgress(0);
     }
   }
 
-  const busy = shrinking || progress !== null;
   return (
     <div>
       <input
@@ -112,15 +121,15 @@ export function ImageUploader({
         onClick={() => input.current?.click()}
         variant="secondary"
       >
-        {shrinking ? t(locale, "img.preparing") : busy ? t(locale, "img.uploading", { pct: progress ?? 0 }) : label}
+        {phase === "preparing" ? t(locale, "img.preparing") : busy ? t(locale, "img.uploading", { pct: progress }) : label}
       </Button>
-      {progress !== null && (
+      {phase === "uploading" && (
         <div
           role="progressbar"
           aria-label={t(locale, "img.progress")}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={progress ?? 0}
+          aria-valuenow={progress}
           className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-line"
         >
           <div className="h-full bg-ink transition-[width]" style={{ width: `${progress}%` }} />

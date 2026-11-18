@@ -56,6 +56,13 @@ describe("navigation drawer", () => {
         assert.equal(await nav.getByRole("group", { name: "Language" }).count(), 1);
         assert.equal(await page.getByRole("heading", { level: 1, name: "Site menu" }).count(), 1);
       });
+      // The switch is a plain form post (#367): the page comes back in Chinese.
+      await step(page, "nav-menu-nojs-language", async () => {
+        await page.getByRole("button", { name: "中文 (switch language)" }).click();
+        await page.waitForURL((u) => u.pathname === "/menu");
+        assert.equal(await page.locator("html").getAttribute("lang"), "zh-TW");
+        assert.equal(await page.getByRole("button", { name: "English（切換語言）" }).count(), 1);
+      });
     } finally {
       await ctx.close();
     }

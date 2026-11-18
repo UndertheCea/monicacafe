@@ -29,7 +29,7 @@ describe("navigation drawer", () => {
         assert.equal(await first.textContent(), "Home");
         assert.equal(await first.getAttribute("href"), "/");
         const lang = dialog.getByRole("group", { name: "Language" });
-        assert.equal(await lang.getByRole("button", { name: "Switch to Traditional Chinese" }).count(), 1);
+        assert.equal(await lang.getByRole("button", { name: "中文 (switch language)" }).count(), 1);
         await page.keyboard.press("Escape");
         await dialog.waitFor({ state: "hidden" });
         assert.equal(await button.evaluate((b) => b === document.activeElement), true, "focus back on the menu button");

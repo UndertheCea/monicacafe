@@ -101,7 +101,7 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
       }
       setNote({
         kind: "error",
-        ...(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : cartProblem(e2.code, e2.field, e2.available)),
+        ...(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : cartProblem(e2.code, e2.field, e2.available, "add")),
       });
     } finally {
       setBusy(false);

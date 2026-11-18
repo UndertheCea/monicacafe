@@ -75,7 +75,7 @@ export function CartView({ locale }: { locale: Locale }) {
       setCartSnapshot(next);
     } catch (err) {
       const e = toApiError(err);
-      setProblem({ line, p: e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : cartProblem(e.code, e.field, e.available) });
+      setProblem({ line, p: e.code === "RATE_LIMITED" ? rateLimitMessage(e.retryAfter) : cartProblem(e.code, e.field, e.available, "set") });
       if (shouldReloadCart(e.code)) {
         // The line changed or went away on the server: show what it holds now, keeping the message.
         try {

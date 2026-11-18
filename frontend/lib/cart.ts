@@ -106,13 +106,24 @@ export function shouldReloadCart(code: string): boolean {
 export type CartProblem = { key: MessageKey; vars?: Record<string, number> };
 
 /**
- * The message for a failed cart write. Too many bags with a known count of
- * bags left reads "Only N left" (or "sold out" for 0); everything else falls
- * back to cartErrorKey.
+ * Which write the API refused: `add` (addToCart, where `available` is how many
+ * more bags this cart can still take: stock capped at 20, minus what it holds)
+ * or `set` (updateCartItem, where it is the most the line can hold).
  */
-export function cartProblem(code: string, field?: string, available?: number): CartProblem {
+export type CartWrite = "add" | "set";
+
+/**
+ * The message for a failed cart write (#375). `available` is never the stock,
+ * so it never reads "only N left": too many bags reads "you can add N more"
+ * (or "no more" for 0) after an add, and "at most N" (or "sold out" for 0)
+ * after a quantity change; everything else falls back to cartErrorKey.
+ */
+export function cartProblem(code: string, field: string | undefined, available: number | undefined, write: CartWrite): CartProblem {
   if (code === "BAD_USER_INPUT" && field === "quantity" && available !== undefined) {
-    return available === 0 ? { key: "cart.error.soldOut" } : { key: "cart.error.onlyLeft", vars: { n: available } };
+    if (write === "add") {
+      return available === 0 ? { key: "cart.error.noMore" } : { key: "cart.error.moreAllowed", vars: { n: available } };
+    }
+    return available === 0 ? { key: "cart.error.soldOut" } : { key: "cart.error.atMost", vars: { n: available } };
   }
   return { key: cartErrorKey(code, field) };
 }

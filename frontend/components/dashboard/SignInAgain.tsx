@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { validateCredentials } from "@/lib/auth/token";
 import { authErrorMessage, type AuthErrorMessage } from "@/lib/errors";
@@ -21,11 +21,16 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
   const [email, setEmail] = useState(knownEmail ?? "");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  // The Enter key bypasses the disabled button, and two presses can land
+  // before a re-render: the ref makes the second one a no-op (#390).
+  const inFlight = useRef(false);
   const [error, setError] = useState<AuthErrorMessage | null>(null);
 
   async function submit() {
+    if (inFlight.current) return;
     const problem = validateCredentials(email, password);
     if (problem) return setError({ key: problem === "email" ? "auth.error.email" : "auth.error.password" });
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -33,6 +38,7 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
     } catch (err) {
       const e2 = toApiError(err);
       setError(authErrorMessage("login", e2.code, e2.field, e2.retryAfter));
+      inFlight.current = false;
       setBusy(false);
     }
   }

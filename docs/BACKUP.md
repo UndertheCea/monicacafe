@@ -32,6 +32,7 @@ Point-in-time recovery (WAL archiving) is out of scope: the recovery point is th
 1. On a machine that is not the server: `age-keygen -o moni-backup.key`. It prints the public key (`age1…`).
 2. Put the **public** key in `.env` as `BACKUP_AGE_RECIPIENT`, and fill `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT` (empty for AWS), `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`. Give that key write/list/delete on the backup bucket only.
 3. `docker compose --profile prod up -d --build backup`. Check once with `BACKUP_RUN_NOW=true` (the service then runs a backup at start) and look at its log: the last line is JSON, `{"file":…,"bytes":…,"seconds":…,"pruned":…}`. A failure exits non-zero and is logged as `backup_loop: backup FAILED`.
+   **A local `BACKUP_TARGET`** must be `/backups` (the `backup_data` volume) or a path under it; any other directory inside the container is lost when the container is recreated, so `backup.sh` refuses it (unless it is a mount point you added to the compose service). For a host cron job or a CI drill outside the container, set `BACKUP_TARGET_ANY=true` (#382).
 4. **Set up the alert** (next section), so a failure or a job that never ran is noticed without anyone reading logs.
 
 ## Knowing it failed

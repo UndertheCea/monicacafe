@@ -271,7 +271,8 @@ services:
 
   # Nightly encrypted pg_dump at 03:00 Asia/Taipei (#220), production only:
   # `docker compose --profile prod up -d`. Uploads to the BACKUP_S3_* bucket (or
-  # to BACKUP_TARGET, a directory, kept in the backup_data volume). Runbook and
+  # to BACKUP_TARGET: /backups or a path under it, the backup_data volume; backup.sh
+  # refuses any other directory, which a recreate would lose, #382). Runbook and
   # restore: docs/BACKUP.md. CI runs the same image for its restore drill.
   backup:
     <<: *hardening

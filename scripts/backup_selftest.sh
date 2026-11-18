@@ -46,7 +46,7 @@ run() { # $1: dump size; extra env as further args. Prints the exit status.
   sleep 1 # file names carry the second; two runs must not share one
   rc=0
   env PATH="$tmp/bin:$PATH" FAKE_DUMP_BYTES="$bytes" DATABASE_URL=postgres://x@localhost/x \
-    BACKUP_TARGET="$tmp/store" BACKUP_ALLOW_PLAINTEXT=true "$@" \
+    BACKUP_TARGET="$tmp/store" BACKUP_ALLOW_PLAINTEXT=true BACKUP_TARGET_ANY=true "$@" \
     sh "$here/backup.sh" >"$tmp/out" 2>"$tmp/err" || rc=$?
   echo "$rc"
 }
@@ -86,12 +86,19 @@ ls "$tmp/store"/shrink_accepted_* >/dev/null 2>&1 || fail "the marker was pruned
 [ "$(run 2000)" = 1 ] || fail "a further drop under 50% should still exit 1 (#380)"
 grep -q 'under 50% of the largest' "$tmp/err" || fail "no shrink error logged for the further drop"
 
+# 10. A local target that is not on a volume is refused (#382); a bad override value too.
+[ "$(run 100 BACKUP_TARGET_ANY=false)" = 1 ] || fail "a target outside /backups should be refused (#382)"
+grep -q 'neither /backups' "$tmp/err" || fail "no message for a target outside the volume: $(cat "$tmp/err")"
+[ "$(run 100 BACKUP_TARGET_ANY=false BACKUP_TARGET=/backups/../tmp/x)" = 1 ] || fail "a .. path out of /backups should be refused"
+[ "$(run 100 BACKUP_TARGET_ANY=maybe)" = 1 ] || fail "BACKUP_TARGET_ANY=maybe should be refused"
+[ "$(count)" = 8 ] || fail "a refused run stored a dump ($(count))"
+
 # 8. SIGTERM mid-dump (docker stop, #381): exit 143, a /fail ping, no work dir, no partial.
 mkdir -p "$tmp/tmpdir"
 sleep 1
 env PATH="$tmp/bin:$PATH" TMPDIR="$tmp/tmpdir" FAKE_DUMP_BYTES=100 FAKE_DUMP_SLEEP=30 \
   FAKE_DUMP_STARTED="$tmp/started" FAKE_PINGS="$tmp/pings" BACKUP_PING_URL=http://ping.invalid/x \
-  DATABASE_URL=postgres://x@localhost/x BACKUP_TARGET="$tmp/store" BACKUP_ALLOW_PLAINTEXT=true \
+  DATABASE_URL=postgres://x@localhost/x BACKUP_TARGET="$tmp/store" BACKUP_ALLOW_PLAINTEXT=true BACKUP_TARGET_ANY=true \
   sh "$here/backup.sh" >"$tmp/out" 2>"$tmp/err" &
 pid=$!
 i=0

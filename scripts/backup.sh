@@ -11,7 +11,10 @@
 #   BACKUP_AGE_RECIPIENT age PUBLIC key. The private key stays offline with the owner
 #                        (docs/BACKUP.md). Unset: refused, unless BACKUP_ALLOW_PLAINTEXT=true
 #                        (CI drill and dev only; the dump is then unencrypted).
-#   BACKUP_TARGET        a local directory (/path or file:///path). Unset: S3, below.
+#   BACKUP_TARGET        a local directory (/path or file:///path). Unset: S3, below. Only
+#                        /backups (the compose volume), a path under it, or a mount point is
+#                        accepted: anywhere else in a container is lost when it is recreated
+#                        (#382). BACKUP_TARGET_ANY=true skips that check (host cron, CI drills).
 #   BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY, BACKUP_S3_SECRET_KEY, and optionally
 #   BACKUP_S3_ENDPOINT (non-AWS providers), BACKUP_S3_REGION, BACKUP_S3_PREFIX
 #                        (default "monicacafe/"). Must not be the media bucket.
@@ -118,6 +121,8 @@ fi
 
 accept_shrink="${BACKUP_ACCEPT_SHRINK:-false}"
 case "$accept_shrink" in true|false) ;; *) die "BACKUP_ACCEPT_SHRINK must be true or false, got '$accept_shrink'" ;; esac
+target_any="${BACKUP_TARGET_ANY:-false}"
+case "$target_any" in true|false) ;; *) die "BACKUP_TARGET_ANY must be true or false, got '$target_any'" ;; esac
 media="${BACKUP_MEDIA:-false}"
 case "$media" in true|false) ;; *) die "BACKUP_MEDIA must be true or false, got '$media'" ;; esac
 if [ "$media" = true ]; then
@@ -155,6 +160,22 @@ if [ "$mode" = s3 ]; then
     if [ -n "${BACKUP_S3_ENDPOINT:-}" ]; then aws --endpoint-url "$BACKUP_S3_ENDPOINT" "$@"; else aws "$@"; fi
   }
 else
+  # Only /backups is a volume in compose: a target elsewhere would sit in the container's
+  # own layer and vanish on recreate, with every health signal still green (#382).
+  if [ "$target_any" != true ]; then
+    on_volume=false
+    case "$target" in
+      */../*|*/..) ;;
+      /backups|/backups/*) on_volume=true ;;
+    esac
+    if [ "$on_volume" = false ]; then
+      mount_dir="${target%/}"
+      if [ -r /proc/self/mountinfo ] && awk -v t="$mount_dir" '$5 == t { found = 1 } END { exit !found }' /proc/self/mountinfo; then
+        on_volume=true
+      fi
+    fi
+    [ "$on_volume" = true ] || die "BACKUP_TARGET $target is neither /backups (the compose volume), under it, nor a mount point, so the backups would be lost when the container is recreated; mount a volume there, or set BACKUP_TARGET_ANY=true (host cron, CI drills)"
+  fi
   mkdir -p "$target"
 fi
 

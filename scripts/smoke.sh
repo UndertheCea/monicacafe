@@ -145,6 +145,17 @@ if [[ "$BASE_URL" == "$API_URL" ]]; then
   if [[ "$server" =~ [0-9] ]]; then echo "FAIL server version exposed: $server"; fail=1; else echo "ok   no server version (${server:-no Server header})"; fi
 fi
 
+# A missing build chunk must not be cached as immutable for a year (#383).
+# Skipped when BASE_URL bypasses nginx, which adds that header.
+if [[ "$BASE_URL" == "$API_URL" ]]; then
+  chunk=$(curl -s -o /dev/null -D - --max-time 15 "$BASE_URL/_next/static/does-not-exist.js") || chunk=""
+  if grep -qi '^cache-control:.*immutable' <<<"$chunk"; then
+    echo "FAIL missing /_next/static chunk is cached immutable: $(grep -i '^\(HTTP\|cache-control\)' <<<"$chunk" | tr -d '\r' | tr '\n' ' ')"; fail=1
+  else
+    echo "ok   missing /_next/static chunk not immutable"
+  fi
+fi
+
 robots=$(curl -s --max-time 15 "$BASE_URL/robots.txt") || robots=""
 if [[ "$robots" == *"Sitemap:"*"/sitemap.xml"* ]]; then echo "ok   robots.txt → sitemap"; else echo "FAIL robots.txt: ${robots:0:200}"; fail=1; fi
 

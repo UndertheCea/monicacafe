@@ -125,6 +125,14 @@ export function mergeAdminPage<T extends { id: string }, C extends { state: stri
   return { state: "ready", total: page.total, nodes: appendRows(nodes, page.nodes) };
 }
 
+/**
+ * The next reload version of the audit log (#370). Each successful moderation action bumps it; the list hook
+ * re-runs its first-page effect, which also advances the generation so an older load-more page is dropped.
+ */
+export function nextReloadVersion(version: number): number {
+  return version + 1;
+}
+
 /** A list with one row replaced by the API's updated copy (a suspended user or shop). */
 export function withUpdatedRow<T extends { id: string }>(page: { total: number; nodes: T[] }, row: T) {
   return { total: page.total, nodes: page.nodes.map((n) => (n.id === row.id ? { ...n, ...row } : n)) };

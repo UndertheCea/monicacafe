@@ -18,6 +18,7 @@ import {
   isAdminViewer,
   isContactInfoError,
   mergeAdminPage,
+  nextReloadVersion,
   moderationReasonProblem,
   reportErrorKey,
   reportTargetHref,
@@ -210,4 +211,11 @@ test("the report action is on comments, shop pages and published coffee pages", 
 test("/admin is noindex and disallowed for crawlers", () => {
   assert.match(readFileSync(root + "app/admin/page.tsx", "utf8"), /robots: \{ index: false/);
   assert.match(readFileSync(root + "app/robots.ts", "utf8"), /"\/admin"/);
+});
+
+test("nextReloadVersion: each moderation action yields a new version so the audit log reloads (#370)", () => {
+  assert.equal(nextReloadVersion(0), 1);
+  assert.notEqual(nextReloadVersion(4), 4);
+  const src = readFileSync(new URL("../components/admin/AdminScreen.tsx", import.meta.url), "utf8");
+  assert.equal(src.match(/onModerated\(\);/g)?.length, 3, "reports, users and shops each report a successful action");
 });

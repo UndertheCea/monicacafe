@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 49 — 2026-11-18 — No-JS language switch, cart price consent and a11y, proxy CIDRs (eight slices)
-PR: (this PR)
+PR: #376
 
 No session PR open (only dependabot's #252 / #314–#316), no owner answers on questions, one pickable slice (#367). Session 48's
 audit leftovers and a general-purpose cart audit became #369–#375. Sonnet sub-agents built #367 / #373, #370 and #372 / #374 in

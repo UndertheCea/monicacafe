@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 51 — 2026-11-18 — Audit: confirm focus, NT$0 card price, refresh chains, display names, char limits (seven slices)
-PR: #PR
+PR: #398
 
 No session PR open (only dependabot's #252 / #314–#316 / #377), no owner answers on questions, one pickable slice (#389). Two
 Sonnet audits (backend: auth, twfmt, account / shop / comment resolvers, CHECKs vs Go; frontend: login / register, shop forms,

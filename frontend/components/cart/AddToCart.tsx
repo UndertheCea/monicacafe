@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { bagsLeft, canAddToCart, cartLoginHref, cartProblem, inCartFor, parseCartChoice, type CartProblem } from "@/lib/cart";
+import { addToCartMode } from "@/lib/cartUi";
 import { ADD_TO_CART, CART } from "@/lib/cartQueries";
 import { getCartSnapshot, getServerCartSnapshot, setCartSnapshot, subscribeCart } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
@@ -80,7 +81,8 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
 
   // Signed-out visitors pick the option and quantity too; the sign-in link
   // carries them through the login round trip (#311).
-  const anonymous = status === "anonymous";
+  // Until the session resolves (and for good without JavaScript) the link stands in for the button (#372).
+  const anonymous = addToCartMode(status) === "login";
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -101,7 +103,7 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
       }
       setNote({
         kind: "error",
-        ...(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : cartProblem(e2.code, e2.field, e2.available)),
+        ...(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : cartProblem(e2.code, e2.field, e2.available, "add")),
       });
     } finally {
       setBusy(false);
@@ -153,7 +155,7 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
           {t(locale, "cart.loginToBuy")}
         </Button>
       ) : (
-        <Button type="submit" pending={busy} disabled={status !== "authenticated"}>
+        <Button type="submit" pending={busy}>
           {t(locale, "cart.add")}
         </Button>
       )}

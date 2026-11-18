@@ -17,6 +17,11 @@ func TestParsePrefixes(t *testing.T) {
 		{"172.16.5.4/12", []string{"172.16.0.0/12"}, false},
 		{"nginx", nil, true},
 		{"10.0.0.0/33", nil, true},
+		{"::ffff:10.0.0.0/104", []string{"10.0.0.0/8"}, false},
+		{"::ffff:192.0.2.7/128", []string{"192.0.2.7/32"}, false},
+		{"::ffff:192.0.2.7", []string{"192.0.2.7/32"}, false},
+		{"::ffff:0:0/96", []string{"0.0.0.0/0"}, false},
+		{"::/80", []string{"::/80"}, false},
 	}
 	for _, c := range cases {
 		got, err := ParsePrefixes(c.in)

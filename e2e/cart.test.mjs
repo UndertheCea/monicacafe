@@ -61,7 +61,11 @@ describe("cart", () => {
     await step(page, "cart-change", async () => {
       await page.goto("/cart");
       await page.getByText("NT$900").first().waitFor();
-      await page.getByLabel("Quantity").selectOption("5");
+      // A combobox: "Update quantity for …" (#374) carries the word too.
+      await page.getByRole("combobox", { name: /^Quantity/ }).selectOption("5");
+      // Choosing saves nothing yet; "Update" saves once (#374).
+      await page.getByText("NT$900").first().waitFor();
+      await page.getByRole("button", { name: /^Update/ }).click();
       await page.getByText("NT$2,250").first().waitFor();
       await headerCart(page, 5).waitFor();
     });

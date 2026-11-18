@@ -2,8 +2,11 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Cart limits (#21). The DB CHECK on cart_items.quantity matches
@@ -126,17 +129,34 @@ func (s *Store) SetCartLine(ctx context.Context, userID, variantID string, quant
 	return mapErr(err)
 }
 
-// AcceptCartPrice sets a line's price snapshot to the option's price today.
-// ErrNotFound if the line isn't the buyer's.
-func (s *Store) AcceptCartPrice(ctx context.Context, userID, id string) error {
-	tag, err := s.db.Exec(ctx, `
-		UPDATE cart_items ci SET price_twd = v.price_twd, updated_at = now()
-		FROM variants v WHERE v.id = ci.variant_id AND ci.user_id = $1 AND ci.id = $2`, userID, id)
+// ErrPriceMoved: the option's price is no longer the one the buyer accepted.
+var ErrPriceMoved = errors.New("store: price changed again")
+
+// AcceptCartPrice sets a line's price snapshot to the option's price today,
+// only while that price equals expected (what the buyer was shown, #371).
+// ErrNotFound if the line isn't the buyer's; ErrPriceMoved if the price
+// changed since.
+func (s *Store) AcceptCartPrice(ctx context.Context, userID, id string, expected int64) error {
+	var current int64
+	err := s.db.QueryRow(ctx, `
+		WITH upd AS (
+			UPDATE cart_items ci SET price_twd = v.price_twd, updated_at = now()
+			FROM variants v
+			WHERE v.id = ci.variant_id AND ci.user_id = $1 AND ci.id = $2 AND v.price_twd = $3
+			RETURNING ci.price_twd)
+		SELECT price_twd FROM upd
+		UNION ALL
+		SELECT v.price_twd FROM cart_items ci JOIN variants v ON v.id = ci.variant_id
+		WHERE ci.user_id = $1 AND ci.id = $2 AND NOT EXISTS (SELECT 1 FROM upd)`,
+		userID, id, expected).Scan(&current)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return mapErr(err)
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+	if current != expected {
+		return ErrPriceMoved
 	}
 	return nil
 }

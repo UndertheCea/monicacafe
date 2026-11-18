@@ -165,6 +165,12 @@ describe("without JavaScript", () => {
         await v.page.getByText("NT$480").first().waitFor();
         await v.page.getByText("Bright and floral").first().waitFor();
       });
+      await step(v.page, "nojs-signin-link", async () => {
+        // Auth never resolves without JS, so the sign-in link must be in the HTML (#372).
+        const link = v.page.getByRole("link", { name: "Log in to add to cart" });
+        await link.waitFor();
+        assert.match(await link.getAttribute("href"), /^\/login\?next=/);
+      });
     } finally {
       await v.ctx.close();
     }

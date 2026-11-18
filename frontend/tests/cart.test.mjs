@@ -65,17 +65,22 @@ test("cartErrorKey maps API errors to messages", () => {
   assert.equal(cartErrorKey("BAD_USER_INPUT", "quantity"), "cart.error.quantity");
   assert.equal(cartErrorKey("BAD_USER_INPUT", "variantId"), "cart.error.unavailable");
   assert.equal(cartErrorKey("NOT_FOUND"), "cart.error.unavailable");
+  assert.equal(cartErrorKey("BAD_USER_INPUT", "expectedPriceTwd"), "cart.error.priceMoved");
+  assert.equal(shouldReloadCart("BAD_USER_INPUT"), true); // so the newer price shows
   assert.equal(cartErrorKey("INTERNAL_SERVER_ERROR"), "cart.error.generic");
 });
 
-test("cartProblem names the bags left, or sold out, when the server says so", () => {
+test("cartProblem says how many more fit (add) or the most a line holds (set), never 'only N left'", () => {
   const cases = [
-    { in: ["BAD_USER_INPUT", "quantity", 3], want: { key: "cart.error.onlyLeft", vars: { n: 3 } } },
-    { in: ["BAD_USER_INPUT", "quantity", 0], want: { key: "cart.error.soldOut" } },
-    { in: ["BAD_USER_INPUT", "quantity", undefined], want: { key: "cart.error.quantity" } },
-    { in: ["BAD_USER_INPUT", "variantId", 2], want: { key: "cart.error.unavailable" } },
-    { in: ["OWN_SHOP", undefined, undefined], want: { key: "cart.error.ownShop" } },
-    { in: ["LIMIT_REACHED", undefined, undefined], want: { key: "cart.error.full" } },
+    // Stock 100, 18 in the cart: 2 more fit under the 20-bag cap (#375).
+    { in: ["BAD_USER_INPUT", "quantity", 2, "add"], want: { key: "cart.error.moreAllowed", vars: { n: 2 } } },
+    { in: ["BAD_USER_INPUT", "quantity", 0, "add"], want: { key: "cart.error.noMore" } },
+    { in: ["BAD_USER_INPUT", "quantity", 3, "set"], want: { key: "cart.error.atMost", vars: { n: 3 } } },
+    { in: ["BAD_USER_INPUT", "quantity", 0, "set"], want: { key: "cart.error.soldOut" } },
+    { in: ["BAD_USER_INPUT", "quantity", undefined, "add"], want: { key: "cart.error.quantity" } },
+    { in: ["BAD_USER_INPUT", "variantId", 2, "add"], want: { key: "cart.error.unavailable" } },
+    { in: ["OWN_SHOP", undefined, undefined, "add"], want: { key: "cart.error.ownShop" } },
+    { in: ["LIMIT_REACHED", undefined, undefined, "add"], want: { key: "cart.error.full" } },
   ];
   for (const c of cases) assert.deepEqual(cartProblem(...c.in), c.want, JSON.stringify(c.in));
 });

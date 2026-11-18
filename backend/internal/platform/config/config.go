@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"strconv"
@@ -583,7 +584,7 @@ func (c Config) validateExposure() error {
 		return errors.New("config: TRUSTED_PROXIES must be set explicitly in production to your proxies only (the compose default lists loopback and the compose subnet); the built-in default trusts every private range")
 	}
 	for _, p := range strings.Split(tp, ",") {
-		if p = strings.TrimSpace(p); p == "0.0.0.0/0" || p == "::/0" {
+		if p = strings.TrimSpace(p); trustsEveryone(p) {
 			return fmt.Errorf("config: TRUSTED_PROXIES must not contain %s: anything trusted can claim any client IP", p)
 		}
 	}
@@ -594,4 +595,20 @@ func (c Config) validateExposure() error {
 		return errors.New("config: BACKUP_ALLOW_PLAINTEXT must be false in production: set BACKUP_AGE_RECIPIENT so dumps are encrypted")
 	}
 	return nil
+}
+
+// trustsEveryone reports whether a TRUSTED_PROXIES entry covers a whole address
+// family: 0.0.0.0/0, ::/0, or the IPv4-mapped ::ffff:0:0/96, which the client-IP
+// middleware treats as 0.0.0.0/0. Entries that don't parse are left to
+// middleware.ParsePrefixes, which refuses them at startup.
+func trustsEveryone(entry string) bool {
+	p, err := netip.ParsePrefix(entry)
+	if err != nil {
+		return false
+	}
+	bits := p.Bits()
+	if p.Addr().Is4In6() && bits >= 96 {
+		bits -= 96
+	}
+	return bits == 0
 }

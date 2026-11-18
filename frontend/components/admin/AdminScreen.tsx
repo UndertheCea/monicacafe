@@ -11,6 +11,7 @@ import {
   MODERATION_REASON_MAX,
   adminErrorKey,
   mergeAdminPage,
+  nextReloadVersion,
   auditActionKey,
   auditTargetKey,
   isAdminViewer,
@@ -59,12 +60,19 @@ export function AdminScreen({ locale }: { locale: Locale }) {
     );
   }
   if (!isAdminViewer(user)) return <Notice>{t(locale, "admin.forbidden")}</Notice>;
+  return <AdminSections locale={locale} />;
+}
+
+function AdminSections({ locale }: { locale: Locale }) {
+  // Bumped after every successful moderation action so the audit log reloads its first page (#370).
+  const [auditVersion, setAuditVersion] = useState(0);
+  const onModerated = useCallback(() => setAuditVersion(nextReloadVersion), []);
   return (
     <div className="space-y-8">
-      <ReportsSection locale={locale} />
-      <UsersSection locale={locale} />
-      <ShopsSection locale={locale} />
-      <AuditSection locale={locale} />
+      <ReportsSection locale={locale} onModerated={onModerated} />
+      <UsersSection locale={locale} onModerated={onModerated} />
+      <ShopsSection locale={locale} onModerated={onModerated} />
+      <AuditSection locale={locale} version={auditVersion} />
     </div>
   );
 }
@@ -75,7 +83,7 @@ type Page<T> = { total: number; nodes: T[] };
 type ListState<T> = { state: "loading" } | { state: "error" } | ({ state: "ready" } & Page<T>);
 
 /** A paged admin list: loads the first page whenever fetchPage changes, then "load more". */
-function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => Promise<Page<T>>) {
+function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => Promise<Page<T>>, version = 0) {
   const [list, setList] = useState<ListState<T>>({ state: "loading" });
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
@@ -92,7 +100,7 @@ function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => P
     return () => {
       live = false;
     };
-  }, [fetchPage]);
+  }, [fetchPage, version]);
 
   async function loadMore() {
     if (list.state !== "ready" || loadingMore) return;
@@ -261,7 +269,7 @@ const date = (iso: string, locale: Locale) => (
 
 // ─── Reports ───────────────────────────────────────────────────────────────
 
-function ReportsSection({ locale }: { locale: Locale }) {
+function ReportsSection({ locale, onModerated }: { locale: Locale; onModerated: () => void }) {
   const { request } = useAuth();
   const fetchPage = useCallback(
     (offset: number) => request(ADMIN_REPORTS, { status: "OPEN", limit: ADMIN_PAGE, offset }).then((r) => r.reports),
@@ -296,6 +304,7 @@ function ReportsSection({ locale }: { locale: Locale }) {
                     const res = await request(RESOLVE_REPORT, { id: r.id, action, ...(reason ? { reason } : {}) });
                     setActing(null);
                     update((p) => withoutTarget(p, r, res.resolveReport.closedCount));
+                    onModerated();
                   }}
                 />
               ))}
@@ -408,7 +417,7 @@ function ReportRow({
 
 // ─── Users and shops ───────────────────────────────────────────────────────
 
-function UsersSection({ locale }: { locale: Locale }) {
+function UsersSection({ locale, onModerated }: { locale: Locale; onModerated: () => void }) {
   const { request } = useAuth();
   const [search, setSearch] = useState("");
   const fetchPage = useCallback(
@@ -458,6 +467,7 @@ function UsersSection({ locale }: { locale: Locale }) {
                       : (await request(SUSPEND_USER, { id: u.id, reason })).suspendUser;
                     setActing(null);
                     update((p) => withUpdatedRow<AdminUser>(p, r));
+                    onModerated();
                   }}
                   cells={
                     <>
@@ -478,7 +488,7 @@ function UsersSection({ locale }: { locale: Locale }) {
   );
 }
 
-function ShopsSection({ locale }: { locale: Locale }) {
+function ShopsSection({ locale, onModerated }: { locale: Locale; onModerated: () => void }) {
   const { request } = useAuth();
   const [search, setSearch] = useState("");
   const fetchPage = useCallback(
@@ -527,6 +537,7 @@ function ShopsSection({ locale }: { locale: Locale }) {
                       : (await request(SUSPEND_SHOP, { id: s.id, reason })).suspendShop;
                     setActing(null);
                     update((p) => withUpdatedRow<AdminShop>(p, r));
+                    onModerated();
                   }}
                   cells={
                     <>
@@ -601,13 +612,13 @@ function SuspendRow({
 
 // ─── Audit log ─────────────────────────────────────────────────────────────
 
-function AuditSection({ locale }: { locale: Locale }) {
+function AuditSection({ locale, version }: { locale: Locale; version: number }) {
   const { request } = useAuth();
   const fetchPage = useCallback(
     (offset: number) => request(AUDIT_LOG, { limit: ADMIN_PAGE, offset }).then((r) => r.auditLog),
     [request],
   );
-  const { list, loadMore, loadingMore, moreFailed } = useAdminList<AuditRow>(fetchPage);
+  const { list, loadMore, loadingMore, moreFailed } = useAdminList<AuditRow>(fetchPage, version);
 
   return (
     <Section title={t(locale, "admin.audit")} count={list.state === "ready" ? list.total : undefined} locale={locale}>

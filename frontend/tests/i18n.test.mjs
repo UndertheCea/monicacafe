@@ -78,3 +78,10 @@ test("every dictionary key is referenced in app/, components/ or lib/", () => {
   );
   assert.deepEqual(unused, []);
 });
+
+test("the language switch's accessible name starts with its visible text (WCAG 2.5.3, #373)", () => {
+  for (const locale of LOCALES) {
+    const visible = t(locale, "lang.toggle");
+    assert.ok(t(locale, "lang.toggleAria").startsWith(visible), `${locale}: label starts with "${visible}"`);
+  }
+});

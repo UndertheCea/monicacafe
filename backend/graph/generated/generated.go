@@ -153,7 +153,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AcceptCartPrice      func(childComplexity int, id string) int
+		AcceptCartPrice      func(childComplexity int, id string, expectedPriceTwd money.TWD) int
 		AddComment           func(childComplexity int, input model.AddCommentInput) int
 		AddToCart            func(childComplexity int, variantID string, quantity int) int
 		AddVariant           func(childComplexity int, coffeeID string, input model.VariantInput) int
@@ -359,7 +359,7 @@ type MutationResolver interface {
 	AddToCart(ctx context.Context, variantID string, quantity int) (*model.Cart, error)
 	UpdateCartItem(ctx context.Context, id string, quantity int) (*model.Cart, error)
 	RemoveFromCart(ctx context.Context, id string) (*model.Cart, error)
-	AcceptCartPrice(ctx context.Context, id string) (*model.Cart, error)
+	AcceptCartPrice(ctx context.Context, id string, expectedPriceTwd money.TWD) (*model.Cart, error)
 	Register(ctx context.Context, input model.RegisterInput) (*model.AuthPayload, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.AuthPayload, error)
 	RefreshToken(ctx context.Context, token string) (*model.AuthPayload, error)
@@ -926,7 +926,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.AcceptCartPrice(childComplexity, args["id"].(string)), true
+		return e.ComplexityRoot.Mutation.AcceptCartPrice(childComplexity, args["id"].(string), args["expectedPriceTwd"].(money.TWD)), true
 	case "Mutation.addComment":
 		if e.ComplexityRoot.Mutation.AddComment == nil {
 			break
@@ -2167,8 +2167,11 @@ type Mutation {
   # this line can hold), lowering always works.
   updateCartItem(id: ID!, quantity: Int!): Cart!
   removeFromCart(id: ID!): Cart!
-  # Takes today's price as the line's snapshot (clears priceChanged).
-  acceptCartPrice(id: ID!): Cart!
+  # Takes today's price as the line's snapshot (clears priceChanged), but only
+  # while it still equals expectedPriceTwd, the price the buyer was shown: if
+  # the seller changed it again, BAD_USER_INPUT (field expectedPriceTwd) and
+  # the snapshot stays, so the buyer sees the newer price first (#371).
+  acceptCartPrice(id: ID!, expectedPriceTwd: TWD!): Cart!
 
   # Auth
   register(input: RegisterInput!): AuthPayload!
@@ -3479,6 +3482,14 @@ func (ec *executionContext) field_Mutation_acceptCartPrice_args(ctx context.Cont
 		return nil, err
 	}
 	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "expectedPriceTwd",
+		func(ctx context.Context, v any) (money.TWD, error) {
+			return ec.unmarshalNTWD2githubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋinternalᚋplatformᚋmoneyᚐTWD(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["expectedPriceTwd"] = arg1
 	return args, nil
 }
 
@@ -6640,7 +6651,7 @@ func (ec *executionContext) _Mutation_acceptCartPrice(ctx context.Context, field
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().AcceptCartPrice(ctx, fc.Args["id"].(string))
+			return ec.Resolvers.Mutation().AcceptCartPrice(ctx, fc.Args["id"].(string), fc.Args["expectedPriceTwd"].(money.TWD))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Cart) graphql.Marshaler {

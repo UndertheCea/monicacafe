@@ -192,7 +192,7 @@ func (r *Resolver) updateCartItem(ctx context.Context, id string, quantity int) 
 
 // acceptCartPrice takes today's price as the line's snapshot: the buyer saw
 // "price changed" and agreed to the new price (#291).
-func (r *Resolver) acceptCartPrice(ctx context.Context, id string) (*model.Cart, error) {
+func (r *Resolver) acceptCartPrice(ctx context.Context, id string, expected money.TWD) (*model.Cart, error) {
 	c, err := requireViewer(ctx)
 	if err != nil {
 		return nil, err
@@ -203,8 +203,10 @@ func (r *Resolver) acceptCartPrice(ctx context.Context, id string) (*model.Cart,
 	if !isUUID(id) {
 		return nil, errNotFound("cart item")
 	}
-	if err := r.Store.AcceptCartPrice(ctx, c.UserID, id); errors.Is(err, store.ErrNotFound) {
+	if err := r.Store.AcceptCartPrice(ctx, c.UserID, id, int64(expected)); errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("cart item")
+	} else if errors.Is(err, store.ErrPriceMoved) {
+		return nil, errBadInput("expectedPriceTwd", "the price changed again; check the new price")
 	} else if err != nil {
 		return nil, err
 	}

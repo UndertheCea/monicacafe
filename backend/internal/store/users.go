@@ -255,11 +255,16 @@ func (s *Store) RevokeRefreshToken(ctx context.Context, tokenHash, userID string
 // RevokeUserRefreshTokens ends every session of a user (logout everywhere,
 // password change, suspected theft, suspension): all active refresh tokens are
 // revoked and the token version is bumped, so access tokens already issued stop
-// working for writes at once (#224).
+// working for writes at once (#224). Every rotation link of the user's tokens
+// is cleared too (#397): once all of them are revoked on purpose, a late replay
+// of an older token in a chain must read as "revoked" (refused), not as theft —
+// otherwise it would end the session issued right after, e.g. the one that just
+// changed the password.
 func (s *Store) RevokeUserRefreshTokens(ctx context.Context, userID string) error {
 	return s.InTx(ctx, func(tx *Store) error {
 		if _, err := tx.db.Exec(ctx, `
-			UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`, userID); err != nil {
+			UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, now()), replaced_by = NULL
+			WHERE user_id = $1 AND (revoked_at IS NULL OR replaced_by IS NOT NULL)`, userID); err != nil {
 			return mapErr(err)
 		}
 		_, err := tx.db.Exec(ctx, `UPDATE users SET token_version = token_version + 1 WHERE id = $1`, userID)

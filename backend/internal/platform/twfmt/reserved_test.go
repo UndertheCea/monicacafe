@@ -22,6 +22,18 @@ func TestIsReservedDisplayName(t *testing.T) {
 		{"Coffee Lover", false},
 		{"手沖愛好者", false},
 		{"Moni", false},
+		{"TheAdmin", true},
+		{"admin01", true},
+		{"Admins", true},
+		{"a d m i n team", true},
+		{"Ａｄｍｉｎ", true},
+		{"STAFF", true},
+		// #396: staff words inside other words are fine.
+		{"Badminton Lover", false},
+		{"Stafford", false},
+		{"Supporter Sam", false},
+		{"Unofficial Joe", false},
+		{"Ad min", false},
 	}
 	for _, tc := range tests {
 		if got := IsReservedDisplayName(tc.in); got != tc.want {

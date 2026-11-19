@@ -256,6 +256,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       res = await send(token);
     }
     if (!res.ok) throw await asError(res);
+    // Like logout (#344): a refresh in flight, or a pending retry, must not
+    // put the ended session back (#407).
+    setRetryAttempt(null);
+    epoch.bump();
     apply(null);
     channelRef.current?.postMessage("logout");
   }, [apply]);
@@ -284,6 +288,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         res = await send(token);
       }
       if (!res.ok) throw await asError(res);
+      setRetryAttempt(null);
+      epoch.bump(); // as in logout (#344, #407)
       apply(null);
       channelRef.current?.postMessage("logout");
     },

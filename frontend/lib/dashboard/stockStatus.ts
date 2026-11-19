@@ -1,4 +1,5 @@
-// Restock hints for the dashboard coffee list. Import-free so `npm test` loads it.
+// Restock hints for the dashboard coffee list. Imports only lib/pricing.ts (itself import-free), so `npm test` loads it.
+import { isBuyable } from "../pricing.ts";
 
 /** At or below this many bags across in-stock options, a coffee is "low". */
 export const LOW_STOCK = 5;
@@ -9,10 +10,10 @@ export type StockStatus =
   | { kind: "low"; units: number }
   | { kind: "ok"; units: number };
 
-/** How a coffee's options add up for restocking. Only available options count. */
-export function stockStatus(variants: { stock: number; isAvailable: boolean }[]): StockStatus {
+/** How a coffee's options add up for restocking. Only buyable options count (available, in stock, at least NT$1: #414). */
+export function stockStatus(variants: { stock: number; isAvailable: boolean; priceTwd: number }[]): StockStatus {
   if (variants.length === 0) return { kind: "none" };
-  const units = variants.reduce((n, v) => (v.isAvailable && v.stock > 0 ? n + v.stock : n), 0);
+  const units = variants.reduce((n, v) => (isBuyable(v) ? n + v.stock : n), 0);
   if (units === 0) return { kind: "out" };
   return units <= LOW_STOCK ? { kind: "low", units } : { kind: "ok", units };
 }

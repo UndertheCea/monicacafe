@@ -29,6 +29,8 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   const [body, setBody] = useState("");
   const fe = useFormErrors<"body">("comment", ORDER);
   const [busy, setBusy] = useState(false);
+  // "Posted" in a polite live region, cleared when the visitor types again (#406).
+  const [posted, setPosted] = useState(false);
   const [, startTransition] = useTransition();
 
   if (status === "loading") return null;
@@ -53,10 +55,14 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
     e.preventDefault();
     if (len === 0 || tooLong || busy) return;
     setBusy(true);
+    setPosted(false);
     fe.clear();
     try {
       await request(ADD_COMMENT, { input: { coffeeId, body: body.trim() } });
       setBody("");
+      setPosted(true);
+      // Submit is disabled with an empty body, which drops focus: back to the textarea (#406).
+      document.getElementById(fe.id("body"))?.focus();
       startTransition(() => router.refresh());
     } catch (err) {
       const e2 = toApiError(err);
@@ -84,6 +90,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
             value={body}
             onChange={(e) => {
               setBody(e.target.value);
+              setPosted(false);
               fe.clearField("body");
             }}
             rows={3}
@@ -103,6 +110,9 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
         </Button>
       </div>
+      <p role="status" className="text-sm text-ink">
+        {posted ? t(locale, "comments.posted") : ""}
+      </p>
     </form>
   );
 }

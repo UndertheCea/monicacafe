@@ -136,6 +136,11 @@ func ThumbKey(key string) string {
 	return key[:strings.LastIndex(key, ".")] + ".thumb.webp"
 }
 
+// IsImageKey reports whether key is exactly an original's key as NewKey
+// creates it under ShopPrefix / CoffeePrefix ("<prefix><kind>-<24 hex>.<ext>"),
+// so only keys createImageUpload can have issued are ever saved (#410).
+func IsImageKey(key string) bool { return keyRe.FindString(key) == key && key != "" }
+
 // IsThumbKey reports whether key has the shape ThumbKey produces.
 func IsThumbKey(key string) bool { return thumbKeyRe.MatchString(key) }
 

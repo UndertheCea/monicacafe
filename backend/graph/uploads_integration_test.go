@@ -156,6 +156,11 @@ func TestImageUploads(t *testing.T) {
 	// ── Saving URLs ─────────────────────────────────────────────────────────
 	const shopQ = `mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { logoUrl bannerUrl } }`
 	seller.expectCode(graph.CodeBadInput, shopQ, map[string]any{"id": shopID, "in": map[string]any{"logoUrl": "https://cdn.example.com/logo.png"}})
+	// A path under the shop's own prefix that createImageUpload never issued (#410).
+	ownDir := lu.PublicURL[:strings.LastIndex(lu.PublicURL, "/")+1]
+	for _, bad := range []string{ownDir + "x.html", ownDir + "whatever", strings.TrimSuffix(lu.PublicURL, ".png") + ".thumb.webp"} {
+		seller.expectCode(graph.CodeBadInput, shopQ, map[string]any{"id": shopID, "in": map[string]any{"logoUrl": bad}})
+	}
 	// A URL issued for a coffee can't become the shop logo.
 	var photo struct{ CreateImageUpload upload }
 	seller.mustDo(uploadQ, in("COFFEE_PHOTO", coffeeID, "image/webp", 2048), &photo)

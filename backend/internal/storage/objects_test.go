@@ -107,3 +107,27 @@ func TestSignedURLUsesInternalEndpoint(t *testing.T) {
 		t.Errorf("upload URL %q", up.UploadURL)
 	}
 }
+
+func TestIsImageKey(t *testing.T) {
+	shopDir := "shops/0b6f9a5e-3c1d-4e2f-9a8b-7c6d5e4f3a2b/"
+	cases := []struct {
+		key  string
+		want bool
+	}{
+		{shopKey, true},
+		{coffeeKey, true},
+		{shopDir + "x.html", false},
+		{shopDir + "whatever", false},
+		{shopDir + "logo-0123456789abcdef01234567.gif", false},
+		{shopDir + "logo-0123456789ABCDEF01234567.jpg", false},
+		{shopDir + "nested/logo-0123456789abcdef01234567.jpg", false},
+		{shopDir + "logo-0123456789abcdef01234567.thumb.webp", false},
+		{"x/" + shopKey, false},
+		{"", false},
+	}
+	for _, c := range cases {
+		if got := IsImageKey(c.key); got != c.want {
+			t.Errorf("IsImageKey(%q) = %v, want %v", c.key, got, c.want)
+		}
+	}
+}

@@ -43,6 +43,8 @@ test("parseShopPagePages reads ?page and ?archive, defaulting to 1", async () =>
     [{ page: "-4", archive: "x" }, { page: 1, archive: 1 }],
     [{ page: ["2", "5"], archive: "2.9" }, { page: 2, archive: 2 }],
     [{ roast: "DARK", q: "x" }, { page: 1, archive: 1 }],
+    // #399: a huge page would make an offset GraphQL's Int refuses.
+    [{ page: "99999999999999999999", archive: "10001" }, { page: 10000, archive: 10000 }],
   ];
   for (const [sp, want] of cases) assert.deepEqual(parseShopPagePages(sp), want, JSON.stringify(sp));
 });

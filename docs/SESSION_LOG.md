@@ -15,6 +15,39 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 52 — 2026-11-19 — Finished a stalled run's branch; emptied /account pages, focus after removal, "comment posted" (nine slices)
+PR: #408
+
+No open session PR (only dependabot's). An earlier run (branch `claude/gracious-davinci-zpddi2`, 2026-11-19 00:09–00:18 UTC)
+opened #399–#407, committed six of them and stopped before opening a PR. This session fast-forwarded onto that branch, reviewed
+it, built the three left (#404–#406) and shipped all nine. No owner answers on questions; nothing else is pickable.
+
+### Shipped (one line per slice: area — what — key files)
+- #399 frontend — listings clamp `?page=` (huge values no longer error) and hide the pager past the last page (`lib/pagination.ts`).
+- #400 frontend — /coffees `?min=0` is no filter: no "NT$0+" chip, not counted in "Filters (n)" (`coffeeFilters`, `coffeeQuery`).
+- #401 backend — `canonicalUUID`: unsave / unfollow and `reorderShopCoffees`' lineup check use the canonical spelling, so
+  uppercase / braced IDs clear the right loader keys (`graph/helpers.go`, integration test).
+- #402 frontend — past-the-end listing pages are `noindex` (`lib/seo.ts`).
+- #403 frontend — "load more comments" reads the first page's size from props, so it survives a refresh after posting.
+- #407 frontend — "sign out everywhere" / delete account cancel a pending refresh retry and bump the auth epoch, as logout does.
+- #404 frontend — /account Saved coffees, Followed shops, My comments (and the dashboard feed): emptying the shown rows while
+  more exist fetches the next page instead of the empty state (`emptiedWithMore` in `lib/loadMore.ts`).
+- #405 frontend — after unsave / unfollow / delete comment / resolve report, focus goes to the next row's action, else the
+  previous, else the section heading (`lib/rowFocus.ts` + `components/focusAfterRemoval.ts`, rows marked `data-row` /
+  `data-row-action`); admin reason prompts return focus to their trigger on cancel and after suspend / reinstate.
+- #406 frontend — posting a comment announces `comments.posted` in a `role="status"` line and refocuses the textarea.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`; integration tests with `-race` against a local PostgreSQL 16 (`scripts/test_db.sh`).
+- Frontend: `tsc --noEmit`, lint, `npm test` (376 pass), `npm run build`; `docker compose config`, `check_brief.sh`.
+- Not run here: no Docker daemon, so no full stack, `smoke.sh` or Playwright / axe (CI's `stack` job runs them). The focus
+  moves (#405, #406) were not tried in a real browser or screen reader.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Focus after removal waits for the row to leave the DOM with a MutationObserver (≤ 10 s), so it also works for
+  server-rendered rows removed by `router.refresh()`; it only moves focus if focus was lost (on `<body>`).
+- The queue is empty apart from slices blocked on #199 / #200 / #201 / #205; the owner's answers are what unblock work.
+
 ## Session 51 — 2026-11-18 — Audit: confirm focus, NT$0 card price, refresh chains, display names, char limits (seven slices)
 PR: #398
 

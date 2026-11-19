@@ -138,7 +138,11 @@ test("priceRange reads a backwards range the right way round (#180)", async () =
     [[300, 900], { minPriceTwd: 300, maxPriceTwd: 900 }],
     [[900, 100], { minPriceTwd: 100, maxPriceTwd: 900 }],
     [[500, 500], { minPriceTwd: 500, maxPriceTwd: 500 }],
-    [[0, 0], { minPriceTwd: 0, maxPriceTwd: 0 }],
+    // #400: a minimum of 0 is no filter; a maximum of 0 still is.
+    [[0, 0], { maxPriceTwd: 0 }],
+    [[0, undefined], {}],
+    [[0, 500], { maxPriceTwd: 500 }],
+    [[500, 0], { maxPriceTwd: 500 }],
     [[900, undefined], { minPriceTwd: 900 }],
     [[undefined, 100], { maxPriceTwd: 100 }],
     [[undefined, undefined], {}],

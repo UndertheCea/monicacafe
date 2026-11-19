@@ -210,6 +210,18 @@ test("listingCanonicalPath keeps only the page number (#195)", () => {
 test("listingRobots: keyword-search results are noindex, follow; plain listings are left alone (#195)", () => {
   for (const q of [undefined, null, "", "   "]) assert.equal(listingRobots(q), undefined, JSON.stringify(q));
   assert.deepEqual(listingRobots("geisha"), { index: false, follow: true });
+  // #402: a page past the end of the list is noindex too, search or not.
+  assert.deepEqual(listingRobots(undefined, true), { index: false, follow: true });
+  assert.deepEqual(listingRobots("geisha", true), { index: false, follow: true });
+  assert.equal(listingRobots(null, false), undefined);
+});
+
+test("listing pages pass the past-the-end check to listingRobots (#402)", () => {
+  const root = new URL("..", import.meta.url).pathname;
+  for (const f of ["app/coffees/page.tsx", "app/shops/page.tsx", "app/shops/[slug]/page.tsx"]) {
+    const src = readFileSync(root + f, "utf8");
+    assert.match(src, /listingRobots\([^;]*?(pastEnd|coffeesPastEnd|pastLastPage)/, f);
+  }
 });
 
 test("home and listing pages build their share card with shareMetadata (#195)", () => {

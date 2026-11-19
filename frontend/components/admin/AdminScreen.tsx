@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
+import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice } from "@/components/dashboard/ui";
 import { Badge, Button, Card, Field, Input, Label, SectionTitle } from "@/components/ui";
@@ -172,6 +173,24 @@ function ListBody<T>({
 const thCls = "border-b border-line py-2 pr-4 text-left text-xs font-semibold text-muted";
 const tdCls = "border-b border-line py-3 pr-4 align-top";
 
+/**
+ * Focus for a row's reason prompt (#405): call the returned function before the
+ * prompt closes (cancel, or a confirm that keeps the row) and, once it has
+ * closed, focus goes back to the button that opened it, if focus was lost.
+ */
+function useReturnFocus(open: boolean, trigger: RefObject<HTMLElement | null>) {
+  const pending = useRef(false);
+  useEffect(() => {
+    if (open || !pending.current) return;
+    pending.current = false;
+    const a = document.activeElement;
+    if (!a || a === document.body) trigger.current?.focus();
+  }, [open, trigger]);
+  return () => {
+    pending.current = true;
+  };
+}
+
 /** A reason field with Confirm / Cancel, shown under the row being acted on. */
 function ReasonPrompt({
   locale,
@@ -300,8 +319,9 @@ function ReportsSection({ locale, onModerated }: { locale: Locale; onModerated: 
                   acting={acting?.id === r.id ? acting.action : null}
                   onAct={(action) => setActing({ id: r.id, action })}
                   onCancel={() => setActing(null)}
-                  onResolve={async (action, reason) => {
+                  onResolve={async (action, reason, row) => {
                     const res = await request(RESOLVE_REPORT, { id: r.id, action, ...(reason ? { reason } : {}) });
+                    focusAfterRemoval(row); // the row goes: keep the admin's place (#405)
                     setActing(null);
                     update((p) => withoutTarget(p, r, res.resolveReport.closedCount));
                     onModerated();
@@ -366,11 +386,18 @@ function ReportRow({
   acting: ReportResolution | null;
   onAct: (a: ReportResolution) => void;
   onCancel: () => void;
-  onResolve: (a: ReportResolution, reason: string) => Promise<void>;
+  onResolve: (a: ReportResolution, reason: string, row: HTMLTableRowElement | null) => Promise<void>;
 }) {
+  const row = useRef<HTMLTableRowElement>(null);
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const back = useReturnFocus(acting !== null, trigger);
+  const act = (a: ReportResolution, e: React.MouseEvent<HTMLButtonElement>) => {
+    trigger.current = e.currentTarget;
+    onAct(a);
+  };
   return (
     <>
-      <tr>
+      <tr ref={row} data-row={r.id}>
         <td className={`${tdCls} max-w-xs`}>
           <ReportTarget r={r} locale={locale} />
         </td>
@@ -383,15 +410,15 @@ function ReportRow({
           {date(r.createdAt, locale)}
         </td>
         <td className={tdCls}>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary" onClick={() => onAct("DISMISS")}>
+          <div data-row-action className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={(e) => act("DISMISS", e)}>
               {t(locale, "admin.dismiss")}
             </Button>
-            <Button size="sm" variant="secondary" onClick={() => onAct("ACTIONED")}>
+            <Button size="sm" variant="secondary" onClick={(e) => act("ACTIONED", e)}>
               {t(locale, "admin.markActioned")}
             </Button>
             {(r.comment || r.shop || r.coffee) && (
-              <Button size="sm" variant="danger" onClick={() => onAct("REMOVE")}>
+              <Button size="sm" variant="danger" onClick={(e) => act("REMOVE", e)}>
                 {t(locale, "admin.remove")}
               </Button>
             )}
@@ -405,8 +432,8 @@ function ReportRow({
               key={acting}
               locale={locale}
               required={acting === "REMOVE"}
-              onConfirm={(reason) => onResolve(acting, reason)}
-              onCancel={onCancel}
+              onConfirm={(reason) => onResolve(acting, reason, row.current)}
+              onCancel={() => (back(), onCancel())}
             />
           </td>
         </tr>
@@ -584,6 +611,8 @@ function SuspendRow({
   onCancel: () => void;
   onConfirm: (reason: string) => Promise<void>;
 }) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const back = useReturnFocus(acting, trigger);
   return (
     <>
       <tr>
@@ -593,7 +622,7 @@ function SuspendRow({
         </td>
         <td className={tdCls}>
           {canAct && (
-            <Button size="sm" variant={suspended ? "secondary" : "danger"} onClick={onAct}>
+            <Button ref={trigger} size="sm" variant={suspended ? "secondary" : "danger"} onClick={onAct}>
               {t(locale, suspended ? "admin.unsuspend" : "admin.suspend")}
             </Button>
           )}
@@ -602,7 +631,15 @@ function SuspendRow({
       {acting && (
         <tr>
           <td colSpan={4} className={tdCls}>
-            <ReasonPrompt locale={locale} required onConfirm={onConfirm} onCancel={onCancel} />
+            <ReasonPrompt
+              locale={locale}
+              required
+              onConfirm={(reason) => {
+                back(); // takes effect only once the prompt closes (a failure keeps it open)
+                return onConfirm(reason);
+              }}
+              onCancel={() => (back(), onCancel())}
+            />
           </td>
         </tr>
       )}

@@ -1,5 +1,7 @@
-// URL ⇄ API mapping for the /shops sort. No imports, so `npm test` can load it
-// directly.
+// URL ⇄ API mapping for the /shops sort. Imports only `.ts` paths, so `npm test`
+// can load it directly.
+
+import { clampPage } from "./pagination.ts";
 
 export type ShopSort = "NEWEST" | "NAME" | "MOST_COFFEES" | "MOST_FOLLOWED";
 
@@ -46,12 +48,9 @@ export interface ShopPagePages {
   archive: number;
 }
 
-/** `?page=` and `?archive=` on a shop page; anything not a positive integer is page 1. */
+/** `?page=` and `?archive=` on a shop page; anything not a positive integer is page 1, at most MAX_PAGE (#399). */
 export function parseShopPagePages(sp: Record<string, string | string[] | undefined>): ShopPagePages {
-  const num = (v: string | string[] | undefined) => {
-    const n = Number.parseInt((Array.isArray(v) ? v[0] : v) ?? "", 10);
-    return Number.isFinite(n) && n > 1 ? n : 1;
-  };
+  const num = (v: string | string[] | undefined) => clampPage(Number.parseInt((Array.isArray(v) ? v[0] : v) ?? "", 10));
   return { page: num(sp.page), archive: num(sp.archive) };
 }
 

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
 import { commentInputErrorKey, deleteOutcome } from "@/lib/comments";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { Button, ConfirmButton, Field, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
@@ -28,6 +29,8 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   const [body, setBody] = useState("");
   const fe = useFormErrors<"body">("comment", ORDER);
   const [busy, setBusy] = useState(false);
+  // "Posted" in a polite live region, cleared when the visitor types again (#406).
+  const [posted, setPosted] = useState(false);
   const [, startTransition] = useTransition();
 
   if (status === "loading") return null;
@@ -52,10 +55,14 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
     e.preventDefault();
     if (len === 0 || tooLong || busy) return;
     setBusy(true);
+    setPosted(false);
     fe.clear();
     try {
       await request(ADD_COMMENT, { input: { coffeeId, body: body.trim() } });
       setBody("");
+      setPosted(true);
+      // Submit is disabled with an empty body, which drops focus: back to the textarea (#406).
+      document.getElementById(fe.id("body"))?.focus();
       startTransition(() => router.refresh());
     } catch (err) {
       const e2 = toApiError(err);
@@ -83,6 +90,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
             value={body}
             onChange={(e) => {
               setBody(e.target.value);
+              setPosted(false);
               fe.clearField("body");
             }}
             rows={3}
@@ -102,6 +110,9 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
         </Button>
       </div>
+      <p role="status" className="text-sm text-ink">
+        {posted ? t(locale, "comments.posted") : ""}
+      </p>
     </form>
   );
 }
@@ -124,6 +135,7 @@ export function DeleteCommentButton({
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
   const [, startTransition] = useTransition();
+  const self = useRef<HTMLSpanElement>(null);
 
   if (!user || (user.id !== authorId && user.role !== "ADMIN")) return null;
 
@@ -132,6 +144,7 @@ export function DeleteCommentButton({
     setFailed(null);
     try {
       await request(DELETE_COMMENT_DOC, { id: commentId });
+      focusAfterRemoval(self.current?.closest("[data-row]")); // keep the visitor's place (#405)
       onDeleted?.(commentId);
       startTransition(() => router.refresh());
     } catch (err) {
@@ -139,6 +152,7 @@ export function DeleteCommentButton({
       const outcome = deleteOutcome(e.code);
       if (outcome === "gone") {
         // Already deleted elsewhere: same end state as a successful delete.
+        focusAfterRemoval(self.current?.closest("[data-row]"));
         onDeleted?.(commentId);
         startTransition(() => router.refresh());
         return;
@@ -149,7 +163,7 @@ export function DeleteCommentButton({
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <span ref={self} className="inline-flex items-center gap-2">
       {failed && <span role="alert" className="text-xs text-danger">{t(locale, failed.key, failed.vars)}</span>}
       <ConfirmButton
         question={t(locale, "comments.deleteConfirm")}

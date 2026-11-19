@@ -49,10 +49,13 @@ export function parseIdParam(v: string | string[] | undefined): string | undefin
 /**
  * The price filter from `?min=` / `?max=` (already parsed to whole NT$). A
  * range typed backwards (900 – 100) is read the right way round, because the
- * API rejects min > max and the page would show its error state (#180).
+ * API rejects min > max and the page would show its error state (#180). A
+ * minimum of NT$0 filters nothing (every option is ≥ NT$1), so it is dropped
+ * rather than shown as a "NT$0+" chip that counts as a filter (#400).
  */
 export function priceRange(min: number | undefined, max: number | undefined): { minPriceTwd?: number; maxPriceTwd?: number } {
   if (min !== undefined && max !== undefined && min > max) [min, max] = [max, min];
+  if (min === 0) min = undefined;
   return {
     ...(min !== undefined ? { minPriceTwd: min } : {}),
     ...(max !== undefined ? { maxPriceTwd: max } : {}),

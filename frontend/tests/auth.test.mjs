@@ -192,3 +192,19 @@ test("createAuthEpoch: a refresh started before a logout or login is stale (#344
   // Each epoch is independent (one per module / test).
   assert.equal(createAuthEpoch().current(), 0);
 });
+
+test("every sign-out path drops in-flight refreshes before clearing the session (#344, #407)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../components/auth/AuthProvider.tsx", import.meta.url), "utf8");
+  for (const name of ["logout", "logoutEverywhere", "deleteAccount"]) {
+    const start = src.indexOf(`const ${name} = useCallback(`);
+    assert.ok(start >= 0, name);
+    const next = src.indexOf("useCallback(", start + `const ${name} = useCallback(`.length);
+    const body = src.slice(start, next < 0 ? undefined : next);
+    const clear = body.lastIndexOf("apply(null)");
+    assert.ok(clear > 0, `${name} clears the session`);
+    const before = body.slice(0, clear);
+    assert.ok(before.includes("epoch.bump()"), `${name} bumps the auth epoch before apply(null)`);
+    assert.ok(before.includes("setRetryAttempt(null)"), `${name} cancels a pending refresh retry`);
+  }
+});

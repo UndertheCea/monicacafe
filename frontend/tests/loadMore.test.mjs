@@ -1,7 +1,7 @@
 // "Load more" with removals in flight (lib/loadMore.ts, #338). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LOAD_MORE_RETRIES, loadMoreOffset, loadMoreStale, mergeLoaded } from "../lib/loadMore.ts";
+import { LOAD_MORE_RETRIES, emptiedWithMore, loadMoreOffset, loadMoreStale, mergeLoaded } from "../lib/loadMore.ts";
 
 const n = (...ids) => ids.map((id) => ({ id }));
 
@@ -61,4 +61,16 @@ test("mergeLoaded appends to the current list and keeps removed rows out", () =>
     },
   ];
   for (const c of cases) assert.deepEqual(mergeLoaded(c.current, c.page, new Set(c.removed)), c.want, c.name);
+});
+
+test("emptiedWithMore: an emptied page refills only while the server has more (#404)", () => {
+  const cases = [
+    // shown, total, lastPage, pageSize, want
+    [0, 8, 12, 12, true], // 12 shown, all removed, 8 left behind
+    [0, 0, 12, 12, false], // nothing left: empty state
+    [0, 3, 5, 12, false], // the last page was short: that was the end
+    [1, 8, 12, 12, false], // rows still on screen
+    [0, 1, 10, 10, true],
+  ];
+  for (const [shown, total, last, size, want] of cases) assert.equal(emptiedWithMore(shown, total, last, size), want);
 });

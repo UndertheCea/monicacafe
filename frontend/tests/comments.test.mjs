@@ -15,6 +15,7 @@ import {
   commentEditState,
   commentLength,
   hasMoreComments,
+  lastPageSize,
   pickComment,
   withEditedComment,
   withoutComment,
@@ -31,6 +32,16 @@ test("appendComments keeps order and drops ids already shown", () => {
     const got = appendComments(shown.map((id) => ({ id })), page.map((id) => ({ id })));
     assert.deepEqual(got.map((c) => c.id), want, name);
   }
+});
+
+test("lastPageSize follows the first page until a page is fetched (#403)", () => {
+  // 19 comments at mount, 2 posted, refresh: the first page is now full.
+  assert.equal(lastPageSize(null, COMMENTS_PAGE - 1), COMMENTS_PAGE - 1);
+  assert.equal(lastPageSize(null, COMMENTS_PAGE), COMMENTS_PAGE);
+  assert.equal(hasMoreComments(COMMENTS_PAGE, COMMENTS_PAGE + 1, lastPageSize(null, COMMENTS_PAGE)), true);
+  // After a fetch, that page's size decides; an empty fetch ends it.
+  assert.equal(lastPageSize(3, COMMENTS_PAGE), 3);
+  assert.equal(lastPageSize(0, COMMENTS_PAGE), 0);
 });
 
 test("hasMoreComments: more to fetch only while short of the total and the last page was full", () => {

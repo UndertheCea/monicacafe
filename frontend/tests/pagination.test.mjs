@@ -1,7 +1,7 @@
 // Pager shortcuts (lib/pagination.ts) and the post-register greeting (lib/welcome.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pagerShortcuts, pastLastPage } from "../lib/pagination.ts";
+import { clampPage, MAX_PAGE, pagerShortcuts, pastLastPage, showPager } from "../lib/pagination.ts";
 import { WELCOME_KEY, rememberWelcome, takeWelcome } from "../lib/welcome.ts";
 
 test("pagerShortcuts shows first / last only past 3 pages and only when prev / next doesn't reach them", () => {
@@ -62,4 +62,33 @@ test("pastLastPage is true only for a page beyond the last one of a non-empty li
   for (const [name, total, page, size, want] of cases) {
     assert.equal(pastLastPage(total, page, size), want, name);
   }
+});
+
+test("clampPage keeps ?page= between 1 and MAX_PAGE (#399)", () => {
+  const cases = [
+    [Number.NaN, 1],
+    [0, 1],
+    [-3, 1],
+    [1, 1],
+    [7, 7],
+    [2.9, 2],
+    [MAX_PAGE, MAX_PAGE],
+    [1e20, MAX_PAGE],
+    [Number.POSITIVE_INFINITY, 1],
+  ];
+  for (const [n, want] of cases) assert.equal(clampPage(n), want, String(n));
+  // The largest offset any listing asks for stays inside GraphQL's 32-bit Int.
+  assert.ok((MAX_PAGE - 1) * 100 < 2 ** 31);
+});
+
+test("showPager hides the pager on single pages and past the last page (#399)", () => {
+  const cases = [
+    [1, 1, false],
+    [1, 0, false],
+    [1, 3, true],
+    [3, 3, true],
+    [4, 3, false],
+    [50, 3, false],
+  ];
+  for (const [page, pages, want] of cases) assert.equal(showPager(page, pages), want, `${page} of ${pages}`);
 });

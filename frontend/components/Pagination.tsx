@@ -2,7 +2,7 @@ import { pageHref, type SearchParams } from "@/lib/coffeeFilters";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { LinkPending } from "./LinkPending";
 import { Button } from "@/components/ui";
-import { pagerShortcuts } from "@/lib/pagination";
+import { pagerShortcuts, showPager } from "@/lib/pagination";
 
 /** Prev / "page X of Y" / next links that preserve the current query string. */
 export function Pagination({
@@ -22,7 +22,7 @@ export function Pagination({
   hrefFor?: (page: number) => string;
 }) {
   const href = (p: number) => (hrefFor ? hrefFor(p) : pageHref(sp, p, base));
-  if (pages <= 1) return null;
+  if (!showPager(page, pages)) return null;
   const { first, last } = pagerShortcuts(page, pages);
   return (
     <nav className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm" aria-label={t(locale, "page.nav")}>

@@ -1,5 +1,6 @@
 import { pluralKey } from "@/lib/plural";
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { SHOPS } from "@/lib/api";
 import { pageHref, parsePage, type SearchParams } from "@/lib/coffeeFilters";
@@ -23,42 +24,62 @@ import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
 const SHOPS_PAGE_SIZE = 12;
 
+// One load per request for generateMetadata and the page, so the metadata can
+// mark a past-the-end ?page= noindex (#402).
+const loadShops = cache(
+  async (search: string | undefined, city: string | undefined, sort: ReturnType<typeof parseShopSortParam>, page: number) =>
+    (
+      await serverQuery(SHOPS, {
+        search,
+        city,
+        sort: shopSortForApi(sort),
+        limit: SHOPS_PAGE_SIZE,
+        offset: (page - 1) * SHOPS_PAGE_SIZE,
+      })
+    ).shops,
+);
+
+function parseShopList(sp: SearchParams) {
+  return {
+    page: parsePage(sp),
+    sort: parseShopSortParam(sp.sort),
+    q: parseSearchParam(sp.q),
+    city: parseSearchParam(sp.city),
+  };
+}
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
   const [sp, locale] = await Promise.all([searchParams, getLocale()]);
+  const { page, sort, q, city } = parseShopList(sp);
   const title = t(locale, "shops.title");
+  let pastEnd = false;
+  try {
+    pastEnd = pastLastPage((await loadShops(q, city, sort, page)).total, page, SHOPS_PAGE_SIZE);
+  } catch {
+    // The page shows its error state; nothing more to say here.
+  }
   return {
     title,
     ...shareMetadata({
       base: siteBase(process.env.SITE_URL),
-      path: listingCanonicalPath("/shops", parsePage(sp)),
+      path: listingCanonicalPath("/shops", page),
       title,
       description: t(locale, "shops.subtitle"),
       images: [],
       locale,
     }),
-    robots: listingRobots(parseSearchParam(sp.q) ?? parseSearchParam(sp.city)),
+    robots: listingRobots(q ?? city, pastEnd),
   };
 }
 
 export default async function ShopsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const locale = await getLocale();
-  const page = parsePage(sp);
-  const sort = parseShopSortParam(sp.sort);
-  const q = parseSearchParam(sp.q);
-  const city = parseSearchParam(sp.city);
+  const { page, sort, q, city } = parseShopList(sp);
 
   let shops;
   try {
-    shops = (
-      await serverQuery(SHOPS, {
-        search: q,
-        city,
-        sort: shopSortForApi(sort),
-        limit: SHOPS_PAGE_SIZE,
-        offset: (page - 1) * SHOPS_PAGE_SIZE,
-      })
-    ).shops;
+    shops = await loadShops(q, city, sort, page);
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }

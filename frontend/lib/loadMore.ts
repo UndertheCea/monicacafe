@@ -45,3 +45,12 @@ export function mergeLoaded<T extends { id: string }>(
   const nodes = [...current.nodes, ...page.nodes.filter((n) => !seen.has(n.id) && !removed.has(n.id))];
   return { total: Math.max(nodes.length, page.total - stale), nodes };
 }
+
+/**
+ * Whether removals emptied the rows on screen while the server still has more
+ * (#404): the list should fetch the next page by itself instead of showing its
+ * "nothing here yet" state. A short last page means the end, as in "load more".
+ */
+export function emptiedWithMore(shown: number, total: number, lastPageSize: number, pageSize: number): boolean {
+  return shown === 0 && total > 0 && lastPageSize >= pageSize;
+}

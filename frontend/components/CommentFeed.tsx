@@ -6,6 +6,7 @@ import { AuthorBadge } from "@/components/coffees/AuthorBadge";
 import { CommentBody } from "@/components/coffees/CommentBody";
 import { DeleteCommentButton } from "@/components/coffees/CommentForm";
 import { useLoadMore } from "@/components/useLoadMore";
+import { emptiedWithMore } from "@/lib/loadMore";
 import { COMMENT_LIST_PAGE, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
 import type { CommentPage } from "@/lib/dashboard/queries";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -55,9 +56,10 @@ export function CommentFeed({
     };
   }, [fetchPage]);
 
-  async function loadMore() {
+  /** `shownNow`: the rows left after a removal, when it is called before that render. */
+  async function loadMore(shownNow?: number) {
     if (s.state !== "ready") return;
-    const shown = s.page.nodes.length;
+    const shown = shownNow ?? s.page.nodes.length;
     setS((cur) => (cur.state === "ready" ? { ...cur, more: "loading" } : cur));
     try {
       const next = await more.fetchMore(shown);
@@ -77,7 +79,16 @@ export function CommentFeed({
   const removed = (cid: string) => {
     more.removed(cid);
     setS((cur) => (cur.state === "ready" ? { ...cur, page: withoutComment(cur.page, cid) } : cur));
+    if (s.state === "ready" && s.more === "idle") {
+      const left = withoutComment(s.page, cid);
+      if (emptiedWithMore(left.nodes.length, left.total, s.lastPage, COMMENT_LIST_PAGE)) void loadMore(0);
+    }
   };
+
+  // Removals emptied the rows on screen but more are left: the removal fetches
+  // them (below "load more" shows its progress or error), so no empty state (#404).
+  const refilling =
+    s.state === "ready" && emptiedWithMore(s.page.nodes.length, s.page.total, s.lastPage, COMMENT_LIST_PAGE);
 
   return (
     <section aria-labelledby={id}>
@@ -96,7 +107,7 @@ export function CommentFeed({
           {t(locale, "dash.error.generic")}
         </p>
       )}
-      {s.state === "ready" && s.page.nodes.length === 0 && (
+      {s.state === "ready" && s.page.nodes.length === 0 && !refilling && (
         <Card as="p" className="mt-4 p-6 text-center text-muted">
           {t(locale, empty)}
         </Card>
@@ -106,7 +117,7 @@ export function CommentFeed({
           {s.page.nodes.map((c) => {
             const href = commentCoffeeHref(c.coffee);
             return (
-              <li key={c.id} className="p-4">
+              <li key={c.id} data-row={c.id} className="p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
                   <span className="min-w-0 text-muted">
                     {showAuthor && (
@@ -129,7 +140,7 @@ export function CommentFeed({
                       </Badge>
                     )}
                   </span>
-                  <span className="flex items-baseline gap-3">
+                  <span data-row-action className="flex items-baseline gap-3">
                     <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={removed} />
                     <time dateTime={c.createdAt} className="text-xs text-muted">
                       {formatTaipeiDate(c.createdAt, locale)}

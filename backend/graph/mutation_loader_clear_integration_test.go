@@ -2,6 +2,7 @@ package graph_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -58,6 +59,27 @@ func TestMutationsClearLoaderKeys(t *testing.T) {
 			}
 			if r.B != (pair{false, 0}) {
 				t.Errorf("b = %+v, want {false 0}", r.B)
+			}
+		})
+	}
+
+	// #401: an uppercase spelling of the ID reaches the row (Postgres reads it,
+	// #333) and must clear the same loader keys, or unsave answers isSaved: true.
+	upper := []struct{ name, query, id string }{
+		{"unfollow by uppercase id",
+			`mutation($id: ID!, $up: ID!) { a: followShop(id: $id) { on: isFollowed count: followerCount } b: unfollowShop(id: $up) { on: isFollowed count: followerCount } }`,
+			sh.CreateShop.ID},
+		{"unsave by uppercase id",
+			`mutation($id: ID!, $up: ID!) { a: saveCoffee(id: $id) { on: isSaved count: saveCount } b: unsaveCoffee(id: $up) { on: isSaved count: saveCount } }`,
+			co.CreateCoffee.ID},
+	}
+	for _, tc := range upper {
+		t.Run(tc.name, func(t *testing.T) {
+			buyer.t = t
+			var r struct{ A, B pair }
+			buyer.mustDo(tc.query, map[string]any{"id": tc.id, "up": strings.ToUpper(tc.id)}, &r)
+			if r.A != (pair{true, 1}) || r.B != (pair{false, 0}) {
+				t.Errorf("a = %+v, b = %+v; want {true 1}, {false 0}", r.A, r.B)
 			}
 		})
 	}

@@ -33,6 +33,16 @@ export function hasMoreComments(shown: number, total: number, lastPageSize: numb
   return shown < total && lastPageSize >= pageSize;
 }
 
+/**
+ * The size of the last page on screen: the server-rendered first page until the
+ * visitor has fetched one (`fetched` null), then the size of that fetch. The
+ * first page can change under a mounted list (a refresh after posting), so it
+ * is read every render, not captured once (#403).
+ */
+export function lastPageSize(fetched: number | null, firstLength: number): number {
+  return fetched ?? firstLength;
+}
+
 /** Comments per page in the dashboard's "Recent comments" and /account's "My comments". */
 export const COMMENT_LIST_PAGE = 10;
 

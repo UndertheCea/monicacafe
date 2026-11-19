@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/99designs/gqlgen/graphql"
+	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vikstrous/dataloadgen"
 
 	"github.com/underthecea/monicacafe/backend/internal/store"
@@ -148,6 +150,25 @@ func LoaderMiddleware(st *store.Store) func(http.Handler) http.Handler {
 			ctx := context.WithValue(r.Context(), loadersKey{}, NewLoaders(st))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
+	}
+}
+
+// freshLoadersPerMutation gives every root field of a mutation its own
+// Loaders (#409). gqlgen runs mutation fields one after another, each with its
+// whole selection resolved before the next starts, so a later alias never sees
+// a row or count (comment count, shop coffee count, variants, the coffee or
+// shop itself) cached before an earlier alias's write. Queries keep one set for
+// the whole request, which is what batches their lookups. ClearSaved /
+// ClearFollowed still matter inside one field.
+func freshLoadersPerMutation(st *store.Store) graphql.RootFieldMiddleware {
+	return func(ctx context.Context, next graphql.RootResolver) graphql.Marshaler {
+		oc := graphql.GetOperationContext(ctx)
+		if oc != nil && oc.Operation != nil && oc.Operation.Operation == ast.Mutation {
+			if _, ok := ctx.Value(loadersKey{}).(*Loaders); ok {
+				ctx = context.WithValue(ctx, loadersKey{}, NewLoaders(st))
+			}
+		}
+		return next(ctx)
 	}
 }
 

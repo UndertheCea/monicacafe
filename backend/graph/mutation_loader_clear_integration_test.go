@@ -83,4 +83,33 @@ func TestMutationsClearLoaderKeys(t *testing.T) {
 			}
 		})
 	}
+
+	// #409: comment counts and a shop's coffee count, read by the first alias,
+	// must not be handed to the second.
+	t.Run("two comments", func(t *testing.T) {
+		buyer.t = t
+		var r struct {
+			A, B struct{ Coffee struct{ CommentCount int } }
+		}
+		buyer.mustDo(`mutation($id: ID!) {
+			a: addComment(input: {coffeeId: $id, body: "first"}) { coffee { commentCount } }
+			b: addComment(input: {coffeeId: $id, body: "second"}) { coffee { commentCount } } }`,
+			map[string]any{"id": co.CreateCoffee.ID}, &r)
+		if r.A.Coffee.CommentCount != 1 || r.B.Coffee.CommentCount != 2 {
+			t.Errorf("commentCount a = %d, b = %d; want 1, 2", r.A.Coffee.CommentCount, r.B.Coffee.CommentCount)
+		}
+	})
+	t.Run("unpublish then publish", func(t *testing.T) {
+		seller.t = t
+		var r struct {
+			A, B struct{ Shop struct{ CoffeeCount int } }
+		}
+		seller.mustDo(`mutation($id: ID!) {
+			a: unpublishCoffee(id: $id) { shop { coffeeCount } }
+			b: publishCoffee(id: $id) { shop { coffeeCount } } }`,
+			map[string]any{"id": co.CreateCoffee.ID}, &r)
+		if r.A.Shop.CoffeeCount != 0 || r.B.Shop.CoffeeCount != 1 {
+			t.Errorf("coffeeCount a = %d, b = %d; want 0, 1", r.A.Shop.CoffeeCount, r.B.Shop.CoffeeCount)
+		}
+	})
 }

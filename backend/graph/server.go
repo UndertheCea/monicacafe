@@ -115,6 +115,7 @@ func NewServer(resolver *Resolver, introspection bool) *handler.Server {
 	srv.SetRecoverFunc(RecoverFunc)
 	srv.Use(&queryLimits{maxComplexity: MaxQueryComplexity, maxDepth: MaxQueryDepth})
 	srv.Use(tokenGate{users: resolver.Store})
+	srv.AroundRootFields(freshLoadersPerMutation(resolver.Store))
 	srv.Use(extension.AutomaticPersistedQuery{Cache: lru.New[string](100)})
 	if introspection {
 		srv.Use(extension.Introspection{})

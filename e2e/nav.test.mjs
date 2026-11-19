@@ -48,20 +48,21 @@ describe("navigation drawer", () => {
     const { ctx, page } = await newVisitor(browser, { javaScript: false });
     try {
       await step(page, "nav-menu-nojs", async () => {
-        await page.goto("/coffees");
+        // From a page with a query, which the menu remembers (#416).
+        await page.goto("/coffees?q=e2e-menu");
         await page.getByRole("link", { name: "Open menu" }).click();
-        await page.waitForURL((u) => u.pathname === "/menu");
+        await page.waitForURL((u) => u.pathname === "/menu" && u.searchParams.get("from") === "/coffees?q=e2e-menu");
         const nav = page.getByRole("navigation", { name: "Site menu" });
         assert.equal(await nav.getByRole("link").first().textContent(), "Home");
         assert.equal(await nav.getByRole("group", { name: "Language" }).count(), 1);
         assert.equal(await page.getByRole("heading", { level: 1, name: "Site menu" }).count(), 1);
       });
-      // The switch is a plain form post (#367): the page comes back in Chinese.
+      // The switch is a plain form post (#367) and goes back to the page the menu was opened from, query
+      // included (#416), now in Chinese.
       await step(page, "nav-menu-nojs-language", async () => {
         await page.getByRole("button", { name: "中文 (switch language)" }).click();
-        await page.waitForURL((u) => u.pathname === "/menu");
+        await page.waitForURL((u) => u.pathname === "/coffees" && u.searchParams.get("q") === "e2e-menu");
         assert.equal(await page.locator("html").getAttribute("lang"), "zh-TW");
-        assert.equal(await page.getByRole("button", { name: "English（切換語言）" }).count(), 1);
       });
     } finally {
       await ctx.close();

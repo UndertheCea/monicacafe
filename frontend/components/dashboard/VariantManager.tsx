@@ -14,7 +14,7 @@ import {
 } from "@/lib/dashboard/queries";
 import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
-import { afterReload, mergeCoffeeFields, replaceVariant, type EditorLoad } from "@/lib/dashboard/editorState";
+import { afterReload, mergeCoffeeFields, replaceVariant, withoutVariant, type EditorLoad } from "@/lib/dashboard/editorState";
 import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
@@ -154,7 +154,11 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
                   variant={v}
                   locale={locale}
                   onSaved={replace}
-                  onDeleted={() => void fetchCoffee()}
+                  onDeleted={() => {
+                    // Drop the row now, so it goes even if the reload below fails.
+                    setLoad((cur) => withoutVariant(cur, v.id));
+                    void fetchCoffee();
+                  }}
                   onStale={() => void fetchCoffee()}
                   request={request}
                 />
@@ -249,6 +253,7 @@ function VariantRow({
         fields: {},
         form: dashWriteError(e.code, e.retryAfter) ?? { key: e.code === "BAD_USER_INPUT" ? "cf.error.lastVariant" : "cf.error.generic" },
       });
+    } finally {
       setBusy(false);
     }
   }

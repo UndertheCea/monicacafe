@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authHref, loginHrefFrom, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
+import { authHref, loginHrefFrom, menuFrom, menuHref, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
 import { t } from "../lib/i18n/dict.ts";
 
 const flat = (sections) =>
@@ -102,4 +102,23 @@ test("loginHrefFrom: keeps the query, encoded; no trailing ? when empty", () => 
     ["//evil.example", "page=2", "/login"],
   ];
   for (const [path, search, want] of cases) assert.equal(loginHrefFrom(path, search), want, `${path} ${search}`);
+});
+
+test("menuHref: the no-JS menu link carries the page it was opened from (#416)", () => {
+  assert.equal(menuHref("/coffees", "q=ethiopia&page=2"), "/menu?from=%2Fcoffees%3Fq%3Dethiopia%26page%3D2");
+  assert.equal(menuHref("/coffees", "?q=a"), "/menu?from=%2Fcoffees%3Fq%3Da");
+  assert.equal(menuHref("/shops/abc"), "/menu?from=%2Fshops%2Fabc");
+  assert.equal(menuHref("/", "page=2"), "/menu?from=%2F%3Fpage%3D2");
+  for (const [p, q] of [["/", ""], ["/", null], ["/menu", "from=%2Fcoffees"], ["//evil.example", ""], ["coffees", ""]]) {
+    assert.equal(menuHref(p, q), "/menu", `${p} ${q}`);
+  }
+});
+
+test("menuFrom: only same-site pages other than /menu come back (#416)", () => {
+  assert.equal(menuFrom("/coffees?q=ethiopia&page=2"), "/coffees?q=ethiopia&page=2");
+  assert.equal(menuFrom(["/shops", "/x"]), "/shops");
+  assert.equal(menuFrom("/"), "/");
+  for (const bad of [undefined, "", "https://evil.example/", "//evil.example", "/api/locale", "/menu", "/menu?from=%2F", "javascript:alert(1)", "/\\evil"]) {
+    assert.equal(menuFrom(bad), null, String(bad));
+  }
 });

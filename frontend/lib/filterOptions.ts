@@ -25,3 +25,15 @@ export function groupByRegion<T extends { region: string }>(list: readonly T[]):
   for (const o of list) regions.set(o.region, [...(regions.get(o.region) ?? []), o]);
   return [...regions];
 }
+
+const REGION_KEYS: Record<string, string> = {
+  Africa: "region.africa",
+  Americas: "region.americas",
+  "Asia-Pacific": "region.asiaPacific",
+  "Middle East": "region.middleEast",
+};
+
+/** The dictionary key for a stored origin region, or null for one we have no translation for. */
+export function regionKey(region: string): string | null {
+  return Object.hasOwn(REGION_KEYS, region) ? REGION_KEYS[region] : null;
+}

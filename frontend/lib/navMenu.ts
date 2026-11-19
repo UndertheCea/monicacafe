@@ -2,8 +2,9 @@
 // owner's answer on #177): two levels, like a roaster's shop menu. The header
 // is only the menu button, the wordmark and search, so everything the old
 // desktop row held lives here. Built from the auth state so the drawer, the
-// no-JavaScript /menu page and the tests agree. No imports, so `npm test` can
-// load it directly.
+// no-JavaScript /menu page and the tests agree. Imports only lib/auth/token.ts
+// (itself loadable), so `npm test` can load it directly.
+import { safeNext } from "./auth/token.ts";
 
 /** Who is looking: signed out, or signed in with or without a shop / admin role. */
 export type NavViewer =
@@ -105,4 +106,29 @@ export function authHref(path: "/login" | "/register", from: string | null | und
 export function loginHrefFrom(pathname: string, search: string | null | undefined): string {
   const q = (search ?? "").replace(/^\?/, "");
   return authHref("/login", q ? `${pathname}?${q}` : pathname);
+}
+
+/**
+ * The header's no-JavaScript menu link (#416): `/menu?from=<path + query>`, so
+ * /menu can send the language switch and sign-in back to the page the visitor
+ * was on. Plain `/menu` from the home page, from /menu itself, or for anything
+ * that isn't a same-site path. `search` as for loginHrefFrom.
+ */
+export function menuHref(pathname: string, search?: string | null): string {
+  const q = (search ?? "").replace(/^\?/, "");
+  const from = q ? `${pathname}?${q}` : pathname;
+  if (!pathname.startsWith("/") || pathname.startsWith("//") || from === "/" || pathname === "/menu") return "/menu";
+  return `/menu?from=${encodeURIComponent(from)}`;
+}
+
+/**
+ * The page /menu was opened from (its `?from=`), checked like any `?next=`
+ * (same-site, not /api, not /menu); null when there is none worth returning to.
+ */
+export function menuFrom(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (!v) return null;
+  const safe = safeNext(v, "");
+  if (!safe || safe === "/menu" || safe.startsWith("/menu?") || safe.startsWith("/menu#")) return null;
+  return safe;
 }

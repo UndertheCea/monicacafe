@@ -21,3 +21,9 @@ export function parseLocaleForm(
   if (typeof locale !== "string" || !isLocale(locale)) return null;
   return { locale, next: safeNext(typeof next === "string" ? next : null, "/") };
 }
+
+/** Where the toggle sends the visitor back to: the path plus its query string (none when empty). */
+export function nextWithSearch(pathname: string, search: string): string {
+  const q = search.startsWith("?") ? search.slice(1) : search;
+  return q ? `${pathname}?${q}` : pathname;
+}

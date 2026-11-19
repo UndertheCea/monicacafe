@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 53 — 2026-11-19 — Audit: loaders per mutation field, image key shape, no-JS menu return, region names (eight slices)
-PR: #TBD
+PR: #417
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: jobs /
 worker, storage, rate limits, search, loaders, list resolvers, admin; frontend: cart, map, shops, dashboard options / uploader,

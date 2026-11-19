@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useLoadMore } from "@/components/useLoadMore";
+import { emptiedWithMore } from "@/lib/loadMore";
 import { MY_FOLLOWED_SHOPS, UNFOLLOW_SHOP, type ShopSummary } from "@/lib/api";
 import { FOLLOWED_PAGE } from "@/lib/follows";
 import { t, type Locale } from "@/lib/i18n/dict";
@@ -47,9 +48,10 @@ export function FollowedShops({ locale }: { locale: Locale }) {
     };
   }, [fetchPage]);
 
-  async function loadMore() {
+  /** `shownNow`: the rows left after a removal, when it is called before that render. */
+  async function loadMore(shownNow?: number) {
     if (s.state !== "ready") return;
-    const shown = s.list.nodes.length;
+    const shown = shownNow ?? s.list.nodes.length;
     setS((cur) => (cur.state === "ready" ? { ...cur, more: "loading" } : cur));
     try {
       const next = await more.fetchMore(shown);
@@ -71,12 +73,21 @@ export function FollowedShops({ locale }: { locale: Locale }) {
       await request(UNFOLLOW_SHOP, { id });
       more.removed(id);
       setS((cur) => (cur.state === "ready" ? { ...cur, list: withoutSaved(cur.list, id) } : cur));
+      if (s.state === "ready" && s.more === "idle") {
+        const left = withoutSaved(s.list, id);
+        if (emptiedWithMore(left.nodes.length, left.total, s.lastPage, FOLLOWED_PAGE)) void loadMore(0);
+      }
     } catch {
       setRemoveError(true);
     } finally {
       setRemoving(null);
     }
   }
+
+  // Removals emptied the rows on screen but more are left: the removal fetches
+  // them (below "load more" shows its progress or error), so no empty state (#404).
+  const refilling =
+    s.state === "ready" && emptiedWithMore(s.list.nodes.length, s.list.total, s.lastPage, FOLLOWED_PAGE);
 
   return (
     <section aria-labelledby="followed-shops">
@@ -93,7 +104,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
           {t(locale, "dash.error.generic")}
         </p>
       )}
-      {s.state === "ready" && s.list.nodes.length === 0 && (
+      {s.state === "ready" && s.list.nodes.length === 0 && !refilling && (
         <Card as="p" className="mt-4 p-6 text-center text-muted">
           {t(locale, "account.noFollowed")}{" "}
           <Link href="/shops" className="font-semibold text-ink underline-offset-4 hover:underline">
@@ -136,7 +147,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
         <div className="mt-4 text-center">
           <Button
             type="button"
-            onClick={loadMore}
+            onClick={() => void loadMore()}
             disabled={s.more === "loading"}
             variant="secondary"
           >

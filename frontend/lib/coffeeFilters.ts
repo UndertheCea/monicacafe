@@ -1,4 +1,5 @@
 import type { CoffeeFilter } from "./api";
+import { clampPage } from "./pagination.ts";
 import { parseIdParam, parseInStockParam, parseSearchParam, parseSortParam, priceRange, type SortParam } from "./coffeeQuery";
 
 export type SearchParams = Record<string, string | string[] | undefined>;
@@ -52,9 +53,9 @@ export function parseCoffeeSearch(sp: SearchParams): { filter: CoffeeFilter; sor
   return { filter, sort: parseSortParam(sp[COFFEE_PARAM.sort]), page: parsePage(sp) };
 }
 
-/** Parse a 1-based `?page=` param (anything invalid → 1). */
+/** Parse a 1-based `?page=` param (anything invalid → 1, at most MAX_PAGE, #399). */
 export function parsePage(sp: SearchParams): number {
-  return Math.max(1, Number.parseInt(one(sp[COFFEE_PARAM.page]) ?? "1", 10) || 1);
+  return clampPage(Number.parseInt(one(sp[COFFEE_PARAM.page]) ?? "1", 10));
 }
 
 /** Build a URL on `base` preserving current params, overriding `page`. */

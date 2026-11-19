@@ -20,3 +20,20 @@ export function pagerShortcuts(page: number, pages: number): { first: number | n
 export function pastLastPage(total: number, page: number, pageSize: number): boolean {
   return total > 0 && page > Math.ceil(total / pageSize);
 }
+
+/**
+ * Highest `?page=` the listings ask for (#399). A bigger number would make an
+ * offset GraphQL's Int refuses (the error page instead of "past the last page");
+ * no list is anywhere near this long.
+ */
+export const MAX_PAGE = 10_000;
+
+/** A parsed `?page=` value as a page number: 1 for anything not a positive integer, at most MAX_PAGE. */
+export function clampPage(n: number): number {
+  return Number.isFinite(n) && n > 1 ? Math.min(Math.floor(n), MAX_PAGE) : 1;
+}
+
+/** Whether a pager belongs under a list: more than one page, and not past the last (the card links back, #399). */
+export function showPager(page: number, pages: number): boolean {
+  return pages > 1 && page <= pages;
+}

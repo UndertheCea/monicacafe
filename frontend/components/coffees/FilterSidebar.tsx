@@ -6,8 +6,8 @@ import {
   type ProcessingMethod,
 } from "@/lib/api";
 import { SEARCH_MAX_CHARS, SORT_PARAMS, type SortParam } from "@/lib/coffeeQuery";
-import { groupByRegion, optionsWithCoffees } from "@/lib/filterOptions";
-import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { groupByRegion, optionsWithCoffees, regionKey } from "@/lib/filterOptions";
+import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { Button, Input, Label, Select } from "@/components/ui";
 import { CARD, LABEL } from "@/lib/ui";
 
@@ -18,6 +18,12 @@ interface Props {
   origins: Counted<OriginCountry>[];
   varieties: Counted<CoffeeVariety>[];
   methods: Counted<ProcessingMethod>[];
+}
+
+/** The stored region ("Africa") in the viewer's language; unknown regions show as stored. */
+function regionLabel(locale: Locale, region: string): string {
+  const key = regionKey(region);
+  return key ? t(locale, key as MessageKey) : region;
 }
 
 // Plain GET form: works without JavaScript and keeps filters in the URL.
@@ -66,7 +72,7 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
         <Select name="origin" defaultValue={filter.originCountryId ?? ""} className="mt-1">
           <option value="">{t(locale, "filter.any")}</option>
           {regions.map(([region, list]) => (
-            <optgroup key={region} label={region}>
+            <optgroup key={region} label={regionLabel(locale, region)}>
               {list.map((o) => (
                 <option key={o.id} value={o.id}>
                   {counted(pick(locale, `${o.nameZh} ${o.nameEn}`, o.nameEn), o.coffeeCount)}

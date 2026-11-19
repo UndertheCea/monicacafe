@@ -1,7 +1,7 @@
 // /coffees sidebar option helpers (lib/filterOptions.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { groupByRegion, optionsWithCoffees } from "../lib/filterOptions.ts";
+import { groupByRegion, optionsWithCoffees, regionKey } from "../lib/filterOptions.ts";
 
 const opts = [
   { id: "a", coffeeCount: 3 },
@@ -44,4 +44,12 @@ test("groupByRegion keeps first-seen order and drops empty regions", () => {
     ],
   );
   assert.deepEqual(groupByRegion([]), []);
+});
+
+test("regionKey maps known regions to dictionary keys and leaves others", () => {
+  assert.equal(regionKey("Africa"), "region.africa");
+  assert.equal(regionKey("Americas"), "region.americas");
+  assert.equal(regionKey("Asia-Pacific"), "region.asiaPacific");
+  assert.equal(regionKey("Atlantis"), null);
+  assert.equal(regionKey("toString"), null);
 });

@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 52 — 2026-11-19 — Finished a stalled run's branch; emptied /account pages, focus after removal, "comment posted" (nine slices)
-PR: #PR
+PR: #408
 
 No open session PR (only dependabot's). An earlier run (branch `claude/gracious-davinci-zpddi2`, 2026-11-19 00:09–00:18 UTC)
 opened #399–#407, committed six of them and stopped before opening a PR. This session fast-forwarded onto that branch, reviewed

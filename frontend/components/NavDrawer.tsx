@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useState, useSyncExternalStore } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Drawer } from "./Drawer";
 import { NavMenuList } from "./NavMenuList";
+import { menuHref } from "@/lib/navMenu";
 import { ICON_BUTTON } from "@/lib/ui";
 
 const noSubscribe = () => () => {};
@@ -16,6 +17,20 @@ function MenuIcon() {
       <path d="M3 5.5h14M3 10h14M3 14.5h14" strokeLinecap="round" />
     </svg>
   );
+}
+
+/** The no-JavaScript menu link, carrying the page it was opened from (#416). */
+function MenuLink({ locale, href }: { locale: Locale; href: string }) {
+  return (
+    <Link href={href} className={ICON_BUTTON} aria-label={t(locale, "nav.menuOpen")}>
+      <MenuIcon />
+    </Link>
+  );
+}
+
+function MenuLinkWithSearch({ locale, pathname }: { locale: Locale; pathname: string }) {
+  const search = useSearchParams().toString();
+  return <MenuLink locale={locale} href={menuHref(pathname, search)} />;
 }
 
 /**
@@ -40,10 +55,12 @@ export function NavDrawer({ locale }: { locale: Locale }) {
   }
 
   if (!hydrated) {
+    // useSearchParams sits under Suspense so static pages stay static; their
+    // fallback link carries the path alone.
     return (
-      <Link href="/menu" className={ICON_BUTTON} aria-label={t(locale, "nav.menuOpen")}>
-        <MenuIcon />
-      </Link>
+      <Suspense fallback={<MenuLink locale={locale} href={menuHref(pathname)} />}>
+        <MenuLinkWithSearch locale={locale} pathname={pathname} />
+      </Suspense>
     );
   }
 

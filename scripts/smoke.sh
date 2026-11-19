@@ -53,6 +53,14 @@ if [[ "$home" == *'href="/menu"'* && "$menu" == *'href="/register"'* && "$menu" 
 else
   echo "FAIL the header should link to /menu, and /menu should list the menu (and be noindex)"; fail=1
 fi
+# #416: from another page the link carries ?from=, and /menu's language switch posts it back as next.
+listing=$(curl -s --max-time 15 "$BASE_URL/coffees?q=smoke") || listing=""
+menu_from=$(curl -s --max-time 15 "$BASE_URL/menu?from=%2Fcoffees%3Fq%3Dsmoke") || menu_from=""
+if [[ "$listing" == *'href="/menu?from=%2Fcoffees%3Fq%3Dsmoke"'* && "$menu_from" == *'name="next" value="/coffees?q=smoke"'* ]]; then
+  echo "ok   /menu remembers the page it was opened from"
+else
+  echo "FAIL the menu link should carry ?from= and /menu's language switch should return there"; fail=1
+fi
 
 # Site icons (#114): served as images, not the 404 page; the home page links them.
 icon_check() { # path content-type-prefix

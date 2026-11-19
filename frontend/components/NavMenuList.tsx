@@ -20,8 +20,11 @@ export function NavMenuList({
   locale,
   onNavigate,
   headingLevel = 3,
+  returnTo,
 }: {
   locale: Locale;
+  /** On /menu, the page it was opened from (#416): sign-in and the language switch go back there. */
+  returnTo?: string | null;
   onNavigate?: () => void;
   /** 3 under the drawer's h2 title; 2 on the /menu page (under its h1). */
   headingLevel?: 2 | 3;
@@ -32,7 +35,7 @@ export function NavMenuList({
   const router = useRouter();
   const pathname = usePathname();
   // Login / register bring the visitor back to this page afterwards.
-  const hrefOf = (href: string) => (href === "/login" || href === "/register" ? authHref(href, pathname) : href);
+  const hrefOf = (href: string) => (href === "/login" || href === "/register" ? authHref(href, returnTo ?? pathname) : href);
   const viewer: NavViewer = user
     ? { signedIn: true, role: user.role, hasShop: user.shop !== null }
     : { signedIn: false };
@@ -88,7 +91,7 @@ export function NavMenuList({
           {t(locale, NAV_LANGUAGE_LABEL)}
         </span>
         <div>
-          <LanguageToggle locale={locale} />
+          <LanguageToggle locale={locale} returnTo={returnTo} />
         </div>
       </div>
     </div>

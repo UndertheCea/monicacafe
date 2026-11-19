@@ -13,8 +13,11 @@ import { Button } from "@/components/ui";
 // `next` keeps the query string (#412). useSearchParams needs a Suspense boundary
 // so it doesn't push static pages into client rendering; the fallback is the same
 // form with the bare path (static pages have no query to keep).
-export function LanguageToggle({ locale }: { locale: Locale }) {
+//
+// `returnTo` overrides both (#416): /menu passes the page it was opened from.
+export function LanguageToggle({ locale, returnTo }: { locale: Locale; returnTo?: string | null }) {
   const pathname = usePathname();
+  if (returnTo) return <LanguageForm locale={locale} nextUrl={returnTo} />;
   return (
     <Suspense fallback={<LanguageForm locale={locale} nextUrl={pathname} />}>
       <WithSearch locale={locale} pathname={pathname} />

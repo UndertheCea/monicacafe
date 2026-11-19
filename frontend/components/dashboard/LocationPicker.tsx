@@ -16,6 +16,7 @@ export function LocationPicker({
   value,
   onPick,
   ariaLabel,
+  pinLabel,
   loadingLabel,
   failedLabel,
   controlLabels: { zoomIn, zoomOut },
@@ -23,6 +24,8 @@ export function LocationPicker({
   value: Coords | null;
   onPick: (c: Coords) => void;
   ariaLabel: string;
+  /** The draggable pin's accessible name and tooltip. */
+  pinLabel: string;
   loadingLabel: string;
   failedLabel: string;
   /** Leaflet's zoom buttons, translated (#363). */
@@ -92,7 +95,7 @@ export function LocationPicker({
         iconSize: [32, 32],
         iconAnchor: [16, 16],
       });
-      markerRef.current = L.marker([value.lat, value.lng], { icon, draggable: true, keyboard: true }).addTo(map);
+      markerRef.current = L.marker([value.lat, value.lng], { icon, draggable: true, keyboard: true, title: pinLabel, alt: pinLabel }).addTo(map);
       markerRef.current.on("dragend", () => {
         const p = markerRef.current!.getLatLng();
         onPickRef.current({ lat: roundCoord(p.lat), lng: roundCoord(p.lng) });
@@ -102,7 +105,7 @@ export function LocationPicker({
     }
     // Typed coordinates can land off-screen; bring the pin into view.
     if (!map.getBounds().contains([value.lat, value.lng])) map.panTo([value.lat, value.lng]);
-  }, [value, status]);
+  }, [value, status, pinLabel]);
 
   return (
     <div className="relative overflow-hidden rounded-box ring-1 ring-line">

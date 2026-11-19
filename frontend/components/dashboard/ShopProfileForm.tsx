@@ -259,6 +259,7 @@ function ProfileEditor({
             fe.clearField("lng");
           }}
           ariaLabel={t(locale, "shop.mapAria")}
+          pinLabel={t(locale, "dash.pinLabel")}
           loadingLabel={t(locale, "map.loading")}
           failedLabel={t(locale, "map.loadFailed")}
           controlLabels={mapControlLabels(locale)}

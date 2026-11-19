@@ -1,7 +1,7 @@
 // Coffee editor state updates (lib/dashboard/editorState.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { afterReload, mergeCoffeeFields, replaceVariant } from "../lib/dashboard/editorState.ts";
+import { afterReload, mergeCoffeeFields, replaceVariant, withoutVariant } from "../lib/dashboard/editorState.ts";
 
 const ready = (variants, extra = {}) => ({ state: "ready", coffee: { id: "c", name: "Kenya", variants, ...extra } });
 
@@ -40,4 +40,13 @@ test("afterReload only lets the first load fail the page", () => {
   const fresh = ready([{ id: "a" }]);
   assert.equal(afterReload(cur, fresh), fresh);
   assert.deepEqual(afterReload(cur, { state: "missing" }), { state: "missing" });
+});
+
+test("withoutVariant drops only the deleted option and leaves other states alone", () => {
+  const cur = ready([{ id: "a" }, { id: "b" }], { name: "Kenya" });
+  const got = withoutVariant(cur, "a");
+  assert.deepEqual(got.coffee.variants, [{ id: "b" }]);
+  assert.equal(got.coffee.name, "Kenya");
+  assert.deepEqual(withoutVariant(cur, "zzz").coffee.variants, [{ id: "a" }, { id: "b" }]);
+  for (const state of ["loading", "missing", "error"]) assert.deepEqual(withoutVariant({ state }, "a"), { state });
 });

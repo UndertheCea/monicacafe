@@ -31,3 +31,9 @@ export function mergeCoffeeFields<C extends WithVariants>(cur: EditorLoad<C>, fi
 export function afterReload<C>(cur: EditorLoad<C>, next: EditorLoad<C>): EditorLoad<C> {
   return next.state === "error" && cur.state === "ready" ? cur : next;
 }
+
+/** Drop one option from the current state (after a delete succeeded); any other state is left alone. */
+export function withoutVariant<C extends WithVariants>(cur: EditorLoad<C>, id: string): EditorLoad<C> {
+  if (cur.state !== "ready") return cur;
+  return { state: "ready", coffee: { ...cur.coffee, variants: cur.coffee.variants.filter((x) => x.id !== id) } };
+}

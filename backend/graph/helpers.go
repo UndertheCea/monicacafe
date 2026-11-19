@@ -286,6 +286,20 @@ func isUUID(s string) bool {
 	return err == nil
 }
 
+// canonicalUUID returns the spelling Postgres and this API emit (lowercase,
+// hyphenated) for an ID isUUID accepted. Uppercase, braces and the hyphen-less
+// form reach the same row (#333), but request-scoped loaders and ID
+// comparisons key on the canonical form, so resolvers that clear a loader or
+// compare with stored IDs canonicalise first (#401). Invalid input comes back
+// unchanged.
+func canonicalUUID(s string) string {
+	u, err := uuid.Parse(s)
+	if err != nil {
+		return s
+	}
+	return u.String()
+}
+
 // requireUUID validates an ID argument, reporting the field on failure.
 func requireUUID(field, s string) error {
 	if !isUUID(s) {
@@ -851,6 +865,7 @@ func checkLineup(have, want []string) error {
 	}
 	seen := make(map[string]bool, len(want))
 	for _, id := range want {
+		id = canonicalUUID(id) // have holds stored (canonical) IDs (#401)
 		if !owned[id] || seen[id] {
 			return errBadInput("coffeeIds", "list every coffee of the shop exactly once")
 		}

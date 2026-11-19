@@ -1403,6 +1403,7 @@ func (r *mutationResolver) UnsaveCoffee(ctx context.Context, id string) (*model.
 	if !isUUID(id) {
 		return nil, nil
 	}
+	id = canonicalUUID(id) // the loaders key on the canonical ID (#401)
 	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
 		return nil, err
 	}
@@ -1472,6 +1473,7 @@ func (r *mutationResolver) UnfollowShop(ctx context.Context, id string) (*model.
 	if !isUUID(id) {
 		return nil, nil
 	}
+	id = canonicalUUID(id) // the loaders key on the canonical ID (#401)
 	if err := allowKey(r.Limits.SaveUser, c.UserID); err != nil {
 		return nil, err
 	}

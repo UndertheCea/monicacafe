@@ -896,3 +896,42 @@ func TestToVariantOnSale(t *testing.T) {
 		})
 	}
 }
+
+func TestCanonicalUUID(t *testing.T) {
+	const id = "0b7e3c1a-5f2d-4c8e-9a41-3d6f2b8c9e10"
+	cases := []struct{ in, want string }{
+		{id, id},
+		{"0B7E3C1A-5F2D-4C8E-9A41-3D6F2B8C9E10", id},
+		{"{" + id + "}", id},
+		{"urn:uuid:" + id, id},
+		{"0b7e3c1a5f2d4c8e9a413d6f2b8c9e10", id},
+		{"not-a-uuid", "not-a-uuid"},
+		{"", ""},
+	}
+	for _, tc := range cases {
+		if got := canonicalUUID(tc.in); got != tc.want {
+			t.Errorf("canonicalUUID(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestCheckLineupOtherSpellings(t *testing.T) {
+	const a, b = "0b7e3c1a-5f2d-4c8e-9a41-3d6f2b8c9e10", "1c8f4d2b-6a3e-4d9f-8b52-4e7a3c9d0f21"
+	cases := []struct {
+		name string
+		want []string
+		ok   bool
+	}{
+		{"canonical", []string{b, a}, true},
+		{"uppercase", []string{strings.ToUpper(b), a}, true},
+		{"braces", []string{"{" + a + "}", b}, true},
+		{"same id twice in two spellings", []string{a, strings.ToUpper(a)}, false},
+		{"missing", []string{a}, false},
+		{"unknown", []string{a, "2d9a5e3c-7b4f-4e0a-9c63-5f8b4d0e1a32"}, false},
+	}
+	for _, tc := range cases {
+		if err := checkLineup([]string{a, b}, tc.want); (err == nil) != tc.ok {
+			t.Errorf("%s: err = %v, want ok %v", tc.name, err, tc.ok)
+		}
+	}
+}

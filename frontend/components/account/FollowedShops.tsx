@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useLoadMore } from "@/components/useLoadMore";
+import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { emptiedWithMore } from "@/lib/loadMore";
 import { MY_FOLLOWED_SHOPS, UNFOLLOW_SHOP, type ShopSummary } from "@/lib/api";
 import { FOLLOWED_PAGE } from "@/lib/follows";
@@ -66,11 +67,12 @@ export function FollowedShops({ locale }: { locale: Locale }) {
     }
   }
 
-  async function unfollow(id: string) {
+  async function unfollow(id: string, row: Element | null) {
     setRemoving(id);
     setRemoveError(false);
     try {
       await request(UNFOLLOW_SHOP, { id });
+      focusAfterRemoval(row); // keep the visitor's place (#405)
       more.removed(id);
       setS((cur) => (cur.state === "ready" ? { ...cur, list: withoutSaved(cur.list, id) } : cur));
       if (s.state === "ready" && s.more === "idle") {
@@ -120,7 +122,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
       {s.state === "ready" && s.list.nodes.length > 0 && (
         <Card as="ul" className="mt-4 divide-y divide-line">
           {s.list.nodes.map((sh) => (
-            <li key={sh.id} className="flex items-center gap-4 p-4">
+            <li key={sh.id} data-row={sh.id} className="flex items-center gap-4 p-4">
               <ShopLogo name={sh.name} logoUrl={sh.logoUrl} size="md" />
               <div className="min-w-0 flex-1">
                 <Link href={`/shops/${encodeURIComponent(sh.slug)}`} className="font-semibold text-ink hover:text-ink hover:underline underline-offset-4">
@@ -132,7 +134,8 @@ export function FollowedShops({ locale }: { locale: Locale }) {
               </div>
               <Button
                 type="button"
-                onClick={() => unfollow(sh.id)}
+                onClick={(e) => unfollow(sh.id, e.currentTarget.closest("[data-row]"))}
+                data-row-action
                 disabled={removing !== null}
                 aria-label={t(locale, "account.unfollowNamed", { name: sh.name })}
                 variant="secondary" size="sm" className="shrink-0"

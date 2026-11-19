@@ -117,7 +117,7 @@ export function CommentFeed({
           {s.page.nodes.map((c) => {
             const href = commentCoffeeHref(c.coffee);
             return (
-              <li key={c.id} className="p-4">
+              <li key={c.id} data-row={c.id} className="p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
                   <span className="min-w-0 text-muted">
                     {showAuthor && (
@@ -140,7 +140,7 @@ export function CommentFeed({
                       </Badge>
                     )}
                   </span>
-                  <span className="flex items-baseline gap-3">
+                  <span data-row-action className="flex items-baseline gap-3">
                     <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={removed} />
                     <time dateTime={c.createdAt} className="text-xs text-muted">
                       {formatTaipeiDate(c.createdAt, locale)}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useLoadMore } from "@/components/useLoadMore";
+import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { emptiedWithMore } from "@/lib/loadMore";
 import { MY_SAVED_COFFEES, UNSAVE_COFFEE, fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
@@ -66,11 +67,12 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
     }
   }
 
-  async function remove(id: string) {
+  async function remove(id: string, row: Element | null) {
     setRemoving(id);
     setRemoveError(false);
     try {
       await request(UNSAVE_COFFEE, { id });
+      focusAfterRemoval(row); // keep the visitor's place (#405)
       more.removed(id);
       setS((cur) => (cur.state === "ready" ? { ...cur, list: withoutSaved(cur.list, id) } : cur));
       if (s.state === "ready" && s.more === "idle") {
@@ -125,7 +127,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
             const price = fromPrice(c);
             const img = c.imageUrls[0];
             return (
-              <li key={c.id} className="flex items-center gap-4 p-4">
+              <li key={c.id} data-row={c.id} className="flex items-center gap-4 p-4">
                 <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-box bg-white">
                   {img ? (
                     <Picture src={img} thumb width={56} height={56} alt="" />
@@ -146,7 +148,8 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
                 </div>
                 <Button
                   type="button"
-                  onClick={() => remove(c.id)}
+                  onClick={(e) => remove(c.id, e.currentTarget.closest("[data-row]"))}
+                  data-row-action
                   disabled={removing !== null}
                   aria-label={t(locale, "account.unsaveNamed", { name: c.name })}
                   variant="secondary" size="sm" className="shrink-0"

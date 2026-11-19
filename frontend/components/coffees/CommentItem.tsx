@@ -20,13 +20,13 @@ export function CommentItem({
   onDeleted?: (id: string) => void;
 }) {
   return (
-    <li className="p-4">
+    <li data-row={c.id} className="p-4">
       <div className="flex items-baseline justify-between gap-3">
         <span>
           <span className="font-semibold text-ink">{c.user.displayName}</span>
           <AuthorBadge comment={c} locale={locale} />
         </span>
-        <span className="flex items-baseline gap-3">
+        <span data-row-action className="flex items-baseline gap-3">
           <ReportButton targetType="COMMENT" targetId={c.id} authorId={c.user.id} locale={locale} />
           <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={onDeleted} />
           <time dateTime={c.createdAt} className="text-xs text-muted">

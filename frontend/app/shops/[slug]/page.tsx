@@ -8,7 +8,7 @@ import { PAGE_SIZE, type SearchParams } from "@/lib/coffeeFilters";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
-import { errorPageMetadata, serializeJsonLd, shareMetadata, shopCoffeesJsonLd, shopJsonLd } from "@/lib/seo";
+import { errorPageMetadata, listingRobots, serializeJsonLd, shareMetadata, shopCoffeesJsonLd, shopJsonLd } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { parseShopPagePages, shopPageHref } from "@/lib/shopQuery";
 import { CoffeeCard } from "@/components/coffees/CoffeeCard";
@@ -66,6 +66,11 @@ export async function generateMetadata({
         images: [shop.bannerUrl, shop.logoUrl],
         locale,
       }),
+      // Either list past its last page shows only "back to page 1" (#402).
+      robots: listingRobots(
+        null,
+        pastLastPage(shop.coffees.total, pages.page, PAGE_SIZE) || pastLastPage(shop.archive.total, pages.archive, PAGE_SIZE),
+      ),
     };
   } catch {
     return errorPageMetadata(t(locale, "shops.title"));

@@ -84,8 +84,12 @@ export function listingCanonicalPath(base: string, page: number): string {
 }
 
 /** Keyword-search results aren't worth indexing, but their links are: `noindex, follow` when `q` is set. */
-export function listingRobots(q: string | null | undefined): { index: false; follow: true } | undefined {
-  return q && q.trim() ? { index: false, follow: true } : undefined;
+export function listingRobots(
+  q: string | null | undefined,
+  pastEnd = false,
+): { index: false; follow: true } | undefined {
+  // A ?page= past the last page shows only "back to page 1": a soft 404 (#402).
+  return pastEnd || (q && q.trim()) ? { index: false, follow: true } : undefined;
 }
 
 // ---------------------------------------------------------------------------

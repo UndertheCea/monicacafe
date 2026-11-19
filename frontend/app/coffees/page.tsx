@@ -1,5 +1,6 @@
 import { pluralKey } from "@/lib/plural";
 import type { Metadata } from "next";
+import { cache } from "react";
 import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
 import { cardSearchFields, findSearchMatch } from "@/lib/searchMatch";
 import Link from "next/link";
@@ -23,9 +24,36 @@ import { Pagination } from "@/components/Pagination";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
+type CoffeeSearch = ReturnType<typeof parseCoffeeSearch>;
+
+// One load per request for generateMetadata and the page (React cache() compares
+// arguments by identity, so the parsed search goes in as a JSON string): the
+// metadata needs the total to mark a past-the-end page noindex (#402).
+const loadCoffees = cache((key: string) => {
+  const { filter, sort, page } = JSON.parse(key) as CoffeeSearch;
+  return serverQuery(COFFEES, {
+    filter,
+    sort: sortForApi(sort),
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+    withDescription: Boolean(filter.search),
+  });
+});
+const coffeesFor = (s: CoffeeSearch) => loadCoffees(JSON.stringify(s));
+
+/** Whether this ?page= is past the end of the list; false when the list failed to load (the page shows its error). */
+async function coffeesPastEnd(s: CoffeeSearch): Promise<boolean> {
+  try {
+    return pastLastPage((await coffeesFor(s)).coffees.total, s.page, PAGE_SIZE);
+  } catch {
+    return false;
+  }
+}
+
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
   const [sp, locale] = await Promise.all([searchParams, getLocale()]);
-  const { filter, page } = parseCoffeeSearch(sp);
+  const parsed = parseCoffeeSearch(sp);
+  const { filter, page } = parsed;
   const title = t(locale, "coffees.title");
   return {
     title,
@@ -37,27 +65,22 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       images: [],
       locale,
     }),
-    robots: listingRobots(filter.search),
+    robots: listingRobots(filter.search, await coffeesPastEnd(parsed)),
   };
 }
 
 export default async function CoffeesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const locale = await getLocale();
-  const { filter, sort, page } = parseCoffeeSearch(sp);
+  const parsed = parseCoffeeSearch(sp);
+  const { filter, sort, page } = parsed;
 
   let data;
   try {
     const searching = Boolean(filter.search);
     const [options, list, terms] = await Promise.all([
       cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_TAGS.filterOptions]),
-      serverQuery(COFFEES, {
-        filter,
-        sort: sortForApi(sort),
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
-        withDescription: searching,
-      }),
+      coffeesFor(parsed),
       searching ? serverQuery(SEARCH_TERMS, { q: filter.search ?? "" }) : null,
     ]);
     data = { options, list: list.coffees, terms: terms?.searchTerms ?? [] };

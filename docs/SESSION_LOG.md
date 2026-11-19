@@ -15,6 +15,43 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 53 — 2026-11-19 — Audit: loaders per mutation field, image key shape, no-JS menu return, region names (eight slices)
+PR: #TBD
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: jobs /
+worker, storage, rate limits, search, loaders, list resolvers, admin; frontend: cart, map, shops, dashboard options / uploader,
+i18n, CSP, auth routes, sitemap, /admin) gave #409–#415; a Sonnet sub-agent built #411–#415 in a worktree (cherry-picked).
+Checking #412 showed no-JS visitors only reach the switch on /menu, which led to #416.
+
+### Shipped (one line per slice: area — what — key files)
+- #410 backend — `checkMediaURL` also requires `storage.IsImageKey` (NewKey's `<kind>-<24 hex>.<jpg|png|webp>`), so an
+  un-issued path under the own prefix (`x.html`, a bare name, a thumbnail) is refused. Table test + integration assertions.
+- #409 backend — `freshLoadersPerMutation` (`AroundRootFields` in `NewServer`): each mutation root field gets new request
+  loaders, so a later alias never reads a comment count / shop coffee count / variants / coffee / shop cached before an
+  earlier alias's write. Integration test (two comments; unpublish + publish) fails without it.
+- #411 frontend — origin `<optgroup>` headings through `t()` (`regionKey` in `lib/filterOptions.ts`, `region.*` keys incl.
+  Middle East); unknown regions shown as stored.
+- #412 frontend — `LanguageToggle`'s form `next` keeps the query string (`nextWithSearch`; `useSearchParams` under Suspense).
+- #413 frontend — deleting an option drops it from the editor at once (`withoutVariant`) and clears busy in `finally`, so a
+  failed reload no longer leaves a dead row.
+- #414 frontend — dashboard `stockStatus` counts only `isBuyable` options (NT$0 rows are sold out, as buyers see them).
+- #415 frontend — the location picker's draggable pin has a `title` / `alt` (`dash.pinLabel`).
+- #416 cross-cutting — no-JS header menu link is `/menu?from=<path + query>` (`menuHref`); /menu validates it (`menuFrom`,
+  `safeNext`) and sends the language switch and login / register back there. e2e no-JS step + `smoke.sh` check the round trip.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (381), `next build`; `next start` + curl confirmed the `/menu?from=` link, the switch's
+  `next` and the login `?next=` in the rendered HTML (and that a foreign `from` is ignored). `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe incl. the changed no-JS nav step (CI `stack` runs
+  them). #411, #413–#415 checked by helper tests, not in a browser or screen reader.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Fresh loaders per mutation field replace per-key clearing as the general rule; `ClearSaved` / `ClearFollowed` stay for
+  reads inside one field. Queries keep one loader set for the whole request.
+- Minor, not filed: `ListCoffees` / `ListShops` count and page in separate statements, so a concurrent publish can make
+  `total` and `nodes` disagree for one response.
+
 ## Session 52 — 2026-11-19 — Finished a stalled run's branch; emptied /account pages, focus after removal, "comment posted" (nine slices)
 PR: #408
 

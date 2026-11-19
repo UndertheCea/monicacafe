@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { COFFEE_COMMENTS, type CommentData } from "@/lib/api";
-import { COMMENTS_PAGE, appendComments, hasMoreComments, loadedComments, withLoadedComments } from "@/lib/comments";
+import { COMMENTS_PAGE, appendComments, hasMoreComments, lastPageSize, loadedComments, withLoadedComments } from "@/lib/comments";
 import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { CommentItem } from "./CommentItem";
@@ -26,7 +26,8 @@ export function MoreComments({
   locale: Locale;
 }) {
   const [extra, setExtra] = useState<CommentData[]>([]);
-  const [lastPage, setLastPage] = useState(first.length);
+  // null until a page is fetched here: the first page's size is read from props (#403).
+  const [lastPage, setLastPage] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -105,7 +106,7 @@ export function MoreComments({
           ))}
         </ul>
       )}
-      {hasMoreComments(shown.length, total, lastPage) && (
+      {hasMoreComments(shown.length, total, lastPageSize(lastPage, first.length)) && (
         <div className="border-t border-line p-3 text-center">
           <Button
             type="button"

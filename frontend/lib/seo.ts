@@ -87,9 +87,11 @@ export function listingCanonicalPath(base: string, page: number): string {
 export function listingRobots(
   q: string | null | undefined,
   pastEnd = false,
+  failed = false,
 ): { index: false; follow: true } | undefined {
   // A ?page= past the last page shows only "back to page 1": a soft 404 (#402).
-  return pastEnd || (q && q.trim()) ? { index: false, follow: true } : undefined;
+  // A list that failed to load shows the error panel, which must not be indexed either (#426).
+  return failed || pastEnd || (q && q.trim()) ? { index: false, follow: true } : undefined;
 }
 
 // ---------------------------------------------------------------------------

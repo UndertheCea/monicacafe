@@ -365,8 +365,9 @@ export const UPDATE_COMMENT = typed<
   mutation UpdateComment($id: ID!, $body: String!) { updateComment(id: $id, body: $body) { id body editedAt } }
 `);
 
-export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string }>(/* GraphQL */ `
-  mutation DeleteComment($id: ID!) { deleteComment(id: $id) }
+/** `reason` is required when an admin deletes someone else's comment (#421). */
+export const DELETE_COMMENT = typed<{ deleteComment: boolean }, { id: string; reason?: string }>(/* GraphQL */ `
+  mutation DeleteComment($id: ID!, $reason: String) { deleteComment(id: $id, reason: $reason) }
 `);
 
 // ---------------------------------------------------------------------------

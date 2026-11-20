@@ -11,6 +11,20 @@ export function deleteOutcome(code: string): "gone" | "rateLimited" | "failed" {
   return "failed";
 }
 
+/**
+ * Which delete control a viewer gets on a comment (#421): the author deletes
+ * their own after a confirm; an admin removing someone else's is a takedown and
+ * gives a reason for the audit log; anyone else gets none.
+ */
+export function deleteControl(
+  viewer: { id: string; role?: string | null } | null | undefined,
+  authorId: string,
+): "own" | "takedown" | "none" {
+  if (!viewer) return "none";
+  if (viewer.id === authorId) return "own";
+  return viewer.role === "ADMIN" ? "takedown" : "none";
+}
+
 /** Comments per page: the first page is server-rendered, "load more" fetches the next. */
 export const COMMENTS_PAGE = 20;
 

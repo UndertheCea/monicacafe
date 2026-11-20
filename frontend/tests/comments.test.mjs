@@ -10,6 +10,7 @@ import {
   commentAuthorBadge,
   commentCoffeeHref,
   commentEditErrorKey,
+  deleteControl,
   deleteOutcome,
   commentInputErrorKey,
   commentEditState,
@@ -181,4 +182,13 @@ test("pickComment keeps the local edit only while it is at least as new as the p
     ["both null", c("a", "p", null), c("a", "l", null), "l"],
   ];
   for (const [name, props, local, body] of cases) assert.equal(pickComment(props, local).body, body, name);
+});
+
+test("deleteControl: author confirms, admin takedown needs a reason, others none (#421)", () => {
+  assert.equal(deleteControl(null, "a"), "none");
+  assert.equal(deleteControl(undefined, "a"), "none");
+  assert.equal(deleteControl({ id: "a", role: "BUYER" }, "a"), "own");
+  assert.equal(deleteControl({ id: "a", role: "ADMIN" }, "a"), "own");
+  assert.equal(deleteControl({ id: "x", role: "ADMIN" }, "a"), "takedown");
+  assert.equal(deleteControl({ id: "x", role: "SELLER" }, "a"), "none");
 });

@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { ADD_COMMENT, COMMENT_MAX, DELETE_COMMENT as DELETE_COMMENT_DOC } from "@/lib/api";
-import { commentInputErrorKey, deleteOutcome } from "@/lib/comments";
+import { commentInputErrorKey, deleteControl, deleteOutcome } from "@/lib/comments";
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { focusAfterRemoval } from "@/components/focusAfterRemoval";
+import { ReasonPrompt } from "@/components/admin/ReasonPrompt";
 import { Button, ConfirmButton, Field, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
@@ -136,17 +137,37 @@ export function DeleteCommentButton({
   const [failed, setFailed] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
   const [, startTransition] = useTransition();
   const self = useRef<HTMLSpanElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [prompting, setPrompting] = useState(false);
 
-  if (!user || (user.id !== authorId && user.role !== "ADMIN")) return null;
+  const control = deleteControl(user, authorId);
+  if (control === "none") return null;
+  // An admin removing someone else's comment: a takedown, so it needs a reason
+  // for the audit log (#421).
+  const takedown = control === "takedown";
+
+  function removed() {
+    focusAfterRemoval(self.current?.closest("[data-row]")); // keep the visitor's place (#405)
+    onDeleted?.(commentId);
+    startTransition(() => router.refresh());
+  }
+
+  /** The takedown path: errors go back to ReasonPrompt, which shows them. */
+  async function takeDown(reason: string) {
+    try {
+      await request(DELETE_COMMENT_DOC, { id: commentId, reason });
+    } catch (err) {
+      if (deleteOutcome(toApiError(err).code) !== "gone") throw err;
+    }
+    removed();
+  }
 
   async function remove() {
     setBusy(true);
     setFailed(null);
     try {
       await request(DELETE_COMMENT_DOC, { id: commentId });
-      focusAfterRemoval(self.current?.closest("[data-row]")); // keep the visitor's place (#405)
-      onDeleted?.(commentId);
-      startTransition(() => router.refresh());
+      removed();
     } catch (err) {
       const e = toApiError(err);
       const outcome = deleteOutcome(e.code);
@@ -160,6 +181,28 @@ export function DeleteCommentButton({
       setFailed(outcome === "rateLimited" ? rateLimitMessage(e.retryAfter) : { key: "comments.deleteError" });
       setBusy(false);
     }
+  }
+
+  if (takedown) {
+    return (
+      <span ref={self} className="inline-flex items-center gap-2">
+        {prompting ? (
+          <ReasonPrompt
+            locale={locale}
+            required
+            onConfirm={takeDown}
+            onCancel={() => {
+              setPrompting(false);
+              requestAnimationFrame(() => trigger.current?.focus());
+            }}
+          />
+        ) : (
+          <Button ref={trigger} variant="quiet" size="sm" onClick={() => setPrompting(true)}>
+            {t(locale, "comments.delete")}
+          </Button>
+        )}
+      </span>
+    );
   }
 
   return (

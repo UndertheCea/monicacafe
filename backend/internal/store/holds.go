@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+
+	"github.com/google/uuid"
 )
 
 // StockLine is one line of an order: an option and how many bags.
@@ -23,18 +25,27 @@ var ErrDuplicateLine = errors.New("store: an option appears twice in one order")
 
 // holdOrder returns the indexes of lines sorted by variant id, the one lock
 // order every checkout uses, so two orders holding the same options in
-// opposite cart order can't deadlock (#310). Bad lines are refused up front.
+// opposite cart order can't deadlock (#310). Ids are compared in canonical
+// form, so "ABC…", "abc…" and "{abc…}" are one option (#421). Bad lines are
+// refused up front; an id that isn't a UUID can't name an option, so it is
+// ErrInsufficientStock like a missing one.
 func holdOrder(lines []StockLine) ([]int, error) {
 	idx := make([]int, len(lines))
+	keys := make([]string, len(lines))
 	for i := range lines {
 		if lines[i].Quantity <= 0 || lines[i].Quantity > MaxHoldQuantity {
 			return nil, fmt.Errorf("store: hold %d units", lines[i].Quantity)
 		}
+		id, err := uuid.Parse(lines[i].VariantID)
+		if err != nil {
+			return nil, ErrInsufficientStock
+		}
+		keys[i] = id.String()
 		idx[i] = i
 	}
-	sort.Slice(idx, func(a, b int) bool { return lines[idx[a]].VariantID < lines[idx[b]].VariantID })
+	sort.Slice(idx, func(a, b int) bool { return keys[idx[a]] < keys[idx[b]] })
 	for k := 1; k < len(idx); k++ {
-		if lines[idx[k]].VariantID == lines[idx[k-1]].VariantID {
+		if keys[idx[k]] == keys[idx[k-1]] {
 			return nil, ErrDuplicateLine
 		}
 	}

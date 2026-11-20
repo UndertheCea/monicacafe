@@ -382,7 +382,9 @@ func (c Config) MediaCleanupSafety() (maxFraction float64, dryRun bool, err erro
 	maxFraction = 0.2
 	if v := strings.TrimSpace(c.MediaCleanupMaxFraction); v != "" {
 		maxFraction, err = strconv.ParseFloat(v, 64)
-		if err != nil || maxFraction < 0 || maxFraction > 1 {
+		// Written as "not in range" so NaN (which ParseFloat accepts and which
+		// fails every comparison) is refused too (#421).
+		if err != nil || !(maxFraction >= 0 && maxFraction <= 1) {
 			return 0, false, fmt.Errorf("config: MEDIA_CLEANUP_MAX_FRACTION must be a number from 0 to 1 (0 = no limit), got %q", v)
 		}
 	}

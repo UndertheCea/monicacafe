@@ -1341,11 +1341,13 @@ func (r *mutationResolver) DeleteComment(ctx context.Context, id string, reason 
 		if c, err = r.requireAdmin(ctx); err != nil {
 			return false, err
 		}
+		// A takedown needs a reason, like every admin action (#421).
 		why := ""
 		if reason != nil {
-			if why, err = cleanText("reason", *reason, 0, maxReasonLen); err != nil {
-				return false, err
-			}
+			why = *reason
+		}
+		if why, err = moderationReason(why); err != nil {
+			return false, err
 		}
 		if err := r.Store.AdminDeleteComment(ctx, c.UserID, id, why); err != nil && !errors.Is(err, store.ErrNotFound) {
 			return false, err

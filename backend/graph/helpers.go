@@ -339,6 +339,19 @@ func badTextRune(r rune, multiline bool) bool {
 	return unicode.Is(unicode.Cc, r) || unicode.Is(unicode.Cf, r)
 }
 
+// hasVisibleRune reports whether s has a rune that draws something on its
+// own: not white space, the zero-width joiner, or a non-spacing / enclosing
+// mark (combining marks, U+034F, variation selectors are all Mn).
+func hasVisibleRune(s string) bool {
+	for _, r := range s {
+		if r == '\u200d' || unicode.IsSpace(r) || unicode.In(r, unicode.Mn, unicode.Me) {
+			continue
+		}
+		return true
+	}
+	return false
+}
+
 func cleanTextMode(field, s string, minLen, maxLen int, multiline bool) (string, error) {
 	if multiline {
 		s = strings.ReplaceAll(s, "\r\n", "\n")
@@ -353,6 +366,11 @@ func cleanTextMode(field, s string, minLen, maxLen int, multiline bool) (string,
 		}
 	}
 	n := utf8.RuneCountInString(s)
+	if minLen > 0 && n > 0 && !hasVisibleRune(s) {
+		// Only joiners, combining marks or variation selectors: the text
+		// renders blank, like the fillers badTextRune refuses (#419).
+		return "", errBadInput(field, field+" must contain visible text")
+	}
 	if n < minLen || n > maxLen {
 		if minLen > 0 {
 			return "", errBadInput(field, fmt.Sprintf("%s must be %d–%d characters", field, minLen, maxLen))

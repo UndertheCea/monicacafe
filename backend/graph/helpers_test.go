@@ -814,6 +814,13 @@ func TestCleanText(t *testing.T) {
 		{"lone CR", "a\rb", true, "", true},
 		{"invalid UTF-8", "a\xffb", false, "", true},
 		{"too short", "   ", false, "", true},
+		{"only ZWJ", "\u200d", false, "", true},
+		{"only ZWJs", "\u200d\u200d", true, "", true},
+		{"only grapheme joiner", "\u034f", false, "", true},
+		{"only variation selector", "\ufe0f", false, "", true},
+		{"only combining accents", "\u0301\u0301", false, "", true},
+		{"ZWJ around spaces", "\u200d \u200d", true, "", true},
+		{"accented letter", "e\u0301", false, "e\u0301", false},
 		{"too long", "abcdef", false, "", true},
 	}
 	for _, c := range cases {

@@ -428,6 +428,45 @@ func normaliseEmail(s string) (string, error) {
 	return s, nil
 }
 
+// emailLabelRe is one DNS label: letters, digits and inner hyphens.
+var emailLabelRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+// normaliseNewEmail is normaliseEmail plus the checks a new account's address
+// must pass (#439): ASCII only (a full-width "ａ@x.com" would be a second
+// account beside "a@x.com"), a local part of at most 64 bytes, and a domain
+// that can receive mail: two or more DNS labels, no address literal. Login
+// keeps the looser normaliseEmail so accounts stored before stay reachable.
+func normaliseNewEmail(s string) (string, error) {
+	s, err := normaliseEmail(s)
+	if err != nil {
+		return "", err
+	}
+	bad := errBadInput("email", "email address is invalid")
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 0x80 {
+			return "", bad
+		}
+	}
+	at := strings.LastIndexByte(s, '@')
+	local, domain := s[:at], s[at+1:]
+	if len(local) > 64 || len(domain) > 253 {
+		return "", bad
+	}
+	labels := strings.Split(domain, ".")
+	if len(labels) < 2 {
+		return "", bad
+	}
+	for _, l := range labels {
+		if len(l) > 63 || !emailLabelRe.MatchString(l) {
+			return "", bad
+		}
+	}
+	if tld := labels[len(labels)-1]; tld[0] >= '0' && tld[0] <= '9' {
+		return "", bad // "a@1.2.3.4"
+	}
+	return s, nil
+}
+
 var slugRe = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 func normaliseShopSlug(s string) (string, error) {

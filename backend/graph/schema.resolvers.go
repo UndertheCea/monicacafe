@@ -649,6 +649,10 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 	if err != nil {
 		return nil, err
 	}
+	// A suspended shop is read-only for its owner, as in ownedShop (#282, #431).
+	if sh.SuspendedAt != nil {
+		return nil, errShopSuspended()
+	}
 	if err := r.checkCoffeeCap(ctx, sh.ID); err != nil {
 		return nil, err
 	}

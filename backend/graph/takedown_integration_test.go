@@ -123,8 +123,22 @@ func TestTakedownsStick(t *testing.T) {
 		map[string]any{"id": shopID, "in": map[string]any{"name": "新名字"}})
 	buyer.expectCode(graph.CodeNotFound, `mutation($id: ID!) { followShop(id: $id) { id } }`, map[string]any{"id": shopID})
 	buyer.expectCode(graph.CodeNotFound, `mutation($id: ID!) { unfollowShop(id: $id) { id } }`, map[string]any{"id": shopID})
+	// Nor may it add coffees (#431).
+	var refs struct {
+		OriginCountries   []struct{ ID string }
+		ProcessingMethods []struct{ ID string }
+	}
+	buyer.mustDo(`{ originCountries { id } processingMethods { id } }`, nil, &refs)
+	const create = `mutation($in: CreateCoffeeInput!) { createCoffee(input: $in) { id } }`
+	newCoffee := map[string]any{"in": withEssentials(t, map[string]any{
+		"name": "Suspended draft", "description": "", "flavorNotes": []string{"Citrus"},
+		"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
+		"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 480, "stock": 3}},
+	})}
+	seller.expectCode(graph.CodeShopSuspended, create, newCoffee)
 	admin.mustDo(`mutation($id: ID!) { unsuspendShop(id: $id, reason: "resolved") { id } }`, map[string]any{"id": shopID}, nil)
 	seller.mustDo(publish, id, nil)
+	seller.mustDo(create, newCoffee, nil)
 
 	// ── Suspending the owner suspends the shop; reinstating leaves it ────────
 	admin.mustDo(`mutation($id: ID!) { suspendUser(id: $id, reason: "fraud") { id } }`, map[string]any{"id": sellerAuth.User.ID}, nil)

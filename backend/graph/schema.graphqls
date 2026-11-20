@@ -147,7 +147,8 @@ type Mutation {
   # returns the comment as it is, without setting editedAt.
   updateComment(id: ID!, body: String!): Comment!
   # The author, or an admin. An admin deleting someone else's comment is
-  # recorded in the audit log with reason (≤ 500 characters).
+  # recorded in the audit log and needs a reason (1–500 characters, #421);
+  # authors deleting their own comment send none.
   deleteComment(id: ID!, reason: String): Boolean!
 
   # Saved coffees (signed in). Only published coffees can be saved (a draft is

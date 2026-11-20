@@ -23,7 +23,7 @@ var reservedWords = []string{"admin", "administrator", "moderator", "official", 
 // IsReservedDisplayName reports whether name contains a reserved platform or
 // staff word, ignoring case, spacing, punctuation and full-width forms.
 func IsReservedDisplayName(name string) bool {
-	nfkc := norm.NFKC.String(name)
+	nfkc := foldConfusables(norm.NFKC.String(name))
 	var b strings.Builder
 	for _, r := range nfkc {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {

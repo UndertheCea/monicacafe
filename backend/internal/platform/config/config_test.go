@@ -344,6 +344,9 @@ func TestMediaCleanupSafety(t *testing.T) {
 		{"20%", "", 0, false, true},
 		{"1.5", "", 0, false, true},
 		{"-0.1", "", 0, false, true},
+		{"NaN", "", 0, false, true},
+		{"nan", "", 0, false, true},
+		{"Inf", "", 0, false, true},
 		{"0.2", "maybe", 0, false, true},
 	}
 	for _, c := range cases {

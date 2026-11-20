@@ -187,28 +187,35 @@ func (f ShopFilter) where() (string, []any) {
 // together with the total number of matching shops.
 func (s *Store) ListShops(ctx context.Context, f ShopFilter, sort ShopSort, limit, offset int) ([]*Shop, int, error) {
 	where, args := f.where()
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM shops s`+where, args...).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
 	join, order := sort.orderBy()
 	n := len(args)
-	args = append(args, limit, offset)
-	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM shops s%s%s
-		ORDER BY %s LIMIT $%d OFFSET $%d`, shopColumnsAs("s"), join, where, order, n+1, n+2), args...)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	var out []*Shop
-	for rows.Next() {
-		sh, err := scanShop(rows)
-		if err != nil {
-			return nil, 0, err
+	var (
+		total int
+		out   []*Shop
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM shops s`+where, args...).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, sh)
+		rows, err := db.Query(ctx, fmt.Sprintf(`SELECT %s FROM shops s%s%s
+		ORDER BY %s LIMIT $%d OFFSET $%d`, shopColumnsAs("s"), join, where, order, n+1, n+2), append(args, limit, offset)...)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			sh, err := scanShop(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, sh)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // shopColumnsAs qualifies shopColumns with a table alias.

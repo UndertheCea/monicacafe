@@ -23,7 +23,7 @@ test("settleFollow prefers the API's answer, keeps the guess on null", () => {
 
 test("followControl: login when signed out, count only for the owner", () => {
   const cases = [
-    { status: "loading", viewerShop: null, want: "none" },
+    { status: "loading", viewerShop: null, want: "login" },
     { status: "anonymous", viewerShop: null, want: "login" },
     { status: "authenticated", viewerShop: null, want: "toggle" },
     { status: "authenticated", viewerShop: undefined, want: "toggle" },

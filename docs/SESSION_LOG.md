@@ -15,6 +15,40 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 54 — 2026-11-20 — Audit: password never in the URL, takedown reasons, invisible / look-alike names (seven slices)
+PR: #425
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: cart / holds,
+moderation, auth, jobs, config, text checks; frontend: cart, coffee page, shops, auth forms, account, dashboard forms) plus the
+count / page gap noted in Session 53 gave #418–#424. Sonnet sub-agents built #420, #423 and #424 in worktrees (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #418 backend — `ListCoffees` / `ListShops` run count + page in one read-only REPEATABLE READ transaction (`Store.inSnapshot`).
+- #419 backend — required text needs a visible rune (`hasVisibleRune` in `graph/helpers.go`): only ZWJ, U+034F, variation
+  selectors or combining marks is BAD_USER_INPUT. Emoji sequences and accented letters pass. Table test.
+- #420 backend — `twfmt.foldConfusables` maps Cyrillic / Greek look-alikes to Latin before `IsReservedDisplayName`
+  ("Аdmin", "Suрport" refused; "Наташа", "Γιώργος" allowed).
+- #421 cross-cutting — admin `deleteComment` on someone else's comment needs a reason (`moderationReason`); the coffee page
+  gives admins `ReasonPrompt` (moved to `components/admin/ReasonPrompt.tsx`), `deleteControl` helper + test; integration test.
+  `MEDIA_CLEANUP_MAX_FRACTION` refuses NaN / Inf; `holdOrder` sorts / dedupes canonical UUIDs (non-UUID = insufficient stock).
+- #422 frontend — `AuthForm` and the account password forms `method="post"` + `<noscript>` "needs JavaScript" note
+  (`auth.needsJs`); `tests/passwordForms.test.mjs` guards every form in a file with a password field.
+- #423 frontend — Save / Follow / coffee-details save use `aria-disabled` + guard (focus stays); "Added to cart", details saved
+  and account "Saved" messages sit in always-mounted `role="status"` nodes. Source tests in `tests/a11y.test.mjs`.
+- #424 cross-cutting — while auth is `loading` (no JS) the comment form, Save and Follow show their sign-in links
+  (`showSignInLink`, `followControl`); e2e no-JS step `nojs-comment-signin-link`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (386), `next build`; `next start` + curl: /login's form is `method="post"` with the noscript note,
+  and a form POST to /login re-renders the page (200). `docker compose config`, `check_brief.sh`.
+- Not run here: compose stack, smoke, Playwright / axe incl. the new no-JS step (CI `stack` runs them). #423's focus and
+  announcements and #421's admin prompt were checked by reading and source tests, not in a browser or screen reader.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- An admin can no longer delete someone else's comment without a reason (API and UI); authors still delete their own freely.
+- Confusables cover common Cyrillic / Greek look-alikes only, not the full Unicode confusables table; reports stay the backstop.
+
 ## Session 53 — 2026-11-19 — Audit: loaders per mutation field, image key shape, no-JS menu return, region names (eight slices)
 PR: #417
 

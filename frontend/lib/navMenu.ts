@@ -132,3 +132,12 @@ export function menuFrom(raw: string | string[] | undefined): string | null {
   if (!safe || safe === "/menu" || safe.startsWith("/menu?") || safe.startsWith("/menu#")) return null;
   return safe;
 }
+
+/**
+ * Whether a "log in to comment / save" prompt shows (#424): until the visitor is
+ * known to be signed in. Without JavaScript the auth status never leaves
+ * "loading", so loading shows the link too, like "anonymous".
+ */
+export function showSignInLink(status: "loading" | "anonymous" | "authenticated"): boolean {
+  return status !== "authenticated";
+}

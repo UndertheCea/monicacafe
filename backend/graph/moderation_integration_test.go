@@ -192,6 +192,11 @@ func TestModeration(t *testing.T) {
 	}
 
 	// ── Admin deletes a comment, unpublishes the coffee ───────────────────────
+	// Taking down someone else's comment needs a reason (#421).
+	admin.expectCode(graph.CodeBadInput, `mutation($id: ID!) { deleteComment(id: $id) }`,
+		map[string]any{"id": cm.Coffee.Comments[0].ID})
+	admin.expectCode(graph.CodeBadInput, `mutation($id: ID!) { deleteComment(id: $id, reason: "  ") }`,
+		map[string]any{"id": cm.Coffee.Comments[0].ID})
 	admin.mustDo(`mutation($id: ID!) { deleteComment(id: $id, reason: "personal data") }`,
 		map[string]any{"id": cm.Coffee.Comments[0].ID}, nil)
 	admin.mustDo(`mutation($id: ID!) { adminUnpublishCoffee(id: $id, reason: "mislabelled") { id } }`,

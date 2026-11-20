@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authHref, loginHrefFrom, menuFrom, menuHref, NAV_HOME, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
+import { authHref, loginHrefFrom, menuFrom, menuHref, NAV_HOME, showSignInLink, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
 import { t } from "../lib/i18n/dict.ts";
 
 const flat = (sections) =>
@@ -121,4 +121,10 @@ test("menuFrom: only same-site pages other than /menu come back (#416)", () => {
   for (const bad of [undefined, "", "https://evil.example/", "//evil.example", "/api/locale", "/menu", "/menu?from=%2F", "javascript:alert(1)", "/\\evil"]) {
     assert.equal(menuFrom(bad), null, String(bad));
   }
+});
+
+test("showSignInLink: shown until the visitor is known to be signed in (#424)", () => {
+  assert.equal(showSignInLink("loading"), true);
+  assert.equal(showSignInLink("anonymous"), true);
+  assert.equal(showSignInLink("authenticated"), false);
 });

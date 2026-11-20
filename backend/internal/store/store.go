@@ -74,6 +74,24 @@ func (s *Store) InTx(ctx context.Context, fn func(tx *Store) error) error {
 	return nil
 }
 
+// inSnapshot runs fn in a read-only REPEATABLE READ transaction, so every
+// query in it sees the same snapshot (a listing's count and its page agree,
+// #418). Inside a transaction already, fn runs on it.
+func (s *Store) inSnapshot(ctx context.Context, fn func(db DB) error) error {
+	if s.pool == nil {
+		return fn(s.db)
+	}
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return fmt.Errorf("begin snapshot: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // mapErr converts driver errors into store sentinel errors.
 func mapErr(err error) error {
 	if err == nil {

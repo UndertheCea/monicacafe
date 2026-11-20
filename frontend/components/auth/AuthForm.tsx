@@ -88,7 +88,12 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
   };
 
   return (
-    <form onSubmit={onSubmit} noValidate className={`${CARD} space-y-4 p-6`}>
+    // method="post": a submit before hydration (or without JavaScript) must never put the
+    // password in the URL, history or access logs, as the default GET would (#422).
+    <form method="post" onSubmit={onSubmit} noValidate className={`${CARD} space-y-4 p-6`}>
+      <noscript>
+        <p className="text-sm text-danger">{t(locale, "auth.needsJs")}</p>
+      </noscript>
       {(fe.errors.form || fe.first) && (
         <ErrorSummary
           formId={formId}

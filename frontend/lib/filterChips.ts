@@ -58,11 +58,16 @@ export function filterChips(f: ChipFilter, sp: Params, base: string, opts: { sea
   return out;
 }
 
-/** The dictionary key + vars for a price chip: a range, a floor or a ceiling. */
-export function priceChipLabel(min?: number, max?: number): { key: "chip.priceRange" | "chip.priceMin" | "chip.priceMax"; vars: Record<string, number> } {
-  if (min !== undefined && max !== undefined) return { key: "chip.priceRange", vars: { min, max } };
-  if (min !== undefined) return { key: "chip.priceMin", vars: { min } };
-  return { key: "chip.priceMax", vars: { max: max ?? 0 } };
+/** Thousands-grouped whole NT$ amount, the same grouping `formatTWD` gives the cards. */
+export function groupTwd(n: number): string {
+  return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(n);
+}
+
+/** The dictionary key + vars for a price chip: a range, a floor or a ceiling (amounts already grouped). */
+export function priceChipLabel(min?: number, max?: number): { key: "chip.priceRange" | "chip.priceMin" | "chip.priceMax"; vars: Record<string, string> } {
+  if (min !== undefined && max !== undefined) return { key: "chip.priceRange", vars: { min: groupTwd(min), max: groupTwd(max) } };
+  if (min !== undefined) return { key: "chip.priceMin", vars: { min: groupTwd(min) } };
+  return { key: "chip.priceMax", vars: { max: groupTwd(max ?? 0) } };
 }
 
 /**

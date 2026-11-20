@@ -161,14 +161,17 @@ export function AddToCart({ variants, locale }: { variants: BuyableVariant[]; lo
       )}
       </>
       )}
-      {note?.kind === "added" && (
-        <p role="status" className="w-full text-sm text-ink">
-          {t(locale, "cart.added")}{" "}
-          <Link href="/cart" className="font-semibold underline underline-offset-4">
-            {t(locale, "cart.view")}
-          </Link>
-        </p>
-      )}
+      {/* Always mounted so the text is announced when it appears (#423); empty:-mt-3 cancels the row gap. */}
+      <p role="status" className="w-full text-sm text-ink empty:-mt-3">
+        {note?.kind === "added" && (
+          <>
+            {t(locale, "cart.added")}{" "}
+            <Link href="/cart" className="font-semibold underline underline-offset-4">
+              {t(locale, "cart.view")}
+            </Link>
+          </>
+        )}
+      </p>
       {note?.kind === "error" && (
         <p role="alert" className="w-full text-sm text-danger">
           {t(locale, note.key, note.vars)}

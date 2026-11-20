@@ -71,7 +71,7 @@ export function FollowButton({
   }
 
   async function onToggle() {
-    if (busy) return;
+    if (busy || !loaded) return; // aria-disabled keeps focus on the button, so guard here (#423)
     const before = state;
     const guess = toggleFollow(state, !state.following);
     setState(guess);
@@ -96,7 +96,8 @@ export function FollowButton({
       <p className="flex flex-wrap items-center gap-3">
         <Button
           onClick={onToggle}
-          disabled={busy || !loaded}
+          aria-disabled={busy || !loaded}
+          className={busy || !loaded ? "opacity-50" : undefined}
           aria-pressed={state.following}
           variant={state.following ? "secondary" : "primary"}
         >

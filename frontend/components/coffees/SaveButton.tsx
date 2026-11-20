@@ -61,7 +61,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   }
 
   async function onToggle() {
-    if (busy) return;
+    if (busy || !loaded) return; // aria-disabled keeps focus on the button, so guard here (#423)
     const before = state;
     const guess = toggleSave(state, !state.saved);
     setState(guess);
@@ -86,7 +86,8 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
       <p className="flex flex-wrap items-center gap-3">
         <Button
           onClick={onToggle}
-          disabled={busy || !loaded}
+          aria-disabled={busy || !loaded}
+          className={busy || !loaded ? "opacity-50" : undefined}
           aria-pressed={state.saved}
           variant={state.saved ? "primary" : "secondary"}
         >

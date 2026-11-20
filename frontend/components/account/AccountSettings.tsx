@@ -42,10 +42,11 @@ const JUMP_LINKS = [
   ["delete-title", "account.delete.title"],
 ] as const satisfies readonly (readonly [string, MessageKey])[];
 
-function Saved({ children }: { children: React.ReactNode }) {
+/** Always mounted so screen readers announce the text when it appears (#423). */
+function Saved({ show, children }: { show: boolean; children: React.ReactNode }) {
   return (
     <p role="status" className="text-sm text-ink">
-      {children}
+      {show ? children : ""}
     </p>
   );
 }
@@ -176,7 +177,7 @@ function ProfileForm({ locale }: { locale: Locale }) {
         <Button type="submit" disabled={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.save")}
         </Button>
-        {saved && <Saved>{t(locale, "account.saved")}</Saved>}
+        <Saved show={saved}>{t(locale, "account.saved")}</Saved>
       </div>
     </form>
   );
@@ -298,7 +299,7 @@ function PasswordForm({ locale }: { locale: Locale }) {
         <Button type="submit" disabled={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.changePassword")}
         </Button>
-        {done && <Saved>{t(locale, "account.passwordChanged")}</Saved>}
+        <Saved show={done}>{t(locale, "account.passwordChanged")}</Saved>
       </div>
     </form>
   );

@@ -159,7 +159,7 @@ export function CoffeeDetailsForm({
       if (isOptionalField(field)) setMoreOpen(true);
       return fe.failField(field, detailsMessage(problem));
     }
-    if (!dirty) return;
+    if (!dirty || busy) return; // the button is aria-disabled, not disabled, so focus stays on it (#423)
     setBusy(true);
     setSaveMsg(null);
     fe.clear();
@@ -298,15 +298,14 @@ export function CoffeeDetailsForm({
       <div className="mt-4 flex flex-wrap items-center gap-4">
         <Button
           type="submit"
-          disabled={busy || !dirty}
+          aria-disabled={busy || !dirty}
+          className={busy || !dirty ? "opacity-50" : undefined}
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
         </Button>
-        {saveMsg && (
-          <p role="status" className="text-sm text-ink">
-            {t(locale, saveMsg)}
-          </p>
-        )}
+        <p role="status" className="text-sm text-ink">
+          {saveMsg ? t(locale, saveMsg) : ""}
+        </p>
       </div>
     </form>
   );

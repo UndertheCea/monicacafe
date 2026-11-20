@@ -42,3 +42,19 @@ test("the language toggle and wordmark declare their language", () => {
   assert.match(read("components/LanguageToggle.tsx"), /<span lang=/);
   assert.match(read("components/Wordmark.tsx"), /lang="en"/);
 });
+
+test("toggles that stay on screen use aria-disabled, not disabled, so focus is kept (#423)", () => {
+  for (const f of ["components/coffees/SaveButton.tsx", "components/shops/FollowButton.tsx", "components/dashboard/CoffeeDetailsForm.tsx"]) {
+    const src = read(f);
+    assert.ok(!/(?<![-\w])disabled=\{/.test(src), `${f} has no disabled={...}`);
+    assert.match(src, /aria-disabled=\{/, f);
+  }
+});
+
+test("success messages sit in always-mounted role=status regions (#423)", () => {
+  const account = read("components/account/AccountSettings.tsx");
+  const details = read("components/dashboard/CoffeeDetailsForm.tsx");
+  assert.ok(!/\{(saved|done) &&/.test(account));
+  assert.ok(!/\{saveMsg &&/.test(details));
+  assert.ok(!/note\?\.kind === "added" && \(\s*<p role="status"/.test(read("components/cart/AddToCart.tsx")));
+});

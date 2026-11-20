@@ -15,6 +15,35 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 55 — 2026-11-20 — Audit: error pages noindex, search terms optional, suspended shops can't add coffees (seven slices)
+PR: #PR
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: resolvers,
+store SQL, migrations, scripts, nginx, compose, CI; frontend: home, /coffees params, lib helpers, metadata, error pages, API
+routes, JSON-LD) gave #426–#432. A Sonnet sub-agent built #428 and #429 in a worktree (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #426 frontend — `listingRobots(q, pastEnd, failed)`; /coffees (list + filter options), /shops and /map share one `cache()`d
+  load between metadata and page, so an API failure is `noindex, follow`. Tests in `tests/seo.test.mjs`.
+- #427 frontend — `optionalSearchTerms` (`lib/searchMatch.ts`): a failed `searchTerms` lookup gives no "Matched" lines instead of
+  the error page.
+- #428 frontend — price chips group thousands (`groupTwd` in `lib/filterChips.ts`): "NT$1,200–3,000", also in the remove label.
+- #429 frontend — `ShopCard` `headingLevel` prop; the home page's featured roasters are h3 under their h2.
+- #430 backend — `clampPriceFilter`: `minPriceTwd` / `maxPriceTwd` above 2^31−1 are clamped (was a pgx encode error → 500).
+- #431 cross-cutting — `createCoffee` returns SHOP_SUSPENDED for a suspended shop (it skipped `ownedShop`); the dashboard hides
+  "New coffee" while suspended (`canAddCoffee`). Integration test in `takedown_integration_test.go`.
+- #432 backend — `CommentsByShop` skips archived coffees (they resolved to `coffee: null`); the author's own list is unchanged.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (392), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The noindex-on-failure
+  metadata and the optional search terms were checked by tests and reading, not against a failing API in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Price filter bounds are clamped, not refused: the site's URL parser allows up to 7 digits, and refusing would turn those
+  into error pages. No new questions.
+
 ## Session 54 — 2026-11-20 — Audit: password never in the URL, takedown reasons, invisible / look-alike names (seven slices)
 PR: #425
 

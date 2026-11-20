@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 56 — 2026-11-20 — Audit: legacy NT$0 rows, cart drafts, cross-tab user switch, contact-filter false positives (seven slices)
-PR: #PR
+PR: #441
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (frontend: cart, admin,
 account, dashboard options, auth provider; backend: dataloaders, cart, jobs, storage, admin CLI, contact filter, email, store

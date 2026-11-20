@@ -97,7 +97,7 @@ export default async function HomePage() {
         ) : home.shops.nodes.length > 0 ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {home.shops.nodes.map((s) => (
-              <ShopCard key={s.id} shop={s} locale={locale} />
+              <ShopCard key={s.id} shop={s} locale={locale} headingLevel="h3" />
             ))}
           </div>
         ) : (

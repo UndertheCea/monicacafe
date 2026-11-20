@@ -1,6 +1,7 @@
 // Active-filter chips (lib/filterChips.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { t } from "../lib/i18n/dict.ts";
 import { activeFilterCount, filterChips, hrefWithout, priceChipLabel } from "../lib/filterChips.ts";
 
 test("hrefWithout drops the named params and page, keeps the rest", () => {
@@ -97,11 +98,25 @@ test("filterChips: a price floor only, and another base", () => {
   );
 });
 
-test("priceChipLabel picks range, floor or ceiling", () => {
-  assert.deepEqual(priceChipLabel(300, 900), { key: "chip.priceRange", vars: { min: 300, max: 900 } });
-  assert.deepEqual(priceChipLabel(300, undefined), { key: "chip.priceMin", vars: { min: 300 } });
-  assert.deepEqual(priceChipLabel(undefined, 900), { key: "chip.priceMax", vars: { max: 900 } });
-  assert.deepEqual(priceChipLabel(0, undefined), { key: "chip.priceMin", vars: { min: 0 } });
+test("priceChipLabel picks range, floor or ceiling, with grouped thousands", () => {
+  assert.deepEqual(priceChipLabel(300, 900), { key: "chip.priceRange", vars: { min: "300", max: "900" } });
+  assert.deepEqual(priceChipLabel(1200, undefined), { key: "chip.priceMin", vars: { min: "1,200" } });
+  assert.deepEqual(priceChipLabel(undefined, 3000), { key: "chip.priceMax", vars: { max: "3,000" } });
+  assert.deepEqual(priceChipLabel(0, undefined), { key: "chip.priceMin", vars: { min: "0" } });
+});
+
+test("price chip text groups thousands in zh-TW and en", () => {
+  const text = (locale, min, max) => {
+    const { key, vars } = priceChipLabel(min, max);
+    return t(locale, key, vars);
+  };
+  assert.equal(text("zh-TW", 1200, 3000), "NT$1,200–3,000");
+  assert.equal(text("zh-TW", 1200, undefined), "NT$1,200 以上");
+  assert.equal(text("zh-TW", undefined, 3000), "NT$3,000 以下");
+  assert.equal(text("en", 1200, 3000), "NT$1,200–3,000");
+  assert.equal(text("en", 1200, undefined), "NT$1,200 and up");
+  assert.equal(text("en", undefined, 3000), "Up to NT$3,000");
+  assert.equal(t("en", "chip.remove", { label: text("en", 1200, undefined) }), t("en", "chip.remove", { label: "NT$1,200 and up" }));
 });
 
 test("activeFilterCount counts filters, not search or sort; price once", () => {

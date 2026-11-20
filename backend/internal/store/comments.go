@@ -110,10 +110,11 @@ func (s *Store) CommentCountsByCoffeeIDs(ctx context.Context, coffeeIDs []string
 }
 
 // CommentsByShop lists a page of the comments on every coffee of a shop
-// (drafts included), newest first, plus the total.
+// (drafts included, archived coffees not: they resolve to no coffee, #432),
+// newest first, plus the total.
 func (s *Store) CommentsByShop(ctx context.Context, shopID string, limit, offset int) ([]*Comment, int, error) {
 	return s.commentPage(ctx, `FROM comments cm JOIN coffees c ON c.id = cm.coffee_id
-		WHERE c.shop_id = $1 AND cm.user_id NOT IN (`+suspendedUserIDs+`)`, shopID, limit, offset)
+		WHERE c.shop_id = $1 AND c.archived_at IS NULL AND cm.user_id NOT IN (`+suspendedUserIDs+`)`, shopID, limit, offset)
 }
 
 // commentPage runs a newest-first, offset-paged comment listing over `from`

@@ -2,7 +2,7 @@ import { pluralKey } from "@/lib/plural";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
-import { cardSearchFields, findSearchMatch } from "@/lib/searchMatch";
+import { cardSearchFields, findSearchMatch, optionalSearchTerms } from "@/lib/searchMatch";
 import Link from "next/link";
 import { pastLastPage } from "@/lib/pagination";
 import { PastLastPage } from "@/components/PastLastPage";
@@ -40,13 +40,19 @@ const loadCoffees = cache((key: string) => {
   });
 });
 const coffeesFor = (s: CoffeeSearch) => loadCoffees(JSON.stringify(s));
+// The filter options, once per request too, so the metadata and the page agree on a failure (#426).
+const loadOptions = cache(() => cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_TAGS.filterOptions]));
 
-/** Whether this ?page= is past the end of the list; false when the list failed to load (the page shows its error). */
-async function coffeesPastEnd(s: CoffeeSearch): Promise<boolean> {
+/**
+ * What the metadata needs to know about this request's list: past the last page,
+ * or failed (the page then shows its error panel). Both are noindex (#402, #426).
+ */
+async function coffeesStatus(s: CoffeeSearch): Promise<{ pastEnd: boolean; failed: boolean }> {
   try {
-    return pastLastPage((await coffeesFor(s)).coffees.total, s.page, PAGE_SIZE);
+    const [, list] = await Promise.all([loadOptions(), coffeesFor(s)]);
+    return { pastEnd: pastLastPage(list.coffees.total, s.page, PAGE_SIZE), failed: false };
   } catch {
-    return false;
+    return { pastEnd: false, failed: true };
   }
 }
 
@@ -55,6 +61,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const parsed = parseCoffeeSearch(sp);
   const { filter, page } = parsed;
   const title = t(locale, "coffees.title");
+  const status = await coffeesStatus(parsed);
   return {
     title,
     ...shareMetadata({
@@ -65,7 +72,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       images: [],
       locale,
     }),
-    robots: listingRobots(filter.search, await coffeesPastEnd(parsed)),
+    robots: listingRobots(filter.search, status.pastEnd, status.failed),
   };
 }
 
@@ -77,13 +84,13 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
   let data;
   try {
-    const searching = Boolean(filter.search);
     const [options, list, terms] = await Promise.all([
-      cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_TAGS.filterOptions]),
+      loadOptions(),
       coffeesFor(parsed),
-      searching ? serverQuery(SEARCH_TERMS, { q: filter.search ?? "" }) : null,
+      // Only the "Matched: …" lines need these; a failed lookup drops them, not the results (#427).
+      optionalSearchTerms(filter.search, (q) => serverQuery(SEARCH_TERMS, { q })),
     ]);
-    data = { options, list: list.coffees, terms: terms?.searchTerms ?? [] };
+    data = { options, list: list.coffees, terms };
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }

@@ -241,3 +241,16 @@ test("home and listing pages build their share card with shareMetadata (#195)", 
 test("errorPageMetadata keeps the title and blocks indexing", () => {
   assert.deepEqual(errorPageMetadata("Coffees"), { title: "Coffees", robots: { index: false, follow: true } });
 });
+
+test("listingRobots: a list that failed to load is noindex, follow (#426)", () => {
+  assert.deepEqual(listingRobots(undefined, false, true), { index: false, follow: true });
+  assert.deepEqual(listingRobots(null, false, true), { index: false, follow: true });
+  assert.equal(listingRobots(undefined, false, false), undefined);
+});
+
+test("listing pages pass a failed load to listingRobots (#426)", () => {
+  const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  assert.match(read("app/coffees/page.tsx"), /listingRobots\(filter\.search, status\.pastEnd, status\.failed\)/);
+  assert.match(read("app/shops/page.tsx"), /listingRobots\(q \?\? city, pastEnd, failed\)/);
+  assert.match(read("app/map/page.tsx"), /listingRobots\(null, false, failed\)/);
+});

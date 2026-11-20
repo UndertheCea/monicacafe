@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"net/mail"
 	"regexp"
@@ -696,6 +697,17 @@ const (
 	maxStock    = 100_000
 )
 
+// clampPriceFilter caps a price filter bound at the largest INTEGER Postgres
+// stores (#430). GraphQL Int is 64-bit here and price_twd is int4, so a larger
+// bound couldn't be encoded (a 500); every stored price is below the cap, so
+// clamping keeps the filter's meaning exactly.
+func clampPriceFilter(v int) int64 {
+	if v > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int64(v)
+}
+
 func validateVariants(vs []*model.VariantInput) ([]store.CreateVariantParams, error) {
 	if len(vs) == 0 || len(vs) > maxVariants {
 		return nil, errBadInput("variants", fmt.Sprintf("a coffee needs 1–%d variants", maxVariants))
@@ -1012,14 +1024,14 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 		if *f.MinPriceTwd < 0 {
 			return out, errBadInput("minPriceTwd", "minPriceTwd must not be negative")
 		}
-		v := int64(*f.MinPriceTwd)
+		v := clampPriceFilter(*f.MinPriceTwd)
 		out.MinPriceTWD = &v
 	}
 	if f.MaxPriceTwd != nil {
 		if *f.MaxPriceTwd < 0 {
 			return out, errBadInput("maxPriceTwd", "maxPriceTwd must not be negative")
 		}
-		v := int64(*f.MaxPriceTwd)
+		v := clampPriceFilter(*f.MaxPriceTwd)
 		out.MaxPriceTWD = &v
 	}
 	if f.InStock != nil {

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import Link from "next/link";
 import { SHOPS_FOR_MAP, hasCoords } from "@/lib/api";
 import { cityGroups, cityShopsHref } from "@/lib/mapList";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
-import { shareMetadata } from "@/lib/seo";
+import { listingRobots, shareMetadata } from "@/lib/seo";
 import { siteBase } from "@/lib/sitemap";
 import { ErrorState } from "@/components/ErrorState";
 import { mapControlLabels } from "@/lib/mapControls";
@@ -14,9 +15,17 @@ import { Page } from "@/components/Page";
 import { Card, Label, PageTitle, SectionTitle } from "@/components/ui";
 import { pluralKey } from "@/lib/plural";
 
+// One load per request for generateMetadata and the page (a rejection is memoised
+// too), so a failed load marks the error panel noindex (#426).
+const loadPins = cache(async () => (await serverQuery(SHOPS_FOR_MAP)).shopsForMap);
+
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const title = t(locale, "map.title");
+  const failed = await loadPins().then(
+    () => false,
+    () => true,
+  );
   return {
     title,
     ...shareMetadata({
@@ -27,6 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [],
       locale,
     }),
+    robots: listingRobots(null, false, failed),
   };
 }
 
@@ -35,7 +45,7 @@ export default async function MapPage() {
 
   let pins;
   try {
-    pins = (await serverQuery(SHOPS_FOR_MAP)).shopsForMap;
+    pins = await loadPins();
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }

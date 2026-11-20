@@ -116,3 +116,21 @@ export function cardSearchFields(
     { field: "description", text: c.description ?? "", visible: false },
   ];
 }
+
+/**
+ * The search-term expansion, or none when it can't be loaded (#427). It only
+ * adds the "Matched: …" line to cards, so a failed lookup (a rate limit, a
+ * hiccup) must not turn the results into an error page: cards fall back to no
+ * match line. No query at all when nothing is being searched.
+ */
+export async function optionalSearchTerms(
+  search: string | null | undefined,
+  load: (q: string) => Promise<{ searchTerms: string[][] }>,
+): Promise<string[][]> {
+  if (!search) return [];
+  try {
+    return (await load(search)).searchTerms;
+  } catch {
+    return [];
+  }
+}

@@ -5,7 +5,16 @@ import { ShopLogo } from "./ShopLogo";
 import { Card, Picture } from "@/components/ui";
 import { pluralKey } from "@/lib/plural";
 
-export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }) {
+export function ShopCard({
+  shop,
+  locale,
+  headingLevel: Heading = "h2",
+}: {
+  shop: ShopSummary;
+  locale: Locale;
+  /** The shop name's heading level: h3 when the card sits under a section heading (home). */
+  headingLevel?: "h2" | "h3";
+}) {
   return (
     <Card as="article" className="relative flex flex-col overflow-hidden focus-within:ring-2 focus-within:ring-ink">
       {/* No banner: no band at all, the card stays plain white (#112). */}
@@ -16,11 +25,11 @@ export function ShopCard({ shop, locale }: { shop: ShopSummary; locale: Locale }
       )}
       <div className="flex flex-1 flex-col p-4">
         <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size="md" className={`relative mb-3 ${shop.bannerUrl ? "-mt-10 outline-4 outline-white" : ""}`} />
-        <h2 className="text-base font-bold text-ink">
+        <Heading className="text-base font-bold text-ink">
           <Link href={`/shops/${shop.slug}`} className="after:absolute after:inset-0">
             {shop.name}
           </Link>
-        </h2>
+        </Heading>
         {shop.city && <p className="text-xs text-muted">{shop.city}</p>}
         {shop.description && <p className="mt-2 line-clamp-3 text-sm text-muted">{shop.description}</p>}
         <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-sm">

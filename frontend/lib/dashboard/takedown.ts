@@ -12,3 +12,12 @@ export function moderationBlockKey(code: string): MessageKey | null {
   if (code === "TAKEN_DOWN") return "dash.error.takenDown";
   return null;
 }
+
+/**
+ * Whether the dashboard offers "New coffee": not while the shop is suspended,
+ * since the API refuses createCoffee then (#431) and the seller would fill in
+ * the whole form for nothing.
+ */
+export function canAddCoffee(shop: { suspended: boolean }): boolean {
+  return !shop.suspended;
+}

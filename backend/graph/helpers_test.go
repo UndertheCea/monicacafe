@@ -3,6 +3,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -939,6 +940,46 @@ func TestCheckLineupOtherSpellings(t *testing.T) {
 	for _, tc := range cases {
 		if err := checkLineup([]string{a, b}, tc.want); (err == nil) != tc.ok {
 			t.Errorf("%s: err = %v, want ok %v", tc.name, err, tc.ok)
+		}
+	}
+}
+
+func TestStoreFilterPriceBounds(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		in      int
+		want    int64
+		wantErr bool
+	}{
+		{"zero", 0, 0, false},
+		{"ordinary", 1200, 1200, false},
+		{"int4 max", math.MaxInt32, math.MaxInt32, false},
+		{"just above int4 (#430)", math.MaxInt32 + 1, math.MaxInt32, false},
+		{"three billion (#430)", 3_000_000_000, math.MaxInt32, false},
+		{"negative", -1, 0, true},
+	} {
+		v := tc.in
+		for _, field := range []string{"min", "max"} {
+			in := &model.CoffeeFilter{}
+			if field == "min" {
+				in.MinPriceTwd = &v
+			} else {
+				in.MaxPriceTwd = &v
+			}
+			f, err := storeFilter(in)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("%s %s: accepted", field, tc.name)
+				}
+				continue
+			}
+			got := f.MinPriceTWD
+			if field == "max" {
+				got = f.MaxPriceTWD
+			}
+			if err != nil || got == nil || *got != tc.want {
+				t.Errorf("%s %s: got %v, %v; want %d", field, tc.name, got, err, tc.want)
+			}
 		}
 	}
 }

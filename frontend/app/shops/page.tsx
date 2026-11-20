@@ -53,10 +53,12 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const { page, sort, q, city } = parseShopList(sp);
   const title = t(locale, "shops.title");
   let pastEnd = false;
+  let failed = false;
   try {
     pastEnd = pastLastPage((await loadShops(q, city, sort, page)).total, page, SHOPS_PAGE_SIZE);
   } catch {
-    // The page shows its error state; nothing more to say here.
+    // The page shows its error panel: keep it out of the index (#426).
+    failed = true;
   }
   return {
     title,
@@ -68,7 +70,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       images: [],
       locale,
     }),
-    robots: listingRobots(q ?? city, pastEnd),
+    robots: listingRobots(q ?? city, pastEnd, failed),
   };
 }
 

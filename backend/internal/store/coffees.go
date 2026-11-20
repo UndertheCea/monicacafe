@@ -277,20 +277,28 @@ func (s CoffeeSort) orderBy() (join, order string) {
 // order, plus the total number of matches.
 func (s *Store) ListCoffees(ctx context.Context, f CoffeeFilter, sort CoffeeSort, limit, offset int) ([]*Coffee, int, error) {
 	where, args := f.where()
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM coffees c`+where, args...).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
 	join, order := sort.orderBy()
 	n := len(args)
-	args = append(args, limit, offset)
-	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM coffees c%s%s
-		ORDER BY %s LIMIT $%d OFFSET $%d`, coffeeColumns, join, where, order, n+1, n+2), args...)
+	var (
+		total int
+		out   []*Coffee
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM coffees c`+where, args...).Scan(&total); err != nil {
+			return mapErr(err)
+		}
+		rows, err := db.Query(ctx, fmt.Sprintf(`SELECT %s FROM coffees c%s%s
+		ORDER BY %s LIMIT $%d OFFSET $%d`, coffeeColumns, join, where, order, n+1, n+2), append(args, limit, offset)...)
+		if err != nil {
+			return mapErr(err)
+		}
+		out, err = collectCoffees(rows)
+		return err
+	})
 	if err != nil {
-		return nil, 0, mapErr(err)
+		return nil, 0, err
 	}
-	out, err := collectCoffees(rows)
-	return out, total, err
+	return out, total, nil
 }
 
 // PopularCoffees returns published coffees ranked by comment count, then recency.

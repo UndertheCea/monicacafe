@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 54 — 2026-11-20 — Audit: password never in the URL, takedown reasons, invisible / look-alike names (seven slices)
-PR: #TBD
+PR: #425
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: cart / holds,
 moderation, auth, jobs, config, text checks; frontend: cart, coffee page, shops, auth forms, account, dashboard forms) plus the

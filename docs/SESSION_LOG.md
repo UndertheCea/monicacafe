@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 55 — 2026-11-20 — Audit: error pages noindex, search terms optional, suspended shops can't add coffees (seven slices)
-PR: #PR
+PR: #433
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: resolvers,
 store SQL, migrations, scripts, nginx, compose, CI; frontend: home, /coffees params, lib helpers, metadata, error pages, API

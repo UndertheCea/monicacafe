@@ -211,7 +211,7 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	if err := allowIP(ctx, r.Limits.RegisterIP); err != nil {
 		return nil, err
 	}
-	email, err := normaliseEmail(input.Email)
+	email, err := normaliseNewEmail(input.Email)
 	if err != nil {
 		return nil, err
 	}

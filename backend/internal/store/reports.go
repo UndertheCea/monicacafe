@@ -62,25 +62,34 @@ func (s *Store) ReportByID(ctx context.Context, id string) (*Report, error) {
 
 // Reports lists a page of reports with this status, newest first, plus the total.
 func (s *Store) Reports(ctx context.Context, status string, limit, offset int) ([]*Report, int, error) {
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM reports WHERE status = $1`, status).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	rows, err := s.db.Query(ctx, `SELECT `+reportColumns+` FROM reports WHERE status = $1
-		ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`, status, limit, offset)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	out := []*Report{}
-	for rows.Next() {
-		r, err := scanReport(rows)
-		if err != nil {
-			return nil, 0, err
+	var (
+		total int
+		out   []*Report
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM reports WHERE status = $1`, status).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, r)
+		rows, err := db.Query(ctx, `SELECT `+reportColumns+` FROM reports WHERE status = $1
+			ORDER BY created_at DESC, id LIMIT $2 OFFSET $3`, status, limit, offset)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*Report{}
+		for rows.Next() {
+			r, err := scanReport(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, r)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // ResolveReport closes an open report, and every other open report on the

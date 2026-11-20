@@ -156,3 +156,22 @@ export function createAuthEpoch() {
     stale: (startedAt: number) => startedAt !== n,
   };
 }
+
+/** Which user the private views were built for, and their remount key (#436). */
+export interface SessionKey {
+  userId: string | null;
+  key: number;
+}
+
+/**
+ * The next remount key for the signed-in subtree. It changes only when a
+ * signed-in user replaces a different one (another tab signed in as someone
+ * else), so views keyed on `status` alone don't keep the old user's data.
+ * Signing out keeps the last user, so signing back in as them (or the inline
+ * re-sign-in under a seller form, #228) doesn't remount anything.
+ */
+export function nextSessionKey(prev: SessionKey, nextUserId: string | null): SessionKey {
+  if (nextUserId === null || nextUserId === prev.userId) return prev;
+  if (prev.userId === null) return { userId: nextUserId, key: prev.key };
+  return { userId: nextUserId, key: prev.key + 1 };
+}

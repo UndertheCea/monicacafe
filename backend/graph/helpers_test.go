@@ -100,6 +100,35 @@ func TestEmail(t *testing.T) {
 	}
 }
 
+func TestNewEmail(t *testing.T) {
+	tests := []struct {
+		in string
+		ok bool
+	}{
+		{"user+tag@x.com", true},
+		{"a@b.co", true},
+		{"a@sub.x.com.tw", true},
+		{" Foo@Example.COM ", true},
+		{"a@b", false},
+		{"a@localhost", false},
+		{"a@[1.2.3.4]", false},
+		{"a@1.2.3.4", false},
+		{"a@-x.com", false},
+		{"a@x-.com", false},
+		{"a@x..com", false},
+		{"ａ@x.com", false},
+		{"é@x.com", false},
+		{strings.Repeat("a", 65) + "@x.com", false},
+		{strings.Repeat("a", 64) + "@x.com", true},
+	}
+	for _, tt := range tests {
+		_, err := normaliseNewEmail(tt.in)
+		if (err == nil) != tt.ok {
+			t.Errorf("normaliseNewEmail(%q) err = %v, want ok %v", tt.in, err, tt.ok)
+		}
+	}
+}
+
 func TestCleanFlavorNotes(t *testing.T) {
 	got, err := cleanFlavorNotes([]string{" Jasmine ", "jasmine", "", "柑橘"})
 	if err != nil || len(got) != 2 || got[0] != "Jasmine" || got[1] != "柑橘" {

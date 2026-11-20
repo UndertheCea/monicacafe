@@ -214,7 +214,7 @@ function VariantRow({
 
   const p = parseWhole(price, LIMITS.minPriceTwd, LIMITS.priceTwd);
   const s = parseWhole(stock, 0, LIMITS.stock);
-  const dirty = variantRowDirty(v, { priceTwd: p, stock: s, onSale });
+  const dirty = variantRowDirty(v, { priceTwd: p, stock: s, onSale, priceText: price, stockText: stock });
   useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
 
   async function save() {

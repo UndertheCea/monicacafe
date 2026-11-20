@@ -64,9 +64,13 @@ func normalise(s string) string {
 	s = norm.NFKC.String(s)
 	var b strings.Builder
 	b.Grow(len(s))
-	for _, r := range s {
+	rs := []rune(s)
+	for i, r := range rs {
 		switch {
 		case r == 0x3000:
+			r = ' '
+		case r == 0x3002 && sentenceStartsAt(rs, i+1):
+			// "filter。Top 10": a capitalised word ends a sentence, it isn't a TLD (#438).
 			r = ' '
 		case r == 0x3002: // 。 as in "foo。com"
 			r = '.'
@@ -79,6 +83,13 @@ func normalise(s string) string {
 	s = obfuscatedDotRe.ReplaceAllString(s, ".")
 	s = obfuscatedAtRe.ReplaceAllString(s, "@")
 	return s
+}
+
+// sentenceStartsAt reports a capitalised Latin word at rs[i]: an upper-case
+// letter followed by a lower-case one ("Top", "Co-ferment"). An all-caps
+// "COM" isn't one, so "foo。COM" still reads as a domain.
+func sentenceStartsAt(rs []rune, i int) bool {
+	return i+1 < len(rs) && rs[i] >= 'A' && rs[i] <= 'Z' && rs[i+1] >= 'a' && rs[i+1] <= 'z'
 }
 
 var numeralDigits = map[rune]rune{
@@ -129,7 +140,9 @@ var (
 	// "蝦皮搜尋 好咖啡", "ig 搜尋 coffee.lab", "臉書搜尋 …"
 	searchRe = regexp.MustCompile(`(?:` + strings.ReplaceAll(platforms, "|line", "") + `)\s*(?:上|裡|內)?\s*(?:搜尋|搜索|搜|查詢|找)`)
 	// "@roaster_tw" on its own: an @ in front of a handle-like word.
-	bareHandleRe = regexp.MustCompile(`(?:^|[^a-z0-9._%+-])@[a-z0-9._]{3,}`)
+	bareHandleRe = regexp.MustCompile(`(?:^|[^a-z0-9._%+-])@([a-z0-9._]{3,})`)
+	// "@1900m", "@94c", "@1800": an @ before a measurement, not a handle (#438).
+	measurementRe = regexp.MustCompile(`^\d+(?:\.\d+)?(?:m|masl|c|g|ml|s|cc|k)?\.?$`)
 	// "ig coffee.lab", "line moni_123": a platform then a token with a dot,
 	// underscore or digit in it.
 	nameThenHandleRe = regexp.MustCompile(`(?:^|[^a-z0-9])(?:` + platforms + `)\s*[:=@]?\s*[a-z][a-z0-9]*[._0-9][a-z0-9._]*`)
@@ -143,8 +156,19 @@ var (
 
 func hasSocialHandle(s string) bool {
 	return handleIDRe.MatchString(s) || handleSepRe.MatchString(s) || handleAtRe.MatchString(s) || addMeRe.MatchString(s) ||
-		searchRe.MatchString(s) || bareHandleRe.MatchString(s) || nameThenHandleRe.MatchString(s) ||
+		searchRe.MatchString(s) || hasBareHandle(s) || nameThenHandleRe.MatchString(s) ||
 		pageRe.MatchString(s) || wechatRe.MatchString(s) || providerRe.MatchString(s)
+}
+
+// hasBareHandle looks for "@name" on its own, skipping measurements such as
+// "grown @1900m" or "brew @94c" (#438).
+func hasBareHandle(s string) bool {
+	for _, m := range bareHandleRe.FindAllStringSubmatch(s, -1) {
+		if !measurementRe.MatchString(m[1]) {
+			return true
+		}
+	}
+	return false
 }
 
 // digitRun is a run of digit groups joined by phone-style separators: a space,

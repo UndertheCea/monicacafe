@@ -8,6 +8,7 @@ import { chosenQuantity, focusTargetAfterRemove, quantityChanged } from "@/lib/c
 import { ACCEPT_CART_PRICE, CART, REMOVE_FROM_CART, UPDATE_CART_ITEM } from "@/lib/cartQueries";
 import { setCartSnapshot } from "@/lib/cartStore";
 import { rateLimitMessage } from "@/lib/errors";
+import { nextLoadKey } from "@/lib/retry";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
@@ -20,6 +21,7 @@ type Problem = CartProblem;
 export function CartView({ locale }: { locale: Locale }) {
   const { status, request } = useAuth();
   const [load, setLoad] = useState<Load>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#437)
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ line: string; p: Problem } | null>(null);
   // Unsaved quantity choices per line; saved with "Update", once (#374).
@@ -41,7 +43,7 @@ export function CartView({ locale }: { locale: Locale }) {
     return () => {
       live = false;
     };
-  }, [status, request]);
+  }, [status, request, attempt]);
 
   useEffect(() => {
     const target = focusAfter.current;
@@ -62,7 +64,23 @@ export function CartView({ locale }: { locale: Locale }) {
     );
   }
   if (status === "loading" || load.state === "loading") return <p className="text-muted">{t(locale, "cart.loading")}</p>;
-  if (load.state === "error") return <p role="alert" className="text-danger">{t(locale, "cart.loadError")}</p>;
+  if (load.state === "error") {
+    return (
+      <div className="space-y-3">
+        <p role="alert" className="text-danger">{t(locale, "cart.loadError")}</p>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            setLoad({ state: "loading" });
+            setAttempt(nextLoadKey);
+          }}
+        >
+          {t(locale, "crash.retry")}
+        </Button>
+      </div>
+    );
+  }
 
   const cart = load.cart;
   const orphan = orphanProblem(problem, cart.items);
@@ -146,6 +164,8 @@ export function CartView({ locale }: { locale: Locale }) {
           <ul className="mt-3 divide-y divide-line">
             {g.lines.map((l) => {
               const name = cartLineName(l, t(locale, `grind.${l.variant.grind}` as MessageKey));
+              const choices = lineQuantityChoices(l);
+              const changed = quantityChanged(l.quantity, drafts[l.id], choices);
               return (
               <li key={l.id} className="py-3">
                 <div className="flex flex-wrap items-end gap-3">
@@ -183,7 +203,7 @@ export function CartView({ locale }: { locale: Locale }) {
                   <label className="block w-20 text-xs font-medium text-muted">
                     {t(locale, "cart.quantity")}
                     <Select
-                      value={chosenQuantity(l.quantity, drafts[l.id])}
+                      value={chosenQuantity(l.quantity, drafts[l.id], choices)}
                       aria-label={t(locale, "cart.quantityFor", { name })}
                       aria-disabled={busy !== null}
                       data-line-focus={l.id}
@@ -193,7 +213,7 @@ export function CartView({ locale }: { locale: Locale }) {
                       }}
                       className="mt-1"
                     >
-                      {lineQuantityChoices(l).map((n) => (
+                      {choices.map((n) => (
                         <option key={n} value={n}>
                           {n}
                         </option>
@@ -204,11 +224,11 @@ export function CartView({ locale }: { locale: Locale }) {
                     size="sm"
                     variant="secondary"
                     aria-label={t(locale, "cart.updateFor", { name })}
-                    aria-disabled={busy !== null || !quantityChanged(l.quantity, drafts[l.id])}
-                    className={busy !== null || !quantityChanged(l.quantity, drafts[l.id]) ? "opacity-50" : undefined}
+                    aria-disabled={busy !== null || !changed}
+                    className={busy !== null || !changed ? "opacity-50" : undefined}
                     onClick={() => {
                       const q = drafts[l.id];
-                      if (busy === null && quantityChanged(l.quantity, q)) void setQty(l, q);
+                      if (busy === null && changed && q !== undefined) void setQty(l, q);
                     }}
                   >
                     {t(locale, "cart.update")}

@@ -9,6 +9,7 @@ import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { emptiedWithMore } from "@/lib/loadMore";
 import { MY_SAVED_COFFEES, UNSAVE_COFFEE, fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
+import { nextLoadKey } from "@/lib/retry";
 import { SAVED_PAGE, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
@@ -24,6 +25,7 @@ type State =
 export function SavedCoffees({ locale }: { locale: Locale }) {
   const { request } = useAuth();
   const [s, setS] = useState<State>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#437)
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState(false);
 
@@ -47,7 +49,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
     return () => {
       live = false;
     };
-  }, [fetchPage]);
+  }, [fetchPage, attempt]);
 
   /** `shownNow`: the rows left after a removal, when it is called before that render. */
   async function loadMore(shownNow?: number) {
@@ -104,9 +106,22 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
 
       {s.state === "loading" && <p className="mt-4 text-sm text-muted">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
-        <p role="alert" className="mt-4 text-sm text-danger">
-          {t(locale, "dash.error.generic")}
-        </p>
+        <div className="mt-4 space-y-3">
+          <p role="alert" className="text-sm text-danger">
+            {t(locale, "dash.error.generic")}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setS({ state: "loading" });
+              setAttempt(nextLoadKey);
+            }}
+          >
+            {t(locale, "crash.retry")}
+          </Button>
+        </div>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && !refilling && (
         <Card as="p" className="mt-4 p-6 text-center text-muted">

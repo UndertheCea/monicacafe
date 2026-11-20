@@ -60,26 +60,35 @@ func (s *Store) Audit(ctx context.Context, e AuditEntry) error {
 
 // AuditLog lists a page of the audit log, newest first, plus the total.
 func (s *Store) AuditLog(ctx context.Context, limit, offset int) ([]*AuditEntry, int, error) {
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM audit_log`).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	rows, err := s.db.Query(ctx, `
-		SELECT id, actor_id, action, target_type, target_id, reason, created_at FROM audit_log
-		ORDER BY created_at DESC, id LIMIT $1 OFFSET $2`, limit, offset)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	out := []*AuditEntry{}
-	for rows.Next() {
-		var e AuditEntry
-		if err := rows.Scan(&e.ID, &e.ActorID, &e.Action, &e.TargetType, &e.TargetID, &e.Reason, &e.CreatedAt); err != nil {
-			return nil, 0, mapErr(err)
+	var (
+		total int
+		out   []*AuditEntry
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM audit_log`).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, &e)
+		rows, err := db.Query(ctx, `
+			SELECT id, actor_id, action, target_type, target_id, reason, created_at FROM audit_log
+			ORDER BY created_at DESC, id LIMIT $1 OFFSET $2`, limit, offset)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*AuditEntry{}
+		for rows.Next() {
+			var e AuditEntry
+			if err := rows.Scan(&e.ID, &e.ActorID, &e.Action, &e.TargetType, &e.TargetID, &e.Reason, &e.CreatedAt); err != nil {
+				return mapErr(err)
+			}
+			out = append(out, &e)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // SetUserSuspended suspends (or reinstates) an account and records it. A
@@ -274,54 +283,72 @@ func (s *Store) existsOrNoChange(ctx context.Context, table, id string) error {
 // (suspended ones included) whose email or display name contains each term.
 func (s *Store) AdminUsers(ctx context.Context, terms []string, limit, offset int) ([]*User, int, error) {
 	where, args := adminSearch(terms, "email::text", "display_name")
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM users`+where, args...).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	n := len(args)
-	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM users%s
-		ORDER BY created_at DESC, id LIMIT $%d OFFSET $%d`, userColumns, where, n+1, n+2),
-		append(args, limit, offset)...)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	out := []*User{}
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, 0, err
+	var (
+		total int
+		out   []*User
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM users`+where, args...).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, u)
+		n := len(args)
+		rows, err := db.Query(ctx, fmt.Sprintf(`SELECT %s FROM users%s
+			ORDER BY created_at DESC, id LIMIT $%d OFFSET $%d`, userColumns, where, n+1, n+2),
+			append(args, limit, offset)...)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*User{}
+		for rows.Next() {
+			u, err := scanUser(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, u)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // AdminShops lists shops for the admin screen, newest first: every shop
 // (suspended and empty ones included) whose name or slug contains each term.
 func (s *Store) AdminShops(ctx context.Context, terms []string, limit, offset int) ([]*Shop, int, error) {
 	where, args := adminSearch(terms, "name", "slug")
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM shops`+where, args...).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	n := len(args)
-	rows, err := s.db.Query(ctx, fmt.Sprintf(`SELECT %s FROM shops%s
-		ORDER BY created_at DESC, id LIMIT $%d OFFSET $%d`, shopColumns, where, n+1, n+2),
-		append(args, limit, offset)...)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	out := []*Shop{}
-	for rows.Next() {
-		sh, err := scanShop(rows)
-		if err != nil {
-			return nil, 0, err
+	var (
+		total int
+		out   []*Shop
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM shops`+where, args...).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, sh)
+		n := len(args)
+		rows, err := db.Query(ctx, fmt.Sprintf(`SELECT %s FROM shops%s
+			ORDER BY created_at DESC, id LIMIT $%d OFFSET $%d`, shopColumns, where, n+1, n+2),
+			append(args, limit, offset)...)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*Shop{}
+		for rows.Next() {
+			sh, err := scanShop(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, sh)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // adminSearch builds " WHERE …" requiring every term in one of two columns.

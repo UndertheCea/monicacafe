@@ -27,3 +27,11 @@ test("focusTargetAfterRemove prefers the next line, then the previous, then the 
   ];
   for (const [ids, removed, want] of cases) assert.deepEqual(focusTargetAfterRemove(ids, removed), want);
 });
+
+test("a draft the line no longer offers is ignored (#435)", () => {
+  assert.equal(chosenQuantity(2, 15, [1, 2, 3]), 2);
+  assert.equal(quantityChanged(2, 15, [1, 2, 3]), false);
+  assert.equal(chosenQuantity(2, 3, [1, 2, 3]), 3);
+  assert.equal(quantityChanged(2, 3, [1, 2, 3]), true);
+  assert.equal(quantityChanged(2, undefined, [1, 2, 3]), false);
+});

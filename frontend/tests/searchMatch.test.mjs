@@ -1,7 +1,7 @@
 // Search-result "matched" line helpers (lib/searchMatch.ts, #274). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SNIPPET_RADIUS, cardSearchFields, findSearchMatch, indexOfFold, snippet } from "../lib/searchMatch.ts";
+import { SNIPPET_RADIUS, cardSearchFields, findSearchMatch, indexOfFold, optionalSearchTerms, snippet } from "../lib/searchMatch.ts";
 
 const coffee = {
   name: "Kochere 水洗",
@@ -76,4 +76,17 @@ test("no field contains the word: no line", () => {
 test("snippet keeps the matched text as typed by the seller and flattens whitespace", () => {
   const s = snippet("description", "line one\n\nGeisha lot", 10, 16);
   assert.deepEqual(s, { field: "description", before: "line one ", match: "Geisha", after: " lot" });
+});
+
+test("optionalSearchTerms: a failed lookup gives no terms instead of an error (#427)", async () => {
+  let calls = 0;
+  const ok = async (q) => {
+    calls++;
+    return { searchTerms: [[q, "耶加雪菲"]] };
+  };
+  assert.deepEqual(await optionalSearchTerms("yirgacheffe", ok), [["yirgacheffe", "耶加雪菲"]]);
+  assert.deepEqual(await optionalSearchTerms("x", async () => Promise.reject(new Error("429"))), []);
+  assert.deepEqual(await optionalSearchTerms("", ok), []);
+  assert.deepEqual(await optionalSearchTerms(undefined, ok), []);
+  assert.equal(calls, 1);
 });

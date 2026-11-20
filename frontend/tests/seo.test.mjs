@@ -248,8 +248,7 @@ test("listingRobots: a list that failed to load is noindex, follow (#426)", () =
   assert.equal(listingRobots(undefined, false, false), undefined);
 });
 
-test("listing pages pass a failed load to listingRobots (#426)", async () => {
-  const { readFileSync } = await import("node:fs");
+test("listing pages pass a failed load to listingRobots (#426)", () => {
   const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
   assert.match(read("app/coffees/page.tsx"), /listingRobots\(filter\.search, status\.pastEnd, status\.failed\)/);
   assert.match(read("app/shops/page.tsx"), /listingRobots\(q \?\? city, pastEnd, failed\)/);

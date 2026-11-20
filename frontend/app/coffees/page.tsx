@@ -2,7 +2,7 @@ import { pluralKey } from "@/lib/plural";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
-import { cardSearchFields, findSearchMatch } from "@/lib/searchMatch";
+import { cardSearchFields, findSearchMatch, optionalSearchTerms } from "@/lib/searchMatch";
 import Link from "next/link";
 import { pastLastPage } from "@/lib/pagination";
 import { PastLastPage } from "@/components/PastLastPage";
@@ -84,13 +84,13 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
 
   let data;
   try {
-    const searching = Boolean(filter.search);
     const [options, list, terms] = await Promise.all([
       loadOptions(),
       coffeesFor(parsed),
-      searching ? serverQuery(SEARCH_TERMS, { q: filter.search ?? "" }) : null,
+      // Only the "Matched: …" lines need these; a failed lookup drops them, not the results (#427).
+      optionalSearchTerms(filter.search, (q) => serverQuery(SEARCH_TERMS, { q })),
     ]);
-    data = { options, list: list.coffees, terms: terms?.searchTerms ?? [] };
+    data = { options, list: list.coffees, terms };
   } catch (err) {
     return <ErrorState locale={locale} error={err} />;
   }

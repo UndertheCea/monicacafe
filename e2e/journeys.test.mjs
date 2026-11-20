@@ -189,6 +189,13 @@ describe("without JavaScript", () => {
         await link.waitFor();
         assert.match(await link.getAttribute("href"), /^\/login\?next=/);
       });
+      await step(v.page, "nojs-comment-signin-link", async () => {
+        // The comment form, Save and Follow also show their sign-in links while auth is "loading" (#424).
+        const link = v.page.locator("main").getByRole("link", { name: "Log in", exact: true }).first();
+        await link.waitFor();
+        assert.match(await link.getAttribute("href"), /^\/login\?next=/);
+        await v.page.getByRole("link", { name: "Log in to save" }).waitFor();
+      });
     } finally {
       await v.ctx.close();
     }

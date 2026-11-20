@@ -8,6 +8,7 @@ import { commentInputErrorKey, deleteControl, deleteOutcome } from "@/lib/commen
 import { toApiError } from "@/lib/graphql";
 import { rateLimitMessage } from "@/lib/errors";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { showSignInLink } from "@/lib/navMenu";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { ReasonPrompt } from "@/components/admin/ReasonPrompt";
@@ -34,8 +35,8 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
   const [posted, setPosted] = useState(false);
   const [, startTransition] = useTransition();
 
-  if (status === "loading") return null;
-  if (status === "anonymous") {
+  // Loading shows the link too: without JavaScript the status never resolves (#424).
+  if (showSignInLink(status)) {
     return (
       <p className="mt-4 text-sm text-muted">
         <Link

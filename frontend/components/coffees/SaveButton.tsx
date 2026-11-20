@@ -8,7 +8,7 @@ import { rateLimitMessage } from "@/lib/errors";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { settleSave, toggleSave, type SaveState } from "@/lib/saved";
-import { loginHrefFrom } from "@/lib/navMenu";
+import { loginHrefFrom, showSignInLink } from "@/lib/navMenu";
 import { Button } from "@/components/ui";
 
 /**
@@ -50,7 +50,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   if (status !== "authenticated") {
     return (
       <p className="mt-3 flex flex-wrap items-center gap-3">
-        {status === "anonymous" ? (
+        {showSignInLink(status) ? (
           <Button href={loginHrefFrom(pathname, search)} variant="secondary">
             <span aria-hidden>♡</span> {t(locale, "save.loginToSave")}
           </Button>

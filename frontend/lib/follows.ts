@@ -25,17 +25,16 @@ export function settleFollow(
 }
 
 /**
- * Which control the shop page shows: nothing while the session loads, a login
- * link when signed out, only the count to the shop's owner (the API refuses
+ * Which control the shop page shows: a login link while the session loads
+ * (without JavaScript it never leaves "loading", #424) or when signed out, only the count to the shop's owner (the API refuses
  * self-follows), the toggle otherwise.
  */
 export function followControl(
   status: "loading" | "anonymous" | "authenticated",
   viewerShopId: string | null | undefined,
   shopId: string,
-): "none" | "login" | "owner" | "toggle" {
-  if (status === "loading") return "none";
-  if (status === "anonymous") return "login";
+): "login" | "owner" | "toggle" {
+  if (status !== "authenticated") return "login";
   return viewerShopId === shopId ? "owner" : "toggle";
 }
 

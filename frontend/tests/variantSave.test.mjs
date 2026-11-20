@@ -37,3 +37,14 @@ test("variantRowDirty compares the checkbox with the stored switch, not with isA
   // An unparseable field counts as a change (Save then shows the field error).
   assert.equal(variantRowDirty(soldOutOn, { priceTwd: null, stock: 0, onSale: true }), true);
 });
+
+test("variantRowDirty: an untouched NT$0 option stored before #358 is not dirty (#434)", () => {
+  const legacy = { priceTwd: 0, stock: 3, onSale: true };
+  // parseWhole("0", 1, …) is null; the text still equals the stored value.
+  assert.equal(variantRowDirty(legacy, { priceTwd: null, stock: 3, onSale: true, priceText: "0", stockText: "3" }), false);
+  assert.equal(variantRowDirty(legacy, { priceTwd: null, stock: 3, onSale: true, priceText: " 0 ", stockText: "3" }), false);
+  // Edited price, cleared box or toggled switch are changes.
+  assert.equal(variantRowDirty(legacy, { priceTwd: 450, stock: 3, onSale: true, priceText: "450", stockText: "3" }), true);
+  assert.equal(variantRowDirty(legacy, { priceTwd: null, stock: 3, onSale: true, priceText: "", stockText: "3" }), true);
+  assert.equal(variantRowDirty(legacy, { priceTwd: null, stock: 3, onSale: false, priceText: "0", stockText: "3" }), true);
+});

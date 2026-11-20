@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type R
 import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { ReasonPrompt } from "@/components/admin/ReasonPrompt";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { nextLoadKey, submitSearch } from "@/lib/retry";
 import { FormError, Notice } from "@/components/dashboard/ui";
 import { Badge, Button, Card, Input, Label, SectionTitle } from "@/components/ui";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -83,6 +84,7 @@ type ListState<T> = { state: "loading" } | { state: "error" } | ({ state: "ready
 /** A paged admin list: loads the first page whenever fetchPage changes, then "load more". */
 function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => Promise<Page<T>>, version = 0) {
   const [list, setList] = useState<ListState<T>>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#437)
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   // Bumped whenever the first page reloads (search, tab); a load-more from an older one is dropped (#366).
@@ -98,7 +100,7 @@ function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => P
     return () => {
       live = false;
     };
-  }, [fetchPage, version]);
+  }, [fetchPage, version, attempt]);
 
   async function loadMore() {
     if (list.state !== "ready" || loadingMore) return;
@@ -118,7 +120,11 @@ function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => P
 
   const update = (fn: (p: Page<T>) => Page<T>) =>
     setList((cur) => (cur.state === "ready" ? { state: "ready", ...fn(cur) } : cur));
-  return { list, setList, loadMore, loadingMore, moreFailed, update };
+  const retry = () => {
+    setList({ state: "loading" });
+    setAttempt(nextLoadKey);
+  };
+  return { list, setList, loadMore, loadingMore, moreFailed, update, retry };
 }
 
 function Section({ title, count, locale, children }: { title: string; count?: number; locale: Locale; children: ReactNode }) {
@@ -140,6 +146,7 @@ function ListBody<T>({
   locale,
   children,
   onMore,
+  onRetry,
   loadingMore,
   moreFailed = false,
 }: {
@@ -148,11 +155,21 @@ function ListBody<T>({
   locale: Locale;
   children: (nodes: T[]) => ReactNode;
   onMore: () => void;
+  onRetry: () => void;
   loadingMore: boolean;
   moreFailed?: boolean;
 }) {
   if (list.state === "loading") return <p className="text-sm text-muted">{t(locale, "dash.loading")}</p>;
-  if (list.state === "error") return <FormError>{t(locale, "admin.loadError")}</FormError>;
+  if (list.state === "error") {
+    return (
+      <div className="space-y-3">
+        <FormError>{t(locale, "admin.loadError")}</FormError>
+        <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
+          {t(locale, "crash.retry")}
+        </Button>
+      </div>
+    );
+  }
   if (list.nodes.length === 0) return <p className="text-sm text-muted">{t(locale, empty)}</p>;
   return (
     <>
@@ -234,12 +251,12 @@ function ReportsSection({ locale, onModerated }: { locale: Locale; onModerated: 
     (offset: number) => request(ADMIN_REPORTS, { status: "OPEN", limit: ADMIN_PAGE, offset }).then((r) => r.reports),
     [request],
   );
-  const { list, loadMore, loadingMore, moreFailed, update } = useAdminList(fetchPage);
+  const { list, loadMore, loadingMore, moreFailed, update, retry } = useAdminList(fetchPage);
   const [acting, setActing] = useState<{ id: string; action: ReportResolution } | null>(null);
 
   return (
     <Section title={t(locale, "admin.reports")} count={list.state === "ready" ? list.total : undefined} locale={locale}>
-      <ListBody list={list} empty="admin.reportsEmpty" locale={locale} onMore={loadMore} loadingMore={loadingMore} moreFailed={moreFailed}>
+      <ListBody list={list} empty="admin.reportsEmpty" locale={locale} onMore={loadMore} onRetry={retry} loadingMore={loadingMore} moreFailed={moreFailed}>
         {(nodes) => (
           <table className="w-full min-w-[40rem] border-collapse text-sm">
             <thead>
@@ -386,13 +403,13 @@ function ReportRow({
 
 function UsersSection({ locale, onModerated }: { locale: Locale; onModerated: () => void }) {
   const { request } = useAuth();
-  const [search, setSearch] = useState("");
+  const [{ query: search, key: searchKey }, setSearchState] = useState({ query: "", key: 0 });
   const fetchPage = useCallback(
     (offset: number) =>
       request(ADMIN_USERS, { ...(search ? { search } : {}), limit: ADMIN_PAGE, offset }).then((r) => r.adminUsers),
     [request, search],
   );
-  const { list, setList, loadMore, loadingMore, moreFailed, update } = useAdminList(fetchPage);
+  const { list, setList, loadMore, loadingMore, moreFailed, update, retry } = useAdminList(fetchPage, searchKey);
   const [acting, setActing] = useState<string | null>(null);
 
   return (
@@ -402,12 +419,11 @@ function UsersSection({ locale, onModerated }: { locale: Locale; onModerated: ()
         locale={locale}
         placeholder="admin.searchUsers"
         onSearch={(q) => {
-          if (q === search) return;
           setList({ state: "loading" });
-          setSearch(q);
+          setSearchState((cur) => submitSearch(cur, q)); // the same query again refetches too (#437)
         }}
       />
-      <ListBody list={list} empty="admin.noResults" locale={locale} onMore={loadMore} loadingMore={loadingMore} moreFailed={moreFailed}>
+      <ListBody list={list} empty="admin.noResults" locale={locale} onMore={loadMore} onRetry={retry} loadingMore={loadingMore} moreFailed={moreFailed}>
         {(nodes) => (
           <table className="w-full min-w-[36rem] border-collapse text-sm">
             <thead>
@@ -457,13 +473,13 @@ function UsersSection({ locale, onModerated }: { locale: Locale; onModerated: ()
 
 function ShopsSection({ locale, onModerated }: { locale: Locale; onModerated: () => void }) {
   const { request } = useAuth();
-  const [search, setSearch] = useState("");
+  const [{ query: search, key: searchKey }, setSearchState] = useState({ query: "", key: 0 });
   const fetchPage = useCallback(
     (offset: number) =>
       request(ADMIN_SHOPS, { ...(search ? { search } : {}), limit: ADMIN_PAGE, offset }).then((r) => r.adminShops),
     [request, search],
   );
-  const { list, setList, loadMore, loadingMore, moreFailed, update } = useAdminList(fetchPage);
+  const { list, setList, loadMore, loadingMore, moreFailed, update, retry } = useAdminList(fetchPage, searchKey);
   const [acting, setActing] = useState<string | null>(null);
 
   return (
@@ -472,12 +488,11 @@ function ShopsSection({ locale, onModerated }: { locale: Locale; onModerated: ()
         locale={locale}
         placeholder="admin.searchShops"
         onSearch={(q) => {
-          if (q === search) return;
           setList({ state: "loading" });
-          setSearch(q);
+          setSearchState((cur) => submitSearch(cur, q)); // the same query again refetches too (#437)
         }}
       />
-      <ListBody list={list} empty="admin.noResults" locale={locale} onMore={loadMore} loadingMore={loadingMore} moreFailed={moreFailed}>
+      <ListBody list={list} empty="admin.noResults" locale={locale} onMore={loadMore} onRetry={retry} loadingMore={loadingMore} moreFailed={moreFailed}>
         {(nodes) => (
           <table className="w-full min-w-[36rem] border-collapse text-sm">
             <thead>
@@ -595,11 +610,11 @@ function AuditSection({ locale, version }: { locale: Locale; version: number }) 
     (offset: number) => request(AUDIT_LOG, { limit: ADMIN_PAGE, offset }).then((r) => r.auditLog),
     [request],
   );
-  const { list, loadMore, loadingMore, moreFailed } = useAdminList<AuditRow>(fetchPage, version);
+  const { list, loadMore, loadingMore, moreFailed, retry } = useAdminList<AuditRow>(fetchPage, version);
 
   return (
     <Section title={t(locale, "admin.audit")} count={list.state === "ready" ? list.total : undefined} locale={locale}>
-      <ListBody list={list} empty="admin.auditEmpty" locale={locale} onMore={loadMore} loadingMore={loadingMore} moreFailed={moreFailed}>
+      <ListBody list={list} empty="admin.auditEmpty" locale={locale} onMore={loadMore} onRetry={retry} loadingMore={loadingMore} moreFailed={moreFailed}>
         {(nodes) => (
           <table className="w-full min-w-[40rem] border-collapse text-sm">
             <thead>

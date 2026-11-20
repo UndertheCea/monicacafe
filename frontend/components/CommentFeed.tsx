@@ -9,6 +9,7 @@ import { useLoadMore } from "@/components/useLoadMore";
 import { emptiedWithMore } from "@/lib/loadMore";
 import { COMMENT_LIST_PAGE, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
 import type { CommentPage } from "@/lib/dashboard/queries";
+import { nextLoadKey } from "@/lib/retry";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
 import { Badge, Button, Card, SectionTitle } from "@/components/ui";
@@ -42,6 +43,7 @@ export function CommentFeed({
   fetchPage: (offset: number) => Promise<CommentPage>;
 }) {
   const [s, setS] = useState<State>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#437)
 
   const more = useLoadMore(fetchPage);
 
@@ -54,7 +56,7 @@ export function CommentFeed({
     return () => {
       live = false;
     };
-  }, [fetchPage]);
+  }, [fetchPage, attempt]);
 
   /** `shownNow`: the rows left after a removal, when it is called before that render. */
   async function loadMore(shownNow?: number) {
@@ -103,9 +105,22 @@ export function CommentFeed({
 
       {s.state === "loading" && <p className="mt-4 text-sm text-muted">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
-        <p role="alert" className="mt-4 text-sm text-danger">
-          {t(locale, "dash.error.generic")}
-        </p>
+        <div className="mt-4 space-y-3">
+          <p role="alert" className="text-sm text-danger">
+            {t(locale, "dash.error.generic")}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setS({ state: "loading" });
+              setAttempt(nextLoadKey);
+            }}
+          >
+            {t(locale, "crash.retry")}
+          </Button>
+        </div>
       )}
       {s.state === "ready" && s.page.nodes.length === 0 && !refilling && (
         <Card as="p" className="mt-4 p-6 text-center text-muted">

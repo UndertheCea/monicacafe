@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-20 (after Session 55)
+Last updated: 2026-11-20 (after Session 56)
 
 ---
 
@@ -78,10 +78,10 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 55**: no owner answers, nothing pickable; Sonnet audits gave #426–#432, all shipped. /coffees, /shops and /map
-noindex their error panel; a failed synonym lookup no longer hides search results; price chips group thousands; home shop
-names are h3; price filters above int4 are clamped (no 500); a suspended shop can't `createCoffee` and loses "New coffee";
-the seller's comment inbox skips archived coffees.
+**Session 56**: no owner answers, nothing pickable; Sonnet audits gave #434–#440, all shipped. Untouched NT$0 options aren't
+"unsaved"; cart drafts the line no longer offers are dropped; another tab signing in as someone else remounts private views;
+failed first loads get "Try again"; "@1900m" / "filter。Top" pass the contact filter; register refuses undeliverable emails;
+more paged lists count in one snapshot.
 
 ## Current focus
 
@@ -91,7 +91,7 @@ the seller's comment inbox skips archived coffees.
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No open unblocked slices. Sessions 43, 45–55 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–56 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

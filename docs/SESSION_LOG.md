@@ -15,6 +15,41 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 56 — 2026-11-20 — Audit: legacy NT$0 rows, cart drafts, cross-tab user switch, contact-filter false positives (seven slices)
+PR: #PR
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (frontend: cart, admin,
+account, dashboard options, auth provider; backend: dataloaders, cart, jobs, storage, admin CLI, contact filter, email, store
+listings) gave #434–#440. Sonnet sub-agents built #437 and #440 in worktrees (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #434 frontend — `variantRowDirty` treats a field whose text equals the stored value as unchanged, so an untouched NT$0 option
+  (stored before #358) no longer opens as "unsaved changes"; saving still refuses it. `lib/dashboard/variantSave.ts`.
+- #435 frontend — `chosenQuantity` / `quantityChanged` take the line's choices and ignore a draft a reload no longer offers.
+  `lib/cartUi.ts`, `CartView`.
+- #436 frontend — `nextSessionKey` (`lib/auth/token.ts`): `AuthProvider` remounts its children when a different user signs in
+  (another tab), so cart / saved / dashboard don't keep the old user's data; same-user re-sign-in (#228) stays mounted.
+- #437 frontend — "Try again" (`crash.retry`) re-runs a failed first load in the cart, saved coffees, comment feed and `/admin`
+  lists; re-submitting the same admin search refetches. `lib/retry.ts`.
+- #438 backend — contact filter: an @ before a measurement ("@1900m", "@94c") isn't a handle; 。 before a capitalised word
+  ("filter。Top 10") is a sentence end, not a dot. `twfmt/contact.go`.
+- #439 backend — `normaliseNewEmail` on register: ASCII only, local part ≤ 64, domain of ≥ 2 DNS labels, no literals. Login keeps
+  the looser check so stored accounts stay reachable. `graph/helpers.go`.
+- #440 backend — saved / followed / comment pages / reports / audit log / admin users + shops count and page in one
+  `inSnapshot` (like #418); tracer test `store/snapshot_test.go`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (399), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The cross-tab remount and
+  the retry buttons were checked by tests and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Contact filter: "foo。Com" (capitalised TLD after 。) is now allowed; "foo。com" and "foo。COM" are still refused. A digit-led
+  handle that isn't a measurement ("@1900coffee") is still refused. `line:` false positives ("Top line: jasmine") left as is.
+- Audit notes not filed: "希爪" as a Sidra synonym (unverified); `setUserSuspended`'s admin check outside the transaction
+  (only the CLI grants admin). No new questions.
+
 ## Session 55 — 2026-11-20 — Audit: error pages noindex, search terms optional, suspended shops can't add coffees (seven slices)
 PR: #433
 

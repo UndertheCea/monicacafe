@@ -208,3 +208,16 @@ test("every sign-out path drops in-flight refreshes before clearing the session 
     assert.ok(before.includes("setRetryAttempt(null)"), `${name} cancels a pending refresh retry`);
   }
 });
+
+test("nextSessionKey remounts only when a different user replaces a signed-in one (#436)", async () => {
+  const { nextSessionKey } = await import("../lib/auth/token.ts");
+  const start = { userId: null, key: 0 };
+  const a = nextSessionKey(start, "A");
+  assert.deepEqual(a, { userId: "A", key: 0 }); // first sign-in: no remount
+  assert.equal(nextSessionKey(a, "A"), a); // refresh as the same user
+  const out = nextSessionKey(a, null);
+  assert.equal(out, a); // signing out keeps the last user
+  assert.deepEqual(nextSessionKey(out, "A"), { userId: "A", key: 0 }); // back in as A (#228)
+  assert.deepEqual(nextSessionKey(a, "B"), { userId: "B", key: 1 }); // another tab signed in as B
+  assert.deepEqual(nextSessionKey(out, "B"), { userId: "B", key: 1 });
+});

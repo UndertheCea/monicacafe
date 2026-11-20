@@ -4,10 +4,10 @@
 // token is an httpOnly cookie that only /api/auth/* can read. On load we trade
 // the cookie for a fresh access token, then refresh a minute before expiry.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, authedClient, toApiError, unavailable, type TypedDocument } from "@/lib/graphql";
 import type { SessionErrorBody, SessionPayload, SessionUser } from "@/lib/auth/session";
-import { createAuthEpoch, hasSessionHint, refreshDelayMs, refreshOutcome, refreshRetryDelayMs } from "@/lib/auth/token";
+import { createAuthEpoch, hasSessionHint, nextSessionKey, type SessionKey, refreshDelayMs, refreshOutcome, refreshRetryDelayMs } from "@/lib/auth/token";
 import { rateLimitedFromStatus, retryAfterSeconds } from "@/lib/errors";
 
 type State =
@@ -117,10 +117,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // made right after a refresh sees the new token before React re-renders.
   const stateRef = useRef<State>(state);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  // Remount key for the children: bumped when a different user signs in (#436).
+  const sessionKeyRef = useRef<SessionKey>({ userId: null, key: 0 });
+  const [sessionKey, setSessionKey] = useState(0);
 
   const apply = useCallback((s: SessionPayload | null) => {
     const next: State = s ? { status: "authenticated", session: s } : { status: "anonymous" };
     stateRef.current = next;
+    sessionKeyRef.current = nextSessionKey(sessionKeyRef.current, s?.user.id ?? null);
+    setSessionKey(sessionKeyRef.current.key);
     setState(next);
     return s;
   }, []);
@@ -371,7 +376,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [state, login, register, logout, logoutEverywhere, deleteAccount, changePassword, reload, request],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <Fragment key={sessionKey}>{children}</Fragment>
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthContextValue {

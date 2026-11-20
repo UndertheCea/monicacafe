@@ -120,25 +120,34 @@ func (s *Store) CommentsByShop(ctx context.Context, shopID string, limit, offset
 // commentPage runs a newest-first, offset-paged comment listing over `from`
 // (a FROM … WHERE clause aliasing comments as cm, with one parameter $1).
 func (s *Store) commentPage(ctx context.Context, from string, arg any, limit, offset int) ([]*Comment, int, error) {
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*) `+from, arg).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	rows, err := s.db.Query(ctx, `SELECT `+commentCols("cm")+` `+from+`
-		ORDER BY cm.created_at DESC, cm.id LIMIT $2 OFFSET $3`, arg, limit, offset)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	out := []*Comment{}
-	for rows.Next() {
-		c, err := scanComment(rows)
-		if err != nil {
-			return nil, 0, err
+	var (
+		total int
+		out   []*Comment
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) `+from, arg).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, c)
+		rows, err := db.Query(ctx, `SELECT `+commentCols("cm")+` `+from+`
+			ORDER BY cm.created_at DESC, cm.id LIMIT $2 OFFSET $3`, arg, limit, offset)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*Comment{}
+		for rows.Next() {
+			c, err := scanComment(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, c)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // suspendedUserIDs lists accounts an admin suspended (#224). Their comments are

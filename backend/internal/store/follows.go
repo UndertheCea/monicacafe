@@ -67,25 +67,34 @@ func (s *Store) FollowerCountsByShopIDs(ctx context.Context, shopIDs []string) (
 func (s *Store) FollowedShopsByUser(ctx context.Context, userID string, limit, offset int) ([]*Shop, int, error) {
 	const from = ` FROM shop_follows f JOIN shops s ON s.id = f.shop_id
 		WHERE f.user_id = $1 AND s.suspended_at IS NULL`
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	rows, err := s.db.Query(ctx, `SELECT `+shopColumnsAs("s")+from+`
-		ORDER BY f.created_at DESC, f.id LIMIT $2 OFFSET $3`, userID, limit, offset)
-	if err != nil {
-		return nil, 0, mapErr(err)
-	}
-	defer rows.Close()
-	out := []*Shop{}
-	for rows.Next() {
-		sh, err := scanShop(rows)
-		if err != nil {
-			return nil, 0, err
+	var (
+		total int
+		out   []*Shop
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
+			return mapErr(err)
 		}
-		out = append(out, sh)
+		rows, err := db.Query(ctx, `SELECT `+shopColumnsAs("s")+from+`
+			ORDER BY f.created_at DESC, f.id LIMIT $2 OFFSET $3`, userID, limit, offset)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*Shop{}
+		for rows.Next() {
+			sh, err := scanShop(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, sh)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
 	}
-	return out, total, mapErr(rows.Err())
+	return out, total, nil
 }
 
 // FollowingCoffees lists a page of published coffees from the shops a user
@@ -94,18 +103,27 @@ func (s *Store) FollowedShopsByUser(ctx context.Context, userID string, limit, o
 func (s *Store) FollowingCoffees(ctx context.Context, userID string, limit, offset int) ([]*Coffee, int, error) {
 	const from = ` FROM coffees c JOIN shop_follows f ON f.shop_id = c.shop_id
 		WHERE f.user_id = $1 AND ` + publicCoffee
-	var total int
-	if err := s.db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
-		return nil, 0, mapErr(err)
-	}
-	rows, err := s.db.Query(ctx, `SELECT `+coffeeColumns+from+`
-		ORDER BY c.created_at DESC, c.id LIMIT $2 OFFSET $3`, userID, limit, offset)
+	var (
+		total int
+		out   []*Coffee
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*)`+from, userID).Scan(&total); err != nil {
+			return mapErr(err)
+		}
+		rows, err := db.Query(ctx, `SELECT `+coffeeColumns+from+`
+			ORDER BY c.created_at DESC, c.id LIMIT $2 OFFSET $3`, userID, limit, offset)
+		if err != nil {
+			return mapErr(err)
+		}
+		out, err = collectCoffees(rows)
+		if out == nil {
+			out = []*Coffee{}
+		}
+		return err
+	})
 	if err != nil {
-		return nil, 0, mapErr(err)
+		return nil, 0, err
 	}
-	out, err := collectCoffees(rows)
-	if out == nil {
-		out = []*Coffee{}
-	}
-	return out, total, err
+	return out, total, nil
 }

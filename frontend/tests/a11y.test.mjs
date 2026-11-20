@@ -7,6 +7,12 @@ import { test } from "node:test";
 const root = new URL("..", import.meta.url).pathname;
 const read = (p) => readFileSync(join(root, p), "utf8");
 
+test("home shop cards use h3 under the Featured roasters h2; /shops keeps the h2 default (#429)", () => {
+  assert.match(read("app/page.tsx"), /<ShopCard\b[^>]*headingLevel="h3"/);
+  assert.doesNotMatch(read("app/shops/page.tsx"), /<ShopCard\b[^>]*headingLevel=/);
+  assert.match(read("components/shops/ShopCard.tsx"), /headingLevel: Heading = "h2"/);
+});
+
 test(".label-caps is at least 12px", () => {
   const m = read("app/globals.css").match(/\.label-caps\s*\{[^}]*\}/);
   assert.ok(m, ".label-caps exists");

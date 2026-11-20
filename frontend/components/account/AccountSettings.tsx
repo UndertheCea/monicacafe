@@ -149,7 +149,7 @@ function ProfileForm({ locale }: { locale: Locale }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate className={sectionCls}>
+    <form method="post" onSubmit={onSubmit} noValidate className={sectionCls}>
       <SectionTitle>{t(locale, "account.profile")}</SectionTitle>
       <FormSummary formId="profile" locale={locale} errors={fe.errors} order={PROFILE_ORDER} />
       <p className="text-sm text-muted">
@@ -239,7 +239,7 @@ function PasswordForm({ locale }: { locale: Locale }) {
   }
 
   return (
-    <form id="account-password" onSubmit={onSubmit} noValidate className={`${sectionCls} scroll-mt-20`}>
+    <form id="account-password" method="post" onSubmit={onSubmit} noValidate className={`${sectionCls} scroll-mt-20`}>
       <SectionTitle>{t(locale, "account.password")}</SectionTitle>
       <p className="text-sm text-muted">{t(locale, "account.passwordHint")}</p>
       <FormSummary formId="password" locale={locale} errors={fe.errors} order={PASSWORD_ORDER} />
@@ -452,6 +452,7 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
         </p>
       ) : (
         <form
+          method="post"
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault();

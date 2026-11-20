@@ -34,6 +34,16 @@ func TestIsReservedDisplayName(t *testing.T) {
 		{"Supporter Sam", false},
 		{"Unofficial Joe", false},
 		{"Ad min", false},
+		// #420: Cyrillic / Greek look-alikes fold to Latin first.
+		{"Аdmin", true},
+		{"Оfficial", true},
+		{"Suрport", true},
+		{"ΑDΜΙΝ", true},
+		{"Stаff", true},
+		{"Мoni Cаfe", true},
+		{"Наташа", false},
+		{"Γιώργος", false},
+		{"Иван Петров", false},
 	}
 	for _, tc := range tests {
 		if got := IsReservedDisplayName(tc.in); got != tc.want {

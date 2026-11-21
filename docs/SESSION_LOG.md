@@ -15,6 +15,39 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 58 — 2026-11-21 — Audit: retry on dashboard loads, admin lists in sync, archived coffees (six slices)
+PR: (this session's PR)
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: comments,
+export, follows / saves, reference, upload grants, reports, moderation, cmd/admin, jobs, migrations 020–027, backup / restore /
+migrate scripts; frontend: comments UI, /account, login / register, /menu, /map, /admin, error-code use, dict keys, e2e
+selectors) gave #449–#454. A Sonnet sub-agent built #452 in the working tree.
+
+### Shipped (one line per slice: area — what — key files)
+- #449 frontend — `FollowedShops` gets the #437 "Try again" (`attempt` + `nextLoadKey`) after a failed first load.
+- #450 frontend — /admin: Reports, Users and Shops take `version={auditVersion}` too (users / shops via `adminListKey(searchKey,
+  version)`, `lib/moderation.ts`), so suspending a user no longer leaves their shop "Active" in the Shops list.
+- #451 frontend — `html { scroll-padding-top: 5rem }` (`globals.css`): /account jump links land below the sticky header; the two
+  per-target `scroll-mt-20` removed. Static check in `tests/a11y.test.mjs`.
+- #452 frontend — `LoadFailed` (`components/dashboard/ui.tsx`) with "Try again" on the dashboard, shop profile, preview, options
+  and both coffee forms' option lists. `tests/dashboardRetry.test.mjs`.
+- #453 backend — `LockCoffee` / `SetCoffeePublished` skip archived rows; publish / unpublishCoffee map ErrNotFound to NOT_FOUND
+  (a coffee deleted or archived after the ownership check was INTERNAL). `TestVariantArchive`.
+- #454 backend — test only: a suspension bumps `token_version` once (via `RevokeUserRefreshTokens`), reinstating doesn't.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (405), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The retry buttons, admin
+  reloads and anchor offset were checked by tests and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Audit claims checked and dropped: "suspension doesn't bump the token version" (it does, through `RevokeUserRefreshTokens`;
+  #454 became a test); "open reports orphaned when a comment is deleted" (by design, migration 019: reports outlive their
+  target and /admin shows `admin.targetGone`, still resolvable). Not filed: `refCache` serves a new reference value up to
+  5 min late; `cmd/admin` doesn't run `cfg.Validate()`; `/map` builds shop links without `encodeURIComponent` (slugs are
+  normalised). No new questions.
+
 ## Session 57 — 2026-11-21 — Audit: reserved shop names, empty shop updates, secret check false positives (six slices)
 PR: #448
 

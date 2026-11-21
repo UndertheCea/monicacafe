@@ -1,7 +1,7 @@
 // /shops sort param helpers (lib/shopQuery.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SHOP_SORT_PARAMS, parseShopSortParam, shopListHref, shopSortForApi } from "../lib/shopQuery.ts";
+import { CITY_MAX_CHARS, SHOP_SORT_PARAMS, parseCityParam, parseShopSortParam, shopListHref, shopSortForApi } from "../lib/shopQuery.ts";
 
 test("parseShopSortParam accepts known values and falls back to newest", () => {
   const cases = [
@@ -59,4 +59,22 @@ test("shopPageHref keeps the other list's page and drops page 1", async () => {
     [{ page: 1, archive: 1 }, "archive", "/shops/beans#archive"],
   ];
   for (const [p, anchor, want] of cases) assert.equal(shopPageHref("beans", p, anchor), want, JSON.stringify(p));
+});
+
+test("parseCityParam keeps what the API accepts and drops the rest (#457)", () => {
+  const cases = [
+    [undefined, undefined],
+    ["", undefined],
+    ["   ", undefined],
+    ["台中市", "台中市"],
+    ["  台中市 ", "台中市"],
+    ["New  Taipei", "New  Taipei"], // compared exactly by the store: not collapsed
+    [["台南市", "高雄市"], "台南市"],
+    ["市".repeat(CITY_MAX_CHARS), "市".repeat(CITY_MAX_CHARS)],
+    ["市".repeat(CITY_MAX_CHARS + 1), undefined],
+    ["a\u0000b", undefined],
+    ["台北\n市", undefined],
+  ];
+  for (const [input, want] of cases) assert.equal(parseCityParam(input), want, JSON.stringify(input));
+  assert.equal(CITY_MAX_CHARS, 40);
 });

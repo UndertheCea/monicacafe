@@ -18,7 +18,7 @@ import { ShopListSortForm } from "@/components/shops/ShopSortForm";
 import { FilterChips } from "@/components/coffees/FilterChips";
 import { hrefWithout } from "@/lib/filterChips";
 import { parseSearchParam } from "@/lib/coffeeQuery";
-import { parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
+import { parseCityParam, parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
@@ -44,7 +44,7 @@ function parseShopList(sp: SearchParams) {
     page: parsePage(sp),
     sort: parseShopSortParam(sp.sort),
     q: parseSearchParam(sp.q),
-    city: parseSearchParam(sp.city),
+    city: parseCityParam(sp.city),
   };
 }
 

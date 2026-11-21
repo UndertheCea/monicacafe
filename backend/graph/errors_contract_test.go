@@ -62,3 +62,20 @@ func TestErrorCodesMatchFrontend(t *testing.T) {
 		t.Fatalf("error codes drifted:\n backend (graph/errors.go):        %v\n frontend (lib/errors.ts API_ERROR_CODES): %v", backend, frontend)
 	}
 }
+
+// TestCityLimitMatchesFrontend keeps /shops' CITY_MAX_CHARS
+// (frontend/lib/shopQuery.ts) equal to maxCityLen, so the page never sends a
+// city the API refuses (#457).
+func TestCityLimitMatchesFrontend(t *testing.T) {
+	src, err := os.ReadFile("../../frontend/lib/shopQuery.ts")
+	if err != nil {
+		t.Skipf("frontend source not available: %v", err)
+	}
+	m := regexp.MustCompile(`CITY_MAX_CHARS = (\d+);`).FindSubmatch(src)
+	if m == nil {
+		t.Fatal("CITY_MAX_CHARS not found in frontend/lib/shopQuery.ts")
+	}
+	if n, _ := strconv.Atoi(string(m[1])); n != maxCityLen {
+		t.Fatalf("frontend CITY_MAX_CHARS = %d, backend maxCityLen = %d", n, maxCityLen)
+	}
+}

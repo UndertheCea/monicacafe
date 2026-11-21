@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { nextLoadKey, ownStateAfterLoad, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { COFFEE_SAVED, SAVE_COFFEE, UNSAVE_COFFEE } from "@/lib/api";
 import { rateLimitMessage } from "@/lib/errors";
@@ -21,7 +22,8 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const [state, setState] = useState<SaveState>({ saved: false, count: saveCount });
-  const [loaded, setLoaded] = useState(false);
+  const [load, setLoad] = useState<OwnStateLoad>("loading");
+  const [loadKey, setLoadKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
 
@@ -32,14 +34,15 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
       .then((r) => {
         if (live && r.coffee) setState({ saved: r.coffee.isSaved, count: r.coffee.saveCount });
       })
-      .catch(() => {
-        // Keep the server-rendered count; the button still works.
-      })
-      .finally(() => live && setLoaded(true));
+      .then(
+        () => live && setLoad(ownStateAfterLoad(true)),
+        // Not knowing the viewer's state, the toggle would guess; offer "Try again" instead (#443).
+        () => live && setLoad(ownStateAfterLoad(false)),
+      );
     return () => {
       live = false;
     };
-  }, [status, request, coffeeId]);
+  }, [status, request, coffeeId, loadKey]);
 
   const count = (
     <span className="text-xs font-normal text-muted">
@@ -61,7 +64,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   }
 
   async function onToggle() {
-    if (busy || !loaded) return; // aria-disabled keeps focus on the button, so guard here (#423)
+    if (!toggleEnabled(load, busy)) return; // aria-disabled keeps focus on the button, so guard here (#423)
     const before = state;
     const guess = toggleSave(state, !state.saved);
     setState(guess);
@@ -86,8 +89,8 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
       <p className="flex flex-wrap items-center gap-3">
         <Button
           onClick={onToggle}
-          aria-disabled={busy || !loaded}
-          className={busy || !loaded ? "opacity-50" : undefined}
+          aria-disabled={!toggleEnabled(load, busy)}
+          className={toggleEnabled(load, busy) ? undefined : "opacity-50"}
           aria-pressed={state.saved}
           variant={state.saved ? "primary" : "secondary"}
         >
@@ -96,6 +99,17 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
         </Button>
         {count}
       </p>
+      {load === "failed" && (
+        <p role="alert" className="mt-2 flex flex-wrap items-center gap-3 text-sm text-danger">
+          {t(locale, "save.loadError")}
+          <Button variant="secondary" onClick={() => {
+              setLoad("loading");
+              setLoadKey(nextLoadKey);
+            }}>
+            {t(locale, "crash.retry")}
+          </Button>
+        </p>
+      )}
       {error && (
         <p role="alert" className="mt-2 text-sm text-danger">
           {t(locale, error.key, error.vars)}

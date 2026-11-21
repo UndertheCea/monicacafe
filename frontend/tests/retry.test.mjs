@@ -32,3 +32,17 @@ test("panels wire a retry button and no submit short-circuit", () => {
   }
   assert.doesNotMatch(src("components/admin/AdminScreen.tsx"), /if \(q === search\) return/);
 });
+
+test("Save / Follow toggles are enabled only once the viewer's own state loaded (#443)", async () => {
+  const { ownStateAfterLoad, toggleEnabled } = await import("../lib/retry.ts");
+  assert.equal(ownStateAfterLoad(true), "ready");
+  assert.equal(ownStateAfterLoad(false), "failed");
+  for (const [load, busy, want] of [
+    ["loading", false, false],
+    ["failed", false, false],
+    ["ready", true, false],
+    ["ready", false, true],
+  ]) {
+    assert.equal(toggleEnabled(load, busy), want, `${load} busy=${busy}`);
+  }
+});

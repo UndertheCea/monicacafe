@@ -2572,7 +2572,7 @@ type Variant {
   weightG: Int!
   priceTwd: TWD!
   stock: Int!
-  "Buyable now: the seller's on-sale switch is on AND stock > 0."
+  "Buyable now: the seller's on-sale switch is on, stock > 0 and the price at least NT$1 (#456)."
   isAvailable: Boolean!
   """
   The seller's on-sale switch alone, whatever the stock (#318): the dashboard's

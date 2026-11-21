@@ -234,10 +234,14 @@ func toCoffees(cs []*store.Coffee) []*model.Coffee {
 	return out
 }
 
+// toVariant: isAvailable ("buyable now") follows the same rule as the store's
+// buyableVariant and the cart: on sale, in stock and at least NT$1, so an
+// option stored at NT$0 before #358 reads sold out everywhere (#456).
 func toVariant(v *store.Variant) *model.Variant {
 	return &model.Variant{
 		ID: v.ID, Grind: model.GrindOption(v.Grind), WeightG: v.WeightG,
-		PriceTwd: money.TWD(v.PriceTWD), Stock: v.Stock, IsAvailable: v.IsAvailable && v.Stock > 0, OnSale: v.IsAvailable,
+		PriceTwd: money.TWD(v.PriceTWD), Stock: v.Stock,
+		IsAvailable: v.IsAvailable && v.Stock > 0 && v.PriceTWD >= MinCartPriceTWD, OnSale: v.IsAvailable,
 		UpdatedAt: v.UpdatedAt,
 	}
 }
@@ -1033,13 +1037,18 @@ func storeFilter(f *model.CoffeeFilter) (store.CoffeeFilter, error) {
 	if f == nil {
 		return out, nil
 	}
-	for field, id := range map[string]*string{
-		"originCountryId":    f.OriginCountryID,
-		"varietyId":          f.VarietyID,
-		"processingMethodId": f.ProcessingMethodID,
+	// A slice, not a map: with several malformed ids the error always names the
+	// first in this order, whatever Go's map order would be (#458).
+	for _, ref := range []struct {
+		field string
+		id    *string
+	}{
+		{"originCountryId", f.OriginCountryID},
+		{"varietyId", f.VarietyID},
+		{"processingMethodId", f.ProcessingMethodID},
 	} {
-		if id != nil {
-			if err := requireUUID(field, *id); err != nil {
+		if ref.id != nil {
+			if err := requireUUID(ref.field, *ref.id); err != nil {
 				return out, err
 			}
 		}

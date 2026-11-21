@@ -4,7 +4,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { SHOPS } from "@/lib/api";
 import { pageHref, parsePage, type SearchParams } from "@/lib/coffeeFilters";
-import { pastLastPage } from "@/lib/pagination";
+import { beyondEnd, pastLastPage } from "@/lib/pagination";
 import { PastLastPage } from "@/components/PastLastPage";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
@@ -18,7 +18,7 @@ import { ShopListSortForm } from "@/components/shops/ShopSortForm";
 import { FilterChips } from "@/components/coffees/FilterChips";
 import { hrefWithout } from "@/lib/filterChips";
 import { parseSearchParam } from "@/lib/coffeeQuery";
-import { parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
+import { parseCityParam, parseShopSortParam, shopListHref, shopSortForApi } from "@/lib/shopQuery";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
@@ -44,7 +44,7 @@ function parseShopList(sp: SearchParams) {
     page: parsePage(sp),
     sort: parseShopSortParam(sp.sort),
     q: parseSearchParam(sp.q),
-    city: parseSearchParam(sp.city),
+    city: parseCityParam(sp.city),
   };
 }
 
@@ -55,7 +55,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   let pastEnd = false;
   let failed = false;
   try {
-    pastEnd = pastLastPage((await loadShops(q, city, sort, page)).total, page, SHOPS_PAGE_SIZE);
+    pastEnd = beyondEnd((await loadShops(q, city, sort, page)).total, page, SHOPS_PAGE_SIZE);
   } catch {
     // The page shows its error panel: keep it out of the index (#426).
     failed = true;

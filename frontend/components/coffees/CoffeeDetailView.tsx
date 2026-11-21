@@ -4,7 +4,7 @@ import { brewLongKey } from "@/lib/brew";
 import { flavorNoteHref } from "@/lib/coffeeQuery";
 import { knownHarvestYear } from "@/lib/harvest";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
-import { coffeeAvailability, pricePer100g, variantState } from "@/lib/pricing";
+import { coffeeAvailability, per100gShown, variantState } from "@/lib/pricing";
 import { provenanceFacts } from "@/lib/provenance";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
@@ -189,8 +189,8 @@ export function CoffeeDetailView({
 
 /** "NT$X / 100 g" under a variant price; nothing for 100 g bags or bad weights. */
 function Per100g({ locale, priceTwd, weightG }: { locale: Locale; priceTwd: number; weightG: number }) {
-  const per100 = pricePer100g(priceTwd, weightG);
-  if (per100 === null || weightG === 100) return null;
+  const per100 = per100gShown(priceTwd, weightG);
+  if (per100 === null) return null;
   return (
     <span className="block text-xs font-normal text-muted">
       {t(locale, "coffee.per100g", { price: formatTWD(per100) })}

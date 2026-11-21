@@ -220,7 +220,7 @@ test("listing pages pass the past-the-end check to listingRobots (#402)", () => 
   const root = new URL("..", import.meta.url).pathname;
   for (const f of ["app/coffees/page.tsx", "app/shops/page.tsx", "app/shops/[slug]/page.tsx"]) {
     const src = readFileSync(root + f, "utf8");
-    assert.match(src, /listingRobots\([^;]*?(pastEnd|coffeesPastEnd|pastLastPage)/, f);
+    assert.match(src, /listingRobots\([^;]*?(pastEnd|coffeesPastEnd|beyondEnd)/, f);
   }
 });
 
@@ -253,4 +253,19 @@ test("listing pages pass a failed load to listingRobots (#426)", () => {
   assert.match(read("app/coffees/page.tsx"), /listingRobots\(filter\.search, status\.pastEnd, status\.failed\)/);
   assert.match(read("app/shops/page.tsx"), /listingRobots\(q \?\? city, pastEnd, failed\)/);
   assert.match(read("app/map/page.tsx"), /listingRobots\(null, false, failed\)/);
+});
+
+test("shareMetadata uses the fallback only when the description is blank (#459)", () => {
+  const input = { base, path: "/shops/moni", title: "Moni", images: [null], locale: "en", fallback: "Fallback text" };
+  for (const description of ["", "  \n "]) {
+    const m = shareMetadata({ ...input, description });
+    assert.equal(m.description, "Fallback text");
+    assert.equal(m.openGraph.description, "Fallback text");
+    assert.equal(m.twitter.description, "Fallback text");
+  }
+  const m = shareMetadata({ ...input, description: "Floral" });
+  assert.equal(m.description, "Floral");
+  assert.equal(m.openGraph.description, "Floral");
+  assert.equal(m.twitter.description, "Floral");
+  assert.equal(shareMetadata({ ...input, description: "", fallback: undefined }).description, "");
 });

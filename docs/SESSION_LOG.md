@@ -15,6 +15,36 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 59 — 2026-11-21 — Audit: NT$0 isAvailable, /shops city param, empty-list SEO (six slices)
+PR: #462
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: coffee / shop
+listing queries, filter counts, similar, search expansion, platform packages, variant validation vs CHECKs; frontend: home,
+/coffees, coffee page, /shops, shop page, their lib helpers and metadata) gave #456–#461. A Sonnet sub-agent built #459–#461 in a
+worktree (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #456 backend — `toVariant`: `isAvailable` also needs `PriceTWD >= MinCartPriceTWD`, like `buyableVariant` and the cart, so a
+  legacy NT$0 option no longer reads buyable through the API. Schema doc updated; `TestToVariantOnSale`.
+- #457 cross-cutting — `parseCityParam` (`lib/shopQuery.ts`): `/shops?city=` over 40 code points or with control characters is no
+  filter (it was the error page); spaces kept as typed. Go `TestCityLimitMatchesFrontend` pins `CITY_MAX_CHARS` = `maxCityLen`.
+- #458 backend — `storeFilter` checks origin / variety / process ids in a fixed order, so `extensions.field` is stable.
+- #459 frontend — `shareMetadata` `fallback`: blank shop / coffee descriptions use the list subtitle for meta / og / twitter.
+- #460 frontend — `per100gShown` (`lib/pricing.ts`): no "per 100 g" in the coffee headline for a 100 g bag, same rule as the table.
+- #461 frontend — `beyondEnd` (`lib/pagination.ts`) drives `listingRobots` on /coffees, /shops, shop pages: page 2+ of an empty
+  list is `noindex`; the UI keeps `pastLastPage`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (410), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). Metadata and
+  the coffee headline were checked by tests and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Audit notes not filed: counts and weights aren't thousands-grouped (altitude and prices are); the sidebar "Reset" drops `q` /
+  `sort` while "Clear all" keeps them; an unknown but valid UUID in `?origin=` shows "Any" with a bare "Origin" chip. No new
+  questions.
+
 ## Session 58 — 2026-11-21 — Audit: retry on dashboard loads, admin lists in sync, archived coffees (six slices)
 PR: #455
 

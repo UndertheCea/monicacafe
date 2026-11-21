@@ -22,6 +22,24 @@ export function parseShopSortParam(v: string | string[] | undefined): ShopSortPa
   return (SHOP_SORT_PARAMS as readonly string[]).includes(s) ? (s as ShopSortParam) : "";
 }
 
+/**
+ * The longest `?city=` the API accepts (`maxCityLen` in backend/graph/helpers.go;
+ * a Go test keeps the two equal). A longer value would be BAD_USER_INPUT.
+ */
+export const CITY_MAX_CHARS = 40;
+
+/**
+ * Parse `/shops?city=` (#457): the first value, trimmed. The store compares the
+ * city exactly, so inner spaces are kept as typed; a blank value, one longer
+ * than the API allows or one with control characters is no filter at all, so
+ * a mangled link shows every shop instead of the error page.
+ */
+export function parseCityParam(v: string | string[] | undefined): string | undefined {
+  const s = ((Array.isArray(v) ? v[0] : v) ?? "").trim();
+  if (!s || [...s].length > CITY_MAX_CHARS || /\p{Cc}/u.test(s)) return undefined;
+  return s;
+}
+
 /** The GraphQL `sort` argument for a `?sort=` value. */
 export function shopSortForApi(p: ShopSortParam): ShopSort {
   return TO_API[p];

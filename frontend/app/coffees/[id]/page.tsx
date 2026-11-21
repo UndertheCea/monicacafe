@@ -41,6 +41,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
         path: `/coffees/${c.id}`,
         title,
         description: c.description,
+        fallback: t(locale, "coffees.subtitle"),
         images: [c.imageUrls[0], c.shop.logoUrl],
         locale,
         type: "article",

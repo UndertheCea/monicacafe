@@ -17,7 +17,7 @@ import { ReportButton } from "@/components/ReportButton";
 import { ErrorState } from "@/components/ErrorState";
 import { Pagination } from "@/components/Pagination";
 import { PastLastPage } from "@/components/PastLastPage";
-import { pastLastPage } from "@/lib/pagination";
+import { beyondEnd, pastLastPage } from "@/lib/pagination";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, Picture, SectionTitle } from "@/components/ui";
@@ -63,13 +63,14 @@ export async function generateMetadata({
         path: shopPageHref(shop.slug, pages),
         title: shop.name,
         description: shop.description,
+        fallback: t(locale, "shops.subtitle"),
         images: [shop.bannerUrl, shop.logoUrl],
         locale,
       }),
       // Either list past its last page shows only "back to page 1" (#402).
       robots: listingRobots(
         null,
-        pastLastPage(shop.coffees.total, pages.page, PAGE_SIZE) || pastLastPage(shop.archive.total, pages.archive, PAGE_SIZE),
+        beyondEnd(shop.coffees.total, pages.page, PAGE_SIZE) || beyondEnd(shop.archive.total, pages.archive, PAGE_SIZE),
       ),
     };
   } catch {

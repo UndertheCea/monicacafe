@@ -15,6 +15,14 @@ export function pricePer100g(priceTwd: number, weightG: number): number | null {
   return (num - (num % den)) / den;
 }
 
+/**
+ * The per-100 g price worth showing: null for a 100 g bag (it would repeat the
+ * price) and for weights / prices pricePer100g rejects (#460).
+ */
+export function per100gShown(priceTwd: number, weightG: number): number | null {
+  return weightG === 100 ? null : pricePer100g(priceTwd, weightG);
+}
+
 export interface AvailabilityVariant {
   priceTwd: number;
   weightG: number;
@@ -55,7 +63,7 @@ export function coffeeAvailability(variants: AvailabilityVariant[]): CoffeeAvail
     if (isBuyable(v) && (best === null || v.priceTwd < best.priceTwd)) best = v;
   }
   if (best === null) return { kind: "soldOut" };
-  return { kind: "from", price: best.priceTwd, per100g: pricePer100g(best.priceTwd, best.weightG) };
+  return { kind: "from", price: best.priceTwd, per100g: per100gShown(best.priceTwd, best.weightG) };
 }
 
 /**

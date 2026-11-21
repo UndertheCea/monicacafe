@@ -22,6 +22,15 @@ export function pastLastPage(total: number, page: number, pageSize: number): boo
 }
 
 /**
+ * True when `page` is beyond the last page, also for an empty list: only page 1
+ * exists then, so ?page=2+ of "no results" is a soft 404 to keep out of the
+ * index (robots only; the UI keeps pastLastPage, #461).
+ */
+export function beyondEnd(total: number, page: number, pageSize: number): boolean {
+  return page > Math.max(1, Math.ceil(total / pageSize));
+}
+
+/**
  * Highest `?page=` the listings ask for (#399). A bigger number would make an
  * offset GraphQL's Int refuses (the error page instead of "past the last page");
  * no list is anywhere near this long.

@@ -1,7 +1,7 @@
 // Pager shortcuts (lib/pagination.ts) and the post-register greeting (lib/welcome.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clampPage, MAX_PAGE, pagerShortcuts, pastLastPage, showPager } from "../lib/pagination.ts";
+import { beyondEnd, clampPage, MAX_PAGE, pagerShortcuts, pastLastPage, showPager } from "../lib/pagination.ts";
 import { WELCOME_KEY, rememberWelcome, takeWelcome } from "../lib/welcome.ts";
 
 test("pagerShortcuts shows first / last only past 3 pages and only when prev / next doesn't reach them", () => {
@@ -61,6 +61,18 @@ test("pastLastPage is true only for a page beyond the last one of a non-empty li
   ];
   for (const [name, total, page, size, want] of cases) {
     assert.equal(pastLastPage(total, page, size), want, name);
+  }
+});
+
+test("beyondEnd also flags page 2+ of an empty list (#461)", () => {
+  const cases = [
+    ["empty list, page 1", 0, 1, 12, false],
+    ["empty list, page 2", 0, 2, 12, true],
+    ["12 items, page 2", 12, 2, 12, true],
+    ["13 items, page 2", 13, 2, 12, false],
+  ];
+  for (const [name, total, page, size, want] of cases) {
+    assert.equal(beyondEnd(total, page, size), want, name);
   }
 });
 

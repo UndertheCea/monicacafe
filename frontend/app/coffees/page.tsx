@@ -4,7 +4,7 @@ import { cache } from "react";
 import { BROWSE_FILTER_OPTIONS, COFFEES, SEARCH_TERMS } from "@/lib/api";
 import { cardSearchFields, findSearchMatch, optionalSearchTerms } from "@/lib/searchMatch";
 import Link from "next/link";
-import { pastLastPage } from "@/lib/pagination";
+import { beyondEnd, pastLastPage } from "@/lib/pagination";
 import { PastLastPage } from "@/components/PastLastPage";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
 import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
@@ -50,7 +50,7 @@ const loadOptions = cache(() => cachedServerQuery(BROWSE_FILTER_OPTIONS, [CACHE_
 async function coffeesStatus(s: CoffeeSearch): Promise<{ pastEnd: boolean; failed: boolean }> {
   try {
     const [, list] = await Promise.all([loadOptions(), coffeesFor(s)]);
-    return { pastEnd: pastLastPage(list.coffees.total, s.page, PAGE_SIZE), failed: false };
+    return { pastEnd: beyondEnd(list.coffees.total, s.page, PAGE_SIZE), failed: false };
   } catch {
     return { pastEnd: false, failed: true };
   }

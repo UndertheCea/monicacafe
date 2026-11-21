@@ -4,7 +4,7 @@ import { cache } from "react";
 import Link from "next/link";
 import { SHOPS } from "@/lib/api";
 import { pageHref, parsePage, type SearchParams } from "@/lib/coffeeFilters";
-import { pastLastPage } from "@/lib/pagination";
+import { beyondEnd, pastLastPage } from "@/lib/pagination";
 import { PastLastPage } from "@/components/PastLastPage";
 import { serverQuery } from "@/lib/serverQuery";
 import { t } from "@/lib/i18n/dict";
@@ -55,7 +55,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   let pastEnd = false;
   let failed = false;
   try {
-    pastEnd = pastLastPage((await loadShops(q, city, sort, page)).total, page, SHOPS_PAGE_SIZE);
+    pastEnd = beyondEnd((await loadShops(q, city, sort, page)).total, page, SHOPS_PAGE_SIZE);
   } catch {
     // The page shows its error panel: keep it out of the index (#426).
     failed = true;

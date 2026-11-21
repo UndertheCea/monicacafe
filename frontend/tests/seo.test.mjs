@@ -220,7 +220,7 @@ test("listing pages pass the past-the-end check to listingRobots (#402)", () => 
   const root = new URL("..", import.meta.url).pathname;
   for (const f of ["app/coffees/page.tsx", "app/shops/page.tsx", "app/shops/[slug]/page.tsx"]) {
     const src = readFileSync(root + f, "utf8");
-    assert.match(src, /listingRobots\([^;]*?(pastEnd|coffeesPastEnd|pastLastPage)/, f);
+    assert.match(src, /listingRobots\([^;]*?(pastEnd|coffeesPastEnd|beyondEnd)/, f);
   }
 });
 

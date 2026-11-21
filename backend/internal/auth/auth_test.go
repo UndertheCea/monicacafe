@@ -103,6 +103,10 @@ func TestValidatePasswordCommon(t *testing.T) {
 		{" 12345678 ", ErrCommonPassword},
 		{"iloveyou", ErrCommonPassword},
 		{"short", ErrWeakPassword},
+		{"        ", ErrWeakPassword},
+		{" \t\n \t\n \t\n", ErrWeakPassword},
+		{"  xqzvkrw  ", ErrWeakPassword},
+		{"  xqzvkrwj  ", nil},
 		{"correct-horse-battery", nil},
 		{"咖啡好好喝coffee", nil},
 	}

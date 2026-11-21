@@ -49,7 +49,8 @@ func IsCommonPassword(pw string) bool {
 
 // ValidatePassword checks a new password: 8–72 bytes and not a common one.
 func ValidatePassword(pw string) error {
-	if utf8.RuneCountInString(pw) < MinPasswordLen || len(pw) > maxPasswordBytes {
+	// The trimmed form must still be long enough: eight spaces are not a password.
+	if utf8.RuneCountInString(strings.TrimSpace(pw)) < MinPasswordLen || len(pw) > maxPasswordBytes {
 		return ErrWeakPassword
 	}
 	if IsCommonPassword(pw) {

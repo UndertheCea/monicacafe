@@ -50,3 +50,35 @@ export function summariseReports(raw: string): Summary[] {
   }
   return (Array.isArray(v) ? v.slice(0, 20) : [v]).map(summarise).filter((x): x is Summary => x !== null);
 }
+
+/**
+ * Reads a request body as text, giving up (null) once it passes `max` bytes.
+ * `Content-Length` can be absent (chunked uploads), so the cap has to hold
+ * while reading, not after `req.text()` has buffered everything.
+ */
+export async function readCappedText(
+  body: ReadableStream<Uint8Array> | null,
+  max: number,
+): Promise<string | null> {
+  if (!body) return "";
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.byteLength;
+  }
+  return new TextDecoder().decode(all);
+}

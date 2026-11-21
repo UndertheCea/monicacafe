@@ -86,3 +86,30 @@ test("CSP report parsing", () => {
   assert.deepEqual(summariseReports("not json"), []);
   assert.deepEqual(summariseReports("42"), []);
 });
+
+test("readCappedText stops at the byte cap even without Content-Length", async () => {
+  const { readCappedText } = await import("../lib/cspReport.ts");
+  const stream = (...parts) =>
+    new ReadableStream({
+      start(c) {
+        for (const p of parts) c.enqueue(new TextEncoder().encode(p));
+        c.close();
+      },
+    });
+  assert.equal(await readCappedText(null, 10), "");
+  assert.equal(await readCappedText(stream("ab", "cd"), 4), "abcd");
+  assert.equal(await readCappedText(stream("ab", "cde"), 4), null);
+  // Bytes, not UTF-16 units: three CJK characters are nine bytes.
+  assert.equal(await readCappedText(stream("咖啡豆"), 8), null);
+  assert.equal(await readCappedText(stream("咖啡豆"), 9), "咖啡豆");
+  // A never-ending body is cut off, not buffered.
+  let pulled = 0;
+  const endless = new ReadableStream({
+    pull(c) {
+      pulled++;
+      c.enqueue(new Uint8Array(1024));
+    },
+  });
+  assert.equal(await readCappedText(endless, 8 * 1024), null);
+  assert.ok(pulled <= 10);
+});

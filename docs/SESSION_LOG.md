@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 57 — 2026-11-21 — Audit: reserved shop names, empty shop updates, secret check false positives (six slices)
-PR: #PR
+PR: #448
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: auth,
 middleware, rate limits, config, ECPay, migration CHECKs vs Go validation, admin CLI; frontend: map, shop pages, dashboard shop

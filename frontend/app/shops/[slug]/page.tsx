@@ -163,7 +163,7 @@ export default async function ShopPage({
           />
 
           {archive.total > 0 && (
-            <section id="archive" className="mt-14 scroll-mt-20 border-t border-line pt-8" aria-labelledby="shop-archive">
+            <section id="archive" className="mt-14 border-t border-line pt-8" aria-labelledby="shop-archive">
               <div className="mb-4 flex flex-wrap items-baseline gap-3">
                 <SectionTitle id="shop-archive">
                   {t(locale, "shops.archive")}

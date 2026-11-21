@@ -38,6 +38,9 @@
      tells Next 16 to switch it off while it scrolls to the top on a route change, so navigation is instant (#234). */
   html {
     @apply motion-safe:scroll-smooth;
+    /* Every in-page anchor (/account jump links, #archive, …) lands below the
+       sticky header instead of under it (#451). */
+    scroll-padding-top: 5rem;
   }
 
   body {

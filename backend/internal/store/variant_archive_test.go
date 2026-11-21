@@ -127,6 +127,15 @@ func TestVariantArchive(t *testing.T) {
 		if _, err := tx.CoffeeByID(ctx, co.ID); !errors.Is(err, store.ErrNotFound) {
 			return fmt.Errorf("CoffeeByID archived = %v, want ErrNotFound", err)
 		}
+		// Writes that race an archive see it as gone too (#453).
+		if _, err := tx.LockCoffee(ctx, co.ID); !errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("LockCoffee archived = %v, want ErrNotFound", err)
+		}
+		for _, pub := range []bool{true, false} {
+			if _, err := tx.SetCoffeePublished(ctx, co.ID, pub); !errors.Is(err, store.ErrNotFound) {
+				return fmt.Errorf("SetCoffeePublished(%v) archived = %v, want ErrNotFound", pub, err)
+			}
+		}
 		if n, err := tx.CountShopCoffees(ctx, sh.ID); err != nil || n != 0 {
 			return fmt.Errorf("CountShopCoffees = %d, %v; want 0", n, err)
 		}

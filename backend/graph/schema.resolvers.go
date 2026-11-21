@@ -896,6 +896,10 @@ func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model
 		co, err = tx.SetCoffeePublished(ctx, id, true)
 		return err
 	})
+	if errors.Is(err, store.ErrNotFound) {
+		// Deleted or archived after the ownership check (#453).
+		return nil, errNotFound("coffee")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -915,6 +919,9 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 		return nil, err
 	}
 	co, err := r.Store.SetCoffeePublished(ctx, id, false)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil, errNotFound("coffee") // deleted or archived after the ownership check (#453)
+	}
 	if err != nil {
 		return nil, err
 	}

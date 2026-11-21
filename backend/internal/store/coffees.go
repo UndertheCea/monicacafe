@@ -513,7 +513,7 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 // SetCoffeePublished toggles a coffee's visibility.
 func (s *Store) SetCoffeePublished(ctx context.Context, id string, published bool) (*Coffee, error) {
 	return scanCoffee(s.db.QueryRow(ctx, `
-		WITH c AS (UPDATE coffees SET is_published = $2 WHERE id = $1 RETURNING *)
+		WITH c AS (UPDATE coffees SET is_published = $2 WHERE id = $1 AND archived_at IS NULL RETURNING *)
 		SELECT `+coffeeColumns+` FROM c`, id, published))
 }
 
@@ -645,8 +645,10 @@ func deleteOrArchive(ctx context.Context, db DB, q, id string) (bool, error) {
 // LockCoffee takes a row lock on a coffee for the rest of the transaction, so
 // variant-count checks can't race with each other or with publishing. It
 // returns whether the coffee is currently published. Call it inside InTx.
+// ErrNotFound for a deleted or archived coffee (#453), so a write that raced
+// an archive can't add options to it.
 func (s *Store) LockCoffee(ctx context.Context, id string) (published bool, err error) {
-	err = s.db.QueryRow(ctx, `SELECT is_published FROM coffees WHERE id = $1 FOR UPDATE`, id).Scan(&published)
+	err = s.db.QueryRow(ctx, `SELECT is_published FROM coffees WHERE id = $1 AND archived_at IS NULL FOR UPDATE`, id).Scan(&published)
 	return published, mapErr(err)
 }
 

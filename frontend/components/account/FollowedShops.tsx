@@ -13,6 +13,7 @@ import { hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Button, Card, SectionTitle } from "@/components/ui";
 import { pluralKey } from "@/lib/plural";
+import { nextLoadKey } from "@/lib/retry";
 
 type List = { total: number; nodes: ShopSummary[] };
 type State =
@@ -24,6 +25,7 @@ type State =
 export function FollowedShops({ locale }: { locale: Locale }) {
   const { request } = useAuth();
   const [s, setS] = useState<State>({ state: "loading" });
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#437)
   const [removing, setRemoving] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState(false);
 
@@ -47,7 +49,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
     return () => {
       live = false;
     };
-  }, [fetchPage]);
+  }, [fetchPage, attempt]);
 
   /** `shownNow`: the rows left after a removal, when it is called before that render. */
   async function loadMore(shownNow?: number) {
@@ -102,9 +104,22 @@ export function FollowedShops({ locale }: { locale: Locale }) {
 
       {s.state === "loading" && <p className="mt-4 text-sm text-muted">{t(locale, "dash.loading")}</p>}
       {s.state === "error" && (
-        <p role="alert" className="mt-4 text-sm text-danger">
-          {t(locale, "dash.error.generic")}
-        </p>
+        <div className="mt-4 space-y-3">
+          <p role="alert" className="text-sm text-danger">
+            {t(locale, "dash.error.generic")}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setS({ state: "loading" });
+              setAttempt(nextLoadKey);
+            }}
+          >
+            {t(locale, "crash.retry")}
+          </Button>
+        </div>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && !refilling && (
         <Card as="p" className="mt-4 p-6 text-center text-muted">

@@ -25,6 +25,7 @@ import {
 } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { nextLoadKey } from "@/lib/retry";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
@@ -34,7 +35,7 @@ import { CommentFeed } from "@/components/CommentFeed";
 import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
-import { FormError, LoginNeeded, Notice } from "./ui";
+import { FormError, LoginNeeded, LoadFailed, Notice } from "./ui";
 import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
 import { Badge, Button, Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
 import { ICON_BUTTON } from "@/lib/ui";
@@ -80,6 +81,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
 
   // Fetch on sign-in; setState happens in the promise callback, and a stale
   // response (status changed meanwhile) is dropped.
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#452)
   useEffect(() => {
     if (status !== "authenticated") return;
     let live = true;
@@ -87,12 +89,18 @@ export function Dashboard({ locale }: { locale: Locale }) {
     return () => {
       live = false;
     };
-  }, [status, loadShop]);
+  }, [status, loadShop, attempt]);
 
   if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (status === "anonymous") return <LoginNeeded locale={locale} next="/dashboard" />;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
+  if (load.state === "error") {
+    const retry = () => {
+      setLoad({ state: "loading" });
+      setAttempt(nextLoadKey);
+    };
+    return <LoadFailed locale={locale} onRetry={retry} />;
+  }
   if (!load.shop) return <CreateShopForm locale={locale} onCreated={() => void fetchShop()} />;
 
   const shop = load.shop;

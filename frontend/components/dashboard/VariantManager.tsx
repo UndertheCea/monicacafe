@@ -19,13 +19,14 @@ import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { nextLoadKey } from "@/lib/retry";
 import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
 import { CoffeeGallery } from "./CoffeeGallery";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { GRINDS } from "./NewCoffeeForm";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
-import { LoginNeeded, Notice } from "./ui";
+import { LoginNeeded, LoadFailed, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
 import { Badge, Button, Card, ConfirmButton, ErrorSummary, Input, SectionTitle, Select, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
@@ -73,6 +74,7 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
 
   // Fetch on sign-in; setState happens in the promise callback, and a stale
   // response (status changed meanwhile) is dropped.
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#452)
   useEffect(() => {
     if (status !== "authenticated") return;
     let live = true;
@@ -80,12 +82,18 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
     return () => {
       live = false;
     };
-  }, [status, loadCoffee]);
+  }, [status, loadCoffee, attempt]);
 
   if (view === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (view === "login") return <LoginNeeded locale={locale} next={`/dashboard/coffees/${coffeeId}`} />;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
+  if (load.state === "error") {
+    const retry = () => {
+      setLoad({ state: "loading" });
+      setAttempt(nextLoadKey);
+    };
+    return <LoadFailed locale={locale} onRetry={retry} />;
+  }
   // Published coffees are visible to everyone, so also check ownership here
   // (the mutations re-check it server-side).
   if (load.state === "missing" || !canManageCoffee(load.coffee.shop.id, user)) {

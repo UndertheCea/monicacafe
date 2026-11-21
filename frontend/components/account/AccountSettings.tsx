@@ -239,7 +239,7 @@ function PasswordForm({ locale }: { locale: Locale }) {
   }
 
   return (
-    <form id="account-password" method="post" onSubmit={onSubmit} noValidate className={`${sectionCls} scroll-mt-20`}>
+    <form id="account-password" method="post" onSubmit={onSubmit} noValidate className={sectionCls}>
       <SectionTitle>{t(locale, "account.password")}</SectionTitle>
       <p className="text-sm text-muted">{t(locale, "account.passwordHint")}</p>
       <FormSummary formId="password" locale={locale} errors={fe.errors} order={PASSWORD_ORDER} />

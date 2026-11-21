@@ -64,3 +64,11 @@ test("success messages sit in always-mounted role=status regions (#423)", () => 
   assert.ok(!/\{saveMsg &&/.test(details));
   assert.ok(!/note\?\.kind === "added" && \(\s*<p role="status"/.test(read("components/cart/AddToCart.tsx")));
 });
+
+test("in-page anchors land below the sticky header: one scroll-padding on html, no per-target scroll-mt (#451)", () => {
+  assert.match(read("components/SiteHeader.tsx"), /sticky top-0/);
+  assert.match(read("app/globals.css"), /html\s*\{[^}]*scroll-padding-top:\s*5rem/);
+  for (const f of ["components/account/AccountSettings.tsx", "app/shops/[slug]/page.tsx"]) {
+    assert.doesNotMatch(read(f), /scroll-mt-/, `${f}: scroll-mt would add to the html scroll-padding`);
+  }
+});

@@ -23,6 +23,7 @@ import { MAX_COFFEES_PER_SHOP } from "@/lib/dashboard/duplicateCoffee";
 import { draftKey, isEmptyDraft, makeDraft, parseDraft } from "@/lib/dashboard/session";
 import { capInput } from "@/lib/textInput";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { nextLoadKey } from "@/lib/retry";
 import { brewOptions, coffeeBadInput, detailsMessage } from "./CoffeeDetailsForm";
 import { COFFEE_API_ALIASES, COFFEE_ORDER, OPTIONAL_ORDER, isOptionalField, problemField, variantField } from "@/lib/dashboard/coffeeFields";
 import type { CoffeeFieldKey } from "./coffeeFormErrors";
@@ -33,7 +34,7 @@ import { MoreDetails } from "./MoreDetails";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
-import { LoginNeeded, Notice } from "./ui";
+import { LoginNeeded, LoadFailed, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
 import { Button, Card, Field, Input, SectionTitle, Select, Textarea, useFormErrors } from "@/components/ui";
 import { isContactInfoError } from "@/lib/moderation";
@@ -97,9 +98,10 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
   );
   const fe = useFormErrors<CoffeeFieldKey>("new-coffee", order);
 
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#452)
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
-  }, []);
+  }, [attempt]);
 
   // Saves the form (text fields + option rows, never images) to sessionStorage.
   const persist = useCallback(
@@ -164,7 +166,13 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
       </Notice>
     );
   }
-  if (optsFailed) return <Notice>{t(locale, "error.title")}</Notice>;
+  if (optsFailed) {
+    const retry = () => {
+      setOptsFailed(false);
+      setAttempt(nextLoadKey);
+    };
+    return <LoadFailed locale={locale} onRetry={retry} />;
+  }
   if (!opts) return <Notice>{t(locale, "dash.loading")}</Notice>;
 
   const problems = variantProblems(rows);

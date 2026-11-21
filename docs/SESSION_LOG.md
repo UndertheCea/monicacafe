@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 59 — 2026-11-21 — Audit: NT$0 isAvailable, /shops city param, empty-list SEO (six slices)
-PR: #PR
+PR: #462
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: coffee / shop
 listing queries, filter counts, similar, search expansion, platform packages, variant validation vs CHECKs; frontend: home,

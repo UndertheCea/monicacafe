@@ -63,6 +63,7 @@ export async function generateMetadata({
         path: shopPageHref(shop.slug, pages),
         title: shop.name,
         description: shop.description,
+        fallback: t(locale, "shops.subtitle"),
         images: [shop.bannerUrl, shop.logoUrl],
         locale,
       }),

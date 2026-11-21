@@ -22,6 +22,8 @@ export interface ShareInput {
   path: string;
   title: string;
   description: string;
+  /** Used when the description is blank once whitespace is collapsed, so the tag isn't omitted. */
+  fallback?: string;
   /** Candidate images, best first (absolute bucket URLs or site-relative paths). */
   images: (string | null | undefined)[];
   locale: ShareLocale;
@@ -50,7 +52,7 @@ export function shareDescription(text: string, max = 160): string {
 export function shareMetadata(i: ShareInput) {
   const url = absoluteUrl(i.path, i.base) ?? i.base;
   const image = i.images.map((s) => (s ? absoluteUrl(s, i.base) : null)).find((s) => s !== null) ?? null;
-  const description = shareDescription(i.description);
+  const description = shareDescription(i.description) || (i.fallback ? shareDescription(i.fallback) : "");
   const other: ShareLocale = i.locale === "en" ? "zh-TW" : "en";
   return {
     description,

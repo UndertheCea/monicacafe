@@ -254,3 +254,18 @@ test("listing pages pass a failed load to listingRobots (#426)", () => {
   assert.match(read("app/shops/page.tsx"), /listingRobots\(q \?\? city, pastEnd, failed\)/);
   assert.match(read("app/map/page.tsx"), /listingRobots\(null, false, failed\)/);
 });
+
+test("shareMetadata uses the fallback only when the description is blank (#459)", () => {
+  const input = { base, path: "/shops/moni", title: "Moni", images: [null], locale: "en", fallback: "Fallback text" };
+  for (const description of ["", "  \n "]) {
+    const m = shareMetadata({ ...input, description });
+    assert.equal(m.description, "Fallback text");
+    assert.equal(m.openGraph.description, "Fallback text");
+    assert.equal(m.twitter.description, "Fallback text");
+  }
+  const m = shareMetadata({ ...input, description: "Floral" });
+  assert.equal(m.description, "Floral");
+  assert.equal(m.openGraph.description, "Floral");
+  assert.equal(m.twitter.description, "Floral");
+  assert.equal(shareMetadata({ ...input, description: "", fallback: undefined }).description, "");
+});

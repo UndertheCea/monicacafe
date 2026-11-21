@@ -12,7 +12,7 @@ import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } fro
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
 import { isContactInfoError } from "@/lib/moderation";
-import { textInputErrorKey } from "@/lib/textInput";
+import { shopNameErrorKey, textInputErrorKey } from "@/lib/textInput";
 
 type ShopField = "name" | "city" | "slug" | "description";
 const ORDER: readonly ShopField[] = ["name", "city", "slug", "description"];
@@ -68,7 +68,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
           : e2.code === "BAD_USER_INPUT" && e2.field === "slug"
             ? placeError("slug", { key: "dash.error.slug" }, ORDER)
             : e2.code === "BAD_USER_INPUT" && e2.field === "name"
-            ? placeError("name", { key: textInputErrorKey(name, LIMITS.shopName, "shop.error.name") }, ORDER)
+            ? placeError("name", { key: shopNameErrorKey(name, LIMITS.shopName) }, ORDER)
             : e2.code === "BAD_USER_INPUT" && e2.field === "city"
             ? placeError("city", { key: textInputErrorKey(city, LIMITS.city, "shop.error.city") }, ORDER)
             : e2.code === "BAD_USER_INPUT" && e2.field === "description"

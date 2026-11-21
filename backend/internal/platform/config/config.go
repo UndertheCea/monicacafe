@@ -412,6 +412,9 @@ var publishedSecrets = []string{
 }
 
 // placeholderMarks appear in example values ("dev-…", "change-me", "…-change-in-prod").
+// A mark counts only at the start of the value or right after a character that
+// is not an ASCII letter or digit, so "Exchange-rate-2024" and "Sandev-key99"
+// are not mistaken for placeholders (#446).
 var placeholderMarks = []string{"dev-", "change"}
 
 // published reports whether v is, or contains, a value from this repository
@@ -424,11 +427,31 @@ func published(v string) bool {
 		}
 	}
 	for _, m := range placeholderMarks {
-		if strings.Contains(low, m) {
+		if hasWordMark(low, m) {
 			return true
 		}
 	}
 	return false
+}
+
+// hasWordMark reports whether mark occurs in low at the start or right after a
+// character that is not an ASCII letter or digit.
+func hasWordMark(low, mark string) bool {
+	for i := 0; ; {
+		j := strings.Index(low[i:], mark)
+		if j < 0 {
+			return false
+		}
+		j += i
+		if j == 0 {
+			return true
+		}
+		c := low[j-1]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9') {
+			return true
+		}
+		i = j + 1
+	}
 }
 
 // dsnPassword is the password in a postgres:// URL ("" when there is none or

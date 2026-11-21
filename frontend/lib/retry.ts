@@ -13,3 +13,17 @@ export function nextLoadKey(key: number): number {
 export function submitSearch(current: { query: string; key: number }, q: string): { query: string; key: number } {
   return { query: q, key: nextLoadKey(current.key) };
 }
+
+/**
+ * The viewer's own state behind a toggle (Save, Follow), fetched after sign-in (#443). Only "ready" enables
+ * the toggle: a failed load must not leave it showing "not saved" / "not following" as if that were known.
+ */
+export type OwnStateLoad = "loading" | "ready" | "failed";
+
+export function ownStateAfterLoad(ok: boolean): OwnStateLoad {
+  return ok ? "ready" : "failed";
+}
+
+export function toggleEnabled(load: OwnStateLoad, busy: boolean): boolean {
+  return load === "ready" && !busy;
+}

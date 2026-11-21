@@ -7,7 +7,7 @@ import (
 )
 
 // TestContactFilterAndReservedNames (#286): a shop name carrying a LINE ID is
-// refused; the reserved display name "Admin" is refused on register and
+// refused, and so is a reserved shop name (#444); the reserved display name "Admin" is refused on register and
 // updateProfile; a user's role is visible to the user (and admins) only.
 // Requires TEST_DATABASE_URL.
 func TestContactFilterAndReservedNames(t *testing.T) {
@@ -36,8 +36,22 @@ func TestContactFilterAndReservedNames(t *testing.T) {
 	// A shop name with a LINE ID is refused.
 	seller.expectCode("CONTACT_INFO_NOT_ALLOWED", `mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
 		map[string]any{"in": map[string]any{"slug": "cf-" + run, "name": "好咖啡 LINE ID: goodcoffee88", "description": "", "city": "台北市"}})
+	// A reserved shop name is refused on create (#444), field name.
+	r = seller.do(`mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
+		map[string]any{"in": map[string]any{"slug": "cf-" + run, "name": "Moni Cafe 官方客服", "description": "", "city": "台北市"}}, nil)
+	if len(r.Errors) == 0 || r.Errors[0].Extensions["code"] != "BAD_USER_INPUT" || r.Errors[0].Extensions["field"] != "name" {
+		t.Fatalf("reserved shop name on create: %+v", r.Errors)
+	}
+	var shop struct{ CreateShop struct{ ID string } }
 	seller.mustDo(`mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
-		map[string]any{"in": map[string]any{"slug": "cf-" + run, "name": "好咖啡烘焙", "description": "", "city": "台北市"}}, nil)
+		map[string]any{"in": map[string]any{"slug": "cf-" + run, "name": "好咖啡烘焙", "description": "", "city": "台北市"}}, &shop)
+	// ... and on rename; renaming to something ordinary, or resending the stored name, works.
+	const updShop = `mutation($id: ID!, $in: UpdateShopInput!) { updateShop(id: $id, input: $in) { id } }`
+	seller.expectCode("BAD_USER_INPUT", updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"name": "Support Team"}})
+	seller.mustDo(updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"name": "好咖啡烘焙 Roastery"}}, nil)
+	seller.mustDo(updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"name": "好咖啡烘焙 Roastery", "city": "新北市"}}, nil)
+	// Nothing to change is refused, not a silent "edit" (#445).
+	seller.expectCode("BAD_USER_INPUT", updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{}})
 
 	// Role: visible to its owner, hidden from other viewers.
 	var refs struct {

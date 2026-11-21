@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 57 — 2026-11-21 — Audit: reserved shop names, empty shop updates, secret check false positives (six slices)
+PR: #448
+
+No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: auth,
+middleware, rate limits, config, ECPay, migration CHECKs vs Go validation, admin CLI; frontend: map, shop pages, dashboard shop
+forms, uploader, BFF auth routes, CSP, sitemap, i18n, query shapes vs schema) gave #442–#447. A Sonnet sub-agent built #446 and
+#447 in a worktree (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #442 frontend — `/api/csp-report` reads the body through `readCappedText` (`lib/cspReport.ts`): 413 once it passes 8 KB in
+  bytes, even without Content-Length.
+- #443 frontend — Save / Follow: a failed own-state load keeps the toggle disabled and shows `save.loadError` /
+  `follow.loadError` with "Try again" (`OwnStateLoad`, `toggleEnabled` in `lib/retry.ts`).
+- #444 cross-cutting — `checkShopName` (`graph/reports.go`): createShop and a changed name in updateShop refuse
+  `IsReservedDisplayName` (admins exempt; stored names never re-checked); dashboard shows `shop.error.nameReserved`
+  (`shopNameErrorKey`). Integration test in `contact_filter_integration_test.go`.
+- #445 backend — `emptyShopUpdate`: updateShop with nothing to change is BAD_USER_INPUT `input` (it bumped `updated_at`).
+- #446 cross-cutting — `config.hasWordMark`: `dev-` / `change` count only at the start or after a non-alphanumeric, so
+  "Exchange-rate-2024" / "Sandev-key99" pass in production; printed secrets still refused. `.env.example`, brief decision.
+- #447 backend — `ValidatePassword` measures the trimmed password: eight spaces are `ErrWeakPassword` (stored untrimmed).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (402), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The Save / Follow retry and
+  the shop-name message were checked by tests and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Shop names now share the display-name reserved list, so "某某咖啡 官方" or "… Support" is refused for new / renamed shops.
+- Audit notes not filed: `store.mapErr` maps every 22P02 to not-found; `twfmt.IsMobile` / `IsPostalCode` / `IsTaxID` /
+  `IsCVSStoreID` unused until checkout. No new questions.
+
 ## Session 56 — 2026-11-20 — Audit: legacy NT$0 rows, cart drafts, cross-tab user switch, contact-filter false positives (seven slices)
 PR: #441
 

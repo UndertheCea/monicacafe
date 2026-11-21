@@ -35,3 +35,12 @@ export function hasInvisibleChars(value: string): boolean {
 export function textInputErrorKey<K extends MessageKey>(value: string, max: number, tooLongKey: K): K | "form.error.badChars" {
   return textLength(value) > max ? tooLongKey : "form.error.badChars";
 }
+
+/**
+ * Message for a shop name the API refused as BAD_USER_INPUT (#444): too long, invisible characters, or else a
+ * platform / staff word ("客服", "admin"), which is the one reason left.
+ */
+export function shopNameErrorKey(value: string, max: number): "shop.error.name" | "form.error.badChars" | "shop.error.nameReserved" {
+  if (textLength(value) > max) return "shop.error.name";
+  return hasInvisibleChars(value) ? "form.error.badChars" : "shop.error.nameReserved";
+}

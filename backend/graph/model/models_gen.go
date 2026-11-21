@@ -221,7 +221,7 @@ type Variant struct {
 	WeightG  int         `json:"weightG"`
 	PriceTwd money.TWD   `json:"priceTwd"`
 	Stock    int         `json:"stock"`
-	// Buyable now: the seller's on-sale switch is on AND stock > 0.
+	// Buyable now: the seller's on-sale switch is on, stock > 0 and the price at least NT$1 (#456).
 	IsAvailable bool `json:"isAvailable"`
 	// The seller's on-sale switch alone, whatever the stock (#318): the dashboard's
 	// checkbox. Public like stock: on a sold-out option it says only whether the

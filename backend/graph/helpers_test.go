@@ -917,16 +917,19 @@ func TestToVariantOnSale(t *testing.T) {
 		name                  string
 		stock                 int
 		switchOn              bool
+		price                 int64
 		wantAvail, wantOnSale bool
 	}{
-		{"on sale with stock", 3, true, true, true},
-		{"on sale, sold out", 0, true, false, true},
-		{"off sale with stock", 3, false, false, false},
-		{"off sale, sold out", 0, false, false, false},
+		{"on sale with stock", 3, true, 450, true, true},
+		{"on sale, sold out", 0, true, 450, false, true},
+		{"off sale with stock", 3, false, 450, false, false},
+		{"off sale, sold out", 0, false, 450, false, false},
+		{"NT$1 with stock", 3, true, 1, true, true},
+		{"legacy NT$0 with stock (#456)", 3, true, 0, false, true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := toVariant(&store.Variant{Stock: tc.stock, IsAvailable: tc.switchOn})
+			v := toVariant(&store.Variant{Stock: tc.stock, IsAvailable: tc.switchOn, PriceTWD: tc.price})
 			if v.IsAvailable != tc.wantAvail || v.OnSale != tc.wantOnSale {
 				t.Fatalf("isAvailable = %v, onSale = %v; want %v / %v", v.IsAvailable, v.OnSale, tc.wantAvail, tc.wantOnSale)
 			}

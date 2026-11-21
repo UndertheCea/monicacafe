@@ -234,10 +234,14 @@ func toCoffees(cs []*store.Coffee) []*model.Coffee {
 	return out
 }
 
+// toVariant: isAvailable ("buyable now") follows the same rule as the store's
+// buyableVariant and the cart: on sale, in stock and at least NT$1, so an
+// option stored at NT$0 before #358 reads sold out everywhere (#456).
 func toVariant(v *store.Variant) *model.Variant {
 	return &model.Variant{
 		ID: v.ID, Grind: model.GrindOption(v.Grind), WeightG: v.WeightG,
-		PriceTwd: money.TWD(v.PriceTWD), Stock: v.Stock, IsAvailable: v.IsAvailable && v.Stock > 0, OnSale: v.IsAvailable,
+		PriceTwd: money.TWD(v.PriceTWD), Stock: v.Stock,
+		IsAvailable: v.IsAvailable && v.Stock > 0 && v.PriceTWD >= MinCartPriceTWD, OnSale: v.IsAvailable,
 		UpdatedAt: v.UpdatedAt,
 	}
 }

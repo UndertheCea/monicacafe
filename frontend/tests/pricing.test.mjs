@@ -1,7 +1,13 @@
 // Price helpers (lib/pricing.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { pricePer100g } from "../lib/pricing.ts";
+import { per100gShown, pricePer100g } from "../lib/pricing.ts";
+
+test("per100gShown skips 100 g bags (#460)", () => {
+  assert.equal(per100gShown(380, 100), null);
+  assert.equal(per100gShown(500, 250), 200);
+  assert.equal(per100gShown(500, 0), null);
+});
 
 test("pricePer100g rounds half up with integer math", () => {
   const cases = [
@@ -32,6 +38,12 @@ test("pricePer100g rejects unusable inputs", () => {
 });
 
 import { coffeeAvailability, variantState } from "../lib/pricing.ts";
+
+test("coffeeAvailability leaves per100g out for a 100 g best option (#460)", () => {
+  const best = (weightG, priceTwd) => coffeeAvailability([{ priceTwd, weightG, stock: 3, isAvailable: true }]);
+  assert.deepEqual(best(100, 380), { kind: "from", price: 380, per100g: null });
+  assert.deepEqual(best(250, 500), { kind: "from", price: 500, per100g: 200 });
+});
 
 test("variantState: an option with no stock reads sold out (#350)", () => {
   const cases = [

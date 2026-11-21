@@ -24,3 +24,17 @@ export function LoginNeeded({ locale, next }: { locale: Locale; next: string }) 
     </Card>
   );
 }
+
+/** A first load that failed (#452): the message plus "Try again", so the seller need not reload the page. */
+export function LoadFailed({ locale, onRetry }: { locale: Locale; onRetry: () => void }) {
+  return (
+    <Card className="p-6 text-center">
+      <p role="alert" className="text-muted">
+        {t(locale, "error.title")}
+      </p>
+      <Button type="button" variant="secondary" size="sm" className="mt-4" onClick={onRetry}>
+        {t(locale, "crash.retry")}
+      </Button>
+    </Card>
+  );
+}

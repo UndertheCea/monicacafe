@@ -31,10 +31,11 @@ import { query, toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { capChars } from "@/lib/textInput";
 import { pick, t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { nextLoadKey } from "@/lib/retry";
 import { FlavorNotesField } from "./FlavorNotesField";
 import { MoreDetails } from "./MoreDetails";
 import { HarvestYearField, ProvenanceFields } from "./ProvenanceFields";
-import { Notice } from "./ui";
+import { LoadFailed, Notice } from "./ui";
 import { Button, Field, Input, Select, Textarea, useFormErrors } from "@/components/ui";
 import { CARD } from "@/lib/ui";
 
@@ -129,14 +130,21 @@ export function CoffeeDetailsForm({
   // Folded unless the coffee already has optional details (#182).
   const [moreOpen, setMoreOpen] = useState(() => filledOptionalCount(saved) > 0);
 
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#452)
   useEffect(() => {
     loadOptions().then(setOpts, () => setOptsFailed(true));
-  }, []);
+  }, [attempt]);
 
   const unsaved = Object.keys(coffeeDetailsPatch(saved, { ...draft, flavorNotes: parseFlavorNotes(draft.notes) })).length > 0;
   useUnsavedChanges(unsaved && !busy, t(locale, "dash.unsavedConfirm"));
 
-  if (optsFailed) return <Notice>{t(locale, "error.title")}</Notice>;
+  if (optsFailed) {
+    const retry = () => {
+      setOptsFailed(false);
+      setAttempt(nextLoadKey);
+    };
+    return <LoadFailed locale={locale} onRetry={retry} />;
+  }
   if (!opts) return <Notice>{t(locale, "dash.loading")}</Notice>;
 
   const next: CoffeeDetails = { ...draft, flavorNotes: parseFlavorNotes(draft.notes) };

@@ -18,10 +18,11 @@ import { mapControlLabels } from "@/lib/mapControls";
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { nextLoadKey } from "@/lib/retry";
 import { ShopImages } from "./ShopImages";
 import { SignInAgain } from "./SignInAgain";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
-import { LoginNeeded, Notice } from "./ui";
+import { LoginNeeded, LoadFailed, Notice } from "./ui";
 import { Button, Card, Field, Input, SectionTitle, Textarea, useFormErrors } from "@/components/ui";
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
@@ -84,6 +85,7 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
 
   // Fetch on sign-in; setState happens in the promise callback, and a stale
   // response (status changed meanwhile) is dropped.
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#452)
   useEffect(() => {
     if (status !== "authenticated") return;
     let live = true;
@@ -91,12 +93,18 @@ export function ShopProfileForm({ locale }: { locale: Locale }) {
     return () => {
       live = false;
     };
-  }, [status, loadShop]);
+  }, [status, loadShop, attempt]);
 
   if (view === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (view === "login") return <LoginNeeded locale={locale} next="/dashboard/shop" />;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
+  if (load.state === "error") {
+    const retry = () => {
+      setLoad({ state: "loading" });
+      setAttempt(nextLoadKey);
+    };
+    return <LoadFailed locale={locale} onRetry={retry} />;
+  }
   if (!load.shop) {
     return (
       <Notice>

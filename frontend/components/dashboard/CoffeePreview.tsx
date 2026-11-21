@@ -7,7 +7,8 @@ import { CoffeeDetailView } from "@/components/coffees/CoffeeDetailView";
 import { COFFEE, isUUID, type CoffeeDetail } from "@/lib/api";
 import { canManageCoffee, previewBannerKey } from "@/lib/dashboard/preview";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { LoginNeeded, Notice } from "./ui";
+import { nextLoadKey } from "@/lib/retry";
+import { LoginNeeded, LoadFailed, Notice } from "./ui";
 
 type Load = { state: "loading" } | { state: "missing" } | { state: "error" } | { state: "ready"; coffee: CoffeeDetail };
 
@@ -19,6 +20,7 @@ export function CoffeePreview({ coffeeId, locale }: { coffeeId: string; locale: 
   const { status, user, request } = useAuth();
   const [load, setLoad] = useState<Load>({ state: "loading" });
 
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again" (#452)
   useEffect(() => {
     if (status !== "authenticated") return;
     if (!isUUID(coffeeId)) return; // rendered as "missing" below
@@ -29,14 +31,20 @@ export function CoffeePreview({ coffeeId, locale }: { coffeeId: string; locale: 
     return () => {
       live = false;
     };
-  }, [status, coffeeId, request]);
+  }, [status, coffeeId, request, attempt]);
 
   const next = `/dashboard/coffees/${coffeeId}/preview`;
   if (status === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
   if (status === "anonymous") return <LoginNeeded locale={locale} next={next} />;
   if (!isUUID(coffeeId)) return <Notice>{t(locale, "cf.notYours")}</Notice>;
   if (load.state === "loading") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  if (load.state === "error") return <Notice>{t(locale, "error.title")}</Notice>;
+  if (load.state === "error") {
+    const retry = () => {
+      setLoad({ state: "loading" });
+      setAttempt(nextLoadKey);
+    };
+    return <LoadFailed locale={locale} onRetry={retry} />;
+  }
   if (load.state === "missing" || !canManageCoffee(load.coffee.shop.id, user)) {
     return <Notice>{t(locale, "cf.notYours")}</Notice>;
   }

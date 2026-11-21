@@ -19,6 +19,7 @@ import {
   isContactInfoError,
   mergeAdminPage,
   nextReloadVersion,
+  adminListKey,
   moderationReasonProblem,
   reportErrorKey,
   reportTargetHref,
@@ -218,4 +219,18 @@ test("nextReloadVersion: each moderation action yields a new version so the audi
   assert.notEqual(nextReloadVersion(4), 4);
   const src = readFileSync(new URL("../components/admin/AdminScreen.tsx", import.meta.url), "utf8");
   assert.equal(src.match(/onModerated\(\);/g)?.length, 3, "reports, users and shops each report a successful action");
+});
+
+test("adminListKey: a re-submitted search or any moderation action reloads users / shops (#450)", () => {
+  const cases = [
+    { a: [0, 0], b: [1, 0], same: false, why: "search re-submitted" },
+    { a: [0, 0], b: [0, 1], same: false, why: "moderation action elsewhere" },
+    { a: [1, 0], b: [0, 1], same: false, why: "no collision between the two counters" },
+    { a: [2, 3], b: [2, 3], same: true, why: "nothing changed" },
+  ];
+  for (const c of cases) {
+    assert.equal(adminListKey(...c.a) === adminListKey(...c.b), c.same, c.why);
+  }
+  const src = readFileSync(new URL("../components/admin/AdminScreen.tsx", import.meta.url), "utf8");
+  assert.equal(src.match(/version=\{auditVersion\}/g)?.length, 4, "reports, users, shops and the audit log reload after an action");
 });

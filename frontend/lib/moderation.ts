@@ -133,6 +133,15 @@ export function nextReloadVersion(version: number): number {
   return version + 1;
 }
 
+/**
+ * The reload key of a searchable admin list: it changes when the search is
+ * re-submitted (`searchKey`) or after any moderation action (`version`), so the
+ * list refetches its first page in either case.
+ */
+export function adminListKey(searchKey: number, version: number): string {
+  return `${searchKey}:${version}`;
+}
+
 /** A list with one row replaced by the API's updated copy (a suspended user or shop). */
 export function withUpdatedRow<T extends { id: string }>(page: { total: number; nodes: T[] }, row: T) {
   return { total: page.total, nodes: page.nodes.map((n) => (n.id === row.id ? { ...n, ...row } : n)) };

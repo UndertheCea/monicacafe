@@ -595,6 +595,9 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 		return nil, err
 	}
 	p.Lat, p.Lng = input.Lat, input.Lng
+	if emptyShopUpdate(p) {
+		return nil, errBadInput("input", "nothing to update")
+	}
 
 	sh, err := r.Store.UpdateShop(ctx, id, p)
 	if errors.Is(err, store.ErrNotFound) {

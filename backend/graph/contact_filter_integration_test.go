@@ -50,6 +50,8 @@ func TestContactFilterAndReservedNames(t *testing.T) {
 	seller.expectCode("BAD_USER_INPUT", updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"name": "Support Team"}})
 	seller.mustDo(updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"name": "好咖啡烘焙 Roastery"}}, nil)
 	seller.mustDo(updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{"name": "好咖啡烘焙 Roastery", "city": "新北市"}}, nil)
+	// Nothing to change is refused, not a silent "edit" (#445).
+	seller.expectCode("BAD_USER_INPUT", updShop, map[string]any{"id": shop.CreateShop.ID, "in": map[string]any{}})
 
 	// Role: visible to its owner, hidden from other viewers.
 	var refs struct {

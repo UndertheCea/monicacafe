@@ -1012,3 +1012,25 @@ func TestStoreFilterPriceBounds(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyShopUpdate(t *testing.T) {
+	s, f := "x", 1.0
+	for _, tc := range []struct {
+		name string
+		p    store.UpdateShopParams
+		want bool
+	}{
+		{"nothing", store.UpdateShopParams{}, true},
+		{"name", store.UpdateShopParams{Name: &s}, false},
+		{"description", store.UpdateShopParams{Description: &s}, false},
+		{"logo cleared", store.UpdateShopParams{LogoURL: new(string)}, false},
+		{"banner", store.UpdateShopParams{BannerURL: &s}, false},
+		{"city", store.UpdateShopParams{City: &s}, false},
+		{"location", store.UpdateShopParams{Lat: &f, Lng: &f}, false},
+		{"clear location", store.UpdateShopParams{ClearLocation: true}, false},
+	} {
+		if got := emptyShopUpdate(tc.p); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

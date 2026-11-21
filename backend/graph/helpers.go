@@ -803,6 +803,14 @@ func checkStock(n int) error {
 	return nil
 }
 
+// emptyShopUpdate reports whether an updateShop input changes nothing (#445).
+// Such an UPDATE would still fire trg_shops_updated_at, so the shop would read
+// as edited; it is refused like an empty variant update.
+func emptyShopUpdate(p store.UpdateShopParams) bool {
+	return p.Name == nil && p.Description == nil && p.LogoURL == nil && p.BannerURL == nil &&
+		p.City == nil && p.Lat == nil && p.Lng == nil && !p.ClearLocation
+}
+
 // validateVariantUpdate checks a partial variant update. At least one field
 // must be set.
 func validateVariantUpdate(in model.UpdateVariantInput) (store.UpdateVariantParams, error) {

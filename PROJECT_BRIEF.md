@@ -212,8 +212,8 @@ Open questions for the owner (answer by commenting on the issue):
   decrement. Options / coffees an order references are **archived, never deleted** (#278, `delete_or_archive_*()`).
 - **Listing canonicals keep only `page` (#195)**: filters, sort and search all point at one URL per page, and `?q=` results
   are `noindex, follow`, so crawlers don't index every combination.
-- **Production refuses the repo's own secrets (#206)**: anything printed in `.env.example` / compose, or containing `dev-` /
-  `change`, is rejected when `APP_ENV=production`, and `APP_ENV` has no default. A test reads both files, so a new secret
+- **Production refuses the repo's own secrets (#206)**: anything printed in `.env.example` / compose, or starting a word with `dev-` /
+  `change` (#446), is rejected when `APP_ENV=production`, and `APP_ENV` has no default. A test reads both files, so a new secret
   there can't slip past.
 - **Request cost = limit × child, priced per SQL query (#207)**: per-parent resolvers add 10 and the similar-coffee scan
   400 (max cost 8000), so one request runs at most ~20 scans. A Go test prices every query in the frontend source at

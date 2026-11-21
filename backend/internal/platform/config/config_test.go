@@ -119,6 +119,30 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestPublishedPlaceholderMarks(t *testing.T) {
+	cases := []struct {
+		v    string
+		want bool
+	}{
+		{"change-me", true},
+		{"changeme", true},
+		{"please-change", true},
+		{"x-change-in-prod", true},
+		{"dev-foo", true},
+		{"my_dev-key", true},
+		{"Dev-Foo", true},
+		{"Exchange-rate-2024", false},
+		{"Sandev-key99", false},
+		{"9dev-key", false},
+		{"strong-random-value", false},
+	}
+	for _, c := range cases {
+		if got := published(c.v); got != c.want {
+			t.Errorf("published(%q) = %v, want %v", c.v, got, c.want)
+		}
+	}
+}
+
 // Every secret printed in .env.example and docker-compose.yml must be refused
 // in production, including ones added later: a new secret-looking variable
 // fails this test until it is mapped to the setting that carries it.

@@ -501,7 +501,7 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 	if err != nil {
 		return nil, err
 	}
-	if err := noContactInfo("name", name); err != nil {
+	if err := checkShopName(c, name, ""); err != nil {
 		return nil, err
 	}
 	desc, err := cleanMultiline("description", input.Description, 0, 2000)
@@ -563,8 +563,10 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 	if p.Name, err = cleanOptText("name", input.Name, 1, 80); err != nil {
 		return nil, err
 	}
-	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
-		return nil, err
+	if p.Name != nil {
+		if err := checkShopName(c, *p.Name, current.Name); err != nil {
+			return nil, err
+		}
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 2000); err != nil {
 		return nil, err
@@ -769,8 +771,10 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Name, err = cleanOptText("name", input.Name, 1, maxCoffeeName); err != nil {
 		return nil, err
 	}
-	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
-		return nil, err
+	if p.Name != nil {
+		if err := checkShopName(c, *p.Name, current.Name); err != nil {
+			return nil, err
+		}
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 5000); err != nil {
 		return nil, err

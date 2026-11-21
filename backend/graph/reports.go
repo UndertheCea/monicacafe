@@ -63,19 +63,35 @@ func noNewContactInfoNotes(notes, stored []string) error {
 	return nil
 }
 
-// errReservedName refuses a display name that impersonates the platform or its
-// staff (#286).
-func errReservedName() error {
-	return errBadInput("displayName", "displayName can't contain platform or staff names such as admin, official or 客服")
+// errReservedName refuses a display name or shop name that impersonates the
+// platform or its staff (#286, #444).
+func errReservedName(field string) error {
+	return errBadInput(field, field+" can't contain platform or staff names such as admin, official or 客服")
 }
 
 // checkDisplayName refuses a new display name that is reserved or carries
 // contact details. Admins may use staff words.
 func checkDisplayName(c *auth.Claims, name string) error {
 	if !isAdmin(c) && twfmt.IsReservedDisplayName(name) {
-		return errReservedName()
+		return errReservedName("displayName")
 	}
 	return noContactInfo("displayName", name)
+}
+
+// checkShopName refuses a new shop name that is reserved or carries contact
+// details (#444): a shop's name shows on cards, coffee pages and the map, so
+// "Moni Cafe 客服" there impersonates the platform as much as a display name
+// would. Like the contact filter, only a changed name is checked (create
+// passes stored == ""), so stored shops are never refused for their name.
+// Admins may use staff words.
+func checkShopName(c *auth.Claims, name, stored string) error {
+	if name == stored {
+		return nil
+	}
+	if !isAdmin(c) && twfmt.IsReservedDisplayName(name) {
+		return errReservedName("name")
+	}
+	return noContactInfo("name", name)
 }
 
 // reportOutcome maps an admin's resolution to the status the report gets and

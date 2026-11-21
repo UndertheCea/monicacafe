@@ -36,3 +36,10 @@ test("capChars / capInput cut by characters, not UTF-16 units (#395)", () => {
   capInput(el, 3);
   assert.equal(el.value, "😀😀😀");
 });
+
+test("shopNameErrorKey names why a shop name was refused (#444)", async () => {
+  const { shopNameErrorKey } = await import("../lib/textInput.ts");
+  assert.equal(shopNameErrorKey("x".repeat(81), 80), "shop.error.name");
+  assert.equal(shopNameErrorKey("好咖啡​", 80), "form.error.badChars");
+  assert.equal(shopNameErrorKey("Moni Cafe 客服", 80), "shop.error.nameReserved");
+});

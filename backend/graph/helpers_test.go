@@ -210,6 +210,22 @@ func TestStoreFilter(t *testing.T) {
 	if _, err := storeFilter(&model.CoffeeFilter{OriginCountryID: &bad}); err == nil {
 		t.Fatal("malformed ID accepted")
 	}
+	// Several malformed ids: the same field every time, in a fixed order (#458).
+	for _, tc := range []struct {
+		in   model.CoffeeFilter
+		want string
+	}{
+		{model.CoffeeFilter{OriginCountryID: &bad, VarietyID: &bad, ProcessingMethodID: &bad}, "originCountryId"},
+		{model.CoffeeFilter{VarietyID: &bad, ProcessingMethodID: &bad}, "varietyId"},
+		{model.CoffeeFilter{ProcessingMethodID: &bad}, "processingMethodId"},
+	} {
+		for range 50 {
+			_, err := storeFilter(&tc.in)
+			if ae, ok := err.(*apiError); !ok || ae.field != tc.want {
+				t.Fatalf("storeFilter(%+v) = %v, want field %q", tc.in, err, tc.want)
+			}
+		}
+	}
 	blank := "   "
 	f, err := storeFilter(&model.CoffeeFilter{FlavorNote: &blank})
 	if err != nil || f.FlavorNote != nil || f.IncludeUnpublished {

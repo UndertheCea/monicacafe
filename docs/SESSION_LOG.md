@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 58 — 2026-11-21 — Audit: retry on dashboard loads, admin lists in sync, archived coffees (six slices)
-PR: (this session's PR)
+PR: #455
 
 No session PR open (only dependabot's), no owner answers on questions, nothing pickable. Two Sonnet audits (backend: comments,
 export, follows / saves, reference, upload grants, reports, moderation, cmd/admin, jobs, migrations 020–027, backup / restore /

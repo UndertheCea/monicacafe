@@ -67,6 +67,11 @@ test("parseWhole rejects decimals and out-of-range values", () => {
   for (const [s, min, max, want] of cases) assert.equal(parseWhole(s, min, max), want, `${s} in [${min},${max}]`);
 });
 
+test("parseWhole accepts grouped thousands and full-width digits (#464)", () => {
+  for (const s of ["1,200", "1，200", "１２００", " 1,200 ", "1200"]) assert.equal(parseWhole(s, 0, 5000), 1200, s);
+  for (const s of ["12.5", "1,2,,", "12,00", "-1", "+1", ",200", "1,200,", "1,2000", "1 200"]) assert.equal(parseWhole(s, 0, 5000), null, s);
+});
+
 test("variantProblems", () => {
   const ok = { grind: "WHOLE_BEAN", weightG: "200", priceTwd: "450", stock: "3" };
   const problems = variantProblems([

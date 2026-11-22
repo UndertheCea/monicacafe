@@ -41,6 +41,11 @@ test("refreshDelayMs", () => {
   for (const c of cases) assert.equal(refreshDelayMs(c.exp, now), c.want, c.name);
 });
 
+test("safeNext refuses the auth pages as a return target (#463)", () => {
+  for (const n of ["/login", "/login?next=%2Fcart", "/register#a", "/menu?from=%2Fx"]) assert.equal(safeNext(n), "/", n);
+  assert.equal(safeNext("/login?next=%2Fcart", "/dashboard"), "/dashboard");
+});
+
 test("safeNext", () => {
   const cases = [
     [null, "/"],

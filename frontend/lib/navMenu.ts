@@ -4,7 +4,7 @@
 // desktop row held lives here. Built from the auth state so the drawer, the
 // no-JavaScript /menu page and the tests agree. Imports only lib/auth/token.ts
 // (itself loadable), so `npm test` can load it directly.
-import { safeNext } from "./auth/token.ts";
+import { isAuthPath, safeNext } from "./auth/token.ts";
 
 /** Who is looking: signed out, or signed in with or without a shop / admin role. */
 export type NavViewer =
@@ -91,7 +91,7 @@ export function navMenu(v: NavViewer): NavSection[] {
  * same-site path.
  */
 export function authHref(path: "/login" | "/register", from: string | null | undefined): string {
-  if (!from || !from.startsWith("/") || from.startsWith("//") || from === "/" || from === "/menu" || from === "/login" || from === "/register") {
+  if (!from || !from.startsWith("/") || from.startsWith("//") || from === "/" || isAuthPath(from)) {
     return path;
   }
   return `${path}?next=${encodeURIComponent(from)}`;
@@ -129,7 +129,7 @@ export function menuFrom(raw: string | string[] | undefined): string | null {
   const v = Array.isArray(raw) ? raw[0] : raw;
   if (!v) return null;
   const safe = safeNext(v, "");
-  if (!safe || safe === "/menu" || safe.startsWith("/menu?") || safe.startsWith("/menu#")) return null;
+  if (!safe || isAuthPath(safe)) return null;
   return safe;
 }
 

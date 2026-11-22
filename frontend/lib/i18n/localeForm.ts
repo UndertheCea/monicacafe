@@ -19,7 +19,7 @@ export function parseLocaleForm(
   next: FormDataEntryValue | null,
 ): { locale: Locale; next: string } | null {
   if (typeof locale !== "string" || !isLocale(locale)) return null;
-  return { locale, next: safeNext(typeof next === "string" ? next : null, "/") };
+  return { locale, next: safeNext(typeof next === "string" ? next : null, "/", true) };
 }
 
 /** Where the toggle sends the visitor back to: the path plus its query string (none when empty). */

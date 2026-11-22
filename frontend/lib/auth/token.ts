@@ -69,6 +69,15 @@ export function refreshDelayMs(expiresAt: number, now: number): number {
 }
 
 /**
+ * Whether a path or URL (query and hash ignored) is the login, register or
+ * menu page: never a place to return to after signing in (#463).
+ */
+export function isAuthPath(pathOrUrl: string): boolean {
+  const path = pathOrUrl.split(/[?#]/, 1)[0];
+  return path === "/login" || path === "/register" || path === "/menu";
+}
+
+/**
  * Sanitise a post-login redirect target: a path on this site only, so
  * `?next=` can't send people to another site. Browsers strip tabs and
  * newlines from URLs and treat "\\" like "/", so "/\t/evil.com" would
@@ -76,7 +85,12 @@ export function refreshDelayMs(expiresAt: number, now: number): number {
  * and backslashes are refused outright, the value must resolve to our own
  * origin, and the parsed path (not the raw input) is returned.
  */
-export function safeNext(next: string | null | undefined, fallback = "/"): string {
+export function safeNext(
+  next: string | null | undefined,
+  fallback = "/",
+  /** The language switch may return to /login, /register or /menu; a sign-in redirect may not (#463). */
+  allowAuthPages = false,
+): string {
   if (!next || !next.startsWith("/")) return fallback;
   if (/[\u0000-\u001f\u007f\\]/.test(next)) return fallback;
   const base = "http://x";
@@ -90,6 +104,7 @@ export function safeNext(next: string | null | undefined, fallback = "/"): strin
   const path = url.pathname;
   if (!path.startsWith("/") || path.startsWith("//")) return fallback;
   if (path === "/api" || path.startsWith("/api/")) return fallback;
+  if (!allowAuthPages && isAuthPath(path)) return fallback;
   return path + url.search + url.hash;
 }
 

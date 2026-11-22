@@ -41,6 +41,8 @@ export const API_ERROR_CODES = [
   "INTERNAL_SERVER_ERROR",
 ] as const;
 
+export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
+
 /** Client-side only: the server couldn't be reached. */
 export const UNAVAILABLE = "UNAVAILABLE";
 
@@ -97,21 +99,43 @@ export function rateLimitMessage(retryAfter?: number): RateLimitMessage {
 
 /** HTTP status the /api/auth route handlers answer with for a backend error code. */
 export function authErrorStatus(code: string): number {
-  switch (code) {
+  // Every ApiErrorCode but INTERNAL_SERVER_ERROR is a refusal of the request,
+  // so a 4xx; the client sees the code in the body (#465).
+  const known: ApiErrorCode | typeof UNAVAILABLE | "" = (API_ERROR_CODES as readonly string[]).includes(code)
+    ? (code as ApiErrorCode)
+    : code === UNAVAILABLE
+      ? UNAVAILABLE
+      : "";
+  switch (known) {
     case "UNAUTHENTICATED":
       return 401;
     case "BAD_USER_INPUT":
+    case "CONTACT_INFO_NOT_ALLOWED":
+    case "QUERY_TOO_COMPLEX":
       return 400;
     case "FORBIDDEN":
+    case "SHOP_SUSPENDED":
+    case "TAKEN_DOWN":
+    case "OWN_SHOP":
       return 403;
+    case "NOT_FOUND":
+      return 404;
     case "CONFLICT":
+    case "STOCK_CHANGED":
       return 409;
     case "RATE_LIMITED":
+    case "LIMIT_REACHED":
+    case "UPLOAD_QUOTA":
       return 429;
-    case "UNAVAILABLE":
+    case UNAVAILABLE:
       return 503;
-    default:
+    case "INTERNAL_SERVER_ERROR":
+    case "":
       return 500;
+    default: {
+      const unmapped: never = known;
+      return unmapped;
+    }
   }
 }
 

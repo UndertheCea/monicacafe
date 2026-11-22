@@ -481,7 +481,8 @@ type UpdateCoffeeParams struct {
 	HarvestYear    *int
 }
 
-// UpdateCoffee applies a partial update.
+// UpdateCoffee applies a partial update. An archived coffee is gone
+// (ErrNotFound), so an edit racing deleteCoffee doesn't land on it (#472).
 func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParams) (*Coffee, error) {
 	return scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (
@@ -500,7 +501,7 @@ func (s *Store) UpdateCoffee(ctx context.Context, id string, p UpdateCoffeeParam
 				altitude_max_m       = CASE WHEN $13 THEN $15 ELSE altitude_max_m END,
 				brew_method          = CASE WHEN $16 THEN $17 ELSE brew_method END,
 				harvest_year         = CASE WHEN $18 THEN $19::int ELSE harvest_year END
-			WHERE id = $1
+			WHERE id = $1 AND archived_at IS NULL
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`,

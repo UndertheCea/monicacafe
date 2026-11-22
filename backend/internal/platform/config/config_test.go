@@ -276,6 +276,43 @@ func TestTokenPruneEvery(t *testing.T) {
 	}
 }
 
+func TestCartPruneEvery(t *testing.T) {
+	tests := []struct {
+		in      string
+		want    time.Duration
+		wantErr bool
+	}{
+		{"", 0, false},
+		{"0", 0, false},
+		{"1h", time.Hour, false},
+		{" 30m ", 30 * time.Minute, false},
+		{"1m", time.Minute, false},
+		{"59s", 0, true},
+		{"-1h", 0, true},
+		{"hourly", 0, true},
+		{"60", 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, err := Config{CartPruneInterval: tt.in}.CartPruneEvery()
+			if (err != nil) != tt.wantErr || got != tt.want {
+				t.Fatalf("CartPruneEvery(%q) = %v, %v; want %v, err %v", tt.in, got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+	if err := (Config{AppEnv: "development", CartPruneInterval: "soon"}).Validate(); err == nil {
+		t.Fatal("Validate should reject a bad CART_PRUNE_INTERVAL")
+	}
+	// The two intervals are independent: turning one off leaves the other on.
+	c := Config{TokenPruneInterval: "0", CartPruneInterval: "6h"}
+	if tok, _ := c.TokenPruneEvery(); tok != 0 {
+		t.Fatalf("TokenPruneEvery = %v, want 0", tok)
+	}
+	if cart, _ := c.CartPruneEvery(); cart != 6*time.Hour {
+		t.Fatalf("CartPruneEvery = %v, want 6h", cart)
+	}
+}
+
 func TestRateLimits(t *testing.T) {
 	cases := []struct {
 		name    string

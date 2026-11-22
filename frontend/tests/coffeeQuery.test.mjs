@@ -59,6 +59,11 @@ test("parseSearchParam trims, collapses and caps the search", () => {
     [["淺焙", "深焙"], "淺焙"],
     ["100% a_b", "100% a_b"],
     ["a b c d e f g h i j", "a b c d e f g h"],
+    // Control characters separate words; the API would refuse them (#469).
+    ["\u0000", undefined],
+    ["\u0007\u007f\u0085", undefined],
+    ["a\u0007b", "a b"],
+    ["\u0001geisha\u001f", "geisha"],
   ];
   for (const [input, want] of cases) assert.equal(parseSearchParam(input), want, JSON.stringify(input));
   // Capped by code points, not UTF-16 units, and never ends on a space.

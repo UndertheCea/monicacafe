@@ -65,6 +65,10 @@ type Config struct {
 	// "1h"; "0" turns pruning off). Parsed by TokenPruneEvery.
 	TokenPruneInterval string
 
+	// How often the API deletes cart lines untouched for 90 days (Go duration;
+	// "0" turns the expiry off). Parsed by CartPruneEvery.
+	CartPruneInterval string
+
 	// Postgres pool: maximum open connections and the per-statement timeout
 	// (Go duration; "0" = no timeout). Parsed by DBPool.
 	DBMaxConns         string
@@ -167,6 +171,7 @@ func Load() Config {
 		UploadDailyBytesPerShop: get("UPLOAD_DAILY_BYTES_PER_SHOP", "209715200"), // 200 MiB
 
 		TokenPruneInterval: get("TOKEN_PRUNE_INTERVAL", "1h"),
+		CartPruneInterval:  get("CART_PRUNE_INTERVAL", "6h"),
 		DBMaxConns:         get("DB_MAX_CONNS", "10"),
 		DBStatementTimeout: get("DB_STATEMENT_TIMEOUT", "10s"),
 		TrustedProxies:     get("TRUSTED_PROXIES", DefaultTrustedProxies),
@@ -224,13 +229,23 @@ const minPruneInterval = time.Minute
 
 // TokenPruneEvery parses TOKEN_PRUNE_INTERVAL. Zero means pruning is off.
 func (c Config) TokenPruneEvery() (time.Duration, error) {
-	v := strings.TrimSpace(c.TokenPruneInterval)
+	return parsePruneInterval("TOKEN_PRUNE_INTERVAL", c.TokenPruneInterval)
+}
+
+// CartPruneEvery parses CART_PRUNE_INTERVAL. Zero means the cart-line expiry
+// is off.
+func (c Config) CartPruneEvery() (time.Duration, error) {
+	return parsePruneInterval("CART_PRUNE_INTERVAL", c.CartPruneInterval)
+}
+
+func parsePruneInterval(name, raw string) (time.Duration, error) {
+	v := strings.TrimSpace(raw)
 	if v == "" || v == "0" {
 		return 0, nil
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil || d < minPruneInterval {
-		return 0, fmt.Errorf("config: TOKEN_PRUNE_INTERVAL must be a duration of at least %s (or 0 to disable), got %q", minPruneInterval, v)
+		return 0, fmt.Errorf("config: %s must be a duration of at least %s (or 0 to disable), got %q", name, minPruneInterval, v)
 	}
 	return d, nil
 }
@@ -495,6 +510,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if _, err := c.TokenPruneEvery(); err != nil {
+		return err
+	}
+	if _, err := c.CartPruneEvery(); err != nil {
 		return err
 	}
 	if _, err := c.UploadDailyBytes(); err != nil {

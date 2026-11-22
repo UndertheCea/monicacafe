@@ -76,10 +76,12 @@ export const SEARCH_MAX_WORDS = 8;
  * `?q=` → the API's `filter.search`: whitespace collapsed, at most
  * SEARCH_MAX_WORDS words and SEARCH_MAX_CHARS characters (code points, like
  * the API counts), so a long paste narrows the search instead of erroring.
+ * Control characters (which the API refuses outright, #469) separate words
+ * like spaces, so a mangled link searches instead of showing the error page.
  * Blank → undefined.
  */
 export function parseSearchParam(v: string | string[] | undefined): string | undefined {
-  const words = ((Array.isArray(v) ? v[0] : v) ?? "").split(/\s+/).filter(Boolean).slice(0, SEARCH_MAX_WORDS);
+  const words = ((Array.isArray(v) ? v[0] : v) ?? "").split(/[\s\p{Cc}]+/u).filter(Boolean).slice(0, SEARCH_MAX_WORDS);
   const s = [...words.join(" ")].slice(0, SEARCH_MAX_CHARS).join("").trim();
   return s || undefined;
 }

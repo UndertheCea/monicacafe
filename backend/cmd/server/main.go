@@ -121,7 +121,10 @@ func run() error {
 	pruneEvery, _ := cfg.TokenPruneEvery() // checked by cfg.Validate
 	if pruneEvery > 0 {
 		sweeps.Start(sweepCtx, pruneJob(st, pruneEvery))
-		sweeps.Start(sweepCtx, cartPruneJob(st, pruneEvery))
+	}
+	cartEvery, _ := cfg.CartPruneEvery() // checked by cfg.Validate
+	if cartEvery > 0 {
+		sweeps.Start(sweepCtx, cartPruneJob(st, cartEvery))
 	}
 	cleanEvery, cleanAge, _ := cfg.MediaCleanup()             // checked by cfg.Validate
 	cleanFraction, cleanDryRun, _ := cfg.MediaCleanupSafety() // checked by cfg.Validate
@@ -258,7 +261,7 @@ func pruneJob(st *store.Store, every time.Duration) sweep.Job {
 }
 
 // cartPruneJob removes cart lines untouched for store.CartLineMaxAge (90 days,
-// #291), on the token prune's schedule.
+// #291), every CART_PRUNE_INTERVAL (independent of the token prune, #471).
 func cartPruneJob(st *store.Store, every time.Duration) sweep.Job {
 	return sweep.Job{Name: "cart_prune", Key: lockKeyCart, Every: every, RunNow: true,
 		Run: func(ctx context.Context) (int, error) {

@@ -136,6 +136,10 @@ func TestVariantArchive(t *testing.T) {
 				return fmt.Errorf("SetCoffeePublished(%v) archived = %v, want ErrNotFound", pub, err)
 			}
 		}
+		newName := "Renamed after archive"
+		if _, err := tx.UpdateCoffee(ctx, co.ID, store.UpdateCoffeeParams{Name: &newName}); !errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("UpdateCoffee archived = %v, want ErrNotFound (#472)", err)
+		}
 		if n, err := tx.CountShopCoffees(ctx, sh.ID); err != nil || n != 0 {
 			return fmt.Errorf("CountShopCoffees = %d, %v; want 0", n, err)
 		}

@@ -34,7 +34,13 @@ test("panels wire a retry button and no submit short-circuit", () => {
 });
 
 test("Save / Follow toggles are enabled only once the viewer's own state loaded (#443)", async () => {
-  const { ownStateAfterLoad, toggleEnabled } = await import("../lib/retry.ts");
+  const { ownStateAfterLoad, ownStateOnStatus, toggleEnabled } = await import("../lib/retry.ts");
+  // Signing out forgets the loaded state; signed in, the load is kept (#470).
+  for (const load of ["loading", "ready", "failed"]) {
+    assert.equal(ownStateOnStatus(load, "authenticated"), load);
+    assert.equal(ownStateOnStatus(load, "anonymous"), "loading");
+    assert.equal(ownStateOnStatus(load, "loading"), "loading");
+  }
   assert.equal(ownStateAfterLoad(true), "ready");
   assert.equal(ownStateAfterLoad(false), "failed");
   for (const [load, busy, want] of [

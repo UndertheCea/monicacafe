@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { nextLoadKey, ownStateAfterLoad, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
+import { nextLoadKey, ownStateAfterLoad, ownStateOnStatus, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FOLLOW_SHOP, SHOP_FOLLOWED, UNFOLLOW_SHOP } from "@/lib/api";
 import { rateLimitMessage } from "@/lib/errors";
@@ -55,6 +55,9 @@ export function FollowButton({
       live = false;
     };
   }, [status, request, slug, loadKey]);
+  // Signed out (in this tab or another): forget "ready" so a later sign-in waits for its own fetch (#470).
+  const settled = ownStateOnStatus(load, status);
+  if (settled !== load) setLoad(settled);
 
   const count = (
     <span className="text-xs font-normal text-muted">{t(locale, "follow.count", { n: state.count })}</span>

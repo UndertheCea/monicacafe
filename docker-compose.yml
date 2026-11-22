@@ -28,6 +28,7 @@ x-backend-env: &backend-env
     JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-in-prod}
     JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-prod}
     TOKEN_PRUNE_INTERVAL: ${TOKEN_PRUNE_INTERVAL:-1h}
+    CART_PRUNE_INTERVAL: ${CART_PRUNE_INTERVAL:-6h}
     DB_MAX_CONNS: ${DB_MAX_CONNS:-10}
     DB_STATEMENT_TIMEOUT: ${DB_STATEMENT_TIMEOUT:-10s}
     # nginx and the Next.js BFF sit on the compose network (COMPOSE_SUBNET,

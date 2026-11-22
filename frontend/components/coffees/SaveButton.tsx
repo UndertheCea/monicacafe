@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { nextLoadKey, ownStateAfterLoad, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
+import { nextLoadKey, ownStateAfterLoad, ownStateOnStatus, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { COFFEE_SAVED, SAVE_COFFEE, UNSAVE_COFFEE } from "@/lib/api";
 import { rateLimitMessage } from "@/lib/errors";
@@ -43,6 +43,9 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
       live = false;
     };
   }, [status, request, coffeeId, loadKey]);
+  // Signed out (in this tab or another): forget "ready" so a later sign-in waits for its own fetch (#470).
+  const settled = ownStateOnStatus(load, status);
+  if (settled !== load) setLoad(settled);
 
   const count = (
     <span className="text-xs font-normal text-muted">

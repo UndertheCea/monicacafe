@@ -774,10 +774,11 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 	if p.Name, err = cleanOptText("name", input.Name, 1, maxCoffeeName); err != nil {
 		return nil, err
 	}
-	if p.Name != nil {
-		if err := checkShopName(c, *p.Name, current.Name); err != nil {
-			return nil, err
-		}
+	// A coffee name gets the contact filter, not the reserved-word list (#466):
+	// "Official House Blend" is a coffee, not an impersonation of the platform,
+	// and createCoffee / duplicateCoffee never checked it.
+	if err := noNewContactInfo("name", p.Name, current.Name); err != nil {
+		return nil, err
 	}
 	if p.Description, err = cleanOptMultiline("description", input.Description, 0, 5000); err != nil {
 		return nil, err

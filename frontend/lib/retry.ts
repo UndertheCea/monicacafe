@@ -24,6 +24,15 @@ export function ownStateAfterLoad(ok: boolean): OwnStateLoad {
   return ok ? "ready" : "failed";
 }
 
+/**
+ * The viewer's own save / follow state is only known while signed in: once the
+ * session goes away the next sign-in must fetch it again, so the toggle waits
+ * for that instead of acting on the state from before the sign-out (#470).
+ */
+export function ownStateOnStatus(load: OwnStateLoad, status: "loading" | "anonymous" | "authenticated"): OwnStateLoad {
+  return status === "authenticated" ? load : "loading";
+}
+
 export function toggleEnabled(load: OwnStateLoad, busy: boolean): boolean {
   return load === "ready" && !busy;
 }

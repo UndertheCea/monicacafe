@@ -10,14 +10,21 @@ export function formatTWD(amount: number): string {
   return new Intl.NumberFormat("zh-TW", { maximumFractionDigits: 0 }).format(amount);
 }
 
-/** Format an ISO timestamp as a Taipei-local date, e.g. "2026/11/04". */
-export function formatTaipeiDate(iso: string, locale: string): string {
+/**
+ * Format an ISO timestamp as a Taipei-local date, "2026/11/04", in every
+ * locale: Intl's English is US month-first ("11/04/2026"), which most readers
+ * outside the US take as 11 April (#473).
+ * An unparseable timestamp gives "".
+ */
+export function formatTaipeiDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(locale, {
+  const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Taipei",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(d);
+  }).formatToParts(d);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("year")}/${part("month")}/${part("day")}`;
 }

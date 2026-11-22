@@ -50,7 +50,7 @@ export function CommentBody({
   const editedMark = current.editedAt && (
     <span
       className="ml-2 text-xs text-muted"
-      title={t(locale, "comments.editedAt", { date: formatTaipeiDate(current.editedAt, locale) })}
+      title={t(locale, "comments.editedAt", { date: formatTaipeiDate(current.editedAt) })}
     >
       ({t(locale, "comments.edited")})
     </span>

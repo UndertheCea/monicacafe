@@ -240,9 +240,9 @@ function SearchForm({ locale, placeholder, onSearch }: { locale: Locale; placeho
   );
 }
 
-const date = (iso: string, locale: Locale) => (
+const date = (iso: string) => (
   <time dateTime={iso} className="whitespace-nowrap text-xs text-muted">
-    {formatTaipeiDate(iso, locale)}
+    {formatTaipeiDate(iso)}
   </time>
 );
 
@@ -367,7 +367,7 @@ function ReportRow({
         </td>
         <td className={tdCls}>
           <span className="block text-ink">{r.reporter?.displayName ?? "—"}</span>
-          {date(r.createdAt, locale)}
+          {date(r.createdAt)}
         </td>
         <td className={tdCls}>
           <div data-row-action className="flex flex-wrap gap-2">
@@ -632,7 +632,7 @@ function AuditSection({ locale, version }: { locale: Locale; version: number }) 
             <tbody>
               {nodes.map((e) => (
                 <tr key={e.id}>
-                  <td className={tdCls}>{date(e.createdAt, locale)}</td>
+                  <td className={tdCls}>{date(e.createdAt)}</td>
                   <td className={`${tdCls} text-ink`}>{auditLabel(locale, e.action)}</td>
                   <td className={tdCls}>
                     <span className="block text-ink">{auditTarget(locale, e.targetType)}</span>

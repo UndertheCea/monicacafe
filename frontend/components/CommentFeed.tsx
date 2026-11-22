@@ -158,7 +158,7 @@ export function CommentFeed({
                   <span data-row-action className="flex items-baseline gap-3">
                     <DeleteCommentButton commentId={c.id} authorId={c.user.id} locale={locale} onDeleted={removed} />
                     <time dateTime={c.createdAt} className="text-xs text-muted">
-                      {formatTaipeiDate(c.createdAt, locale)}
+                      {formatTaipeiDate(c.createdAt)}
                     </time>
                   </span>
                 </div>

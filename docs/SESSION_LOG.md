@@ -15,6 +15,42 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 60 — 2026-11-22 — Audit: coffee renames, no-op updated_at, nested ?next=, typed numbers, auth 4xx (five slices)
+PR: #TBD
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-20), nothing pickable. Two Sonnet
+audits (backend: seller coffee / variant / shop mutations vs CHECKs, storage URL checks, loaders in mutation payloads, twfmt;
+frontend: dashboard forms / options / uploader, auth BFF, proxy / CSP / sitemap / robots, the dictionary) gave #463–#467. A Sonnet
+sub-agent built #463–#465 in a worktree (cherry-picked; #463 then adjusted so /menu from /login keeps its language-switch return).
+
+### Shipped (one line per slice: area — what — key files)
+- #466 backend — `UpdateCoffee` uses `noNewContactInfo` for the name again; #444 had applied `checkShopName` (reserved staff
+  words) to coffee renames only, so "Official House Blend" could be created but not renamed. Contact-filter integration test.
+- #467 backend — `emptyCoffeeUpdate`: `updateCoffee` with nothing to change is BAD_USER_INPUT (like shops #445 / variants);
+  migration 028 recreates `trg_coffees_updated_at` with `OLD.* IS DISTINCT FROM NEW.*`, so re-saves, publishing a published
+  coffee or unpublishing a draft don't move `updatedAt` / sitemap lastmod. `migrate.sh` marker 028, health expects 028. Tests:
+  `TestEmptyCoffeeUpdate`, `TestUpdatedAt`; roast / brew / harvest / provenance tests now expect `clear*: false` alone and `{}`
+  to be refused.
+- #463 frontend — `isAuthPath` (`lib/auth/token.ts`, pathname only): `authHref` and `safeNext` (sign-in redirect) never return
+  to /login, /register, /menu with a query; `safeNext(…, true)` for the language switch; `menuFrom` refuses only /menu.
+- #464 frontend — `parseWhole` NFKC-normalises and accepts grouped thousands ("1,200", "1，200", "１２００"), refuses "12,00" /
+  "1,2,,"; `variantRowDirty` treats a typed "1,200" for a stored 1200 as unchanged.
+- #465 frontend — `authErrorStatus` maps every API error code exhaustively (`never` check): CONTACT_INFO_NOT_ALLOWED 400,
+  NOT_FOUND 404, STOCK_CHANGED 409, LIMIT_REACHED / UPLOAD_QUOTA 429, SHOP_SUSPENDED / TAKEN_DOWN / OWN_SHOP 403; only
+  INTERNAL_SERVER_ERROR and unknown codes are 500.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local
+  PostgreSQL 16). `scripts/migrate_selftest.sh` (all 28 baseline markers).
+- Frontend: tsc, lint, `npm test` (415), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The menu links, dashboard
+  inputs and BFF statuses were checked by tests and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `updateCoffee` with no fields (or only `clear*: false`) is now refused; the dashboard only saves a dirty form, so nothing sends it.
+- Not filed: an `?origin=` id with no published coffees still shows a bare "Origin" chip over an empty list (Session 59 note);
+  "Washed.Top lot"-style notes trip the domain check (ambiguous). No new questions.
+
 ## Session 59 — 2026-11-21 — Audit: NT$0 isAvailable, /shops city param, empty-list SEO (six slices)
 PR: #462
 

@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-22 (after Session 61)
+Last updated: 2026-11-22 (after Session 62)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 61**: no owner answers, nothing pickable; two Sonnet audits gave #469–#473, all shipped. Control characters in `?q=`
-no longer fail /coffees and /shops; `updateCoffee` can't edit an archived coffee; the cart expiry has its own
-`CART_PRUNE_INTERVAL`; dates read 2026/11/04 in English too; Save / Follow wait for a fresh fetch after a sign-out.
+**Session 62**: no owner answers, nothing pickable; two Sonnet audits gave #475–#479, all shipped. Posting a comment after
+"load more" no longer hides one; nginx's image location follows `S3_BUCKET` (route names refused as buckets); the cart
+expiry sweep loops past one batch; `restore.sh` names a wrong age key; the report drawer drops a stale error on close.
 
 ## Current focus
 
@@ -90,7 +90,7 @@ no longer fail /coffees and /shops; `updateCoffee` can't edit an archived coffee
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No open unblocked slices. Sessions 43, 45–61 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–62 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

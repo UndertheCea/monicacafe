@@ -57,11 +57,14 @@ tables=$(psql "$pg_url" -X -q -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM pg
 [ "$tables" = "0" ] || die "the target database already has $tables tables in public; restore only into an empty database"
 
 if [ "$encrypted" = 1 ]; then
-  # POSIX sh has no pipefail, so age's exit status travels through a file. (A wrong
-  # key or a damaged file also makes pg_restore fail; this catches the rest.)
+  # POSIX sh has no pipefail, so age's exit status travels through a file, and
+  # pg_restore's is captured so set -e doesn't exit before age's is read. A wrong
+  # key makes both fail: age's status is checked first, for the friendly message.
+  pg_rc=0
   { rc=0; age -d -i "$BACKUP_AGE_IDENTITY" "$dump" || rc=$?; echo "$rc" >"$work/age.rc"; } \
-    | pg_restore --single-transaction --no-owner --exit-on-error --dbname "$pg_url"
+    | pg_restore --single-transaction --no-owner --exit-on-error --dbname "$pg_url" || pg_rc=$?
   [ "$(cat "$work/age.rc")" = 0 ] || die "decrypting $dump failed (wrong BACKUP_AGE_IDENTITY?)"
+  [ "$pg_rc" = 0 ] || die "pg_restore failed loading $dump"
 else
   pg_restore --single-transaction --no-owner --exit-on-error --dbname "$pg_url" "$dump"
 fi

@@ -1053,3 +1053,33 @@ func TestEmptyShopUpdate(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyCoffeeUpdate(t *testing.T) {
+	s, n := "x", 1500
+	for _, tc := range []struct {
+		name string
+		p    store.UpdateCoffeeParams
+		want bool
+	}{
+		{"nothing", store.UpdateCoffeeParams{}, true},
+		{"name", store.UpdateCoffeeParams{Name: &s}, false},
+		{"description cleared", store.UpdateCoffeeParams{Description: new(string)}, false},
+		{"origin", store.UpdateCoffeeParams{OriginCountryID: &s}, false},
+		{"variety", store.UpdateCoffeeParams{VarietyID: &s}, false},
+		{"clear variety", store.UpdateCoffeeParams{ClearVariety: true}, false},
+		{"process", store.UpdateCoffeeParams{ProcessingMethodID: &s}, false},
+		{"roast", store.UpdateCoffeeParams{RoastLevel: &s}, false},
+		{"clear roast", store.UpdateCoffeeParams{ClearRoastLevel: true}, false},
+		{"notes", store.UpdateCoffeeParams{FlavorNotes: []string{"Citrus"}}, false},
+		{"photos cleared", store.UpdateCoffeeParams{ImageURLs: []string{}}, false},
+		{"producer", store.UpdateCoffeeParams{Producer: &s}, false},
+		{"region", store.UpdateCoffeeParams{Region: &s}, false},
+		{"altitude", store.UpdateCoffeeParams{SetAltitude: true, AltitudeMinM: &n}, false},
+		{"brew cleared", store.UpdateCoffeeParams{SetBrewMethod: true}, false},
+		{"harvest cleared", store.UpdateCoffeeParams{SetHarvestYear: true}, false},
+	} {
+		if got := emptyCoffeeUpdate(tc.p); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

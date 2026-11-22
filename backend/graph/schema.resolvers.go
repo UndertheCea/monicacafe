@@ -848,6 +848,9 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		}
 		p.SetHarvestYear, p.HarvestYear = true, input.HarvestYear
 	}
+	if emptyCoffeeUpdate(p) {
+		return nil, errBadInput("input", "nothing to update")
+	}
 
 	co, err := r.Store.UpdateCoffee(ctx, id, p)
 	if errors.Is(err, store.ErrNotFound) {

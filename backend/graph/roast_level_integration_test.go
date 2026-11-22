@@ -90,6 +90,8 @@ func TestCoffeeRoastLevelOptional(t *testing.T) {
 		t.Fatalf("clear + set: got %+v, want BAD_USER_INPUT on clearRoastLevel", r.Errors)
 	}
 	update("clear", map[string]any{"clearRoastLevel": true}, "nil")
-	update("clear false is a no-op", map[string]any{"clearRoastLevel": false}, "nil")
+	// clearRoastLevel: false alone changes nothing, so it is refused like any empty update (#467).
+	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
+		map[string]any{"id": id, "in": map[string]any{"clearRoastLevel": false}})
 	update("set again", map[string]any{"roastLevel": "EXTRA_LIGHT"}, "EXTRA_LIGHT")
 }

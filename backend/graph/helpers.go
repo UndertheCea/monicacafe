@@ -815,6 +815,16 @@ func emptyShopUpdate(p store.UpdateShopParams) bool {
 		p.City == nil && p.Lat == nil && p.Lng == nil && !p.ClearLocation
 }
 
+// emptyCoffeeUpdate reports whether an updateCoffee input changes nothing
+// (#467), refused like an empty shop or variant update. Migration 028 also
+// keeps an UPDATE that changes nothing from moving updated_at.
+func emptyCoffeeUpdate(p store.UpdateCoffeeParams) bool {
+	return p.Name == nil && p.Description == nil && p.OriginCountryID == nil && p.VarietyID == nil &&
+		p.ProcessingMethodID == nil && p.RoastLevel == nil && !p.ClearRoastLevel && p.FlavorNotes == nil &&
+		!p.ClearVariety && p.ImageURLs == nil && p.Producer == nil && p.Region == nil &&
+		!p.SetAltitude && !p.SetBrewMethod && !p.SetHarvestYear
+}
+
 // validateVariantUpdate checks a partial variant update. At least one field
 // must be set.
 func validateVariantUpdate(in model.UpdateVariantInput) (store.UpdateVariantParams, error) {

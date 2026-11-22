@@ -82,6 +82,20 @@ func TestUpdatedAt(t *testing.T) {
 		prev = now
 	}
 
+	// Writes that change nothing leave it alone (#467): the same description
+	// again, unpublishing a draft; an empty input is refused.
+	for _, s := range []struct{ name, query string }{
+		{"same description", `mutation($id: ID!) { updateCoffee(id: $id, input: {description: "x"}) { id } }`},
+		{"unpublish a draft", `mutation($id: ID!) { unpublishCoffee(id: $id) { id } }`},
+	} {
+		time.Sleep(20 * time.Millisecond)
+		seller.mustDo(s.query, map[string]any{"id": coffeeID}, nil)
+		if now := coffeeUpdatedAt(); !now.Equal(prev) {
+			t.Fatalf("%s moved Coffee.updatedAt: %v → %v", s.name, prev, now)
+		}
+	}
+	seller.expectCode("BAD_USER_INPUT", `mutation($id: ID!) { updateCoffee(id: $id, input: {}) { id } }`, map[string]any{"id": coffeeID})
+
 	// Deleting the draft cascades to its variants; the trigger must not get in the way.
 	var del struct{ DeleteCoffee bool }
 	seller.mustDo(`mutation($id: ID!) { deleteCoffee(id: $id) }`, map[string]any{"id": coffeeID}, &del)

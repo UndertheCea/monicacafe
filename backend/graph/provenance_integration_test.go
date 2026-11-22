@@ -143,5 +143,10 @@ func TestCoffeeProvenance(t *testing.T) {
 		seller.expectCode("GRAPHQL_VALIDATION_FAILED", `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
 			map[string]any{"id": id, "in": map[string]any{f: true}})
 	}
-	update("unchanged after refusals", map[string]any{}, "Finca El Injerto", "La Libertad", "1600", "1800")
+	// Nothing changed by the refusals; an empty update is refused too (#467).
+	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
+		map[string]any{"id": id, "in": map[string]any{}})
+	var after struct{ Coffee prov }
+	seller.mustDo(`query($id: ID!) { coffee(id: $id) { `+fields+` } }`, map[string]any{"id": id}, &after)
+	check("unchanged after refusals", after.Coffee, "Finca El Injerto", "La Libertad", "1600", "1800")
 }

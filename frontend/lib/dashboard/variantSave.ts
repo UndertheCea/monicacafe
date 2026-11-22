@@ -1,5 +1,6 @@
 // Pure helpers for saving one option row on the dashboard (updateVariant).
 import type { MessageKey } from "../i18n/dict";
+import { parseWhole } from "./validate.ts";
 
 export interface VariantUpdateInput {
   priceTwd: number;
@@ -42,7 +43,8 @@ export function variantRowDirty(
   row: { priceTwd: number | null; stock: number | null; onSale: boolean; priceText?: string; stockText?: string },
 ): boolean {
   const same = (parsed: number | null, text: string | undefined, value: number) =>
-    parsed === value || (text !== undefined && text.trim() === String(value));
+    parsed === value ||
+    (text !== undefined && (text.trim() === String(value) || parseWhole(text, 0, Number.MAX_SAFE_INTEGER) === value));
   return !same(row.priceTwd, row.priceText, stored.priceTwd) || !same(row.stock, row.stockText, stored.stock) ||
     row.onSale !== stored.onSale;
 }

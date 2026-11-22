@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-21 (after Session 59)
+Last updated: 2026-11-22 (after Session 60)
 
 ---
 
@@ -37,7 +37,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–027, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
+| DB schema + migrations 001–028, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
 | Coffee listing details: provenance (#116–#120), brew method (#122–#127), harvest year (#129–#134) on the API, forms, coffee page + JSON-LD; cup profile removed (#189); `minAltitudeM` / brew / harvest filters in the API only (#167) | Done |
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 59**: no owner answers, nothing pickable; two Sonnet audits gave #456–#461, all shipped. A legacy NT$0 option reads
-sold out through the API too; `/shops?city=` past the API's 40 characters is no filter instead of the error page; filter errors
-name a fixed field; blank descriptions get a meta fallback; no "per 100 g" for 100 g bags; page 2+ of an empty list is noindex.
+**Session 60**: no owner answers, nothing pickable; two Sonnet audits gave #463–#467, all shipped. Coffee renames get the contact
+filter only (no staff-word list); empty / no-op coffee writes leave `updated_at` alone (migration 028); sign-in links never return
+to /login; dashboard numbers accept "1,200" and full-width digits; auth refusals answer 4xx, not 500.
 
 ## Current focus
 
@@ -90,7 +90,7 @@ name a fixed field; blank descriptions get a meta fallback; no "per 100 g" for 1
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No open unblocked slices. Sessions 43, 45–59 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–60 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

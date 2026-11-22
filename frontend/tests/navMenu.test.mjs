@@ -128,3 +128,14 @@ test("showSignInLink: shown until the visitor is known to be signed in (#424)", 
   assert.equal(showSignInLink("anonymous"), true);
   assert.equal(showSignInLink("authenticated"), false);
 });
+
+test("auth pages never nest in ?next= (#463)", () => {
+  assert.equal(authHref("/login", "/login?next=%2Fcart"), "/login");
+  assert.equal(authHref("/register", "/register#x"), "/register");
+  assert.equal(loginHrefFrom("/login", "next=%2Fcart"), "/login");
+  assert.equal(menuHref("/login", "next=%2Fcart"), "/menu?from=%2Flogin%3Fnext%3D%252Fcart");
+  // /menu from /login: the language switch goes back there, sign-in links don't nest it.
+  assert.equal(menuFrom("/login?next=%2Fcart"), "/login?next=%2Fcart");
+  assert.equal(authHref("/login", menuFrom("/login?next=%2Fcart")), "/login");
+  assert.equal(authHref("/register", menuFrom("/register?next=%2Fa")), "/register");
+});

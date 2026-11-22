@@ -68,10 +68,15 @@ export interface VariantDraft {
 
 export type VariantProblem = "weight" | "price" | "stock" | "duplicate";
 
-/** Whole-number string within [min, max], else null. TWD has no decimals. */
+/**
+ * Whole-number string within [min, max], else null. TWD has no decimals.
+ * Full-width digits and commas are normalised (NFKC); plain digits or
+ * correctly grouped thousands ("1,200") are accepted (#464).
+ */
 export function parseWhole(s: string, min: number, max: number): number | null {
-  if (!/^\d+$/.test(s.trim())) return null;
-  const n = Number(s.trim());
+  const t = s.normalize("NFKC").trim();
+  if (!/^(\d+|\d{1,3}(,\d{3})+)$/.test(t)) return null;
+  const n = Number(t.replace(/,/g, ""));
   return Number.isSafeInteger(n) && n >= min && n <= max ? n : null;
 }
 

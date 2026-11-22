@@ -27,6 +27,17 @@ test("authErrorStatus", () => {
   for (const [code, want] of cases) assert.equal(authErrorStatus(code), want, code);
 });
 
+test("authErrorStatus: every refusal code is a 4xx, never a 500 (#465)", () => {
+  for (const code of API_ERROR_CODES) {
+    if (code === "INTERNAL_SERVER_ERROR") continue;
+    const st = authErrorStatus(code);
+    assert.ok(st >= 400 && st < 500, `${code} -> ${st}`);
+  }
+  assert.equal(authErrorStatus("CONTACT_INFO_NOT_ALLOWED"), 400);
+  assert.equal(authErrorStatus("NOT_FOUND"), 404);
+  assert.equal(authErrorStatus("STOCK_CHANGED"), 409);
+});
+
 test("retryAfterSeconds", () => {
   const cases = [
     [30, 30],

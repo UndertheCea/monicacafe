@@ -66,6 +66,13 @@ func TestContactFilterAndReservedNames(t *testing.T) {
 			"originCountryId": refs.OriginCountries[0].ID, "processingMethodId": refs.ProcessingMethods[0].ID,
 			"variants": []map[string]any{{"grind": "WHOLE_BEAN", "weightG": 200, "priceTwd": 400, "stock": 3}},
 		})}, &out)
+	// A coffee name may use a staff word, on create and on rename (#466); contact
+	// details in it are still refused.
+	const updCoffee = `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`
+	seller.mustDo(updCoffee, map[string]any{"id": out.CreateCoffee.ID, "in": map[string]any{"name": "Official House Blend"}}, nil)
+	seller.mustDo(updCoffee, map[string]any{"id": out.CreateCoffee.ID, "in": map[string]any{"name": "Staff Pick 官方 Blend 2026"}}, nil)
+	seller.expectCode("CONTACT_INFO_NOT_ALLOWED", updCoffee,
+		map[string]any{"id": out.CreateCoffee.ID, "in": map[string]any{"name": "Blend 0912-345-678"}})
 	// Flavour notes are checked like descriptions.
 	seller.expectCode("CONTACT_INFO_NOT_ALLOWED", `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
 		map[string]any{"id": out.CreateCoffee.ID, "in": map[string]any{"flavorNotes": []string{"Citrus", "ig 搜尋 coffee.lab"}}})

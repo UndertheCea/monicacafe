@@ -48,3 +48,10 @@ test("variantRowDirty: an untouched NT$0 option stored before #358 is not dirty 
   assert.equal(variantRowDirty(legacy, { priceTwd: null, stock: 3, onSale: true, priceText: "", stockText: "3" }), true);
   assert.equal(variantRowDirty(legacy, { priceTwd: null, stock: 3, onSale: false, priceText: "0", stockText: "3" }), true);
 });
+
+test("variantRowDirty: a typed 1,200 for a stored 1200 is unchanged (#464)", () => {
+  const stored = { priceTwd: 1200, stock: 3, onSale: true };
+  assert.equal(variantRowDirty(stored, { priceTwd: 1200, stock: 3, onSale: true, priceText: "1,200", stockText: "3" }), false);
+  assert.equal(variantRowDirty(stored, { priceTwd: null, stock: 3, onSale: true, priceText: "1,200", stockText: "3" }), false);
+  assert.equal(variantRowDirty(stored, { priceTwd: 1300, stock: 3, onSale: true, priceText: "1,300", stockText: "3" }), true);
+});

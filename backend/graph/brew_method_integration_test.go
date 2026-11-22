@@ -90,5 +90,7 @@ func TestCoffeeBrewMethod(t *testing.T) {
 		t.Fatalf("clear + set: got %+v, want BAD_USER_INPUT on clearBrewMethod", r.Errors)
 	}
 	update("clear", map[string]any{"clearBrewMethod": true}, "nil")
-	update("clear false is a no-op", map[string]any{"clearBrewMethod": false}, "nil")
+	// clearBrewMethod: false alone changes nothing, so it is refused like any empty update (#467).
+	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
+		map[string]any{"id": id, "in": map[string]any{"clearBrewMethod": false}})
 }

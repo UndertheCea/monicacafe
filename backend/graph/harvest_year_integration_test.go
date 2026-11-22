@@ -96,5 +96,7 @@ func TestCoffeeHarvestYear(t *testing.T) {
 	wantBad("clear + set", seller.do(`mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
 		map[string]any{"id": id, "in": map[string]any{"clearHarvestYear": true, "harvestYear": 2024}}, nil), "clearHarvestYear")
 	update("clear", map[string]any{"clearHarvestYear": true}, "nil")
-	update("clear false is a no-op", map[string]any{"clearHarvestYear": false}, "nil")
+	// clearHarvestYear: false alone changes nothing, so it is refused like any empty update (#467).
+	seller.expectCode(graph.CodeBadInput, `mutation($id: ID!, $in: UpdateCoffeeInput!) { updateCoffee(id: $id, input: $in) { id } }`,
+		map[string]any{"id": id, "in": map[string]any{"clearHarvestYear": false}})
 }

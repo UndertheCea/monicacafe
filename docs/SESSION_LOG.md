@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 60 — 2026-11-22 — Audit: coffee renames, no-op updated_at, nested ?next=, typed numbers, auth 4xx (five slices)
-PR: #TBD
+PR: #468
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-20), nothing pickable. Two Sonnet
 audits (backend: seller coffee / variant / shop mutations vs CHECKs, storage URL checks, loaders in mutation payloads, twfmt;

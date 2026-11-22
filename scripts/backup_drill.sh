@@ -53,6 +53,13 @@ restore)
   mkdir -p /tmp/drill
   s3 s3 cp --only-show-errors "s3://$BACKUP_S3_BUCKET/$newest" /tmp/drill/dump.age
   printf '%s\n' "$AGE_SECRET_KEY" >/tmp/drill/identity
+  # A wrong key must fail with restore.sh's decrypting message (#478) and leave the
+  # database empty, so the real restore below still has a target.
+  age-keygen >/tmp/drill/wrong 2>/dev/null
+  if out=$(BACKUP_AGE_IDENTITY=/tmp/drill/wrong sh "$here/restore.sh" /tmp/drill/dump.age 2>&1); then
+    fail "restore with a wrong age identity succeeded"
+  fi
+  case "$out" in *decrypting*) ;; *) echo "$out"; fail "wrong age identity: no 'decrypting' message" ;; esac
   BACKUP_AGE_IDENTITY=/tmp/drill/identity sh "$here/restore.sh" /tmp/drill/dump.age
   rm -rf /tmp/drill
   ;;

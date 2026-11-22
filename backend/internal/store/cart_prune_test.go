@@ -59,3 +59,55 @@ func TestPruneStaleCartLines(t *testing.T) {
 		}
 	}
 }
+
+// TestPruneStaleCartLinesBatches: more stale lines than one batch are all
+// removed in one call, fresh ones stay, and a non-positive batch is refused.
+func TestPruneStaleCartLinesBatches(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	v, cleanup := committedVariant(t, s, 50)
+	defer cleanup()
+	db := s.RawDB()
+	var buyers []string
+	defer func() {
+		_, _ = db.Exec(ctx, `DELETE FROM users WHERE id = ANY($1::uuid[])`, buyers)
+	}()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	const stale, fresh = 5, 2
+	for i := 0; i < stale+fresh; i++ {
+		u, err := s.CreateUser(ctx, fmt.Sprintf("prune-batch-%s-%d@example.test", suffix, i), "x", "p")
+		if err != nil {
+			t.Fatal(err)
+		}
+		buyers = append(buyers, u.ID)
+		if err := s.SetCartLine(ctx, u.ID, v.ID, 1, 450); err != nil {
+			t.Fatal(err)
+		}
+		if i < stale {
+			if _, err := db.Exec(ctx, `UPDATE cart_items SET updated_at = now() - interval '100 days' WHERE user_id = $1`, u.ID); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for _, batch := range []int{0, -1} {
+		if _, err := s.PruneStaleCartLines(ctx, store.CartLineMaxAge, batch); err == nil {
+			t.Errorf("batch %d: want an error", batch)
+		}
+	}
+	n, err := s.PruneStaleCartLines(ctx, store.CartLineMaxAge, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < stale {
+		t.Errorf("total = %d, want at least %d", n, stale)
+	}
+	for i, id := range buyers {
+		lines, err := s.CartLines(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := i >= stale; (len(lines) == 1) != want {
+			t.Errorf("buyer %d: kept = %v, want %v", i, len(lines) == 1, want)
+		}
+	}
+}

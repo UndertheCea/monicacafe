@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -493,6 +494,36 @@ func (c Config) DatabaseTarget() string {
 // AppEnvs are the accepted APP_ENV values.
 var AppEnvs = []string{"development", "test", "production"}
 
+// ReservedBuckets are the first path segments nginx or the site already serve.
+// nginx routes /<S3_BUCKET>/ to the image store (nginx/media.conf.template), so
+// a bucket with one of these names would take those pages or the API over
+// (#476). A test keeps the list in step with frontend/app.
+var ReservedBuckets = []string{
+	"api", "graphql", "health", "nginx-health",
+	"account", "admin", "cart", "coffees", "dashboard", "login", "map", "menu", "register", "shops",
+}
+
+// bucketName: an S3 bucket name (3–63 lowercase letters, digits, '-' and '.',
+// starting and ending with a letter or digit).
+var bucketName = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`)
+
+// checkS3Bucket refuses a bucket name S3 wouldn't accept or one that shadows a
+// route. Only checked when uploads are on (S3_ACCESS_KEY set).
+func (c Config) checkS3Bucket() error {
+	if c.S3AccessKey == "" {
+		return nil
+	}
+	if !bucketName.MatchString(c.S3Bucket) || strings.Contains(c.S3Bucket, "..") {
+		return fmt.Errorf("config: S3_BUCKET must be an S3 bucket name (3-63 lowercase letters, digits, '-' or '.'), got %q", c.S3Bucket)
+	}
+	for _, r := range ReservedBuckets {
+		if c.S3Bucket == r {
+			return fmt.Errorf("config: S3_BUCKET %q is a path the site already serves (nginx routes /<bucket>/ to the image store); pick another name", c.S3Bucket)
+		}
+	}
+	return nil
+}
+
 // Validate rejects settings that can't work, and in production the ones that
 // are unsafe: secrets that are missing, short, or published in this repository.
 func (c Config) Validate() error {
@@ -502,6 +533,9 @@ func (c Config) Validate() error {
 	}
 	if !known {
 		return fmt.Errorf("config: APP_ENV must be one of %s, got %q", strings.Join(AppEnvs, " / "), c.AppEnv)
+	}
+	if err := c.checkS3Bucket(); err != nil {
+		return err
 	}
 	if _, _, err := c.MediaCleanup(); err != nil {
 		return err

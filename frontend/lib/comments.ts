@@ -172,3 +172,20 @@ export function withLoadedComments(state: unknown, coffeeId: string, shown: numb
   const prev = typeof base[LOADED_STATE_KEY] === "object" && base[LOADED_STATE_KEY] !== null ? (base[LOADED_STATE_KEY] as object) : {};
   return { ...base, [LOADED_STATE_KEY]: { ...prev, [coffeeId]: shown } };
 }
+
+/**
+ * Whether a refreshed first page left a gap before the pages fetched below it
+ * (#475): comments are newest first, so a new one at the top pushes the first
+ * page's last row out of it, and that row was never fetched as "more". True
+ * when the new first page holds an id that was on neither list while pages
+ * are loaded; a deletion only pulls an already-fetched row up, so no gap.
+ */
+export function firstPageShifted(
+  prevFirst: readonly { id: string }[],
+  nextFirst: readonly { id: string }[],
+  extra: readonly { id: string }[],
+): boolean {
+  if (extra.length === 0) return false;
+  const known = new Set([...prevFirst, ...extra].map((c) => c.id));
+  return nextFirst.some((c) => !known.has(c.id));
+}

@@ -180,19 +180,30 @@ func (s *Store) AcceptCartPrice(ctx context.Context, userID, id string, expected
 }
 
 // CartLineMaxAge: a line nobody touched for this long is removed by the
-// hourly sweep (owner's default 4a on #292; #291).
+// cart prune sweep (CART_PRUNE_INTERVAL; owner's default 4a on #292; #291).
 const CartLineMaxAge = 90 * 24 * time.Hour
 
-// PruneStaleCartLines deletes up to batch lines not changed for maxAge.
+// PruneStaleCartLines deletes lines not changed for maxAge, batch rows per
+// DELETE, until a batch comes back short; it returns the total.
 func (s *Store) PruneStaleCartLines(ctx context.Context, maxAge time.Duration, batch int) (int64, error) {
-	tag, err := s.db.Exec(ctx, `
-		DELETE FROM cart_items WHERE id IN (
-			SELECT id FROM cart_items WHERE updated_at < now() - $1::interval LIMIT $2)`,
-		fmt.Sprintf("%d seconds", int64(maxAge.Seconds())), batch)
-	if err != nil {
-		return 0, mapErr(err)
+	if batch <= 0 {
+		return 0, errors.New("store: prune batch must be positive")
 	}
-	return tag.RowsAffected(), nil
+	interval := fmt.Sprintf("%d seconds", int64(maxAge.Seconds()))
+	var total int64
+	for {
+		tag, err := s.db.Exec(ctx, `
+			DELETE FROM cart_items WHERE id IN (
+				SELECT id FROM cart_items WHERE updated_at < now() - $1::interval LIMIT $2)`,
+			interval, batch)
+		if err != nil {
+			return total, mapErr(err)
+		}
+		total += tag.RowsAffected()
+		if tag.RowsAffected() < int64(batch) {
+			return total, nil
+		}
+	}
 }
 
 // DeleteCartLine removes one of the buyer's lines. ErrNotFound if it isn't theirs.

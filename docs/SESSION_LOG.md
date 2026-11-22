@@ -15,6 +15,41 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 62 — 2026-11-22 — Audit: comment gap after posting, S3_BUCKET in nginx, cart sweep, restore message (five slices)
+PR: #480
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable. Two
+Sonnet audits (backend / ops: rate limiter, client IP, River worker, sweeps, cmd/admin, health / metrics, backup / restore /
+migrate scripts, nginx vs compose vs `.env.example`; frontend: coffee page comments / gallery, shop pages, /map, /account,
+rule 3 strings) gave #475–#479. A Sonnet sub-agent built #477 and #478 in a worktree (cherry-picked after review).
+
+### Shipped (one line per slice: area — what — key files)
+- #475 frontend — `firstPageShifted` (`lib/comments.ts`): after "load more", a refresh that puts a new comment on top of the
+  first page pushed its last row out of both lists; `MoreComments` now drops the loaded pages and fetches them again (as many
+  as were on screen plus the new ones). Case in `tests/commentsState.test.mjs`.
+- #476 cross-cutting — the media location moved to `nginx/media.conf.template` (`location /${S3_BUCKET}/`, rendered by the
+  nginx image like `real-ip.conf`; compose passes `S3_BUCKET` to nginx). `config.Validate` refuses, when uploads are on, a
+  bucket that isn't a valid S3 name or is a route (`ReservedBuckets`); `TestReservedBucketsCoverFrontendRoutes` reads
+  `frontend/app`. Rendered config checked with `nginx -t` for `media` and `moni-photos`.
+- #477 backend — `PruneStaleCartLines` loops until a short batch (refuses batch ≤ 0), like `PruneRefreshTokens`;
+  `TestPruneStaleCartLinesBatches`.
+- #478 cross-cutting — `restore.sh` captures pg_restore's status, so a wrong `BACKUP_AGE_IDENTITY` dies with the
+  "decrypting … failed" message; the CI restore drill (`backup_drill.sh restore`) tries a wrong key first.
+- #479 frontend — the report drawer clears a failed attempt's error on close (the draft still stays).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (418), `next build`. `docker compose config`, `check_brief.sh`. `nginx -t` on the rendered
+  templates (local nginx, upstream hosts mapped to 127.0.0.1).
+- #478 by hand (sub-agent): an age-encrypted dump restored with a different key printed the decrypting message, exit 1, target
+  left empty. The drill step itself needs Docker (CI `stack`).
+- Not run here (no Docker daemon): compose stack, smoke (incl. the upload through the templated location), Playwright / axe.
+  The comment refetch was checked by its helper test and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- `S3_BUCKET` stays configurable (an outside S3 provider may need its own name); compose's nginx follows it. A new top-level
+  page in `frontend/app` must be added to `ReservedBuckets` (the test says so). No new questions.
+
 ## Session 61 — 2026-11-22 — Audit: control chars in ?q=, archived-coffee edits, cart prune setting, dates (five slices)
 PR: #474
 

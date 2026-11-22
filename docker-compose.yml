@@ -176,7 +176,7 @@ services:
 
   # S3-compatible image storage (question #7: S3-compatible, any provider).
   # SeaweedFS stands in for MinIO, whose images left Docker Hub. Images are
-  # uploaded with presigned PUTs and served through nginx at /media/.
+  # uploaded with presigned PUTs and served through nginx at /<S3_BUCKET>/.
   seaweedfs:
     <<: *hardening
     mem_limit: 512m
@@ -369,7 +369,11 @@ services:
       # container's environment into /etc/nginx/conf.d/ at start; nginx.conf
       # includes that directory.
       - ./nginx/real-ip.conf.template:/etc/nginx/templates/real-ip.conf.template:ro
+      - ./nginx/media.conf.template:/etc/nginx/templates/media.conf.template:ro
     environment:
+      # The image store's location is /<S3_BUCKET>/ (#476), the path the API
+      # puts in presigned URLs and image links.
+      S3_BUCKET: ${S3_BUCKET:-media}
       # The proxy / load balancer in front of nginx whose X-Forwarded-For is
       # believed (one IP or CIDR). Default 127.0.0.1 trusts nothing real.
       REAL_IP_FROM: ${REAL_IP_FROM:-127.0.0.1}

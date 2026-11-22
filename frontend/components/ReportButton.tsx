@@ -51,8 +51,11 @@ export function ReportButton({
   if (!canReport(user ? { id: user.id, shopId: user.shop?.id } : null, { authorId, shopId })) return null;
 
   const noteTooLong = [...note.trim()].length > REPORT_NOTE_MAX;
+  // The draft (reason / note) stays until a report goes through; a failed
+  // attempt's error doesn't, or a reopened drawer shows a stale wait (#479).
   const close = () => {
     setOpen(false);
+    setError(null);
     if (done) {
       setDone(false);
       setReason(null);

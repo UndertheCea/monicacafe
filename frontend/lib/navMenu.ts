@@ -128,8 +128,10 @@ export function menuHref(pathname: string, search?: string | null): string {
 export function menuFrom(raw: string | string[] | undefined): string | null {
   const v = Array.isArray(raw) ? raw[0] : raw;
   if (!v) return null;
-  const safe = safeNext(v, "");
-  if (!safe || isAuthPath(safe)) return null;
+  // /login and /register may come back (the language switch returns there);
+  // authHref keeps them out of a sign-in link's ?next= (#463).
+  const safe = safeNext(v, "", true);
+  if (!safe || safe.split(/[?#]/, 1)[0] === "/menu") return null;
   return safe;
 }
 

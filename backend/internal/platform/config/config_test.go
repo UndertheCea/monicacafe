@@ -29,6 +29,7 @@ func goodProd() Config {
 		JWTRefreshSecret: "0123456789abcdef0123456789abcdef-r",
 		DatabaseURL:      "postgres://monica:Zq8vLr2nXw5tKb7h@db.internal:5432/monicacafe",
 		S3AccessKey:      "Kd3mQ8vXz2",
+		S3Bucket:         "media",
 		S3SecretKey:      "p4Jm9sQe2Vx7Lt3Bn6Ry",
 		MeiliKey:         "h7Tg2Wq9Nc4Xb8Lm",
 		CORSOrigin:       "https://monicafe.tw,https://www.monicafe.tw",
@@ -78,6 +79,19 @@ func TestValidate(t *testing.T) {
 		{"no Meilisearch key", func(c *Config) { c.MeiliKey = "" }, ""},
 		{"published S3 access key", func(c *Config) { c.S3AccessKey = "monica_s3" }, "S3_ACCESS_KEY"},
 		{"no S3 access key = uploads off", func(c *Config) { c.S3AccessKey = ""; c.S3SecretKey = "" }, ""},
+		// nginx routes /<S3_BUCKET>/ to the image store (#476).
+		{"other bucket name", func(c *Config) { c.S3Bucket = "moni-photos.v2" }, ""},
+		{"bucket unset with uploads on", func(c *Config) { c.S3Bucket = "" }, "S3_BUCKET"},
+		{"bucket unset with uploads off", func(c *Config) { c.S3Bucket = ""; c.S3AccessKey = ""; c.S3SecretKey = "" }, ""},
+		{"bucket too short", func(c *Config) { c.S3Bucket = "ab" }, "S3_BUCKET"},
+		{"bucket upper case", func(c *Config) { c.S3Bucket = "Media" }, "S3_BUCKET"},
+		{"bucket with a slash", func(c *Config) { c.S3Bucket = "media/x" }, "S3_BUCKET"},
+		{"bucket with an underscore (nginx's _next)", func(c *Config) { c.S3Bucket = "_next" }, "S3_BUCKET"},
+		{"bucket with two dots", func(c *Config) { c.S3Bucket = "a..b" }, "S3_BUCKET"},
+		{"bucket ends with a dash", func(c *Config) { c.S3Bucket = "media-" }, "S3_BUCKET"},
+		{"bucket shadows the API", func(c *Config) { c.S3Bucket = "api" }, "already serves"},
+		{"bucket shadows coffee pages", func(c *Config) { c.S3Bucket = "coffees" }, "already serves"},
+		{"bucket shadows /health/live", func(c *Config) { c.S3Bucket = "health" }, "already serves"},
 		{"CORS_ORIGIN unset", func(c *Config) { c.CORSOrigin = "" }, "CORS_ORIGIN"},
 		{"CORS_ORIGIN dev default", func(c *Config) { c.CORSOrigin = "http://localhost,http://localhost:3000" }, "CORS_ORIGIN"},
 		{"CORS_ORIGIN one localhost among real ones", func(c *Config) { c.CORSOrigin = "https://monicafe.tw,https://localhost:3000" }, "CORS_ORIGIN"},
@@ -101,7 +115,7 @@ func TestValidate(t *testing.T) {
 		{"BACKUP_ALLOW_PLAINTEXT false", func(c *Config) { c.BackupAllowPlaintext = "false" }, ""},
 		{"development ignores all of these", func(c *Config) {
 			*c = Config{AppEnv: "development", CORSOrigin: "http://localhost", SiteURL: "http://localhost", SeedDemoData: "true",
-				BackupAllowPlaintext: "true", S3AccessKey: "monica_s3", TrustedProxies: DefaultTrustedProxies}
+				BackupAllowPlaintext: "true", S3AccessKey: "monica_s3", S3Bucket: "media", TrustedProxies: DefaultTrustedProxies}
 		}, ""},
 	}
 	for _, tt := range tests {
@@ -549,5 +563,33 @@ func TestEnvExampleExposureSettingsRefusedInProduction(t *testing.T) {
 		if env[name] == "" {
 			t.Errorf(".env.example must document %s", name)
 		}
+	}
+}
+
+// Every top-level page directory in frontend/app is a path nginx must keep
+// sending to the site, so a bucket can't be named after it (#476).
+func TestReservedBucketsCoverFrontendRoutes(t *testing.T) {
+	entries, err := os.ReadDir("../../../../frontend/app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reserved := map[string]bool{}
+	for _, r := range ReservedBuckets {
+		reserved[r] = true
+	}
+	n := 0
+	for _, e := range entries {
+		name := e.Name()
+		// _private folders, (groups) and [params] aren't URL segments of their own.
+		if !e.IsDir() || strings.HasPrefix(name, "_") || strings.HasPrefix(name, "(") || strings.HasPrefix(name, "[") {
+			continue
+		}
+		n++
+		if !reserved[name] {
+			t.Errorf("frontend/app/%s is a route: add %q to ReservedBuckets", name, name)
+		}
+	}
+	if n == 0 {
+		t.Fatal("no route directories found in frontend/app")
 	}
 }

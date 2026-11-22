@@ -1,0 +1,28 @@
+# Rendered by the nginx image's envsubst step into /etc/nginx/conf.d/media.conf
+# and included in the server block of nginx.conf (#476). Only variables set in
+# the container's environment are replaced, so nginx's own $vars stay as they are.
+# Uploaded images (S3_BUCKET, on SeaweedFS). The path is passed
+# through unchanged (/<bucket>/<key> → bucket/key) and Host is kept as the
+# browser sent it, because presigned PUTs are signed for that host + path.
+# GETs of shops/ and coffees/ are public; PUTs need a presigned URL.
+# Uploaded files are untrusted: only GET / HEAD / PUT get through, and
+# every response is sandboxed with nothing allowed to load or run, so an
+# HTML / SVG upload opened directly can't script the site's origin.
+# (A location's add_header replaces any inherited ones, so all are listed.)
+location /${S3_BUCKET}/ {
+  limit_except GET HEAD PUT {
+    deny all;
+  }
+  proxy_pass http://media;
+  proxy_http_version 1.1;
+  proxy_set_header Host $http_host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Request-ID $request_id;
+  proxy_request_buffering off;
+  client_max_body_size 6m;
+  add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+  add_header X-Content-Type-Options nosniff always;
+  add_header Cache-Control $media_cache_control always;
+}

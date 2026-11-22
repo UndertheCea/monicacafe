@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { COFFEE_COMMENTS, type CommentData } from "@/lib/api";
-import { COMMENTS_PAGE, appendComments, hasMoreComments, lastPageSize, loadedComments, withLoadedComments } from "@/lib/comments";
+import { COMMENTS_PAGE, appendComments, firstPageShifted, hasMoreComments, lastPageSize, loadedComments, withLoadedComments } from "@/lib/comments";
 import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { CommentItem } from "./CommentItem";
@@ -30,6 +30,19 @@ export function MoreComments({
   const [lastPage, setLastPage] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  // A refresh after posting puts a new comment on top of the first page and
+  // pushes its last row out, a row never fetched below it (#475): the loaded
+  // pages are dropped and fetched again: every comment that was on screen, plus the new ones.
+  const [prevFirst, setPrevFirst] = useState(first);
+  const [reload, setReload] = useState({ gen: 0, want: 0 });
+  if (prevFirst !== first) {
+    setPrevFirst(first);
+    if (firstPageShifted(prevFirst, first, extra)) {
+      setReload((r) => ({ gen: r.gen + 1, want: appendComments(first, appendComments(prevFirst, extra)).length }));
+      setExtra([]);
+      setLastPage(null);
+    }
+  }
 
   // Drop rows the server-rendered page now shows itself (after a refresh).
   // The next offset is what's on screen: a deleted row leaves both the screen
@@ -40,7 +53,7 @@ export function MoreComments({
   // Back / forward remounts the page and drops this state, so the count on screen lives in history.state
   // (merged, so Next's own keys stay) and is fetched again on mount.
   useEffect(() => {
-    const want = loadedComments(window.history.state, coffeeId);
+    const want = Math.max(loadedComments(window.history.state, coffeeId), reload.want);
     if (want <= first.length) return;
     let live = true;
     (async () => {
@@ -66,7 +79,8 @@ export function MoreComments({
     return () => {
       live = false;
     };
-  }, [coffeeId, first.length]);
+    // A new first page that shifted is a `reload`; one that didn't needs nothing fetched.
+  }, [coffeeId, first.length, reload]);
 
   async function loadMore() {
     setBusy(true);

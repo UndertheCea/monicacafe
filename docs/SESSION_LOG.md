@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 61 — 2026-11-22 — Audit: control chars in ?q=, archived-coffee edits, cart prune setting, dates (five slices)
+PR: #474
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable. Two
+Sonnet audits (backend: export, counts, pagination tiebreakers, snapshots, config parsing, shutdown, ECPay / money; frontend: i18n
+keys + placeholders, metadata / JSON-LD, searchParams, dates, effects, untested helpers) gave #469–#473. A Sonnet sub-agent built
+#471 in a worktree (cherry-picked).
+
+### Shipped (one line per slice: area — what — key files)
+- #469 frontend — `parseSearchParam` splits on control characters (`\p{Cc}`) as on spaces: /coffees?q=%07 and /shops?q=a%01b
+  showed the error panel because the API refuses them. Cases in `tests/coffeeQuery.test.mjs`.
+- #472 backend — `store.UpdateCoffee` adds `AND archived_at IS NULL`: an edit racing `deleteCoffee`'s archive is NOT_FOUND
+  (like `LockCoffee` / `SetCoffeePublished`, #453). `TestVariantArchive` (fails without the fix).
+- #471 cross-cutting — `CART_PRUNE_INTERVAL` (default 6h, ≥ 1m, 0 = off; `config.CartPruneEvery`, shared
+  `parsePruneInterval`): the 90-day cart expiry no longer stops when `TOKEN_PRUNE_INTERVAL=0`. `.env.example`, compose,
+  `TestCartPruneEvery`.
+- #473 frontend — `formatTaipeiDate(iso)` is `YYYY/MM/DD` in Taipei time for both languages (English gave US "11/04/2026");
+  the unused locale argument is gone from its four callers. New `tests/utils.test.mjs` (day roll-over, `formatTWD`).
+- #470 frontend — `ownStateOnStatus` (`lib/retry.ts`): Save / Follow go back to "loading" when signed out, so signing back in
+  as the same user waits for the fresh fetch. A different user was already covered by the #436 remount (issue rescoped).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend: tsc, lint, `npm test` (417), `next build`. `docker compose config`, `check_brief.sh`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The buttons and dates were
+  checked by tests and reading, not in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Comment / admin dates now read 2026/11/04 in English too. No new questions.
+- Not filed (audit notes, low value): `UpdateCoffee`'s altitude min / max check reads the row outside a lock (the DB CHECK
+  still holds); `ReleaseHold` / `ReleaseStock` add stock back with no ceiling (review when orders use them, Stage 2).
+
 ## Session 60 — 2026-11-22 — Audit: coffee renames, no-op updated_at, nested ?next=, typed numbers, auth 4xx (five slices)
 PR: #468
 

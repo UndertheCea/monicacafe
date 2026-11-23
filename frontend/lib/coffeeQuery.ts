@@ -117,3 +117,17 @@ export function clearFiltersHref(q: string | undefined, sort: SortParam): string
   const qs = params.toString();
   return qs ? `/coffees?${qs}` : "/coffees";
 }
+
+/**
+ * React key for the /coffees filter form (#492). The form is uncontrolled (a plain GET form), and a
+ * soft navigation that only changes the search params keeps the page mounted, where a `<select>`
+ * ignores a new `defaultValue`. Keying on the parsed filters and sort remounts the form whenever
+ * they change, so a removed chip doesn't stay selected (and come back on Apply). Entry order is
+ * normalised and unset values dropped, so equal filters always give the same key.
+ */
+export function filterFormKey(filter: object, sort: SortParam): string {
+  const set = Object.entries(filter)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return JSON.stringify([sort, set]);
+}

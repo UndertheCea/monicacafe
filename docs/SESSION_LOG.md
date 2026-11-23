@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 63 — 2026-11-23 — Audit: NT$0 options, full-width coords / altitude, copy and suspend races (five slices)
-PR: #PRNUM
+PR: #486
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable. Two
 Sonnet audits (backend: loaders, pagination, CHECKs vs validation, transactions, server wiring, twfmt / money — found sound

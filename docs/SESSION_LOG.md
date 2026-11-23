@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 65 — 2026-11-23 — Audit: cart hint on sold-out coffees, stale /coffees filter form (two slices)
-PR: #PR
+PR: #493
 
 No session PR open (only dependabot's), no owner answers on questions (none commented since 2026-11-15), nothing pickable.
 Four Sonnet audits: backend cart / stock / holds / jobs (none), backend comments / reports / moderation / export / delete

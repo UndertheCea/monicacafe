@@ -8,6 +8,7 @@ import {
   cartLineName,
   MIN_CART_PRICE_TWD,
   canAddToCart,
+  showsCartHint,
   lineQuantityChoices,
   bagsLeft,
   cartBadgeText,
@@ -205,4 +206,15 @@ test("orphanProblem", () => {
   assert.equal(orphanProblem({ line: "1", p }, lines), null);
   assert.equal(orphanProblem({ line: "9", p }, lines), p);
   assert.equal(orphanProblem({ line: "9", p }, []), p);
+});
+
+test("showsCartHint: only beside a form with something to add (#491)", () => {
+  const ok = { isAvailable: true, stock: 3, priceTwd: 450 };
+  const soldOut = { ...ok, stock: 0 };
+  assert.equal(showsCartHint(true, [ok]), true);
+  assert.equal(showsCartHint(true, [soldOut, ok]), true);
+  assert.equal(showsCartHint(true, [soldOut]), false);
+  assert.equal(showsCartHint(true, [{ ...ok, priceTwd: 0 }, { ...ok, isAvailable: false }]), false);
+  assert.equal(showsCartHint(true, []), false);
+  assert.equal(showsCartHint(false, [ok]), false); // the seller's draft preview
 });

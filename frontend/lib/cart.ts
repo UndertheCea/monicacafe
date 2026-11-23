@@ -75,6 +75,17 @@ export function canAddToCart(v: { isAvailable: boolean; stock: number; priceTwd:
 }
 
 /**
+ * Whether the coffee page shows its "add to your cart now" hint (#491): only beside an add-to-cart
+ * form, i.e. when the page offers one and some option can be added (AddToCart renders nothing otherwise).
+ */
+export function showsCartHint(
+  hasPurchase: boolean,
+  variants: readonly { isAvailable: boolean; stock: number; priceTwd: number }[],
+): boolean {
+  return hasPurchase && variants.some(canAddToCart);
+}
+
+/**
  * Quantities to offer for a cart line. The API refuses every increase on a
  * line that can't be bought now, so such a line offers only 1..quantity
  * (lowering); a buyable line offers up to its stock.

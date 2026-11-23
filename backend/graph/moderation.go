@@ -167,6 +167,9 @@ func (r *Resolver) setUserSuspended(ctx context.Context, id, reason string, susp
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("user")
 	}
+	if errors.Is(err, store.ErrIsAdmin) {
+		return nil, errForbidden("revoke the admin role first (cmd/admin)") // granted after the check above (#485)
+	}
 	if err != nil {
 		return nil, noChange(err, "the account is already in that state")
 	}

@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 64 — 2026-11-23 — Audit: owner writes vs suspension, focus after confirm, dashboard error messages (three slices)
-PR: #TBD
+PR: #490
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable. Session
 63's deferred note (owner writes racing a suspension) became #487. Two Sonnet audits ran: seller write paths end to end found no

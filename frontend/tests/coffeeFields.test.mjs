@@ -28,6 +28,9 @@ test("problemField points each problem at its field", () => {
     ["altitude", { ...ok, altitudeMin: "abc" }, "altitudeMin"],
     ["altitude", { ...ok, altitudeMin: "9000" }, "altitudeMin"],
     ["altitude", { ...ok, altitudeMin: "1,800" }, "altitudeMax"],
+    ["altitude", { ...ok, altitudeMin: "１８００" }, "altitudeMax"],
+    ["altitude", { ...ok, altitudeMin: "1,8,00" }, "altitudeMin"],
+    ["altitude", { ...ok, altitudeMin: "1 800" }, "altitudeMin"],
   ];
   for (const [problem, d, want] of cases) assert.equal(problemField(problem, d), want, `${problem} ${JSON.stringify(d)}`);
 });

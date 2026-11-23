@@ -148,9 +148,8 @@ export type Altitude = { minM: number | null; maxM: number | null };
  * lowest → "invalid". Mirrors validateAltitude in backend/graph/helpers.go.
  */
 export function parseAltitude(min: string, max: string): Altitude | "invalid" {
-  const clean = (s: string) => s.replace(/[,，\s]/g, "");
-  const a = clean(min);
-  const b = clean(max);
+  const a = min.trim();
+  const b = max.trim();
   if (!a) return b ? "invalid" : { minM: null, maxM: null };
   const minM = parseWhole(a, 0, LIMITS.altitudeM);
   if (minM === null) return "invalid";

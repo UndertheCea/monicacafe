@@ -303,6 +303,12 @@ test("parseAltitude mirrors validateAltitude", () => {
     ["-5", "", "invalid"],
     ["1800.5", "", "invalid"],
     ["abc", "", "invalid"],
+    ["１８００", "２１００", { minM: 1800, maxM: 2100 }],
+    ["1，800", "", { minM: 1800, maxM: null }],
+    ["1,8,00", "", "invalid"],
+    ["12,00", "", "invalid"],
+    ["1 800", "", "invalid"],
+    ["1000", "2 100", "invalid"],
   ];
   for (const [min, max, want] of cases) assert.deepEqual(parseAltitude(min, max), want, `${min}–${max}`);
 });

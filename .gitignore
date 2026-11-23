@@ -4,6 +4,8 @@ backend/tmp/
 
 # Node / Next.js
 frontend/node_modules/
+# `next dev` (Next 16) writes an agent-rules file here; the repo keeps its own CLAUDE.md.
+frontend/AGENTS.md
 frontend/.next/
 frontend/out/
 frontend/.env*.local

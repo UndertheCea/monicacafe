@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 64 — 2026-11-23 — Audit: owner writes vs suspension, focus after confirm, dashboard error messages (three slices)
+PR: #TBD
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable. Session
+63's deferred note (owner writes racing a suspension) became #487. Two Sonnet audits ran: seller write paths end to end found no
+real bugs, only two error-message gaps (#489); keyboard / screen reader / no-JS behaviour found focus lost after a confirm (#488),
+and no real test gaps. A Sonnet sub-agent built #488 in a worktree (cherry-picked after review). Only three real gaps, so only
+three slices.
+
+### Shipped (one line per slice: area — what — key files)
+- #487 backend — every owner mutation (updateShop, reorder, create / update / publish / unpublish / delete / duplicate coffee,
+  options, upload grants) writes through `shopWrite` (`graph/helpers.go`): one tx that takes the shop row `FOR NO KEY UPDATE`
+  (`store.LockShopForWrite`) and refuses `SHOP_SUSPENDED` unless admin. `ownedVariant` also returns the shop id.
+  `TestOwnerWriteRacingSuspension` holds a suspension open while each write queues on the lock (fails with the check off).
+- #488 frontend — `ConfirmButton` refocuses its resting button after a confirm once it is enabled again, if focus was lost;
+  dashboard coffee / option / photo rows use `focusAfterRemoval`; unpublish lands on the row's Publish (`focusRowToggle`); a
+  removed logo / banner lands on the upload button.
+- #489 frontend — `publishToggleError` / `reorderError` (`lib/dashboard/writeError.ts`) put `dashWriteError` first, so the
+  toggle shows the rate-limit wait and a suspended shop's reorder says so. Cases in `tests/writeError.test.mjs`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (422), `next build`, `check_brief.sh`, `docker compose config`.
+- Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). #488's focus moves were not
+  tried in a browser (DOM code, read and type-checked only).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Lock order for owner writes is shop → coffee → variants; moderation takes coffees alone or users → shops, so no cycle.
+  `FOR NO KEY UPDATE` queues writes on one shop without blocking buyers' follow inserts.
+- Not filed: `createShop` racing `suspendUser` can leave a new, empty (so hidden) shop unsuspended; the owner's tokens are
+  already revoked, so they can't use it. No new questions.
+
 ## Session 63 — 2026-11-23 — Audit: NT$0 options, full-width coords / altitude, copy and suspend races (five slices)
 PR: #486
 

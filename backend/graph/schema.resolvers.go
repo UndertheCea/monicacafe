@@ -1021,7 +1021,18 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 			if err := checkCoffeeCapTx(ctx, tx, src.ShopID); err != nil {
 				return err
 			}
-			var err error
+			// Re-check under the row lock (#484): a takedown or archive that
+			// committed after the read above must not yield a clean copy.
+			if _, err := tx.LockCoffee(ctx, src.ID); err != nil {
+				return err
+			}
+			cur, err := tx.CoffeeByID(ctx, src.ID)
+			if err != nil {
+				return err
+			}
+			if cur.RemovedAt != nil {
+				return errTakenDown()
+			}
 			co, err = tx.DuplicateCoffee(ctx, src.ID, newName, base+"-"+suffix)
 			return err
 		})

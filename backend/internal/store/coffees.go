@@ -426,7 +426,8 @@ func (s *Store) CreateCoffee(ctx context.Context, p CreateCoffeeParams) (*Coffee
 // the given name and slug: details (provenance included), flavour notes and every variant (grind,
 // weight, price, stock, availability). Photos are not copied (their URLs are
 // scoped to the source coffee) and neither are comments. Run it in a
-// transaction so a half-copied coffee can't be left behind.
+// transaction so a half-copied coffee can't be left behind. An archived or
+// taken-down source is ErrNotFound (#484).
 func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (*Coffee, error) {
 	co, err := scanCoffee(s.db.QueryRow(ctx, `
 		WITH c AS (
@@ -436,7 +437,7 @@ func (s *Store) DuplicateCoffee(ctx context.Context, srcID, name, slug string) (
 			SELECT shop_id, $2, $3, description, origin_country_id, variety_id,
 				processing_method_id, roast_level, flavor_notes, producer, region, altitude_min_m, altitude_max_m,
 				brew_method, harvest_year
-			FROM coffees WHERE id = $1
+			FROM coffees WHERE id = $1 AND archived_at IS NULL AND removed_at IS NULL
 			RETURNING *
 		)
 		SELECT `+coffeeColumns+` FROM c`, srcID, name, slug))

@@ -17,3 +17,17 @@ export function dashWriteError(code: string, retryAfter?: number): DashWriteErro
   if (code === "RATE_LIMITED") return rateLimitMessage(retryAfter);
   return null;
 }
+
+/** The publish / unpublish toggle on a dashboard row (#489). */
+export function publishToggleError(code: string, retryAfter: number | undefined, publish: boolean): DashWriteError {
+  return (
+    dashWriteError(code, retryAfter) ?? {
+      key: code === "BAD_USER_INPUT" && publish ? "dash.error.publishNeedsVariant" : "dash.error.generic",
+    }
+  );
+}
+
+/** Saving the shop's order with ↑ / ↓ (#489). */
+export function reorderError(code: string, retryAfter?: number): DashWriteError {
+  return dashWriteError(code, retryAfter) ?? { key: "dash.error.reorder" };
+}

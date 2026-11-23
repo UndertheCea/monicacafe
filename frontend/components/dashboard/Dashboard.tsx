@@ -24,17 +24,18 @@ import {
   type DashboardShop,
 } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
-import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 import { nextLoadKey } from "@/lib/retry";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
-import { canAddCoffee, moderationBlockKey } from "@/lib/dashboard/takedown";
+import { canAddCoffee } from "@/lib/dashboard/takedown";
 import { CommentFeed } from "@/components/CommentFeed";
 import { CreateShopForm } from "./CreateShopForm";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { DuplicateCoffeeButton } from "./DuplicateCoffeeButton";
+import { publishToggleError, reorderError, type DashWriteError } from "@/lib/dashboard/writeError";
 import { FormError, LoginNeeded, LoadFailed, Notice } from "./ui";
 import { engagementParts, followerPart } from "@/lib/dashboard/engagement";
 import { Badge, Button, Card, ConfirmButton, Picture, SectionTitle } from "@/components/ui";
@@ -50,13 +51,13 @@ type Load =
 export function Dashboard({ locale }: { locale: Locale }) {
   const { status, request } = useAuth();
   const [load, setLoad] = useState<Load>({ state: "loading" });
-  const [rowError, setRowError] = useState<{ id: string; key: MessageKey } | null>(null);
+  const [rowError, setRowError] = useState<({ id: string } & DashWriteError) | null>(null);
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
   // Ids deleted this session: a "load more" page fetched earlier must not bring them back.
   const deletedIds = useRef<Set<string>>(new Set());
   const [more, setMore] = useState<"idle" | "loading" | "error">("idle");
   const [ordering, setOrdering] = useState(false);
-  const [orderError, setOrderError] = useState(false);
+  const [orderError, setOrderError] = useState<DashWriteError | null>(null);
 
   const fetchComments = useCallback(
     async (offset: number) => {
@@ -121,12 +122,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
       editCoffees((c) => withPublished(c, id, isPublished));
     } catch (err) {
       const e = toApiError(err);
-      setRowError({
-        id,
-        key:
-          moderationBlockKey(e.code) ??
-          (e.code === "BAD_USER_INPUT" && publish ? "dash.error.publishNeedsVariant" : "dash.error.generic"),
-      });
+      setRowError({ id, ...publishToggleError(e.code, e.retryAfter, publish) });
     } finally {
       setPending((p) => toggleId(p, id, false));
     }
@@ -139,14 +135,15 @@ export function Dashboard({ locale }: { locale: Locale }) {
     const nodes = moveItem(before.nodes, index, delta);
     if (nodes === before.nodes) return;
     setOrdering(true);
-    setOrderError(false);
+    setOrderError(null);
     editCoffees((c) => restoreOrder(c, nodes.map((n) => n.id)));
     try {
       await request(REORDER_SHOP_COFFEES, { shopId: shop.id, coffeeIds: nodes.map((c) => c.id) });
-    } catch {
+    } catch (err) {
       // Put the old order back on whatever the list is now (rows may have changed meanwhile).
       editCoffees((c) => restoreOrder(c, before.nodes.map((n) => n.id)));
-      setOrderError(true);
+      const e = toApiError(err);
+      setOrderError(reorderError(e.code, e.retryAfter));
     } finally {
       setOrdering(false);
     }
@@ -223,7 +220,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
         )}
         {orderError && (
           <div className="mt-2" role="alert">
-            <FormError>{t(locale, "dash.error.reorder")}</FormError>
+            <FormError>{t(locale, orderError.key, orderError.vars)}</FormError>
           </div>
         )}
 
@@ -288,7 +285,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     </p>
                     {rowError?.id === c.id && (
                       <div className="mt-2">
-                        <FormError>{t(locale, rowError.key)}</FormError>
+                        <FormError>{t(locale, rowError.key, rowError.vars)}</FormError>
                       </div>
                     )}
                   </div>

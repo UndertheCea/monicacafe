@@ -68,6 +68,26 @@ func (r *Resolver) ownedShop(ctx context.Context, c *auth.Claims, shopID string)
 	return sh, nil
 }
 
+// shopWrite runs fn in a transaction that first locks the shop and checks
+// its suspension again (#487). ownedShop's check is a read before the write:
+// an admin's suspension committing in between would otherwise let the write
+// land on a shop that is already read-only. Admins may still act.
+func (r *Resolver) shopWrite(ctx context.Context, c *auth.Claims, shopID string, fn func(tx *store.Store) error) error {
+	return r.Store.InTx(ctx, func(tx *store.Store) error {
+		suspended, err := tx.LockShopForWrite(ctx, shopID)
+		if errors.Is(err, store.ErrNotFound) {
+			return errNotFound("shop")
+		}
+		if err != nil {
+			return err
+		}
+		if suspended && !isAdmin(c) {
+			return errShopSuspended()
+		}
+		return fn(tx)
+	})
+}
+
 // ownedCoffee loads a coffee and checks the viewer manages its shop.
 func (r *Resolver) ownedCoffee(ctx context.Context, c *auth.Claims, coffeeID string) (*store.Coffee, error) {
 	if !isUUID(coffeeID) {
@@ -859,21 +879,23 @@ func validateVariantUpdate(in model.UpdateVariantInput) (store.UpdateVariantPara
 }
 
 // ownedVariant loads a variant and checks the viewer manages its coffee's shop.
-func (r *Resolver) ownedVariant(ctx context.Context, c *auth.Claims, variantID string) (*store.Variant, error) {
+// It also returns the shop's id, for shopWrite.
+func (r *Resolver) ownedVariant(ctx context.Context, c *auth.Claims, variantID string) (*store.Variant, string, error) {
 	if !isUUID(variantID) {
-		return nil, errNotFound("variant")
+		return nil, "", errNotFound("variant")
 	}
 	v, err := r.Store.VariantByID(ctx, variantID)
 	if errors.Is(err, store.ErrNotFound) {
-		return nil, errNotFound("variant")
+		return nil, "", errNotFound("variant")
 	}
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if _, err := r.ownedCoffee(ctx, c, v.CoffeeID); err != nil {
-		return nil, err
+	co, err := r.ownedCoffee(ctx, c, v.CoffeeID)
+	if err != nil {
+		return nil, "", err
 	}
-	return v, nil
+	return v, co.ShopID, nil
 }
 
 func validateCoords(lat, lng *float64) error {

@@ -599,7 +599,12 @@ func (r *mutationResolver) UpdateShop(ctx context.Context, id string, input mode
 		return nil, errBadInput("input", "nothing to update")
 	}
 
-	sh, err := r.Store.UpdateShop(ctx, id, p)
+	var sh *store.Shop
+	err = r.shopWrite(ctx, c, current.ID, func(tx *store.Store) error {
+		var err error
+		sh, err = tx.UpdateShop(ctx, current.ID, p)
+		return err
+	})
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("shop")
 	}
@@ -622,7 +627,7 @@ func (r *mutationResolver) ReorderShopCoffees(ctx context.Context, shopID string
 	if err != nil {
 		return nil, err
 	}
-	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+	err = r.shopWrite(ctx, c, sh.ID, func(tx *store.Store) error {
 		have, err := tx.ShopCoffeeIDsForUpdate(ctx, sh.ID)
 		if err != nil {
 			return err
@@ -725,7 +730,7 @@ func (r *mutationResolver) CreateCoffee(ctx context.Context, input model.CreateC
 			return nil, err
 		}
 		var co *store.Coffee
-		err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		err = r.shopWrite(ctx, c, sh.ID, func(tx *store.Store) error {
 			if err := checkCoffeeCapTx(ctx, tx, sh.ID); err != nil {
 				return err
 			}
@@ -852,7 +857,12 @@ func (r *mutationResolver) UpdateCoffee(ctx context.Context, id string, input mo
 		return nil, errBadInput("input", "nothing to update")
 	}
 
-	co, err := r.Store.UpdateCoffee(ctx, id, p)
+	var co *store.Coffee
+	err = r.shopWrite(ctx, c, current.ShopID, func(tx *store.Store) error {
+		var err error
+		co, err = tx.UpdateCoffee(ctx, current.ID, p)
+		return err
+	})
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("coffee")
 	}
@@ -874,13 +884,14 @@ func (r *mutationResolver) PublishCoffee(ctx context.Context, id string) (*model
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return nil, err
 	}
-	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+	owned, err := r.ownedCoffee(ctx, c, id)
+	if err != nil {
 		return nil, err
 	}
 	// Lock the coffee so a concurrent deleteVariant can't leave it published
 	// with no variants.
 	var co *store.Coffee
-	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+	err = r.shopWrite(ctx, c, owned.ShopID, func(tx *store.Store) error {
 		if _, err := tx.LockCoffee(ctx, id); err != nil {
 			return err
 		}
@@ -919,10 +930,16 @@ func (r *mutationResolver) UnpublishCoffee(ctx context.Context, id string) (*mod
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return nil, err
 	}
-	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+	owned, err := r.ownedCoffee(ctx, c, id)
+	if err != nil {
 		return nil, err
 	}
-	co, err := r.Store.SetCoffeePublished(ctx, id, false)
+	var co *store.Coffee
+	err = r.shopWrite(ctx, c, owned.ShopID, func(tx *store.Store) error {
+		var err error
+		co, err = tx.SetCoffeePublished(ctx, owned.ID, false)
+		return err
+	})
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("coffee") // deleted or archived after the ownership check (#453)
 	}
@@ -941,13 +958,14 @@ func (r *mutationResolver) DeleteCoffee(ctx context.Context, id string) (bool, e
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return false, err
 	}
-	if _, err := r.ownedCoffee(ctx, c, id); err != nil {
+	owned, err := r.ownedCoffee(ctx, c, id)
+	if err != nil {
 		return false, err
 	}
 	// Lock the row so a concurrent publishCoffee can't slip in between the
 	// draft check and the delete. Uploaded images stay in the bucket; they are
 	// unreachable once the row is gone (orphan cleanup is a separate job).
-	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+	err = r.shopWrite(ctx, c, owned.ShopID, func(tx *store.Store) error {
 		published, err := tx.LockCoffee(ctx, id)
 		if err != nil {
 			return err
@@ -1017,7 +1035,7 @@ func (r *mutationResolver) DuplicateCoffee(ctx context.Context, id string, name 
 			return nil, err
 		}
 		var co *store.Coffee
-		err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		err = r.shopWrite(ctx, c, src.ShopID, func(tx *store.Store) error {
 			if err := checkCoffeeCapTx(ctx, tx, src.ShopID); err != nil {
 				return err
 			}
@@ -1116,7 +1134,11 @@ func (r *mutationResolver) CreateImageUpload(ctx context.Context, input model.Im
 	}
 	// Every upload target belongs to a shop: its daily byte budget applies
 	// (declared sizes; the presigned PUT is pinned to the same length).
-	if err := r.Store.ReserveUpload(ctx, shopID, reserve, r.UploadDailyBytes); errors.Is(err, store.ErrUploadQuota) {
+	// shopWrite re-checks the suspension under the shop's lock (#487).
+	err = r.shopWrite(ctx, c, shopID, func(tx *store.Store) error {
+		return tx.ReserveUpload(ctx, shopID, reserve, r.UploadDailyBytes)
+	})
+	if errors.Is(err, store.ErrUploadQuota) {
 		return nil, errUploadQuota()
 	} else if err != nil {
 		return nil, err
@@ -1146,7 +1168,8 @@ func (r *mutationResolver) AddVariant(ctx context.Context, coffeeID string, inpu
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return nil, err
 	}
-	if _, err := r.ownedCoffee(ctx, c, coffeeID); err != nil {
+	owned, err := r.ownedCoffee(ctx, c, coffeeID)
+	if err != nil {
 		return nil, err
 	}
 	params, err := validateVariant(&input)
@@ -1154,7 +1177,7 @@ func (r *mutationResolver) AddVariant(ctx context.Context, coffeeID string, inpu
 		return nil, err
 	}
 	var v *store.Variant
-	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+	err = r.shopWrite(ctx, c, owned.ShopID, func(tx *store.Store) error {
 		if _, err := tx.LockCoffee(ctx, coffeeID); err != nil {
 			return err
 		}
@@ -1189,14 +1212,20 @@ func (r *mutationResolver) UpdateVariant(ctx context.Context, id string, input m
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return nil, err
 	}
-	if _, err := r.ownedVariant(ctx, c, id); err != nil {
+	_, shopID, err := r.ownedVariant(ctx, c, id)
+	if err != nil {
 		return nil, err
 	}
 	params, err := validateVariantUpdate(input)
 	if err != nil {
 		return nil, err
 	}
-	v, err := r.Store.UpdateVariant(ctx, id, params)
+	var v *store.Variant
+	err = r.shopWrite(ctx, c, shopID, func(tx *store.Store) error {
+		var err error
+		v, err = tx.UpdateVariant(ctx, id, params)
+		return err
+	})
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, errNotFound("variant")
 	}
@@ -1218,11 +1247,11 @@ func (r *mutationResolver) DeleteVariant(ctx context.Context, id string) (bool, 
 	if err := allowKey(r.Limits.SellerWriteUser, c.UserID); err != nil {
 		return false, err
 	}
-	v, err := r.ownedVariant(ctx, c, id)
+	v, shopID, err := r.ownedVariant(ctx, c, id)
 	if err != nil {
 		return false, err
 	}
-	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+	err = r.shopWrite(ctx, c, shopID, func(tx *store.Store) error {
 		published, err := tx.LockCoffee(ctx, v.CoffeeID)
 		if err != nil {
 			return err

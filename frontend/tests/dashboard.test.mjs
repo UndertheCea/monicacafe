@@ -230,6 +230,9 @@ test("parseCoords", () => {
     ["25", "-181", "invalid"],
     ["25.0339639", " 121.5644722 ", { lat: 25.033964, lng: 121.564472 }],
     ["-33.8688", "151.2093", { lat: -33.8688, lng: 151.2093 }],
+    ["２５．０３３", "１２１．５６", { lat: 25.033, lng: 121.56 }],
+    [" ２５．０３３ ", "121.56", { lat: 25.033, lng: 121.56 }],
+    ["25,033", "121.56", "invalid"],
   ];
   for (const [lat, lng, want] of cases) assert.deepEqual(parseCoords(lat, lng), want, `${lat},${lng}`);
 });

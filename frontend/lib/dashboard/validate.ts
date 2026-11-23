@@ -288,8 +288,9 @@ export type Coords = { lat: number; lng: number };
  * decimals (~10 cm), more than enough for a shop pin.
  */
 export function parseCoords(lat: string, lng: string): Coords | "empty" | "invalid" {
-  const a = lat.trim();
-  const b = lng.trim();
+  // NFKC so full-width digits and "．" from a zh-TW IME read like parseWhole's (#482).
+  const a = lat.normalize("NFKC").trim();
+  const b = lng.normalize("NFKC").trim();
   if (!a && !b) return "empty";
   const num = /^-?\d+(\.\d+)?$/;
   if (!num.test(a) || !num.test(b)) return "invalid";

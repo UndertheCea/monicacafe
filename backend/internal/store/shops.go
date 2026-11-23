@@ -64,6 +64,17 @@ func (s *Store) UpdateShop(ctx context.Context, id string, p UpdateShopParams) (
 		id, p.Name, p.Description, p.LogoURL, p.BannerURL, p.City, p.Lat, p.Lng, p.ClearLocation))
 }
 
+// LockShopForWrite locks the shop row for the rest of the transaction and
+// reports whether it is suspended (#487). An owner write calls it first, so a
+// suspension either commits before it (and is seen here) or waits for it.
+// FOR NO KEY UPDATE conflicts with itself, so two writes on one shop queue up
+// and a later FOR UPDATE in the same transaction can't deadlock; it doesn't
+// block buyers' follow inserts (key share).
+func (s *Store) LockShopForWrite(ctx context.Context, id string) (suspended bool, err error) {
+	err = s.db.QueryRow(ctx, `SELECT suspended_at IS NOT NULL FROM shops WHERE id = $1 FOR NO KEY UPDATE`, id).Scan(&suspended)
+	return suspended, mapErr(err)
+}
+
 // ShopByID fetches a shop by primary key.
 func (s *Store) ShopByID(ctx context.Context, id string) (*Shop, error) {
 	return scanShop(s.db.QueryRow(ctx, `SELECT `+shopColumns+` FROM shops WHERE id = $1`, id))

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dashWriteError, type DashWriteError } from "@/lib/dashboard/writeError";
 import { toApiError } from "@/lib/graphql";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -22,6 +22,16 @@ export function ShopImages({
   const { request } = useAuth();
   const [error, setError] = useState<DashWriteError | null>(null);
   const [busy, setBusy] = useState(false);
+  // Remove disappears with the image: once the save settles, focus moves to the slot's upload button (#488).
+  const slots = useRef<Record<string, HTMLDivElement | null>>({});
+  const refocus = useRef<string | null>(null);
+  useEffect(() => {
+    const field = refocus.current;
+    if (!field || busy) return;
+    refocus.current = null;
+    const a = document.activeElement;
+    if (!a || a === document.body || !a.isConnected) slots.current[field]?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+  }, [busy]);
 
   async function save(field: "logoUrl" | "bannerUrl", url: string) {
     const r = await request(UPDATE_SHOP, { id: shop.id, input: { [field]: url } });
@@ -33,6 +43,7 @@ export function ShopImages({
     setError(null);
     try {
       await save(field, "");
+      refocus.current = field;
     } catch (err) {
       const e = toApiError(err);
       setError(dashWriteError(e.code, e.retryAfter) ?? { key: "img.error.save" });
@@ -44,7 +55,7 @@ export function ShopImages({
   const slot = (field: "logoUrl" | "bannerUrl", kind: "SHOP_LOGO" | "SHOP_BANNER", title: MessageKey, alt: MessageKey) => {
     const url = shop[field];
     return (
-      <div className="space-y-3">
+      <div ref={(el) => void (slots.current[field] = el)} className="space-y-3">
         <h3 className="text-sm font-semibold text-ink">{t(locale, title)}</h3>
         <div
           className={`overflow-hidden bg-paper ring-1 ring-line ${

@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-23 (after Session 63)
+Last updated: 2026-11-23 (after Session 64)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 63**: no owner answers, nothing pickable; two Sonnet audits gave #481–#485, all shipped. An option stored at NT$0 can
-be switched off / restocked; coordinate and altitude boxes follow `parseWhole` (full-width, grouping); `duplicateCoffee` and
-`suspendUser` re-check takedown / admin role inside their write, not only in an earlier read.
+**Session 64**: no owner answers, nothing pickable; two Sonnet audits plus Session 63's deferred race gave #487–#489, all shipped.
+Owner writes lock the shop row and re-check its suspension inside the write (`shopWrite`); keyboard focus survives confirmed
+removals / unpublish on the dashboard; publish toggle and reorder show the shared rate-limit / suspension messages.
 
 ## Current focus
 
@@ -90,7 +90,7 @@ be switched off / restocked; coordinate and altitude boxes follow `parseWhole` (
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No open unblocked slices. Sessions 43, 45–63 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–64 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

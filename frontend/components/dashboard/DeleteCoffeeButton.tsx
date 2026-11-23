@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { deleteCoffeeErrorKey } from "@/lib/dashboard/deleteCoffee";
 import { DELETE_COFFEE } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { FormError } from "./ui";
 import { ConfirmButton } from "@/components/ui";
 
@@ -21,6 +22,7 @@ export function DeleteCoffeeButton({
 }) {
   const { request } = useAuth();
   const [busy, setBusy] = useState(false);
+  const wrap = useRef<HTMLSpanElement>(null);
   const [error, setError] = useState<MessageKey | null>(null);
 
   async function remove() {
@@ -28,6 +30,7 @@ export function DeleteCoffeeButton({
     setError(null);
     try {
       await request(DELETE_COFFEE, { id: coffeeId });
+      focusAfterRemoval(wrap.current?.closest("[data-row]")); // the row goes: keep the seller's place (#488)
       onDeleted();
     } catch (err) {
       const e = toApiError(err);
@@ -37,7 +40,7 @@ export function DeleteCoffeeButton({
   }
 
   return (
-    <span className="inline-flex flex-col gap-1">
+    <span ref={wrap} className="inline-flex flex-col gap-1">
       <ConfirmButton
         question={t(locale, "dash.deleteConfirm")}
         confirmLabel={t(locale, busy ? "dash.deleting" : "dash.deleteYes")}

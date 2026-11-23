@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { isUUID, type GrindOption } from "@/lib/api";
 import {
   ADD_VARIANT,
@@ -20,6 +20,7 @@ import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { nextLoadKey } from "@/lib/retry";
+import { focusAfterRemoval } from "@/components/focusAfterRemoval";
 import { CoffeeDetailsForm } from "./CoffeeDetailsForm";
 import { CoffeeGallery } from "./CoffeeGallery";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
@@ -149,8 +150,8 @@ export function VariantManager({ coffeeId, locale }: { coffeeId: string; locale:
           onSaved={merge}
         />
 
-        <Card as="section" className="p-4 sm:p-6">
-          <h3 className="font-bold text-ink">{t(locale, "cf.variants")}</h3>
+        <Card as="section" aria-labelledby="variants-heading" className="p-4 sm:p-6">
+          <h3 id="variants-heading" className="font-bold text-ink">{t(locale, "cf.variants")}</h3>
           <p className="mt-1 text-sm text-muted">{t(locale, "cf.variantsHint")}</p>
           {coffee.variants.length === 0 ? (
             <p className="mt-4 text-sm text-muted">{t(locale, "dash.noVariants")}</p>
@@ -219,6 +220,7 @@ function VariantRow({
   const [busy, setBusy] = useState(false);
   const fe = useFormErrors<"price" | "stock">(`variant-${v.id}`, ROW_ORDER);
   const [saved, setSaved] = useState(false);
+  const row = useRef<HTMLLIElement>(null);
 
   const p = parseWhole(price, LIMITS.minPriceTwd, LIMITS.priceTwd);
   const s = parseWhole(stock, 0, LIMITS.stock);
@@ -258,6 +260,7 @@ function VariantRow({
     fe.clear();
     try {
       await request(DELETE_VARIANT, { id: v.id });
+      focusAfterRemoval(row.current); // the row goes: keep the seller's place (#488)
       onDeleted();
     } catch (err) {
       const e = toApiError(err);
@@ -271,7 +274,7 @@ function VariantRow({
   }
 
   return (
-    <li className="rounded-box bg-paper p-3 ring-1 ring-line">
+    <li ref={row} data-row={v.id} className="rounded-box bg-paper p-3 ring-1 ring-line">
       {/* One fieldset per option, so every repeated "Price", "Stock", "Save" and
           "Delete" is announced with the option it belongs to (#322). */}
       <fieldset className="m-0 min-w-0 border-0 p-0">
@@ -323,6 +326,7 @@ function VariantRow({
           >
             {t(locale, "cf.saveRow")}
           </Button>
+          <span data-row-action>
           <ConfirmButton
             question={t(locale, "cf.deleteConfirm")}
             confirmLabel={t(locale, "cf.deleteRow")}
@@ -332,6 +336,7 @@ function VariantRow({
           >
             {t(locale, "cf.deleteRow")}
           </ConfirmButton>
+          </span>
         </div>
       </div>
       </fieldset>

@@ -72,3 +72,17 @@ export function focusAfterRemoval(row: Element | null | undefined): void {
   }
   observer.observe(section ?? document.body, { childList: true, subtree: true });
 }
+
+/**
+ * After a row's control swapped for another (Unpublish -> Publish, #488): once the update has settled, put focus on
+ * the row's `data-row-toggle` control if focus was lost. A visitor who moved on keeps their place.
+ */
+export function focusRowToggle(rowId: string): void {
+  if (typeof window === "undefined") return;
+  requestAnimationFrame(() => {
+    if (!focusLost()) return;
+    const row = Array.from(document.querySelectorAll(ROW)).find((r) => r.getAttribute("data-row") === rowId);
+    const el = row?.querySelector<HTMLElement>("[data-row-toggle]:not([disabled])");
+    el?.focus();
+  });
+}

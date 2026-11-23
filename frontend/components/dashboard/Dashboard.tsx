@@ -27,6 +27,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { nextLoadKey } from "@/lib/retry";
 import { formatTWD } from "@/lib/utils";
+import { focusRowToggle } from "@/components/focusAfterRemoval";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
@@ -233,7 +234,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
             {shop.coffees.nodes.map((c, i) => {
               const price = fromPrice(c);
               return (
-                <li key={c.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                <li key={c.id} data-row={c.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                   {reorderable && (
                     <div className="flex shrink-0 gap-1 sm:flex-col">
                       <button
@@ -304,6 +305,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
                     <Button
                       href={`/dashboard/coffees/${c.id}`}
                       variant="secondary" size="sm"
+                      data-row-action
                     >
                       {t(locale, "dash.edit")}
                     </Button>
@@ -314,12 +316,12 @@ export function Dashboard({ locale }: { locale: Locale }) {
                         cancelLabel={t(locale, "confirm.cancel")}
                         variant="secondary"
                         busy={pending.has(c.id)}
-                        onConfirm={() => void toggle(c.id, false)}
+                        onConfirm={() => void toggle(c.id, false).then(() => focusRowToggle(c.id))}
                       >
                         {t(locale, "dash.unpublish")}
                       </ConfirmButton>
                     ) : (
-                      <Button disabled={pending.has(c.id)} onClick={() => void toggle(c.id, true)} size="sm">
+                      <Button data-row-toggle disabled={pending.has(c.id)} onClick={() => void toggle(c.id, true)} size="sm">
                         {t(locale, "dash.publish")}
                       </Button>
                     )}

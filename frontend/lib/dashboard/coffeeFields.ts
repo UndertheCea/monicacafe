@@ -1,6 +1,8 @@
 // Which form field a coffee-details problem belongs to (#232), for the new-coffee and edit-coffee forms.
-// Pure and import-free so `npm test` loads it (tests/coffeeFields.test.mjs). The messages stay where they were
+// Pure (imports only validate.ts) so `npm test` loads it (tests/coffeeFields.test.mjs). The messages stay where they were
 // (detailsErrorKey in components/dashboard/CoffeeDetailsForm.tsx); this only says WHERE each one is shown.
+
+import { parseAltitude } from "./validate.ts";
 
 /** The coffee forms' fields in visual order, then the option rows' controls (see variantField). */
 export const COFFEE_ORDER = [
@@ -57,8 +59,8 @@ export function problemField(
     case "notes": return "notes";
     case "harvest": return "harvestYear";
     case "altitude": {
-      const min = d.altitudeMin.replace(/[,，\s]/g, "");
-      return /^\d+$/.test(min) && Number(min) <= 6000 ? "altitudeMax" : "altitudeMin";
+      const low = parseAltitude(d.altitudeMin, "");
+      return low !== "invalid" && low.minM !== null ? "altitudeMax" : "altitudeMin";
     }
     default:
       if (!d.name.trim()) return "name";

@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 63 — 2026-11-23 — Audit: NT$0 options, full-width coords / altitude, copy and suspend races (five slices)
+PR: #486
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable. Two
+Sonnet audits (backend: loaders, pagination, CHECKs vs validation, transactions, server wiring, twfmt / money — found sound
+apart from three narrow races; frontend: dashboard forms vs backend validators, cart, auth / graphql client, proxy / CSP,
+lib helpers) gave #481–#485. A Sonnet sub-agent built #482 and #483 in a worktree (cherry-picked after review).
+
+### Shipped (one line per slice: area — what — key files)
+- #481 frontend — `variantUpdateInput` sends `priceTwd` only when it changed (null = nothing to send) and `rowPrice` keeps an
+  untouched stored price, so an option stored at NT$0 before #358 can be switched off or restocked (`lib/dashboard/variantSave.ts`,
+  `VariantManager`). Cases in `tests/variantSave.test.mjs`.
+- #482 frontend — `parseCoords` NFKC-normalises, so ２５．０３３ / １２１．５６ from a zh-TW IME are accepted ("25,033" still refused).
+- #483 frontend — `parseAltitude` only trims and lets `parseWhole` judge grouping ("1,8,00" / "1 800" now refused);
+  `problemField("altitude")` asks `parseAltitude`, so a full-width lowest value focuses the highest box.
+- #484 backend — `duplicateCoffee` locks the source (`LockCoffee`) and re-reads `removed_at` in its tx; `store.DuplicateCoffee`
+  skips archived / taken-down rows. `TestDuplicateCoffeeSource`.
+- #485 backend — `SetUserSuspended` refuses ADMIN rows in the UPDATE (`store.ErrIsAdmin` → FORBIDDEN), so a grant racing the
+  resolver's role check can't leave a suspended admin. `TestSuspendRefusesAdmin`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (420), `next build`, `check_brief.sh`.
+- `docker compose config` passed. Not run here (no Docker daemon): compose stack, smoke, Playwright / axe (CI `stack` runs them). The
+  option row was checked by its helper tests and reading, not in a browser. The races were tested at the store level, not raced.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Not filed: an owner write (`updateShop`, coffee edits, reorder) racing an admin's shop suspension still lands, because
+  `ownedShop` checks `suspended_at` before the write; every owner mutation shares that pattern, the window is milliseconds and
+  the admin can revert the edit. Worth one shared fix (a `FOR SHARE` on the shop in each write tx) if it ever matters.
+  No new questions.
+
 ## Session 62 — 2026-11-22 — Audit: comment gap after posting, S3_BUCKET in nginx, cart sweep, restore message (five slices)
 PR: #480
 

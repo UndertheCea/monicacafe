@@ -1,7 +1,7 @@
 // Option-row save helpers (lib/dashboard/variantSave.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "../lib/dashboard/variantSave.ts";
+import { rowPrice, variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "../lib/dashboard/variantSave.ts";
 
 test("variantUpdateInput sends stock only when changed, always with the stock last seen", () => {
   const cases = [
@@ -14,6 +14,23 @@ test("variantUpdateInput sends stock only when changed, always with the stock la
   for (const [name, loaded, next, avail, want] of cases) {
     assert.deepEqual(variantUpdateInput(loaded, next, avail), want, name);
   }
+});
+
+test("variantUpdateInput leaves an unchanged price out, so a stored NT$0 option can be switched off (#481)", () => {
+  const legacy = { priceTwd: 0, stock: 3 };
+  assert.deepEqual(variantUpdateInput(legacy, { priceTwd: 0, stock: 3 }, false), { isAvailable: false });
+  assert.deepEqual(variantUpdateInput(legacy, { priceTwd: 0, stock: 8 }), { stock: 8, expectedStock: 3 });
+  assert.deepEqual(variantUpdateInput(legacy, { priceTwd: 450, stock: 3 }), { priceTwd: 450 });
+  assert.equal(variantUpdateInput({ priceTwd: 450, stock: 3 }, { priceTwd: 450, stock: 3 }), null);
+});
+
+test("rowPrice keeps the stored price while the box still holds it (#481)", () => {
+  assert.equal(rowPrice(0, null, "0"), 0);
+  assert.equal(rowPrice(0, null, " 0 "), 0);
+  assert.equal(rowPrice(1200, null, "1,200"), 1200);
+  assert.equal(rowPrice(0, 450, "450"), 450);
+  assert.equal(rowPrice(0, null, ""), null);
+  assert.equal(rowPrice(0, null, "abc"), null);
 });
 
 test("variantSaveErrorKey maps API codes to messages", () => {

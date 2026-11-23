@@ -230,6 +230,9 @@ test("parseCoords", () => {
     ["25", "-181", "invalid"],
     ["25.0339639", " 121.5644722 ", { lat: 25.033964, lng: 121.564472 }],
     ["-33.8688", "151.2093", { lat: -33.8688, lng: 151.2093 }],
+    ["２５．０３３", "１２１．５６", { lat: 25.033, lng: 121.56 }],
+    [" ２５．０３３ ", "121.56", { lat: 25.033, lng: 121.56 }],
+    ["25,033", "121.56", "invalid"],
   ];
   for (const [lat, lng, want] of cases) assert.deepEqual(parseCoords(lat, lng), want, `${lat},${lng}`);
 });
@@ -300,6 +303,12 @@ test("parseAltitude mirrors validateAltitude", () => {
     ["-5", "", "invalid"],
     ["1800.5", "", "invalid"],
     ["abc", "", "invalid"],
+    ["１８００", "２１００", { minM: 1800, maxM: 2100 }],
+    ["1，800", "", { minM: 1800, maxM: null }],
+    ["1,8,00", "", "invalid"],
+    ["12,00", "", "invalid"],
+    ["1 800", "", "invalid"],
+    ["1000", "2 100", "invalid"],
   ];
   for (const [min, max, want] of cases) assert.deepEqual(parseAltitude(min, max), want, `${min}–${max}`);
 });

@@ -99,11 +99,20 @@ func (s *Store) SetUserSuspended(ctx context.Context, actorID, userID string, su
 	return s.InTx(ctx, func(tx *Store) error {
 		tag, err := tx.db.Exec(ctx, `
 			UPDATE users SET suspended_at = CASE WHEN $2 THEN now() END
-			WHERE id = $1 AND (suspended_at IS NOT NULL) <> $2`, userID, suspended)
+			WHERE id = $1 AND (suspended_at IS NOT NULL) <> $2 AND NOT ($2 AND role = 'ADMIN')`, userID, suspended)
 		if err != nil {
 			return mapErr(err)
 		}
 		if tag.RowsAffected() == 0 {
+			if suspended {
+				// The resolver checks the role first, but a grant can land
+				// in between; the UPDATE is what keeps admins unsuspendable.
+				var admin bool
+				err := tx.db.QueryRow(ctx, `SELECT role = 'ADMIN' AND suspended_at IS NULL FROM users WHERE id = $1`, userID).Scan(&admin)
+				if err == nil && admin {
+					return ErrIsAdmin
+				}
+			}
 			return tx.existsOrNoChange(ctx, "users", userID)
 		}
 		action := AuditUnsuspendUser

@@ -15,7 +15,7 @@ import {
 import { canManageCoffee } from "@/lib/dashboard/preview";
 import { LIMITS, parseWhole, variantProblems, type VariantDraft } from "@/lib/dashboard/validate";
 import { afterReload, mergeCoffeeFields, replaceVariant, withoutVariant, type EditorLoad } from "@/lib/dashboard/editorState";
-import { variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
+import { rowPrice, variantRowDirty, variantSaveErrorKey, variantUpdateInput } from "@/lib/dashboard/variantSave";
 import { toApiError } from "@/lib/graphql";
 import { dashWriteError } from "@/lib/dashboard/writeError";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
@@ -227,13 +227,17 @@ function VariantRow({
 
   async function save() {
     setSaved(false);
-    if (p === null) return fe.failField("price", { key: "cf.error.price" });
+    // An untouched stored price is kept even when today's minimum refuses it
+    // (an NT$0 option from before #358), so it can still be switched off (#481).
+    const priceTwd = rowPrice(v.priceTwd, p, price);
+    if (priceTwd === null) return fe.failField("price", { key: "cf.error.price" });
     if (s === null) return fe.failField("stock", { key: "cf.error.stock" });
+    // Price only when changed; stock with the stock last loaded (#277); isAvailable only when toggled.
+    const input = variantUpdateInput(v, { priceTwd, stock: s }, onSale !== v.onSale ? onSale : undefined);
+    if (input === null) return;
     setBusy(true);
     fe.clear();
     try {
-      // Stock goes with the stock last loaded (#277); isAvailable only when toggled.
-      const input = variantUpdateInput(v, { priceTwd: p, stock: s }, onSale !== v.onSale ? onSale : undefined);
       const r = await request(UPDATE_VARIANT, { id: v.id, input });
       onSaved(r.updateVariant);
       setSaved(true);

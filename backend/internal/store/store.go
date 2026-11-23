@@ -33,6 +33,9 @@ var (
 	// ErrInsufficientStock is returned when ReserveStock can't take n units:
 	// too few left, the variant is unavailable, archived or missing.
 	ErrInsufficientStock = errors.New("store: insufficient stock")
+	// ErrIsAdmin is returned when suspending an account that holds the ADMIN
+	// role: the role has to be revoked first (#485).
+	ErrIsAdmin = errors.New("store: account is an admin")
 )
 
 // DB is the subset of pgx used by the store; satisfied by *pgxpool.Pool and pgx.Tx.

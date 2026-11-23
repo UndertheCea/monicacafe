@@ -148,9 +148,8 @@ export type Altitude = { minM: number | null; maxM: number | null };
  * lowest → "invalid". Mirrors validateAltitude in backend/graph/helpers.go.
  */
 export function parseAltitude(min: string, max: string): Altitude | "invalid" {
-  const clean = (s: string) => s.replace(/[,，\s]/g, "");
-  const a = clean(min);
-  const b = clean(max);
+  const a = min.trim();
+  const b = max.trim();
   if (!a) return b ? "invalid" : { minM: null, maxM: null };
   const minM = parseWhole(a, 0, LIMITS.altitudeM);
   if (minM === null) return "invalid";
@@ -288,8 +287,9 @@ export type Coords = { lat: number; lng: number };
  * decimals (~10 cm), more than enough for a shop pin.
  */
 export function parseCoords(lat: string, lng: string): Coords | "empty" | "invalid" {
-  const a = lat.trim();
-  const b = lng.trim();
+  // NFKC so full-width digits and "．" from a zh-TW IME read like parseWhole's (#482).
+  const a = lat.normalize("NFKC").trim();
+  const b = lng.normalize("NFKC").trim();
   if (!a && !b) return "empty";
   const num = /^-?\d+(\.\d+)?$/;
   if (!num.test(a) || !num.test(b)) return "invalid";

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CoffeeDetail } from "@/lib/api";
 import { brewLongKey } from "@/lib/brew";
+import { showsCartHint } from "@/lib/cart";
 import { flavorNoteHref } from "@/lib/coffeeQuery";
 import { knownHarvestYear } from "@/lib/harvest";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
@@ -88,8 +89,10 @@ export function CoffeeDetailView({
         )}
         {/* Buying controls sit with the price, above the facts (#294). */}
         {purchase}
-        {/* The cart is open (#280); ECPay checkout comes next in Stage 2. */}
-        <p className="mt-3 text-sm text-muted">{t(locale, "cart.addNow")}</p>
+        {/* The cart is open (#280); ECPay checkout comes next in Stage 2. Only beside the form (#491). */}
+        {showsCartHint(purchase != null, coffee.variants) && (
+          <p className="mt-3 text-sm text-muted">{t(locale, "cart.addNow")}</p>
+        )}
         {actions}
         {/* Not on the seller's draft preview: only published coffees can be reported (#225). */}
         {coffee.isPublished && (

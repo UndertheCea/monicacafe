@@ -7,6 +7,7 @@ import {
   SORT_PARAMS,
   hasFiltersBesidesSearch,
   clearFiltersHref,
+  filterFormKey,
   flavorNoteHref,
   parseInStockParam,
   parseSearchParam,
@@ -167,4 +168,15 @@ test("flavorNoteHref searches /coffees for the note, encoded", () => {
     const q = new URL(flavorNoteHref(note), "http://x").searchParams.get("q");
     assert.equal(parseSearchParam(q), note);
   }
+});
+
+test("filterFormKey changes with the filters and sort, not with their order (#492)", () => {
+  const base = filterFormKey({ originCountryId: "a", search: "kenya" }, "price_asc");
+  assert.equal(filterFormKey({ search: "kenya", originCountryId: "a" }, "price_asc"), base);
+  assert.equal(filterFormKey({ search: "kenya", originCountryId: "a", varietyId: undefined }, "price_asc"), base);
+  assert.notEqual(filterFormKey({ search: "kenya" }, "price_asc"), base); // origin chip removed
+  assert.notEqual(filterFormKey({ originCountryId: "a", search: "kenya" }, ""), base); // sort changed
+  assert.notEqual(filterFormKey({ originCountryId: "a", search: "kenya", inStock: true }, "price_asc"), base);
+  assert.notEqual(filterFormKey({ minPriceTwd: 300 }, ""), filterFormKey({ maxPriceTwd: 300 }, ""));
+  assert.equal(filterFormKey({}, ""), filterFormKey({ search: undefined }, ""));
 });

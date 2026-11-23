@@ -7,7 +7,7 @@ import Link from "next/link";
 import { beyondEnd, pastLastPage } from "@/lib/pagination";
 import { PastLastPage } from "@/components/PastLastPage";
 import { PAGE_SIZE, pageHref, parseCoffeeSearch, type SearchParams } from "@/lib/coffeeFilters";
-import { clearFiltersHref, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
+import { clearFiltersHref, filterFormKey, hasFiltersBesidesSearch, sortForApi } from "@/lib/coffeeQuery";
 import { activeFilterCount, filterChips } from "@/lib/filterChips";
 import { cachedServerQuery, serverQuery } from "@/lib/serverQuery";
 import { CACHE_TAGS } from "@/lib/catalogueCache";
@@ -122,7 +122,9 @@ export default async function CoffeesPage({ searchParams }: { searchParams: Prom
             title={t(locale, "filter.title")}
             closeLabel={t(locale, "filter.close")}
           >
+            {/* Remount when the URL's filters change: a chip / Clear / sort link is a soft navigation (#492). */}
             <FilterSidebar
+              key={filterFormKey(filter, sort)}
               locale={locale}
               filter={filter}
               sort={sort}

@@ -15,6 +15,33 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 65 — 2026-11-23 — Audit: cart hint on sold-out coffees, stale /coffees filter form (two slices)
+PR: #493
+
+No session PR open (only dependabot's), no owner answers on questions (none commented since 2026-11-15), nothing pickable.
+Four Sonnet audits: backend cart / stock / holds / jobs (none), backend comments / reports / moderation / export / delete
+(none), frontend public pages (one: #491), frontend shared components (one hypothesis, confirmed in a browser: #492). Only two
+real gaps, so only two slices.
+
+### Shipped (one line per slice: area — what — key files)
+- #491 frontend — the coffee page's "add to your cart now" line shows only beside the add-to-cart form (`showsCartHint` in
+  `lib/cart.ts`): not on sold-out / unavailable / below-NT$1 coffees, not on the draft preview. Case in `tests/cart.test.mjs`.
+- #492 frontend — /coffees' filter form is keyed by `filterFormKey(filter, sort)` (`lib/coffeeQuery.ts`): a chip / Clear / sort
+  link is a soft navigation that kept the form mounted, and a `<select>` ignores a new `defaultValue`, so a removed origin stayed
+  selected and came back on Apply. New `e2e/filters.test.mjs` (fails without the key). `.gitignore` drops the `AGENTS.md` that
+  `next dev` writes into `frontend/`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16); no backend change.
+- Frontend (Node 22 locally): tsc, lint, `npm test` (424), `next build`, `check_brief.sh`, `docker compose config`.
+- Browser (local API + `next dev`, the pre-installed Chromium): #492 reproduced, then fixed; `e2e/filters.test.mjs` passes with the
+  fix and fails without it; #491 checked by fetching a sold-out and an in-stock seeded coffee page.
+- Not run here (no Docker daemon): compose stack, smoke, the full Playwright / axe suite (CI `stack` runs them).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- /shops' search + sort form and the header search were checked for the same stale-form bug: the city field is rendered from
+  props and the header search is already keyed by the query, so neither is affected. No new questions.
+
 ## Session 64 — 2026-11-23 — Audit: owner writes vs suspension, focus after confirm, dashboard error messages (three slices)
 PR: #490
 

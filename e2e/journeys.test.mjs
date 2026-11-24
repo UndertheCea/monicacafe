@@ -72,7 +72,8 @@ describe("seller", () => {
     const { page } = s;
     await step(page, "publish", () => publish(page, coffeeName));
     await step(page, "listed", async () => {
-      await page.goto(`/coffees?q=${encodeURIComponent(coffeeName)}`);
+      // Just published: logged and loaded again if the first render lacks it (#506).
+      await gotoUntilShown(page, `/coffees?q=${encodeURIComponent(coffeeName)}`, coffeeName);
       const card = page.locator("article").filter({ hasText: coffeeName });
       await card.waitFor();
       await page.goto(coffeeUrl);

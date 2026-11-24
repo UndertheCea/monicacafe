@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Drawer } from "@/components/Drawer";
 import { Button, Field, Textarea } from "@/components/ui";
@@ -47,6 +47,12 @@ export function ReportButton({
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
+  // The form (with the focused submit button) gives way to the thanks: focus
+  // moves to it, in a status region that was already mounted (#509).
+  const doneRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (done) doneRef.current?.focus();
+  }, [done]);
 
   if (!canReport(user ? { id: user.id, shopId: user.shop?.id } : null, { authorId, shopId })) return null;
 
@@ -92,11 +98,10 @@ export function ReportButton({
         title={t(locale, TITLE[targetType])}
         closeLabel={t(locale, "report.close")}
       >
-        {done ? (
-          <p role="status" className="text-sm text-ink">
-            {t(locale, "report.done")}
-          </p>
-        ) : (
+        <p ref={doneRef} role="status" tabIndex={-1} className={done ? "text-sm text-ink" : "sr-only"}>
+          {done ? t(locale, "report.done") : ""}
+        </p>
+        {!done && (
           <form onSubmit={onSubmit} className="space-y-4 text-sm">
             <fieldset className="m-0 min-w-0 border-0 p-0">
               <legend className="mb-2 font-semibold text-ink">{t(locale, "report.reasonLegend")}</legend>

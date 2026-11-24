@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 67 — 2026-11-24 — Audit: invisible characters named on every form (four slices)
-PR: #TBD
+PR: #503
 
 No session PR open (only dependabot's), no owner answers on questions (none commented since 2026-11-15), nothing pickable.
 Four Sonnet audits: tests / CI / scripts / compose / i18n (none), backend GraphQL + store (none), seller dashboard forms (one:

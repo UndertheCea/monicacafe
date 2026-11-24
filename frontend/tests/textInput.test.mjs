@@ -17,12 +17,28 @@ test("textInputErrorKey: length message only when too long, else invisible chara
   assert.equal(textInputErrorKey("😀".repeat(50), 50, "auth.error.displayName"), "form.error.badChars");
 });
 
-test("hasInvisibleChars finds control and format characters only", () => {
+test("hasInvisibleChars finds control and format characters", () => {
   assert.equal(hasInvisibleChars("a​b"), true);
   assert.equal(hasInvisibleChars("a\u0007b"), true);
   assert.equal(hasInvisibleChars("a⁠b"), true);
   assert.equal(hasInvisibleChars("Moni 咖啡 ☕"), false);
   assert.equal(hasInvisibleChars("  padded  "), false);
+});
+
+test("hasInvisibleChars matches what the API refuses (#502)", () => {
+  // Letters that render blank (twfmt isBlankLooking) are refused although they aren't Cf.
+  for (const c of ["\u115F", "\u1160", "\u3164", "\uFFA0", "\u2800", "\u17B4", "\u17B5"]) {
+    assert.equal(hasInvisibleChars(`Ethiopia${c}`), true, c.codePointAt(0).toString(16));
+  }
+  // Text that draws nothing: only combining marks, variation selectors or joiners.
+  assert.equal(hasInvisibleChars("\u0301\u0301"), true);
+  assert.equal(hasInvisibleChars("\uFE0F"), true);
+  assert.equal(hasInvisibleChars("\u200D"), true);
+  // The zero-width joiner inside an emoji sequence is allowed, and so are accents on letters.
+  assert.equal(hasInvisibleChars("Chef 👨\u200D🍳"), false);
+  assert.equal(hasInvisibleChars("Cafe\u0301"), false);
+  assert.equal(hasInvisibleChars("☕\uFE0F"), false);
+  assert.equal(hasInvisibleChars(""), false);
 });
 
 test("capChars / capInput cut by characters, not UTF-16 units (#395)", () => {

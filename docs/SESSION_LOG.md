@@ -15,6 +15,42 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 68 — 2026-11-24 — e2e flake (#504) and its family, comment-edit / report focus (six slices)
+PR: #TBD
+
+No session PR open (only dependabot's), no owner answers on questions, one pickable slice (#504). Three Sonnet audits:
+cart + stock (none), comments / reports / admin (two focus losses: #508, #509; a third, busy buttons, filed as #510),
+e2e + CI flakiness (three: #505, #506, #507).
+
+### Shipped (one line per slice: area — what — key files)
+- #504 cross-cutting — the `stack` job saves every service's full timestamped logs as the `stack-logs` artifact on failure;
+  the seller's reload of the coffee page goes through `gotoUntilShown` (`e2e/lib.mjs`): it checks the server HTML for the
+  buyer's comment, logs status / size / error page / time + a `stale-*` screenshot and loads again (≤ 3). Cause not found:
+  the failed run's logs were replaced by the passing re-run.
+- #505 cross-cutting — smoke + e2e register exactly 10 accounts from one IP = the whole `RATE_LIMIT_REGISTER_IP` (10/1h). The
+  stack job sets 100/1h in its copied `.env` (default unchanged); `register()` fails at once on "Too many requests".
+- #506 cross-cutting — the seller's Report step and the /coffees listing after publishing use `gotoUntilShown`; the /admin
+  takedown check waits for every client-loaded list (`loaded()`) and refuses an error state before counting 0 rows;
+  `e2e/artifacts` is uploaded whenever it has files (stale screenshots from passing runs).
+- #507 cross-cutting — `addCoffee` defaults to Rwanda · Red Honey · "plum, black tea" (was the seeded 耶加雪菲's profile), so
+  in-stock test coffees can't push the seeded Kenya coffee out of the smoke "you may also like" check.
+- #508 frontend — `CommentBody`: Save / Cancel return focus to the comment's Edit button; a save says `comments.updated` in a
+  status region that stays mounted (e2e step `comment-edit-focus`).
+- #509 frontend — `ReportButton`: the thanks lives in an always-mounted status region and takes focus (moderation e2e step).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (431), `next build`; `check_brief.sh`, `docker compose config`; e2e files
+  pass `node --check`; workflow YAML parses.
+- Not run here (no Docker daemon): compose stack, smoke, the Playwright / axe suite — CI `stack` is the first run of the
+  changed e2e steps. Checked in local Chromium: a focused button that becomes `disabled` loses focus to `<body>` for good.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- #510 (new slice): `Button pending` and `disabled={busy}` drop focus site-wide; use `aria-disabled` while working and hand
+  focus on after the last "load more". Not built here: it touches every form's submit button.
+- Cart audit notes, not filed: zh-TW header count says 件 while the cart says 包; `ReserveStock` doesn't check the NT$1
+  floor (checkout must not rely on it). No new questions.
+
 ## Session 67 — 2026-11-24 — Audit: invisible characters named on every form (four slices)
 PR: #503
 

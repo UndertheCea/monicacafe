@@ -65,6 +65,11 @@ test("authErrorMessage", () => {
     { args: ["register", "BAD_USER_INPUT", "other"], want: { key: "auth.error.generic" } },
     { args: ["register", "BAD_USER_INPUT", "displayName"], want: { key: "auth.error.displayName" } },
     { args: ["register", "CONTACT_INFO_NOT_ALLOWED", "displayName"], want: { key: "auth.error.displayName" } },
+    // The name sent holds a zero-width space or a bidi mark: say so, not the length rule (#500).
+    { args: ["register", "BAD_USER_INPUT", "displayName", undefined, "Mo\u200bni"], want: { key: "form.error.badChars" } },
+    { args: ["register", "BAD_USER_INPUT", "displayName", undefined, "\u202eMoni"], want: { key: "form.error.badChars" } },
+    { args: ["register", "BAD_USER_INPUT", "displayName", undefined, "Moni"], want: { key: "auth.error.displayName" } },
+    { args: ["register", "CONTACT_INFO_NOT_ALLOWED", "displayName", undefined, "Mo\u200bni"], want: { key: "auth.error.displayName" } },
     { args: ["login", "UNAVAILABLE"], want: { key: "auth.error.unavailable" } },
     { args: ["login", "FORBIDDEN"], want: { key: "auth.error.suspended" } },
     { args: ["register", "FORBIDDEN"], want: { key: "auth.error.generic" } },

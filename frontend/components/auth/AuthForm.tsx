@@ -22,9 +22,12 @@ const FIELDS: Record<Mode, readonly AuthField[]> = {
 
 /** Field-specific messages go under their field; the rest (wrong password, rate limit, …) to the summary. */
 function placeAuthError(m: AuthErrorMessage): FormErrors<AuthField> {
-  const field = { "auth.error.email": "email", "auth.error.password": "password", "auth.error.displayName": "displayName" }[
-    m.key as string
-  ] as AuthField | undefined;
+  const field = {
+    "auth.error.email": "email",
+    "auth.error.password": "password",
+    "auth.error.displayName": "displayName",
+    "form.error.badChars": "displayName", // only register's display name (#500)
+  }[m.key as string] as AuthField | undefined;
   return field ? { fields: { [field]: m } } : { fields: {}, form: m };
 }
 
@@ -77,7 +80,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
       router.refresh();
     } catch (err) {
       const e2 = toApiError(err);
-      fe.fail(placeAuthError(authErrorMessage(mode, e2.code, e2.field, e2.retryAfter)));
+      fe.fail(placeAuthError(authErrorMessage(mode, e2.code, e2.field, e2.retryAfter, displayName)));
       setBusy(false);
     }
   }

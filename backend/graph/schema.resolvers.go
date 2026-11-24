@@ -1845,6 +1845,11 @@ func (r *queryResolver) Reports(ctx context.Context, status *model.ReportStatus,
 	return r.reports(ctx, status, limit, offset)
 }
 
+// AdminTakenDownCoffees is the resolver for the adminTakenDownCoffees field.
+func (r *queryResolver) AdminTakenDownCoffees(ctx context.Context, limit *int, offset *int) (*model.CoffeeConnection, error) {
+	return r.adminTakenDownCoffees(ctx, limit, offset)
+}
+
 // Reporter is the resolver for the reporter field.
 func (r *reportResolver) Reporter(ctx context.Context, obj *model.Report) (*model.User, error) {
 	return r.reportUser(ctx, obj.ReporterID)

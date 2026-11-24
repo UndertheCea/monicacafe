@@ -18,6 +18,7 @@ import {
   isAdminViewer,
   reportTargetHref,
   withUpdatedRow,
+  withoutRow,
   withoutTarget,
   type ReportResolution,
 } from "@/lib/moderation";
@@ -25,9 +26,11 @@ import {
   ADMIN_PAGE,
   ADMIN_REPORTS,
   ADMIN_SHOPS,
+  ADMIN_TAKEN_DOWN_COFFEES,
   ADMIN_USERS,
   AUDIT_LOG,
   RESOLVE_REPORT,
+  RESTORE_COFFEE,
   SUSPEND_SHOP,
   SUSPEND_USER,
   UNSUSPEND_SHOP,
@@ -36,6 +39,7 @@ import {
   type AdminShop,
   type AdminUser,
   type AuditRow,
+  type TakenDownCoffee,
 } from "@/lib/moderationQueries";
 import { formatTaipeiDate } from "@/lib/utils";
 
@@ -74,6 +78,7 @@ function AdminSections({ locale }: { locale: Locale }) {
       <ReportsSection locale={locale} onModerated={onModerated} version={auditVersion} />
       <UsersSection locale={locale} onModerated={onModerated} version={auditVersion} />
       <ShopsSection locale={locale} onModerated={onModerated} version={auditVersion} />
+      <TakenDownSection locale={locale} onModerated={onModerated} version={auditVersion} />
       <AuditSection locale={locale} version={auditVersion} />
     </div>
   );
@@ -596,6 +601,111 @@ function SuspendRow({
                 back(); // takes effect only once the prompt closes (a failure keeps it open)
                 return onConfirm(reason);
               }}
+              onCancel={() => (back(), onCancel())}
+            />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// ─── Taken-down coffees ────────────────────────────────────────────────────
+
+/** Coffees under a takedown, each with "Restore" (reason required) (#497). */
+function TakenDownSection({ locale, onModerated, version }: { locale: Locale; onModerated: () => void; version: number }) {
+  const { request } = useAuth();
+  const fetchPage = useCallback(
+    (offset: number) => request(ADMIN_TAKEN_DOWN_COFFEES, { limit: ADMIN_PAGE, offset }).then((r) => r.adminTakenDownCoffees),
+    [request],
+  );
+  const { list, loadMore, loadingMore, moreFailed, update, retry } = useAdminList<TakenDownCoffee>(fetchPage, version);
+  const [acting, setActing] = useState<string | null>(null);
+
+  return (
+    <Section title={t(locale, "admin.takenDown")} count={list.state === "ready" ? list.total : undefined} locale={locale}>
+      <p className="mb-4 text-sm text-muted">{t(locale, "admin.takenDownNote")}</p>
+      <ListBody list={list} empty="admin.takenDownEmpty" locale={locale} onMore={loadMore} onRetry={retry} loadingMore={loadingMore} moreFailed={moreFailed}>
+        {(nodes) => (
+          <table className="w-full min-w-[36rem] border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className={thCls}>{t(locale, "admin.col.coffee")}</th>
+                <th className={thCls}>{t(locale, "admin.col.shop")}</th>
+                <th className={thCls}>{t(locale, "admin.col.date")}</th>
+                <th className={thCls}>{t(locale, "admin.col.actions")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nodes.map((c) => (
+                <TakenDownRow
+                  key={c.id}
+                  coffee={c}
+                  locale={locale}
+                  acting={acting === c.id}
+                  onAct={() => setActing(c.id)}
+                  onCancel={() => setActing(null)}
+                  onConfirm={async (reason, row) => {
+                    await request(RESTORE_COFFEE, { id: c.id, reason });
+                    focusAfterRemoval(row); // the row goes: keep the admin's place (#405)
+                    setActing(null);
+                    update((p) => withoutRow(p, c.id));
+                    onModerated();
+                  }}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </ListBody>
+    </Section>
+  );
+}
+
+function TakenDownRow({
+  coffee: c,
+  locale,
+  acting,
+  onAct,
+  onCancel,
+  onConfirm,
+}: {
+  coffee: TakenDownCoffee;
+  locale: Locale;
+  acting: boolean;
+  onAct: () => void;
+  onCancel: () => void;
+  onConfirm: (reason: string, row: HTMLTableRowElement | null) => Promise<void>;
+}) {
+  const row = useRef<HTMLTableRowElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const back = useReturnFocus(acting, trigger);
+  return (
+    <>
+      <tr ref={row} data-row={c.id}>
+        {/* A taken-down coffee is a draft, so it has no public page to link to. */}
+        <td className={`${tdCls} max-w-xs break-words text-ink`}>{c.name}</td>
+        <td className={tdCls}>
+          <Link href={`/shops/${encodeURIComponent(c.shop.slug)}`} target="_blank" className="text-ink underline-offset-4 hover:underline">
+            {c.shop.name}
+          </Link>
+        </td>
+        <td className={tdCls}>{c.takenDownAt ? date(c.takenDownAt) : "—"}</td>
+        <td className={tdCls}>
+          <div data-row-action>
+            <Button ref={trigger} size="sm" variant="secondary" onClick={onAct}>
+              {t(locale, "admin.restore")}
+            </Button>
+          </div>
+        </td>
+      </tr>
+      {acting && (
+        <tr>
+          <td colSpan={4} className={tdCls}>
+            <ReasonPrompt
+              locale={locale}
+              required
+              onConfirm={(reason) => onConfirm(reason, row.current)}
               onCancel={() => (back(), onCancel())}
             />
           </td>

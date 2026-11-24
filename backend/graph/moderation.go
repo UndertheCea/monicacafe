@@ -289,6 +289,22 @@ func (r *Resolver) adminShops(ctx context.Context, search *string, limit, offset
 	return &model.ShopConnection{Nodes: nodes, Total: total}, nil
 }
 
+func (r *Resolver) adminTakenDownCoffees(ctx context.Context, limit, offset *int) (*model.CoffeeConnection, error) {
+	if _, err := r.requireAdmin(ctx); err != nil {
+		return nil, err
+	}
+	l, o := page(limit, offset)
+	coffees, total, err := r.Store.AdminTakenDownCoffees(ctx, l, o)
+	if err != nil {
+		return nil, err
+	}
+	nodes := make([]*model.Coffee, len(coffees))
+	for i, co := range coffees {
+		nodes[i] = toCoffee(co)
+	}
+	return &model.CoffeeConnection{Nodes: nodes, Total: total}, nil
+}
+
 func (r *Resolver) auditLog(ctx context.Context, limit, offset *int) (*model.AuditEntryConnection, error) {
 	if _, err := r.requireAdmin(ctx); err != nil {
 		return nil, err

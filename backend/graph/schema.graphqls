@@ -57,6 +57,9 @@ type Query {
   # Reports from visitors (#225), newest first. status defaults to OPEN.
   # Admin only, like adminUsers.
   reports(status: ReportStatus, limit: Int, offset: Int): ReportConnection!
+  # Coffees an admin took down (#282) and nobody restored yet, newest takedown
+  # first (#497); archived ones are left out. Admin only, like adminUsers.
+  adminTakenDownCoffees(limit: Int, offset: Int): CoffeeConnection!
 }
 
 # ─── Mutations ────────────────────────────────────────────────────────────────
@@ -451,6 +454,8 @@ type Coffee {
   # An admin took the coffee down (#282); only its seller and admins can see
   # such a coffee (it is a draft), so this is false for everyone else.
   takenDown: Boolean!
+  # When it was taken down; null when takenDown is false (#497).
+  takenDownAt: Time
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).
   updatedAt: Time!

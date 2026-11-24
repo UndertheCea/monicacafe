@@ -111,6 +111,29 @@ export const UNSUSPEND_SHOP = typed<{ unsuspendShop: AdminShop }, ReasonVars>(/*
   mutation UnsuspendShop($id: ID!, $reason: String!) { unsuspendShop(id: $id, reason: $reason) { ${ADMIN_SHOP_FIELDS} } }
 `);
 
+export interface TakenDownCoffee {
+  id: string;
+  name: string;
+  takenDownAt: string | null;
+  shop: { name: string; slug: string };
+}
+
+const TAKEN_DOWN_FIELDS = `id name takenDownAt shop { name slug }`;
+
+/** Coffees under a takedown nobody lifted yet, newest first (#497). */
+export const ADMIN_TAKEN_DOWN_COFFEES = typed<
+  { adminTakenDownCoffees: { total: number; nodes: TakenDownCoffee[] } },
+  { limit: number; offset: number }
+>(/* GraphQL */ `
+  query AdminTakenDownCoffees($limit: Int, $offset: Int) {
+    adminTakenDownCoffees(limit: $limit, offset: $offset) { total nodes { ${TAKEN_DOWN_FIELDS} } }
+  }
+`);
+
+export const RESTORE_COFFEE = typed<{ adminRestoreCoffee: { id: string; takenDown: boolean } }, ReasonVars>(/* GraphQL */ `
+  mutation AdminRestoreCoffee($id: ID!, $reason: String!) { adminRestoreCoffee(id: $id, reason: $reason) { id takenDown } }
+`);
+
 export interface AuditRow {
   id: string;
   action: string;

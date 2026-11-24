@@ -81,10 +81,54 @@ func TestTakedownsStick(t *testing.T) {
 	}
 	admin.expectCode(graph.CodeBadInput, `mutation($id: ID!) { adminUnpublishCoffee(id: $id, reason: "again") { id } }`, id)
 
+	// /admin lists it (#497) with when it was taken down, until it is restored.
+	listed := func() *struct {
+		ID          string
+		TakenDownAt *string
+		Shop        struct{ ID string }
+	} {
+		var all struct {
+			AdminTakenDownCoffees struct {
+				Total int
+				Nodes []struct {
+					ID          string
+					TakenDownAt *string
+					Shop        struct{ ID string }
+				}
+			}
+		}
+		admin.mustDo(`{ adminTakenDownCoffees(limit: 100) { total nodes { id takenDownAt shop { id } } } }`, nil, &all)
+		if all.AdminTakenDownCoffees.Total < len(all.AdminTakenDownCoffees.Nodes) {
+			t.Fatalf("total below the page: %+v", all)
+		}
+		for i := range all.AdminTakenDownCoffees.Nodes {
+			if n := &all.AdminTakenDownCoffees.Nodes[i]; n.ID == coffeeID {
+				return n
+			}
+		}
+		return nil
+	}
+	if n := listed(); n == nil || n.TakenDownAt == nil || n.Shop.ID == "" {
+		t.Fatalf("taken-down coffee missing from adminTakenDownCoffees: %+v", n)
+	}
+	seller.expectCode(graph.CodeForbidden, `{ adminTakenDownCoffees { total } }`, nil)
+
 	// Restoring is admin-only, needs a reason, and lets the seller publish again.
 	seller.expectCode(graph.CodeForbidden, `mutation($id: ID!) { adminRestoreCoffee(id: $id, reason: "x") { id } }`, id)
 	admin.expectCode(graph.CodeBadInput, `mutation($id: ID!) { adminRestoreCoffee(id: $id, reason: " ") { id } }`, id)
-	admin.mustDo(`mutation($id: ID!) { adminRestoreCoffee(id: $id, reason: "origin fixed") { id } }`, id, nil)
+	var restored struct {
+		AdminRestoreCoffee struct {
+			TakenDown   bool
+			TakenDownAt *string
+		}
+	}
+	admin.mustDo(`mutation($id: ID!) { adminRestoreCoffee(id: $id, reason: "origin fixed") { takenDown takenDownAt } }`, id, &restored)
+	if restored.AdminRestoreCoffee.TakenDown || restored.AdminRestoreCoffee.TakenDownAt != nil {
+		t.Fatalf("after restore: %+v", restored)
+	}
+	if n := listed(); n != nil {
+		t.Fatalf("restored coffee still listed: %+v", n)
+	}
 	admin.expectCode(graph.CodeBadInput, `mutation($id: ID!) { adminRestoreCoffee(id: $id, reason: "again") { id } }`, id)
 	var pub struct{ PublishCoffee struct{ IsPublished bool } }
 	seller.mustDo(publish, id, &pub)

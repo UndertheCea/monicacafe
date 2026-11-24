@@ -45,6 +45,27 @@ export async function step(page, name, fn) {
   }
 }
 
+/**
+ * Loads `url` until its server-rendered HTML contains `text` (#504). A load that
+ * lacks it is logged with what came back (status, size, an error page or not,
+ * the time to look up in the stack logs) and a screenshot, then retried, at most
+ * `tries` loads in all. The caller still waits for the text on the page, so a
+ * page that never shows it fails.
+ */
+export async function gotoUntilShown(page, url, text, { tries = 3 } = {}) {
+  for (let i = 1; ; i++) {
+    const res = await page.goto(url);
+    const html = (await res?.text().catch(() => "")) ?? "";
+    if (html.includes(text) || i >= tries) return res;
+    const shot = await snap(page, `stale-${i}-${new URL(url, BASE_URL).pathname}`);
+    console.log(
+      `# ${url} load ${i}/${tries} lacked ${JSON.stringify(text)}: status ${res?.status()}, ` +
+        `${html.length} bytes, error page ${/Couldn't load data|Too many requests|Can't reach the server/.test(html)}, at ${new Date().toISOString()} (screenshot: ${shot})`,
+    );
+    await page.waitForTimeout(500 * i);
+  }
+}
+
 /** Registers through the UI and waits until the session is live. */
 export async function register(page, who) {
   await page.goto("/register");

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
-import { addCoffee, launch, loaded, makePng, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
+import { addCoffee, gotoUntilShown, launch, loaded, makePng, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
 
 const seller = { name: `E2E Seller ${RUN}`, email: `e2e-seller-${RUN}@example.com` };
 const buyer = { name: `E2E Buyer ${RUN}`, email: `e2e-buyer-${RUN}@example.com` };
@@ -154,7 +154,9 @@ describe("buyer", () => {
       await b.page.getByText(buyerText).waitFor();
     });
     await step(s.page, "seller-comment", async () => {
-      await s.page.goto(coffeeUrl);
+      // The seller's tab is already on coffeeUrl; a first load without the buyer's
+      // comment once timed out here (#504), so it is logged and reloaded.
+      await gotoUntilShown(s.page, coffeeUrl, buyerText);
       await s.page.getByText(buyerText).waitFor();
       await s.page.getByLabel("Share your thoughts").fill(sellerText);
       await s.page.getByRole("button", { name: "Post comment" }).click();

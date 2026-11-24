@@ -66,14 +66,25 @@ export async function gotoUntilShown(page, url, text, { tries = 3 } = {}) {
   }
 }
 
-/** Registers through the UI and waits until the session is live. */
+/**
+ * Registers through the UI and waits until the session is live. A refusal for
+ * too many sign-ups from this address fails at once with that reason, not as a
+ * bare navigation timeout (#505).
+ */
 export async function register(page, who) {
   await page.goto("/register");
   await page.getByLabel("Display name").fill(who.name);
   await page.getByLabel("Email").fill(who.email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign up" }).click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/register"));
+  const limited = page.getByText(/^Too many requests/).first();
+  const outcome = await Promise.race([
+    page.waitForURL((u) => !u.pathname.startsWith("/register")).then(() => "registered"),
+    limited.waitFor().then(() => "limited"),
+  ]);
+  if (outcome === "limited") {
+    throw new Error(`register ${who.email}: refused as too many sign-ups (RATE_LIMIT_REGISTER_IP): ${await limited.textContent()}`);
+  }
 }
 
 /** A small PNG made by the browser itself (no binary fixture in the repo). */

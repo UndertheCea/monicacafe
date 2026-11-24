@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-23 (after Session 65)
+Last updated: 2026-11-24 (after Session 66)
 
 ---
 
@@ -67,7 +67,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 | Header at every width: ☰ · centred wordmark · search icon; everything else in the navigation drawer (Home first, no visible heading, labelled language switch), `/menu` no-JS fallback | Done (#175, #185, #331) |
 | Reference shops (dev only): nine roasters' lists (`docs/reference-data/`, `reference_add`), gap report (`--strict` in CI, reviewed gaps "accepted"), migration 024 adds the values they use; 159 / 181 coffees load | Done (#169, #170–#174, #299–#303) |
 | Visual direction: white + black tokens, italic "moni cafe" wordmark (one line; no tagline anywhere, #164, #194), Radix colour tiles, shop initials, site icon | Done (#109–#112, #114, #164) |
-| Moderation: suspend users / shops, audit log, `cmd/admin` (#224); reports + `/admin` (#225); takedowns stick until `adminRestoreCoffee`, suspended shops read-only (#282); token version checked on queries too (#284); contact filter normalises and covers names / notes / city, reserved display names, role private (#286, #325); suspended accounts' saves / follows don't count (#327) | Done |
+| Moderation: suspend users / shops, audit log, `cmd/admin` (#224); reports + `/admin` (#225), restore takedowns there (#497); takedowns stick until `adminRestoreCoffee`, suspended shops read-only (#282); token version checked on queries too (#284); contact filter normalises and covers names / notes / city, reserved display names, role private (#286, #325); suspended accounts' saves / follows don't count (#327) | Done |
 | Observability: `/metrics` on an internal port, `/health/live` + `/health/ready`, `/api/health`, Sentry-compatible reporting when `SENTRY_DSN` is set, sweeps awaited + advisory-locked, `docs/DEPLOY.md` | Done (#221) |
 | Backups: nightly `age`-encrypted `pg_dump` streamed to S3 or a directory, days-based retention, shrink guard vs the largest dump (#348), `BACKUP_PING_URL` + healthcheck, all-or-nothing `restore.sh`, encrypted S3 drill in CI (#289); images mirrored (`BACKUP_MEDIA`), guarded sweep, no cached errors (#288) | Done (#220, #222, #288, #289) |
 | Refresh cookie `__Host-` + Secure and Origin check from `SITE_URL`; CSP `report-to` + `upgrade-insecure-requests` | Done (#215) |
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 65**: no owner answers, nothing pickable; four Sonnet audits gave two real gaps, both shipped. The coffee page's
-"add to cart now" line shows only beside the form (#491); /coffees' filter form remounts when the URL's filters change, so a
-removed chip no longer stays selected (#492, browser-checked, new `e2e/filters.test.mjs`).
+**Session 66**: no owner answers, nothing pickable; four Sonnet audits gave four real gaps, all shipped. /admin lists taken-down
+coffees with Restore (#497); a password change can't be undone by an overlapping refresh (#495); /account's leave flag is state
+(#494, hardening); compose passes `APP_ENV` to the frontend, with a test for every frontend env var (#496).
 
 ## Current focus
 
@@ -90,7 +90,7 @@ removed chip no longer stays selected (#492, browser-checked, new `e2e/filters.t
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No open unblocked slices. Sessions 43, 45–65 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
+3. No open unblocked slices. Sessions 43, 45–66 audited / fixed the code; stage 1 waits on #219, #223, #226. Orders wait on #205;
    they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

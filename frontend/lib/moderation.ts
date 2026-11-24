@@ -1,6 +1,8 @@
 // Moderation helpers (#225): reporting comments and shops, the "no contact
-// details" rule and the /admin screen. Pure, no imports, so `npm test` can load
-// this file directly.
+// details" rule and the /admin screen. Pure, only pure sibling imports, so `npm test`
+// can load this file directly.
+
+import { hasInvisibleChars } from "./textInput.ts";
 
 /** The backend's error code for text with a phone number, email, link or LINE / IG / FB ID. */
 export const CONTACT_INFO_CODE = "CONTACT_INFO_NOT_ALLOWED";
@@ -27,10 +29,21 @@ export function canSubmitReport(reason: string | null, note: string): boolean {
   return !!reason && (REPORT_REASONS as readonly string[]).includes(reason) && runes(note) <= REPORT_NOTE_MAX;
 }
 
-/** Message key for a failed report (RATE_LIMITED is handled by the caller with its wait time). */
-export function reportErrorKey(code: string): "report.error.signIn" | "report.error.gone" | "report.error.generic" {
+/**
+ * Message key for a failed report (RATE_LIMITED is handled by the caller with its wait time). `field` / `note`:
+ * the API's field and the note sent, so a note refused for invisible characters says so (#501). Line breaks
+ * are allowed in a note.
+ */
+export function reportErrorKey(
+  code: string,
+  field?: string,
+  note?: string,
+): "report.error.signIn" | "report.error.gone" | "report.error.generic" | "form.error.badChars" {
   if (code === "UNAUTHENTICATED") return "report.error.signIn";
   if (code === "NOT_FOUND") return "report.error.gone";
+  if (code === "BAD_USER_INPUT" && field === "note" && note !== undefined && hasInvisibleChars(note.replace(/\r?\n/g, " "))) {
+    return "form.error.badChars";
+  }
   return "report.error.generic";
 }
 
@@ -58,9 +71,19 @@ export function moderationReasonProblem(reason: string, required = true): "requi
   return null;
 }
 
-/** Message key for a failed admin action. */
-export function adminErrorKey(code: string): "admin.error.forbidden" | "admin.error.state" | "admin.error.gone" | "admin.error.generic" {
+/**
+ * Message key for a failed admin action. `field` / `reason`: the API's field and the reason sent, so a reason
+ * refused for invisible characters says so instead of "this changed, reload" (#501).
+ */
+export function adminErrorKey(
+  code: string,
+  field?: string,
+  reason?: string,
+): "admin.error.forbidden" | "admin.error.state" | "admin.error.gone" | "admin.error.generic" | "form.error.badChars" {
   if (code === "FORBIDDEN" || code === "UNAUTHENTICATED") return "admin.error.forbidden";
+  if (code === "BAD_USER_INPUT" && field === "reason" && reason !== undefined && hasInvisibleChars(reason)) {
+    return "form.error.badChars";
+  }
   if (code === "BAD_USER_INPUT") return "admin.error.state";
   if (code === "NOT_FOUND") return "admin.error.gone";
   return "admin.error.generic";

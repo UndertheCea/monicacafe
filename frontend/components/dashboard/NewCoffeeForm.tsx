@@ -267,7 +267,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
         const failed: FormErrors<CoffeeFieldKey> = isContactInfoError(e2.code)
           ? placeError(e2.field ?? "description", { key: "contact.error" }, order, COFFEE_API_ALIASES)
           : e2.code === "BAD_USER_INPUT"
-            ? coffeeBadInput(e2.field, notes.length, order)
+            ? coffeeBadInput(e2.field, { name, description, producer, region, flavorNotes: notes }, order)
             : { fields: {}, form: { key: "cf.error.generic" } };
         const placed = Object.keys(failed.fields)[0];
         if (placed && isOptionalField(placed)) setMoreOpen(true);

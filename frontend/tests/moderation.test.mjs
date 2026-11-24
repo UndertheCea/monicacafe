@@ -242,3 +242,13 @@ test("withoutRow drops a restored coffee and counts it only if shown (#497)", ()
   assert.deepEqual(withoutRow(page, "z"), page); // not on this page: nothing changes
   assert.deepEqual(withoutRow({ total: 0, nodes: [{ id: "a" }] }, "a"), { total: 0, nodes: [] });
 });
+
+test("reportErrorKey / adminErrorKey: text refused for invisible characters says so (#501)", () => {
+  assert.equal(reportErrorKey("BAD_USER_INPUT", "note", "spam​ here"), "form.error.badChars");
+  assert.equal(reportErrorKey("BAD_USER_INPUT", "note", "line one\r\nline two"), "report.error.generic");
+  assert.equal(reportErrorKey("BAD_USER_INPUT", "reason", "x​"), "report.error.generic");
+  assert.equal(reportErrorKey("NOT_FOUND", "note", "x​"), "report.error.gone");
+  assert.equal(adminErrorKey("BAD_USER_INPUT", "reason", "spam‮"), "form.error.badChars");
+  assert.equal(adminErrorKey("BAD_USER_INPUT", "reason", "spam"), "admin.error.state");
+  assert.equal(adminErrorKey("BAD_USER_INPUT", "resolution", "spam​"), "admin.error.state");
+});

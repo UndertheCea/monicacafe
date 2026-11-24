@@ -74,7 +74,7 @@ export function ReportButton({
       setDone(true);
     } catch (err) {
       const e2 = toApiError(err);
-      setError(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : { key: reportErrorKey(e2.code) });
+      setError(e2.code === "RATE_LIMITED" ? rateLimitMessage(e2.retryAfter) : { key: reportErrorKey(e2.code, e2.field, note.trim()) });
     } finally {
       setBusy(false);
     }

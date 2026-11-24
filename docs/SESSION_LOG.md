@@ -15,6 +15,37 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 67 — 2026-11-24 — Audit: invisible characters named on every form (four slices)
+PR: #503
+
+No session PR open (only dependabot's), no owner answers on questions (none commented since 2026-11-15), nothing pickable.
+Four Sonnet audits: tests / CI / scripts / compose / i18n (none), backend GraphQL + store (none), seller dashboard forms (one:
+wrong message for invisible characters in coffee names, #499), every form's error mapping vs the API (one more: the client
+check missed blank-looking letters, #502). Checking the rest of the forms by hand gave #500 and #501. Only four real gaps.
+
+### Shipped (one line per slice: area — what — key files)
+- #499 frontend — coffee new / edit forms: an API refusal of a name, producer, region, description or flavour note for
+  invisible characters shows `form.error.badChars` under the field, not "Name, origin and process are required" / the producer
+  rule (`coffeeTextHasBadChars` in `lib/dashboard/validate.ts`, `coffeeBadInput` takes the sent text).
+- #500 frontend — register: a display name refused for invisible characters says so (`authErrorMessage(..., displayName)`).
+- #501 frontend — report note and admin reason: `reportErrorKey` / `adminErrorKey` take the API's field and the text sent; an
+  admin no longer reads "this changed, reload" for a pasted zero-width space.
+- #502 cross-cutting — `hasInvisibleChars` matches `badTextRune` / `cleanTextMode`: blank-looking letters (U+3164, U+2800, …),
+  text that draws nothing, ZWJ allowed. `twfmt/blank_sync_test.go` fails if `isBlankLooking` gains a rune `textInput.ts` lacks
+  (checked: fails with U+2800 removed).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (431), `next build`, `check_brief.sh`, `docker compose config`.
+- Not run here (no Docker daemon): compose stack, smoke, the Playwright / axe suite (CI `stack` runs them). The four fixes are
+  message mapping in pure helpers with unit tests; not clicked through in a browser.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Not filed: a coffee made before #176 (no producer / variety / altitude) can't be saved from the edit form until those are
+  filled — deliberate (#176: edits can't leave required details empty). Seed shops with > 6 decimal coordinates open the shop
+  form as "unsaved" (dev data only). FormData doesn't turn textarea newlines into CRLF in Chromium (checked), so the description
+  length check is right. No new questions.
+
 ## Session 66 — 2026-11-24 — Audit: password change vs refresh, /admin restore, frontend APP_ENV (four slices)
 PR: #498
 

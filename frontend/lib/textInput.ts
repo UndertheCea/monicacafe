@@ -22,9 +22,23 @@ export function capInput(el: { value: string }, max: number): void {
   if (v !== el.value) el.value = v;
 }
 
-/** Whether the text holds control or invisible formatting characters (e.g. a zero-width space) the API refuses. */
+/**
+ * Characters the API refuses in text (backend/graph/helpers.go `badTextRune`): control and invisible formatting
+ * ones (Cc / Cf, e.g. a zero-width space), plus letters that render blank (twfmt `isBlankLooking`: Hangul
+ * fillers, the Braille blank, Khmer inherent vowels). A Go test keeps the blank-looking list in step (#502).
+ */
+const REFUSED_CHAR = /[\p{Cc}\p{Cf}\u115F\u1160\u3164\uFFA0\u2800\u17B4\u17B5]/u;
+/** Something that draws on its own: not space, the zero-width joiner, or a combining / enclosing mark (`hasVisibleRune`). */
+const VISIBLE_CHAR = /[^\s\u200D\p{Mn}\p{Me}]/u;
+
+/**
+ * Whether the text holds characters the API refuses as invisible, or draws nothing at all (only joiners,
+ * combining marks or variation selectors). The zero-width joiner alone is fine: emoji sequences need it.
+ */
 export function hasInvisibleChars(value: string): boolean {
-  return /[\p{Cc}\p{Cf}]/u.test(value.trim());
+  const v = value.trim();
+  if (REFUSED_CHAR.test(v.replace(/\u200D/g, ""))) return true;
+  return v !== "" && !VISIBLE_CHAR.test(v);
 }
 
 /**

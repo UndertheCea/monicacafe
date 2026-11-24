@@ -10,10 +10,12 @@ import {
   coffeeDetailsPatch,
   apiDetailsProblem,
   coffeeDetailsProblem,
+  coffeeTextHasBadChars,
   filledOptionalCount,
   parseFlavorNotes,
   type CoffeeDetails,
   type CoffeeDetailsProblem,
+  type CoffeeSentText,
 } from "@/lib/dashboard/validate";
 import {
   COFFEE_API_ALIASES,
@@ -91,14 +93,16 @@ const DETAILS_API_FIELDS = [
 
 /**
  * A BAD_USER_INPUT from createCoffee / updateCoffee, placed under the field the API named (aliases in
- * COFFEE_API_ALIASES); a field the form doesn't have goes to the summary. `notesSent`: see apiDetailsProblem.
+ * COFFEE_API_ALIASES); a field the form doesn't have goes to the summary. `sent`: the text as sent, so
+ * invisible characters get their own message (#499); its note count feeds apiDetailsProblem.
  */
 export function coffeeBadInput(
   field: string | undefined,
-  notesSent: number,
+  sent: CoffeeSentText,
   order: readonly CoffeeFieldKey[],
 ): FormErrors<CoffeeFieldKey> {
-  const problem = DETAILS_API_FIELDS.includes(field ?? "") ? apiDetailsProblem(field, notesSent) : null;
+  if (coffeeTextHasBadChars(field, sent)) return placeError(field, { key: "form.error.badChars" }, order, COFFEE_API_ALIASES);
+  const problem = DETAILS_API_FIELDS.includes(field ?? "") ? apiDetailsProblem(field, sent.flavorNotes?.length) : null;
   const key = problem ? detailsErrorKey(problem) : "cf.error.generic";
   return placeError(field, { key, vars: { max: LIMITS.flavorNotes, len: LIMITS.flavorNote } }, order, COFFEE_API_ALIASES);
 }
@@ -185,7 +189,7 @@ export function CoffeeDetailsForm({
         : isContactInfoError(code)
         ? placeError(field ?? "description", { key: "contact.error" }, EDIT_ORDER, COFFEE_API_ALIASES)
         : code === "BAD_USER_INPUT"
-          ? coffeeBadInput(field, next.flavorNotes.length, EDIT_ORDER)
+          ? coffeeBadInput(field, next, EDIT_ORDER)
           : { fields: {}, form: { key: code === "FORBIDDEN" ? "cf.notYours" : "cf.error.generic" } };
       const placed = Object.keys(failed.fields)[0];
       if (placed && isOptionalField(placed)) setMoreOpen(true);

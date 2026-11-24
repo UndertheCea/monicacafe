@@ -1,11 +1,12 @@
 // Pure helpers for API errors shared by the BFF route handlers, AuthProvider
-// and forms. No imports, so `node --test` can load this file directly.
+// and forms. Only pure sibling imports, so `node --test` can load this file directly.
 //
 // The error contract with the backend (backend/graph/errors.go): every
 // GraphQL error carries `extensions.code` (one of API_ERROR_CODES), plus
 // `field` (the offending input) on BAD_USER_INPUT / CONFLICT and
 // `retryAfter` (whole seconds) on RATE_LIMITED. `message` is English and for
 // logs only: the UI picks a t() key from the code and field.
+import { hasInvisibleChars } from "./textInput.ts";
 
 /**
  * Codes the backend sends. A Go test (graph/errors_contract_test.go) fails
@@ -149,14 +150,19 @@ export type AuthErrorMessage =
   | { key: "auth.error.unavailable" | "auth.error.invalid" | "auth.error.taken" | "auth.error.generic" }
   | { key: "auth.error.suspended" }
   | { key: "auth.error.email" | "auth.error.password" | "auth.error.displayName" }
+  | { key: "form.error.badChars" }
   | RateLimitMessage;
 
-/** Which bilingual message the login / register form shows for an error. */
+/**
+ * Which bilingual message the login / register form shows for an error. `displayName`: the name register
+ * sent, so one refused for invisible characters (a pasted zero-width space) says so (#500).
+ */
 export function authErrorMessage(
   mode: "login" | "register",
   code: string,
   field?: string,
   retryAfter?: number,
+  displayName?: string,
 ): AuthErrorMessage {
   if (code === "RATE_LIMITED") return rateLimitMessage(retryAfter);
   if (code === "UNAVAILABLE") return { key: "auth.error.unavailable" };
@@ -169,7 +175,11 @@ export function authErrorMessage(
   if (code === "BAD_USER_INPUT") {
     if (field === "email") return { key: "auth.error.email" };
     if (field === "password") return { key: "auth.error.password" };
-    if (field === "displayName") return { key: "auth.error.displayName" };
+    if (field === "displayName") {
+      return displayName !== undefined && hasInvisibleChars(displayName)
+        ? { key: "form.error.badChars" }
+        : { key: "auth.error.displayName" };
+    }
   }
   return { key: "auth.error.generic" };
 }

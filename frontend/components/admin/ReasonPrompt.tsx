@@ -36,7 +36,8 @@ export function ReasonPrompt({
     try {
       await onConfirm(reason.trim());
     } catch (err) {
-      setError({ key: adminErrorKey(toApiError(err).code) });
+      const e2 = toApiError(err);
+      setError({ key: adminErrorKey(e2.code, e2.field, reason.trim()) });
       setBusy(false);
     }
   }

@@ -116,7 +116,11 @@ export async function openShop(page, { name, slug }) {
 
 /** Adds a draft coffee with every required field; returns its dashboard edit path. */
 /** Adds a draft coffee. `origin` / `process` / `notes` default to a washed Ethiopian like the seeded 耶加雪菲. */
-export async function addCoffee(page, name, { origin = "Ethiopia", process = "Washed", notes = "jasmine, bergamot" } = {}) {
+// The defaults resemble no seeded coffee (scripts/seed_dev.sql): SimilarCoffees scores
+// origin 3 + process 2 + shared notes, in-stock first, and smoke runs again after these
+// tests expecting the seeded Kenya coffee among 耶加雪菲's four "you may also like"
+// cards. Test coffees are in stock, so a look-alike would push it out (#507).
+export async function addCoffee(page, name, { origin = "Rwanda", process = "Red Honey", notes = "plum, black tea" } = {}) {
   await page.goto("/dashboard/coffees/new");
   await page.getByLabel("Name *").fill(name);
   await page.getByLabel("Origin *").selectOption({ label: origin });

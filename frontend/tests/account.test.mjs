@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   accountDeletionBlock,
+  accountLoginRedirect,
   cleanDisplayName,
   confirmFocusTarget,
   displayNameChanged,
@@ -107,4 +108,17 @@ test("confirmFocusTarget (#389)", () => {
     { name: "no change", prev: idle, next: idle, ret: true, want: null },
   ];
   for (const c of cases) assert.equal(confirmFocusTarget(c.prev, c.next, c.ret), c.want, c.name);
+});
+
+test("accountLoginRedirect: a failed leave on an ended session still goes to log in (#494)", () => {
+  const cases = [
+    ["anonymous", false, "/login?next=%2Faccount"],
+    ["anonymous", true, null], // sign out everywhere / delete running: it redirects home itself
+    ["loading", false, null],
+    ["authenticated", false, null],
+    ["authenticated", true, null],
+  ];
+  for (const [status, leaving, want] of cases) {
+    assert.equal(accountLoginRedirect(status, leaving), want, `${status} leaving=${leaving}`);
+  }
 });

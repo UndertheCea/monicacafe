@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 68 — 2026-11-24 — e2e flake (#504) and its family, comment-edit / report focus (six slices)
-PR: #TBD
+PR: #511
 
 No session PR open (only dependabot's), no owner answers on questions, one pickable slice (#504). Three Sonnet audits:
 cart + stock (none), comments / reports / admin (two focus losses: #508, #509; a third, busy buttons, filed as #510),

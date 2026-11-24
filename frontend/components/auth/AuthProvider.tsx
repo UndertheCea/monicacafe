@@ -45,7 +45,7 @@ const CHANNEL = "mc-auth";
 // backend revokes every session when a refresh token is reused).
 let inflight: Promise<SessionPayload | null> | null = null;
 
-// Bumped on login, register and logout (here or in another tab): a refresh
+// Bumped on login, register, logout and password change (here or in another tab): a refresh
 // that started before the bump is dropped when it lands (#344).
 const epoch = createAuthEpoch();
 
@@ -303,18 +303,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const changePassword = useCallback(
     async (currentPassword: string, newPassword: string) => {
-      const send = async (token: string) => {
-        try {
-          return await fetch("/api/auth/password", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ currentPassword, newPassword }),
-          });
-        } catch {
-          throw unavailable();
-        }
-      };
+      // The change revokes every refresh token and sets a new cookie. A refresh
+      // overlapping it could land second and put back a revoked cookie plus an
+      // access token of the old version, signing the user out (#495). So: wait
+      // for this tab's refresh, send under the cross-tab refresh lock (no refresh
+      // runs meanwhile), and bump the epoch so one that started earlier is dropped.
+      // Each send takes the lock on its own: refreshSession takes it too, and
+      // Web Locks aren't re-entrant.
+      const send = (token: string) =>
+        withRefreshLock(async () => {
+          try {
+            return await fetch("/api/auth/password", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ currentPassword, newPassword }),
+            });
+          } catch {
+            throw unavailable();
+          }
+        });
+      await inflight?.catch(() => null);
       const cur = stateRef.current;
       let token = cur.status === "authenticated" ? cur.session.accessToken : null;
       if (!token) throw new ApiError("UNAUTHENTICATED", "not signed in");
@@ -326,7 +335,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         res = await send(token);
       }
       if (!res.ok) throw await asError(res);
-      apply((await res.json()) as SessionPayload);
+      const next = (await res.json()) as SessionPayload;
+      epoch.bump();
+      apply(next);
       // Other tabs pick up the rotated cookie.
       channelRef.current?.postMessage("login");
     },

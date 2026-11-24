@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { UPDATE_COMMENT } from "@/lib/api";
 import { COMMENT_MAX_CHARS, canEditComment, commentEditErrorKey, commentEditState, commentInputErrorKey, pickComment } from "@/lib/comments";
@@ -43,6 +43,20 @@ export function CommentBody({
   const [draft, setDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fe = useFormErrors<"body">(`comment-edit-${fieldId}`, ORDER);
+  // Save / Cancel unmount the editor with the focused button in it: focus goes
+  // back to "Edit" (#508), and a save is announced in a region that stays mounted.
+  const editRef = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
+  const [announce, setAnnounce] = useState(false);
+  useEffect(() => {
+    if (!refocus.current || draft !== null) return;
+    refocus.current = false;
+    editRef.current?.focus();
+  }, [draft]);
+  const endEdit = () => {
+    refocus.current = true;
+    setDraft(null);
+  };
 
   const current = pickComment(comment, saved);
   const editable = canEditComment(user?.id, comment.user.id, coffeePublished);
@@ -56,8 +70,15 @@ export function CommentBody({
     </span>
   );
 
+  const status = (
+    <span role="status" className="sr-only">
+      {announce ? t(locale, "comments.updated") : ""}
+    </span>
+  );
+
   if (draft === null) {
     return (
+      <>
       <div className="mt-1">
         <p className="whitespace-pre-line break-words text-ink">
           {current.body}
@@ -65,9 +86,11 @@ export function CommentBody({
         </p>
         {editable && (
           <button
+            ref={editRef}
             type="button"
             onClick={() => {
               setDraft(current.body);
+              setAnnounce(false);
               fe.clear();
             }}
             className="-ml-2 mt-1 inline-flex min-h-11 items-center px-2 text-xs font-medium text-muted hover:text-ink hover:underline underline-offset-4"
@@ -76,6 +99,8 @@ export function CommentBody({
           </button>
         )}
       </div>
+      {status}
+      </>
     );
   }
 
@@ -89,7 +114,8 @@ export function CommentBody({
     try {
       const r = await request(UPDATE_COMMENT, { id: comment.id, body: draft.trim() });
       setSaved(r.updateComment);
-      setDraft(null);
+      setAnnounce(true);
+      endEdit();
       onEdited?.(r.updateComment);
       startTransition(() => router.refresh());
     } catch (err) {
@@ -104,6 +130,7 @@ export function CommentBody({
   }
 
   return (
+    <>
     <form onSubmit={onSave} noValidate className="mt-2 space-y-1">
       <FormSummary formId={`comment-edit-${fieldId}`} locale={locale} errors={fe.errors} order={ORDER} />
       <Field
@@ -137,7 +164,7 @@ export function CommentBody({
           <Button
             type="button"
             onClick={() => {
-                setDraft(null);
+                endEdit();
                 fe.clear();
               }}
             variant="secondary"
@@ -153,5 +180,7 @@ export function CommentBody({
         </span>
       </div>
     </form>
+    {status}
+    </>
   );
 }

@@ -169,6 +169,22 @@ describe("buyer", () => {
       await item(sellerText).getByText("Roaster", { exact: true }).waitFor();
       assert.equal(await item(buyerText).getByText("Roaster", { exact: true }).count(), 0);
     });
+    await step(b.page, "comment-edit-focus", async () => {
+      // #508: Save and Cancel unmount the editor; focus goes back to "Edit", a save is announced.
+      // Focus moves in an effect after the re-render, so wait for it rather than read it once.
+      const focusOn = (text) =>
+        b.page.waitForFunction((want) => document.activeElement?.textContent?.trim() === want, text, { timeout: 5000 });
+      const mine = b.page.getByRole("listitem").filter({ hasText: buyerText }).last();
+      await mine.getByRole("button", { name: "Edit" }).click();
+      await mine.getByRole("button", { name: "Cancel" }).click();
+      await focusOn("Edit");
+      await mine.getByRole("button", { name: "Edit" }).click();
+      await b.page.keyboard.press("End");
+      await b.page.keyboard.type(" (edited)");
+      await mine.getByRole("button", { name: "Save" }).click();
+      await mine.getByText("Your comment was updated.").waitFor({ state: "attached" });
+      await focusOn("Edit");
+    });
   });
 });
 

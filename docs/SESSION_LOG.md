@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 66 — 2026-11-24 — Audit: password change vs refresh, /admin restore, frontend APP_ENV (four slices)
-PR: #PR
+PR: #498
 
 No session PR open (only dependabot's), no owner answers on questions (none commented since 2026-11-15), nothing pickable.
 Four Sonnet audits: frontend auth BFF / proxy / account (two: #494, #495), map / shops / home / sitemap / admin lists (none),

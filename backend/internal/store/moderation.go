@@ -360,6 +360,41 @@ func (s *Store) AdminShops(ctx context.Context, terms []string, limit, offset in
 	return out, total, nil
 }
 
+// AdminTakenDownCoffees lists coffees under a takedown (#282) that no admin
+// has restored, newest takedown first (#497). Archived coffees are left out:
+// AdminRestoreCoffee refuses them.
+func (s *Store) AdminTakenDownCoffees(ctx context.Context, limit, offset int) ([]*Coffee, int, error) {
+	const where = ` WHERE c.removed_at IS NOT NULL AND c.archived_at IS NULL`
+	var (
+		total int
+		out   []*Coffee
+	)
+	err := s.inSnapshot(ctx, func(db DB) error {
+		if err := db.QueryRow(ctx, `SELECT count(*) FROM coffees c`+where).Scan(&total); err != nil {
+			return mapErr(err)
+		}
+		rows, err := db.Query(ctx, `SELECT `+coffeeColumns+` FROM coffees c`+where+`
+			ORDER BY c.removed_at DESC, c.id LIMIT $1 OFFSET $2`, limit, offset)
+		if err != nil {
+			return mapErr(err)
+		}
+		defer rows.Close()
+		out = []*Coffee{}
+		for rows.Next() {
+			co, err := scanCoffee(rows)
+			if err != nil {
+				return err
+			}
+			out = append(out, co)
+		}
+		return mapErr(rows.Err())
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return out, total, nil
+}
+
 // adminSearch builds " WHERE …" requiring every term in one of two columns.
 func adminSearch(terms []string, colA, colB string) (string, []any) {
 	if len(terms) == 0 {

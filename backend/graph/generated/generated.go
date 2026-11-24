@@ -112,6 +112,7 @@ type ComplexityRoot struct {
 		Similar          func(childComplexity int, limit *int) int
 		Slug             func(childComplexity int) int
 		TakenDown        func(childComplexity int) int
+		TakenDownAt      func(childComplexity int) int
 		UpdatedAt        func(childComplexity int) int
 		Variants         func(childComplexity int) int
 		Variety          func(childComplexity int) int
@@ -212,24 +213,25 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		AdminShops        func(childComplexity int, search *string, limit *int, offset *int) int
-		AdminUsers        func(childComplexity int, search *string, limit *int, offset *int) int
-		AuditLog          func(childComplexity int, limit *int, offset *int) int
-		Cart              func(childComplexity int) int
-		Coffee            func(childComplexity int, id string) int
-		CoffeeVarieties   func(childComplexity int) int
-		Coffees           func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
-		FollowingCoffees  func(childComplexity int, limit *int, offset *int) int
-		Me                func(childComplexity int) int
-		MyDataExport      func(childComplexity int) int
-		OriginCountries   func(childComplexity int) int
-		PopularCoffees    func(childComplexity int, limit *int) int
-		ProcessingMethods func(childComplexity int) int
-		Reports           func(childComplexity int, status *model.ReportStatus, limit *int, offset *int) int
-		SearchTerms       func(childComplexity int, q string) int
-		Shop              func(childComplexity int, slug string) int
-		Shops             func(childComplexity int, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) int
-		ShopsForMap       func(childComplexity int) int
+		AdminShops            func(childComplexity int, search *string, limit *int, offset *int) int
+		AdminTakenDownCoffees func(childComplexity int, limit *int, offset *int) int
+		AdminUsers            func(childComplexity int, search *string, limit *int, offset *int) int
+		AuditLog              func(childComplexity int, limit *int, offset *int) int
+		Cart                  func(childComplexity int) int
+		Coffee                func(childComplexity int, id string) int
+		CoffeeVarieties       func(childComplexity int) int
+		Coffees               func(childComplexity int, filter *model.CoffeeFilter, sort *model.CoffeeSort, limit *int, offset *int) int
+		FollowingCoffees      func(childComplexity int, limit *int, offset *int) int
+		Me                    func(childComplexity int) int
+		MyDataExport          func(childComplexity int) int
+		OriginCountries       func(childComplexity int) int
+		PopularCoffees        func(childComplexity int, limit *int) int
+		ProcessingMethods     func(childComplexity int) int
+		Reports               func(childComplexity int, status *model.ReportStatus, limit *int, offset *int) int
+		SearchTerms           func(childComplexity int, q string) int
+		Shop                  func(childComplexity int, slug string) int
+		Shops                 func(childComplexity int, city *string, search *string, sort *model.ShopSort, limit *int, offset *int) int
+		ShopsForMap           func(childComplexity int) int
 	}
 
 	Report struct {
@@ -422,6 +424,7 @@ type QueryResolver interface {
 	AdminShops(ctx context.Context, search *string, limit *int, offset *int) (*model.ShopConnection, error)
 	AuditLog(ctx context.Context, limit *int, offset *int) (*model.AuditEntryConnection, error)
 	Reports(ctx context.Context, status *model.ReportStatus, limit *int, offset *int) (*model.ReportConnection, error)
+	AdminTakenDownCoffees(ctx context.Context, limit *int, offset *int) (*model.CoffeeConnection, error)
 }
 type ReportResolver interface {
 	Reporter(ctx context.Context, obj *model.Report) (*model.User, error)
@@ -772,6 +775,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Coffee.TakenDown(childComplexity), true
+	case "Coffee.takenDownAt":
+		if e.ComplexityRoot.Coffee.TakenDownAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Coffee.TakenDownAt(childComplexity), true
 	case "Coffee.updatedAt":
 		if e.ComplexityRoot.Coffee.UpdatedAt == nil {
 			break
@@ -1425,6 +1434,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AdminShops(childComplexity, args["search"].(*string), args["limit"].(*int), args["offset"].(*int)), true
+	case "Query.adminTakenDownCoffees":
+		if e.ComplexityRoot.Query.AdminTakenDownCoffees == nil {
+			break
+		}
+
+		args, err := ec.field_Query_adminTakenDownCoffees_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AdminTakenDownCoffees(childComplexity, args["limit"].(*int), args["offset"].(*int)), true
 	case "Query.adminUsers":
 		if e.ComplexityRoot.Query.AdminUsers == nil {
 			break
@@ -2148,6 +2168,9 @@ type Query {
   # Reports from visitors (#225), newest first. status defaults to OPEN.
   # Admin only, like adminUsers.
   reports(status: ReportStatus, limit: Int, offset: Int): ReportConnection!
+  # Coffees an admin took down (#282) and nobody restored yet, newest takedown
+  # first (#497); archived ones are left out. Admin only, like adminUsers.
+  adminTakenDownCoffees(limit: Int, offset: Int): CoffeeConnection!
 }
 
 # ─── Mutations ────────────────────────────────────────────────────────────────
@@ -2542,6 +2565,8 @@ type Coffee {
   # An admin took the coffee down (#282); only its seller and admins can see
   # such a coffee (it is a draft), so this is false for everyone else.
   takenDown: Boolean!
+  # When it was taken down; null when takenDown is false (#497).
+  takenDownAt: Time
   createdAt: Time!
   # Last change to the coffee or any of its options (price, stock, …).
   updatedAt: Time!
@@ -3030,6 +3055,8 @@ func (ec *executionContext) childFields_Coffee(ctx context.Context, field graphq
 		return ec.fieldContext_Coffee_isPublished(ctx, field)
 	case "takenDown":
 		return ec.fieldContext_Coffee_takenDown(ctx, field)
+	case "takenDownAt":
+		return ec.fieldContext_Coffee_takenDownAt(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Coffee_createdAt(ctx, field)
 	case "updatedAt":
@@ -4235,6 +4262,28 @@ func (ec *executionContext) field_Query_adminShops_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["offset"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_adminTakenDownCoffees_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "limit",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "offset",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["offset"] = arg1
 	return args, nil
 }
 
@@ -5948,6 +5997,29 @@ func (ec *executionContext) _Coffee_takenDown(ctx context.Context, field graphql
 }
 func (ec *executionContext) fieldContext_Coffee_takenDown(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Coffee", field, false, false, "Boolean")
+}
+
+func (ec *executionContext) _Coffee_takenDownAt(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Coffee_takenDownAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TakenDownAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Coffee_takenDownAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Coffee", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Coffee_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Coffee) (ret graphql.Marshaler) {
@@ -9172,6 +9244,50 @@ func (ec *executionContext) fieldContext_Query_reports(ctx context.Context, fiel
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_reports_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_adminTakenDownCoffees(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_adminTakenDownCoffees(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().AdminTakenDownCoffees(ctx, fc.Args["limit"].(*int), fc.Args["offset"].(*int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CoffeeConnection) graphql.Marshaler {
+			return ec.marshalNCoffeeConnection2ᚖgithubᚗcomᚋundertheceaᚋmonicacafeᚋbackendᚋgraphᚋmodelᚐCoffeeConnection(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_adminTakenDownCoffees(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CoffeeConnection(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_adminTakenDownCoffees_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -13379,6 +13495,11 @@ func (ec *executionContext) _Coffee(ctx context.Context, sel ast.SelectionSet, o
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "takenDownAt":
+			out.Values[i] = ec._Coffee_takenDownAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
 		case "createdAt":
 			out.Values[i] = ec._Coffee_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -14199,6 +14320,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_reports(ctx, field)
+				})
+		case "adminTakenDownCoffees":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_adminTakenDownCoffees(ctx, field)
 				})
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {

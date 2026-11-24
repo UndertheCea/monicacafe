@@ -24,6 +24,7 @@ import {
   reportErrorKey,
   reportTargetHref,
   withUpdatedRow,
+  withoutRow,
   withoutTarget,
 } from "../lib/moderation.ts";
 
@@ -218,7 +219,7 @@ test("nextReloadVersion: each moderation action yields a new version so the audi
   assert.equal(nextReloadVersion(0), 1);
   assert.notEqual(nextReloadVersion(4), 4);
   const src = readFileSync(new URL("../components/admin/AdminScreen.tsx", import.meta.url), "utf8");
-  assert.equal(src.match(/onModerated\(\);/g)?.length, 3, "reports, users and shops each report a successful action");
+  assert.equal(src.match(/onModerated\(\);/g)?.length, 4, "reports, users, shops and taken-down coffees each report a successful action");
 });
 
 test("adminListKey: a re-submitted search or any moderation action reloads users / shops (#450)", () => {
@@ -232,5 +233,12 @@ test("adminListKey: a re-submitted search or any moderation action reloads users
     assert.equal(adminListKey(...c.a) === adminListKey(...c.b), c.same, c.why);
   }
   const src = readFileSync(new URL("../components/admin/AdminScreen.tsx", import.meta.url), "utf8");
-  assert.equal(src.match(/version=\{auditVersion\}/g)?.length, 4, "reports, users, shops and the audit log reload after an action");
+  assert.equal(src.match(/version=\{auditVersion\}/g)?.length, 5, "reports, users, shops, taken-down coffees and the audit log reload after an action");
+});
+
+test("withoutRow drops a restored coffee and counts it only if shown (#497)", () => {
+  const page = { total: 25, nodes: [{ id: "a" }, { id: "b" }] };
+  assert.deepEqual(withoutRow(page, "a"), { total: 24, nodes: [{ id: "b" }] });
+  assert.deepEqual(withoutRow(page, "z"), page); // not on this page: nothing changes
+  assert.deepEqual(withoutRow({ total: 0, nodes: [{ id: "a" }] }, "a"), { total: 0, nodes: [] });
 });

@@ -15,6 +15,40 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 66 — 2026-11-24 — Audit: password change vs refresh, /admin restore, frontend APP_ENV (four slices)
+PR: #498
+
+No session PR open (only dependabot's), no owner answers on questions (none commented since 2026-11-15), nothing pickable.
+Four Sonnet audits: frontend auth BFF / proxy / account (two: #494, #495), map / shops / home / sitemap / admin lists (none),
+ops scripts / nginx / compose / CI (one: #496), admin screen + image uploader (none, but noted `adminRestoreCoffee` has no
+caller: #497). Only four real gaps, so only four slices.
+
+### Shipped (one line per slice: area — what — key files)
+- #494 frontend — /account's "leaving" flag is state, not a ref (`accountLoginRedirect` in `lib/auth/account.ts`), so a failed
+  sign out everywhere / delete on an already-ended session re-runs the /login redirect. Hardening: in a browser the old code
+  also redirected (React renders after the catch clears the ref), so the stuck "Loading…" never reproduced.
+- #495 frontend — `changePassword` waits for this tab's refresh, sends under the cross-tab refresh lock and bumps the auth epoch
+  before applying the new session (like logout, #344), so a late refresh can't put back a revoked cookie. Source check in
+  `tests/auth.test.mjs` (fails without the fix).
+- #496 cross-cutting — compose passes `APP_ENV` to the frontend (Sentry environment tag); new `tests/composeEnv.test.mjs` checks
+  every run-time `process.env` read in the frontend is in the compose frontend service (fails without the fix).
+- #497 cross-cutting — `adminTakenDownCoffees` (admin only, newest takedown first, archived left out, priced by limit) +
+  `Coffee.takenDownAt`; /admin "Taken-down coffees" section with Restore (reason required) → `adminRestoreCoffee`, row leaves,
+  every list reloads. `TestTakedownsStick` / `TestModeration` extended; `withoutRow` in `lib/moderation.ts`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (428), `next build`, `check_brief.sh`, `docker compose config`.
+- Browser (local API + `next dev`, the pre-installed Chromium): #494 failed and successful sign out everywhere; #495 password change
+  then reload stays signed in; #497 take down via API → listed on /admin → Restore → list empty, audit row, coffee still a draft.
+- Not run here (no Docker daemon): compose stack, smoke, the Playwright / axe suite (CI `stack` runs them). #495's race itself
+  wasn't reproduced (timing); the fix mirrors logout's.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Not filed (low value): two admins resolving the same report — the second sees "state changed" and the row stays until a reload;
+  a frontend 403 from an Origin that differs from `SITE_URL` (www vs bare domain) reads as "account suspended" on login — a
+  deployment config matter for #199. No new questions.
+
 ## Session 65 — 2026-11-23 — Audit: cart hint on sold-out coffees, stale /coffees filter form (two slices)
 PR: #493
 

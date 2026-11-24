@@ -147,6 +147,12 @@ export function withUpdatedRow<T extends { id: string }>(page: { total: number; 
   return { total: page.total, nodes: page.nodes.map((n) => (n.id === row.id ? { ...n, ...row } : n)) };
 }
 
+/** The page without the row that left the list (e.g. a restored coffee, #497); the total drops only if it was shown. */
+export function withoutRow<T extends { id: string }>(page: { total: number; nodes: T[] }, id: string) {
+  const nodes = page.nodes.filter((n) => n.id !== id);
+  return { total: Math.max(0, page.total - (page.nodes.length - nodes.length)), nodes };
+}
+
 /** Audit-log actions the backend records (graph/schema.graphqls AuditAction). */
 export const AUDIT_ACTIONS = [
   "SUSPEND_USER",

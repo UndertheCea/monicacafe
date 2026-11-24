@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FormError, Notice } from "@/components/dashboard/ui";
 import { CommentFeed } from "@/components/CommentFeed";
@@ -19,7 +19,7 @@ import {
   passwordErrorKey,
 } from "@/lib/auth/account";
 import { MY_DATA_EXPORT, UPDATE_PROFILE } from "@/lib/auth/session";
-import { exportFileName, formatExport } from "@/lib/auth/account";
+import { accountLoginRedirect, exportFileName, formatExport } from "@/lib/auth/account";
 import { rateLimitMessage } from "@/lib/errors";
 import { hasInvisibleChars } from "@/lib/textInput";
 import { toApiError } from "@/lib/graphql";
@@ -54,16 +54,17 @@ function Saved({ show, children }: { show: boolean; children: React.ReactNode })
 export function AccountSettings({ locale }: { locale: Locale }) {
   const { status } = useAuth();
   const router = useRouter();
-  // Set while "sign out of all devices" runs: that sign-out sends the user
-  // home, so the "signed out → log in" redirect below must not race it.
-  const leaving = useRef(false);
+  // Set while "sign out of all devices" / "delete account" runs: success sends
+  // the user home, so the "signed out → log in" redirect below must not race it.
+  // State, not a ref: when the action fails on an already-ended session, clearing
+  // it has to re-run the redirect, or the page stays on "Loading…" (#494).
+  const [leaving, setLeaving] = useState(false);
   useEffect(() => {
-    if (status === "anonymous" && !leaving.current) router.replace("/login?next=%2Faccount");
-  }, [status, router]);
+    const to = accountLoginRedirect(status, leaving);
+    if (to) router.replace(to);
+  }, [status, leaving, router]);
   if (status !== "authenticated") return <Notice>{t(locale, "dash.loading")}</Notice>;
-  const onLeave = (v: boolean) => {
-    leaving.current = v;
-  };
+  const onLeave = setLeaving;
   return (
     <div className="space-y-6">
       {/* What people come here for (saved, following, comments) comes first; security settings follow (#294). */}

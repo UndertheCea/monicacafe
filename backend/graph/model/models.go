@@ -63,6 +63,7 @@ type Coffee struct {
 	ImageUrls          []string    `json:"imageUrls"`
 	IsPublished        bool        `json:"isPublished"`
 	TakenDown          bool        `json:"takenDown"`
+	TakenDownAt        *time.Time  `json:"takenDownAt,omitempty"`
 	CreatedAt          time.Time   `json:"createdAt"`
 	UpdatedAt          time.Time   `json:"updatedAt"`
 }

@@ -175,7 +175,7 @@ func toCoffee(c *store.Coffee) *model.Coffee {
 		OriginCountryID: c.OriginCountryID, VarietyID: c.VarietyID,
 		ProcessingMethodID: c.ProcessingMethodID, RoastLevel: toRoastLevel(c.RoastLevel),
 		FlavorNotes: c.FlavorNotes, ImageUrls: c.ImageURLs, IsPublished: c.IsPublished,
-		TakenDown: c.RemovedAt != nil,
+		TakenDown: c.RemovedAt != nil, TakenDownAt: c.RemovedAt,
 		CreatedAt: c.CreatedAt, UpdatedAt: c.UpdatedAt,
 		Producer: c.Producer, Region: c.Region, AltitudeMinM: c.AltitudeMinM, AltitudeMaxM: c.AltitudeMaxM,
 		BrewMethod: toBrewMethod(c.BrewMethod), HarvestYear: c.HarvestYear,

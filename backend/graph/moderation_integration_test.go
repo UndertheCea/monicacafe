@@ -56,6 +56,7 @@ func TestModeration(t *testing.T) {
 		{"adminUsers", `{ adminUsers { total } }`, nil},
 		{"adminShops", `{ adminShops { total } }`, nil},
 		{"auditLog", `{ auditLog { total } }`, nil},
+		{"adminTakenDownCoffees", `{ adminTakenDownCoffees { total } }`, nil},
 		{"suspendUser", `mutation($id: ID!, $r: String!) { suspendUser(id: $id, reason: $r) { id } }`, reason},
 		{"unsuspendUser", `mutation($id: ID!, $r: String!) { unsuspendUser(id: $id, reason: $r) { id } }`, reason},
 		{"suspendShop", `mutation($id: ID!, $r: String!) { suspendShop(id: $id, reason: $r) { id } }`,

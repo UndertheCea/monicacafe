@@ -214,6 +214,22 @@ test("every sign-out path drops in-flight refreshes before clearing the session 
   }
 });
 
+test("changePassword can't be overtaken by a refresh (#495)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../components/auth/AuthProvider.tsx", import.meta.url), "utf8");
+  const start = src.indexOf("const changePassword = useCallback(");
+  assert.ok(start >= 0);
+  const body = src.slice(start, src.indexOf("useCallback(", start + 36));
+  const post = body.indexOf('fetch("/api/auth/password"');
+  assert.ok(post > 0);
+  assert.ok(body.slice(0, post).includes("withRefreshLock("), "the password request runs under the refresh lock");
+  const wait = body.indexOf("await inflight");
+  const firstSend = body.indexOf("await send(");
+  assert.ok(wait > 0 && wait < firstSend, "waits for this tab's refresh before sending");
+  const applied = body.lastIndexOf("apply(next)");
+  assert.ok(applied > 0 && body.slice(0, applied).lastIndexOf("epoch.bump()") > firstSend, "bumps the epoch before applying the new session");
+});
+
 test("nextSessionKey remounts only when a different user replaces a signed-in one (#436)", async () => {
   const { nextSessionKey } = await import("../lib/auth/token.ts");
   const start = { userId: null, key: 0 };

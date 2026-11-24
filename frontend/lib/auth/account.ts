@@ -94,3 +94,12 @@ export function confirmFocusTarget(prev: ConfirmStep, next: ConfirmStep, returnF
   if (prev.confirming && !next.confirming && returnFocus) return "trigger";
   return null;
 }
+
+/**
+ * Where /account sends a visitor whose session is gone, or null to stay (#494).
+ * While "sign out of all devices" or "delete account" runs, that action owns the
+ * redirect (home on success); once it fails, a signed-out visitor goes to log in.
+ */
+export function accountLoginRedirect(status: "loading" | "anonymous" | "authenticated", leaving: boolean): string | null {
+  return status === "anonymous" && !leaving ? "/login?next=%2Faccount" : null;
+}

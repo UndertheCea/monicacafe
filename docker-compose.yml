@@ -352,6 +352,8 @@ services:
       # Server-side error reports (instrumentation.ts); empty = off (#221).
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      # The reports' environment tag, the same as the backend's (#496).
+      APP_ENV: ${APP_ENV:-development}
     depends_on:
       backend:
         condition: service_healthy

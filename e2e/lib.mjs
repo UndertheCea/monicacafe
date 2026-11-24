@@ -45,14 +45,46 @@ export async function step(page, name, fn) {
   }
 }
 
-/** Registers through the UI and waits until the session is live. */
+/**
+ * Loads `url` until its server-rendered HTML contains `text` (#504). A load that
+ * lacks it is logged with what came back (status, size, an error page or not,
+ * the time to look up in the stack logs) and a screenshot, then retried, at most
+ * `tries` loads in all. The caller still waits for the text on the page, so a
+ * page that never shows it fails.
+ */
+export async function gotoUntilShown(page, url, text, { tries = 3 } = {}) {
+  for (let i = 1; ; i++) {
+    const res = await page.goto(url);
+    const html = (await res?.text().catch(() => "")) ?? "";
+    if (html.includes(text) || i >= tries) return res;
+    const shot = await snap(page, `stale-${i}-${new URL(url, BASE_URL).pathname}`);
+    console.log(
+      `# ${url} load ${i}/${tries} lacked ${JSON.stringify(text)}: status ${res?.status()}, ` +
+        `${html.length} bytes, error page ${/Couldn't load data|Too many requests|Can't reach the server/.test(html)}, at ${new Date().toISOString()} (screenshot: ${shot})`,
+    );
+    await page.waitForTimeout(500 * i);
+  }
+}
+
+/**
+ * Registers through the UI and waits until the session is live. A refusal for
+ * too many sign-ups from this address fails at once with that reason, not as a
+ * bare navigation timeout (#505).
+ */
 export async function register(page, who) {
   await page.goto("/register");
   await page.getByLabel("Display name").fill(who.name);
   await page.getByLabel("Email").fill(who.email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign up" }).click();
-  await page.waitForURL((u) => !u.pathname.startsWith("/register"));
+  const limited = page.getByText(/^Too many requests/).first();
+  const outcome = await Promise.race([
+    page.waitForURL((u) => !u.pathname.startsWith("/register")).then(() => "registered"),
+    limited.waitFor().then(() => "limited"),
+  ]);
+  if (outcome === "limited") {
+    throw new Error(`register ${who.email}: refused as too many sign-ups (RATE_LIMIT_REGISTER_IP): ${await limited.textContent()}`);
+  }
 }
 
 /** A small PNG made by the browser itself (no binary fixture in the repo). */
@@ -84,7 +116,11 @@ export async function openShop(page, { name, slug }) {
 
 /** Adds a draft coffee with every required field; returns its dashboard edit path. */
 /** Adds a draft coffee. `origin` / `process` / `notes` default to a washed Ethiopian like the seeded 耶加雪菲. */
-export async function addCoffee(page, name, { origin = "Ethiopia", process = "Washed", notes = "jasmine, bergamot" } = {}) {
+// The defaults resemble no seeded coffee (scripts/seed_dev.sql): SimilarCoffees scores
+// origin 3 + process 2 + shared notes, in-stock first, and smoke runs again after these
+// tests expecting the seeded Kenya coffee among 耶加雪菲's four "you may also like"
+// cards. Test coffees are in stock, so a look-alike would push it out (#507).
+export async function addCoffee(page, name, { origin = "Rwanda", process = "Red Honey", notes = "plum, black tea" } = {}) {
   await page.goto("/dashboard/coffees/new");
   await page.getByLabel("Name *").fill(name);
   await page.getByLabel("Origin *").selectOption({ label: origin });

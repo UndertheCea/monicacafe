@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
-import { addCoffee, launch, loaded, makePng, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
+import { addCoffee, gotoUntilShown, launch, loaded, makePng, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
 
 const seller = { name: `E2E Seller ${RUN}`, email: `e2e-seller-${RUN}@example.com` };
 const buyer = { name: `E2E Buyer ${RUN}`, email: `e2e-buyer-${RUN}@example.com` };
@@ -72,7 +72,8 @@ describe("seller", () => {
     const { page } = s;
     await step(page, "publish", () => publish(page, coffeeName));
     await step(page, "listed", async () => {
-      await page.goto(`/coffees?q=${encodeURIComponent(coffeeName)}`);
+      // Just published: logged and loaded again if the first render lacks it (#506).
+      await gotoUntilShown(page, `/coffees?q=${encodeURIComponent(coffeeName)}`, coffeeName);
       const card = page.locator("article").filter({ hasText: coffeeName });
       await card.waitFor();
       await page.goto(coffeeUrl);
@@ -154,7 +155,9 @@ describe("buyer", () => {
       await b.page.getByText(buyerText).waitFor();
     });
     await step(s.page, "seller-comment", async () => {
-      await s.page.goto(coffeeUrl);
+      // The seller's tab is already on coffeeUrl; a first load without the buyer's
+      // comment once timed out here (#504), so it is logged and reloaded.
+      await gotoUntilShown(s.page, coffeeUrl, buyerText);
       await s.page.getByText(buyerText).waitFor();
       await s.page.getByLabel("Share your thoughts").fill(sellerText);
       await s.page.getByRole("button", { name: "Post comment" }).click();
@@ -165,6 +168,22 @@ describe("buyer", () => {
       const item = (text) => b.page.getByRole("listitem").filter({ hasText: text }).last();
       await item(sellerText).getByText("Roaster", { exact: true }).waitFor();
       assert.equal(await item(buyerText).getByText("Roaster", { exact: true }).count(), 0);
+    });
+    await step(b.page, "comment-edit-focus", async () => {
+      // #508: Save and Cancel unmount the editor; focus goes back to "Edit", a save is announced.
+      // Focus moves in an effect after the re-render, so wait for it rather than read it once.
+      const focusOn = (text) =>
+        b.page.waitForFunction((want) => document.activeElement?.textContent?.trim() === want, text, { timeout: 5000 });
+      const mine = b.page.getByRole("listitem").filter({ hasText: buyerText }).last();
+      await mine.getByRole("button", { name: "Edit" }).click();
+      await mine.getByRole("button", { name: "Cancel" }).click();
+      await focusOn("Edit");
+      await mine.getByRole("button", { name: "Edit" }).click();
+      await b.page.keyboard.press("End");
+      await b.page.keyboard.type(" (edited)");
+      await mine.getByRole("button", { name: "Save" }).click();
+      await mine.getByText("Your comment was updated.").waitFor({ state: "attached" });
+      await focusOn("Edit");
     });
   });
 });

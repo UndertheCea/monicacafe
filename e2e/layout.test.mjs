@@ -21,8 +21,7 @@ before(async () => {
   await step(page, "layout-setup", async () => {
     await register(page, { name: `Layout ${RUN}`, email: `e2e-layout-${RUN}@example.com` });
     await openShop(page, { name: shopName, slug });
-    // Not like the seeded 耶加雪菲 (Ethiopia · washed · jasmine): smoke runs again after these tests and expects the
-    // seeded Kenya coffee among that page's four "you may also like" cards.
+    // A Brazil natural (not addCoffee's defaults): nothing like the seeded 耶加雪菲 either (#507).
     const edit = await addCoffee(page, `Layout Natural ${RUN}`, { origin: "Brazil", process: "Natural", notes: "cocoa" });
     await publish(page, `Layout Natural ${RUN}`);
     coffeePath = edit.replace("/dashboard", "");

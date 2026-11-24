@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { after, before, describe, it } from "node:test";
-import { addCoffee, launch, login, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
+import { addCoffee, gotoUntilShown, launch, loaded, login, newVisitor, openShop, publish, register, RUN, step } from "./lib.mjs";
 
 const GRANT = process.env.E2E_GRANT_ADMIN;
 // Locally the check is skipped without a grant command; in CI it must run.
@@ -40,13 +40,20 @@ describe("moderation", { skip: GRANT ? false : "set E2E_GRANT_ADMIN to the cmd/a
       await a.page.getByText(badText).waitFor();
     });
     await step(s.page, "mod-report", async () => {
-      await s.page.goto(coffeeUrl);
+      // Another user's comment, just posted: the same read-after-write as #504.
+      await gotoUntilShown(s.page, coffeeUrl, badText);
       const comment = s.page.getByRole("listitem").filter({ hasText: badText }).last();
       await comment.getByRole("button", { name: "Report" }).click();
       const dialog = s.page.getByRole("dialog", { name: "Report comment" });
       await dialog.getByLabel("Spam or advertising").check();
       await dialog.getByRole("button", { name: "Send report" }).click();
       await dialog.getByText("Thanks. An admin will look at it soon.").waitFor();
+      // #509: focus moves from the vanished submit button to the thanks.
+      await s.page.waitForFunction(
+        (want) => document.activeElement?.textContent?.trim() === want,
+        "Thanks. An admin will look at it soon.",
+        { timeout: 5000 },
+      );
     });
     await step(s.page, "mod-not-admin", async () => {
       await s.page.goto("/admin");
@@ -67,7 +74,10 @@ describe("moderation", { skip: GRANT ? false : "set E2E_GRANT_ADMIN to the cmd/a
       await row.waitFor({ state: "detached" });
       await fresh.page.reload();
       await fresh.page.getByRole("heading", { name: "Open reports" }).waitFor();
-      await fresh.page.waitForLoadState("networkidle");
+      // The lists load in the browser: count only once they have loaded, and not
+      // after an error, so "0 rows" means closed rather than not there yet (#506).
+      await loaded(fresh.page);
+      assert.equal(await fresh.page.getByText("Couldn't load. Please try again.").count(), 0, "every admin list loaded");
       assert.equal(await fresh.page.getByRole("row").filter({ hasText: badText }).count(), 0, "the report is closed");
     });
     await step(s.page, "mod-gone", async () => {

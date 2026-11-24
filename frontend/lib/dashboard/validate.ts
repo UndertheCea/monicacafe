@@ -3,6 +3,7 @@
 // The backend stays the source of truth and re-validates everything.
 
 import { taipeiYear } from "../taipei.ts";
+import { hasInvisibleChars } from "../textInput.ts";
 
 export const LIMITS = {
   shopName: 80,
@@ -209,6 +210,29 @@ export function apiDetailsProblem(field: string | undefined, notesSent?: number)
   if (field === "altitudeMinM" || field === "altitudeMaxM") return "altitude";
   if (field === "harvestYear" || field === "clearHarvestYear") return "harvest";
   return "required";
+}
+
+/** The coffee text fields as sent to createCoffee / updateCoffee (only the ones the API cleans as text). */
+export interface CoffeeSentText {
+  name?: string;
+  description?: string;
+  producer?: string;
+  region?: string;
+  flavorNotes?: readonly string[];
+}
+
+/**
+ * Whether the API's BAD_USER_INPUT on `field` is explained by control or invisible characters in what was
+ * sent (#499): the forms check lengths and required values first, so a filled-in field the API still
+ * refuses holds e.g. a zero-width space pasted from a web page, and "required" would be the wrong message.
+ */
+export function coffeeTextHasBadChars(field: string | undefined, sent: CoffeeSentText): boolean {
+  if (field === "flavorNotes") return (sent.flavorNotes ?? []).some(hasInvisibleChars);
+  if (field !== "name" && field !== "description" && field !== "producer" && field !== "region") return false;
+  const v = sent[field];
+  if (typeof v !== "string") return false;
+  // The description may hold line breaks (the API keeps "\n" and turns "\r\n" into it).
+  return hasInvisibleChars(field === "description" ? v.replace(/\r?\n/g, " ") : v);
 }
 
 /** The `updateCoffee` input for the fields that changed (empty object = nothing to save). */

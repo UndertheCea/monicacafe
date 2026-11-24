@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   apiDetailsProblem,
+  coffeeTextHasBadChars,
   coffeeDetailsPatch,
   coffeeDetailsProblem,
   filledOptionalCount,
@@ -352,4 +353,20 @@ test("isOptionalProblem: only problems inside the fold open it", () => {
 test("taipeiYear: footer year rolls over at 00:00 Taipei (#365)", () => {
   assert.equal(taipeiYear(new Date("2026-12-31T16:30:00Z")), 2027);
   assert.equal(taipeiYear(new Date("2026-12-31T15:59:00Z")), 2026);
+});
+
+test("coffeeTextHasBadChars: an API refusal of filled-in text with invisible characters (#499)", () => {
+  const sent = { name: "Geisha​", description: "ok", producer: "Finca‮", region: "Huila", flavorNotes: ["jasmine", "pe​ach"] };
+  assert.equal(coffeeTextHasBadChars("name", sent), true);
+  assert.equal(coffeeTextHasBadChars("producer", sent), true);
+  assert.equal(coffeeTextHasBadChars("flavorNotes", sent), true);
+  assert.equal(coffeeTextHasBadChars("description", sent), false);
+  assert.equal(coffeeTextHasBadChars("region", sent), false);
+  // Fields that aren't free text, or weren't sent, never read as invisible characters.
+  assert.equal(coffeeTextHasBadChars("originCountryId", sent), false);
+  assert.equal(coffeeTextHasBadChars(undefined, sent), false);
+  assert.equal(coffeeTextHasBadChars("name", {}), false);
+  assert.equal(coffeeTextHasBadChars("flavorNotes", { flavorNotes: ["jasmine"] }), false);
+  assert.equal(coffeeTextHasBadChars("description", { description: "line one\r\nline two\n" }), false);
+  assert.equal(coffeeTextHasBadChars("description", { description: "line\u200b one" }), true);
 });

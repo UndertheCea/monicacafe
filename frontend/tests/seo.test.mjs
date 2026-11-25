@@ -28,6 +28,20 @@ test("absoluteUrl resolves relative paths and rejects non-http schemes", () => {
   for (const [src, want] of cases) assert.equal(absoluteUrl(src, base), want, src);
 });
 
+test("absoluteUrl keeps the path prefix of the base for root-relative paths (#528)", () => {
+  const cases = [
+    ["/shops/a", "https://x.com/tw", "https://x.com/tw/shops/a"],
+    ["/shops/a", "https://x.com", "https://x.com/shops/a"],
+    ["/shops/a", "https://x.com/", "https://x.com/shops/a"],
+    ["/shops/a", "https://x.com/tw/", "https://x.com/tw/shops/a"],
+    ["/shops/a?page=2", "https://x.com/tw", "https://x.com/tw/shops/a?page=2"],
+    ["//evil.com/x", "https://x.com/tw", "https://evil.com/x"],
+    ["https://cdn.example/m.jpg", "https://x.com/tw", "https://cdn.example/m.jpg"],
+    ["javascript:alert(1)", "https://x.com/tw", null],
+  ];
+  for (const [src, b, want] of cases) assert.equal(absoluteUrl(src, b), want, `${src} on ${b}`);
+});
+
 test("shareDescription collapses whitespace and cuts at 160 characters", () => {
   assert.equal(shareDescription("  花香\n\n 明亮  "), "花香 明亮");
   const long = "咖".repeat(200);

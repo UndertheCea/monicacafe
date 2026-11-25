@@ -145,6 +145,10 @@ until q "SELECT 1" >/dev/null 2>&1; do
 done
 
 files=$(find "$dir" -maxdepth 1 -name '[0-9][0-9][0-9]_*.sql' | sort)
+# From here on, lists split on newlines only, so a checkout under a path with
+# spaces works (#523); file names themselves are NNN_[A-Za-z0-9_] (checked below).
+IFS='
+'
 [ -n "$files" ] || die "no NNN_*.sql files in $dir"
 
 # Two files with one number would apply in an order nobody chose.
@@ -210,7 +214,8 @@ trap 'rm -f "$script"' EXIT
     line "\\if :done"
     line "\\else"
     line "\\echo 'migrate: applying $v'"
-    line "\\i '$f'"
+    # psql reads \ escapes and '' inside a quoted argument: double both (#523).
+    line "\\i '$(printf '%s' "$f" | sed -e 's/\\/\\\\/g' -e "s/'/''/g")'"
     line "INSERT INTO schema_migrations (version) VALUES ('$v');"
     line "\\endif"
     line "COMMIT;"

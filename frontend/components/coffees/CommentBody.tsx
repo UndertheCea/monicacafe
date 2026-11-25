@@ -173,7 +173,8 @@ export function CommentBody({
           </Button>
           <Button
             type="submit"
-            disabled={busy || !st.canSave}
+            pending={busy}
+            disabled={!st.canSave}
           >
             {busy ? t(locale, "comments.saving") : t(locale, "comments.save")}
           </Button>

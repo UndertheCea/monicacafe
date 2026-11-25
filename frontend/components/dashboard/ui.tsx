@@ -2,6 +2,7 @@
 // they are re-exported here so dashboard files have one import.
 import { Button, Card } from "@/components/ui";
 import { t, type Locale } from "@/lib/i18n/dict";
+import { RetryButton } from "@/components/RetryButton";
 
 export { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 export { FormError } from "./FormError";
@@ -32,9 +33,7 @@ export function LoadFailed({ locale, onRetry }: { locale: Locale; onRetry: () =>
       <p role="alert" className="text-muted">
         {t(locale, "error.title")}
       </p>
-      <Button type="button" variant="secondary" size="sm" className="mt-4" onClick={onRetry}>
-        {t(locale, "crash.retry")}
-      </Button>
+      <RetryButton locale={locale} size="sm" className="mt-4" onRetry={onRetry} />
     </Card>
   );
 }

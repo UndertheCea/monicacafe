@@ -15,6 +15,41 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 69 — 2026-11-25 — Focus kept by busy and retry buttons, cart unit, NT$0 stock (four slices)
+PR: #515
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-20), one pickable slice
+(#510). Three more real gaps found while building it or noted by Session 68's cart audit (#512–#514); nothing else filed.
+
+### Shipped (one line per slice: area — what — key files)
+- #510 frontend — `Button pending` = `aria-disabled` + `aria-busy` + a click handler that swallows activation (so Enter in a
+  field can't submit either); `disabled` waits until the work is over (`buttonState` in `lib/ui.ts`). Every busy-only
+  `disabled={busy}` became `pending`; dashboard ↑ / ↓ and gallery ← / → ignore clicks while saving and hand focus to the
+  row's other arrow at the ends (`focusRowToggle(id, "[data-move]")`). The last "load more" focuses the first row it added
+  (`firstNewRow` + `focusLoadedRow`) on comments, /account lists, my comments, dashboard and every admin list (user / shop
+  rows now carry `data-row`). e2e step `busy-buttons-keep-focus` (saved-coffees page 2 via a routed response, keyboard Save).
+- #512 frontend — `components/RetryButton.tsx`: every in-page "Try again" keeps focus in its section (heading, or the Save /
+  Follow toggle, while it reloads; the new Try again if it fails again). `retryFocusStep` table test; a scan keeps
+  `crash.retry` inside it (page-level `ErrorState` / `app/error.tsx` reload the page and are exempt).
+- #513 frontend — the header cart count says 包 in zh-TW, like the cart page and the English "bags"; test on both locales.
+- #514 backend — `ReserveStock` (so `ReserveLines`) also requires `price_twd >= 1`: NT$0 rows from before #358 read sold out
+  and now can't be bought either. `TestStockEdits` steps for NT$0 (refused) and NT$1 (taken); fails without the fix.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (437), `next build`; `check_brief.sh`, `docker compose config`;
+  `node --check` on the e2e file.
+- Not run here: compose stack, smoke and Playwright. A Docker daemon started, but image builds can't reach the Go / npm
+  proxies from inside containers (the sandbox's proxy CA). CI `stack` is the first run of `busy-buttons-keep-focus`.
+- CI caught two faults in it: focus was looked for one frame after the update, before React's commit (now `rescueFocus`
+  watches the page for 2 s; checked with a late commit and a late `disabled` in Chromium), and the routed second page
+  cloned the real, empty page. Re-checked locally with `next start` + routed auth / GraphQL: focus lands on the new row.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- A busy button is never `disabled`: `pending` wins over `disabled` until the work ends (a disabled focused button loses
+  focus for good). "Cancel" / "No" beside a busy button may still be disabled; focus is on the busy one.
+- No new questions. Stage 1 still waits on #199 / #200 / #201; orders on #205.
+
 ## Session 68 — 2026-11-24 — e2e flake (#504) and its family, comment-edit / report focus (six slices)
 PR: #511
 

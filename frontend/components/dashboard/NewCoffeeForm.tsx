@@ -474,7 +474,7 @@ export function NewCoffeeForm({ locale }: { locale: Locale }) {
           <div className="flex items-center gap-4">
             <Button
               type="submit"
-              disabled={busy}
+              pending={busy}
             >
               {busy ? t(locale, "cf.saving") : t(locale, "cf.save")}
             </Button>

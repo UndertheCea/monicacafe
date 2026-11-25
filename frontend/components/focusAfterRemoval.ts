@@ -74,15 +74,69 @@ export function focusAfterRemoval(row: Element | null | undefined): void {
 }
 
 /**
- * After a row's control swapped for another (Unpublish -> Publish, #488): once the update has settled, put focus on
- * the row's `data-row-toggle` control if focus was lost. A visitor who moved on keeps their place.
+ * Puts focus on `find()` once focus has been lost, watching the page for `WAIT_MS / 5`: an update made after an
+ * `await` commits whenever React gets to it, which can be after the next animation frame, and a focused button that
+ * turns disabled lets go of focus only at the browser's next focus fix-up. Each change to the page tries again (on the
+ * next frame and a moment later). `settled()` ends the watch early once the update is in and focus was never lost.
  */
-export function focusRowToggle(rowId: string): void {
+function rescueFocus(find: () => HTMLElement | null, settled: () => boolean = () => false): void {
   if (typeof window === "undefined") return;
-  requestAnimationFrame(() => {
-    if (!focusLost()) return;
-    const row = Array.from(document.querySelectorAll(ROW)).find((r) => r.getAttribute("data-row") === rowId);
-    const el = row?.querySelector<HTMLElement>("[data-row-toggle]:not([disabled])");
-    el?.focus();
-  });
+  let done = false;
+  const attempt = () => {
+    if (done) return;
+    if (focusLost()) {
+      const el = find();
+      if (el) {
+        el.focus();
+        stop();
+      }
+    } else if (settled()) stop();
+  };
+  const soon = () => {
+    requestAnimationFrame(attempt);
+    window.setTimeout(attempt, 50);
+  };
+  const observer = new MutationObserver(soon);
+  const timer = window.setTimeout(() => stop(), WAIT_MS / 5);
+  function stop() {
+    done = true;
+    observer.disconnect();
+    window.clearTimeout(timer);
+  }
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
+  soon();
+}
+
+/**
+ * After a row's control swapped for another (Unpublish -> Publish, #488) or a row moved so the arrow pressed is now
+ * disabled (#510): once the update has settled, put focus on the row's `control` if focus was lost. A visitor who
+ * moved on keeps their place.
+ */
+export function focusRowToggle(rowId: string, control = "[data-row-toggle]"): void {
+  rescueFocus(() => findRow(rowId)?.querySelector<HTMLElement>(`${control}:not([disabled])`) ?? null);
+}
+
+function findRow(rowId: string): Element | undefined {
+  return Array.from(document.querySelectorAll(ROW)).find((r) => r.getAttribute("data-row") === rowId);
+}
+
+/**
+ * After a "load more" (#510): the button keeps focus while it works, but the last page removes it. Once the new rows
+ * are on screen, if focus was lost, put it on the first newly loaded row (made focusable, not tabbable), so the
+ * next Tab continues from the rows just added instead of the top of the page. `rowId` comes from `firstNewRow`.
+ */
+export function focusLoadedRow(rowId: string | null): void {
+  if (!rowId) return;
+  const row = () => {
+    const r = findRow(rowId);
+    return r instanceof HTMLElement ? r : null;
+  };
+  rescueFocus(
+    () => {
+      const r = row();
+      if (r && !r.hasAttribute("tabindex")) r.setAttribute("tabindex", "-1");
+      return r;
+    },
+    () => row() !== null,
+  );
 }

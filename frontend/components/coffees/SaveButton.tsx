@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nextLoadKey, ownStateAfterLoad, ownStateOnStatus, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { COFFEE_SAVED, SAVE_COFFEE, UNSAVE_COFFEE } from "@/lib/api";
@@ -11,6 +11,7 @@ import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { settleSave, toggleSave, type SaveState } from "@/lib/saved";
 import { loginHrefFrom, showSignInLink } from "@/lib/navMenu";
 import { Button } from "@/components/ui";
+import { RetryButton } from "@/components/RetryButton";
 
 /**
  * "收藏 / Save" toggle with the number of saves. The page is rendered
@@ -21,6 +22,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
   const { status, request } = useAuth();
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<SaveState>({ saved: false, count: saveCount });
   const [load, setLoad] = useState<OwnStateLoad>("loading");
   const [loadKey, setLoadKey] = useState(0);
@@ -91,6 +93,7 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
     <div className="mt-3">
       <p className="flex flex-wrap items-center gap-3">
         <Button
+          ref={toggleRef}
           onClick={onToggle}
           aria-disabled={!toggleEnabled(load, busy)}
           className={toggleEnabled(load, busy) ? undefined : "opacity-50"}
@@ -105,12 +108,14 @@ export function SaveButton({ coffeeId, saveCount, locale }: { coffeeId: string; 
       {load === "failed" && (
         <p role="alert" className="mt-2 flex flex-wrap items-center gap-3 text-sm text-danger">
           {t(locale, "save.loadError")}
-          <Button variant="secondary" onClick={() => {
+          <RetryButton
+            locale={locale}
+            focusTo={toggleRef}
+            onRetry={() => {
               setLoad("loading");
               setLoadKey(nextLoadKey);
-            }}>
-            {t(locale, "crash.retry")}
-          </Button>
+            }}
+          />
         </p>
       )}
       {error && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nextLoadKey, ownStateAfterLoad, ownStateOnStatus, toggleEnabled, type OwnStateLoad } from "@/lib/retry";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { FOLLOW_SHOP, SHOP_FOLLOWED, UNFOLLOW_SHOP } from "@/lib/api";
@@ -11,6 +11,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { loginHrefFrom } from "@/lib/navMenu";
 import { Button } from "@/components/ui";
+import { RetryButton } from "@/components/RetryButton";
 
 /**
  * "追蹤 / Follow" toggle with the follower count. Like SaveButton, the page is
@@ -32,6 +33,7 @@ export function FollowButton({
   const { status, user, request } = useAuth();
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  const toggleRef = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<FollowState>({ following: false, count: followerCount });
   const [load, setLoad] = useState<OwnStateLoad>("loading");
   const [loadKey, setLoadKey] = useState(0);
@@ -101,6 +103,7 @@ export function FollowButton({
     <div className="mt-3">
       <p className="flex flex-wrap items-center gap-3">
         <Button
+          ref={toggleRef}
           onClick={onToggle}
           aria-disabled={!toggleEnabled(load, busy)}
           className={toggleEnabled(load, busy) ? undefined : "opacity-50"}
@@ -115,12 +118,14 @@ export function FollowButton({
       {load === "failed" && (
         <p role="alert" className="mt-2 flex flex-wrap items-center gap-3 text-sm text-danger">
           {t(locale, "follow.loadError")}
-          <Button variant="secondary" onClick={() => {
+          <RetryButton
+            locale={locale}
+            focusTo={toggleRef}
+            onRetry={() => {
               setLoad("loading");
               setLoadKey(nextLoadKey);
-            }}>
-            {t(locale, "crash.retry")}
-          </Button>
+            }}
+          />
         </p>
       )}
       {error && (

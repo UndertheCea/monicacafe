@@ -7,7 +7,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
 import { MAX_COFFEE_IMAGES, appendImage, moveItem, removeAt } from "@/lib/dashboard/upload";
 import { t, type Locale } from "@/lib/i18n/dict";
-import { focusAfterRemoval } from "@/components/focusAfterRemoval";
+import { focusAfterRemoval, focusRowToggle } from "@/components/focusAfterRemoval";
 import { ImageUploader } from "./ImageUploader";
 import { Badge, Button, Card, ConfirmButton, Picture } from "@/components/ui";
 
@@ -56,6 +56,14 @@ export function CoffeeGallery({
     }
   }
 
+  // While saving, the arrows are aria-disabled, not disabled, so the one pressed keeps focus (#510). A photo moved to
+  // the first or last place disables that arrow: focus goes to its other one.
+  async function move(src: string, from: number, to: number) {
+    if (locked) return;
+    await change(moveItem(urls, from, to));
+    focusRowToggle(src, "[data-move]");
+  }
+
   return (
     <Card as="section" aria-labelledby={`gallery-${coffee.id}`} className="p-4 sm:p-6">
       <h3 id={`gallery-${coffee.id}`} className="font-bold text-ink">{t(locale, "img.galleryTitle")}</h3>
@@ -76,8 +84,10 @@ export function CoffeeGallery({
               <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
                 <Button
                   type="button"
-                  disabled={locked || i === 0}
-                  onClick={() => void change(moveItem(urls, i, i - 1))}
+                  data-move
+                  disabled={i === 0}
+                  aria-disabled={locked || undefined}
+                  onClick={() => void move(src, i, i - 1)}
                   aria-label={t(locale, "img.moveEarlier", { n: i + 1 })}
                   variant="secondary"
                   size="sm"
@@ -99,8 +109,10 @@ export function CoffeeGallery({
                 </span>
                 <Button
                   type="button"
-                  disabled={locked || i === urls.length - 1}
-                  onClick={() => void change(moveItem(urls, i, i + 1))}
+                  data-move
+                  disabled={i === urls.length - 1}
+                  aria-disabled={locked || undefined}
+                  onClick={() => void move(src, i, i + 1)}
                   aria-label={t(locale, "img.moveLater", { n: i + 1 })}
                   variant="secondary"
                   size="sm"

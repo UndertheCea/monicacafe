@@ -108,7 +108,7 @@ export function CommentForm({ coffeeId, locale }: { coffeeId: string; locale: Lo
             ? t(locale, "comments.tooLong", { max: COMMENT_MAX })
             : t(locale, pluralKey("comments.remaining", COMMENT_MAX - len), { n: COMMENT_MAX - len })}
         </span>
-        <Button type="submit" disabled={busy || len === 0 || tooLong}>
+        <Button type="submit" pending={busy} disabled={len === 0 || tooLong}>
           {busy ? t(locale, "comments.sending") : t(locale, "comments.submit")}
         </Button>
       </div>

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useLoadMore } from "@/components/useLoadMore";
-import { focusAfterRemoval } from "@/components/focusAfterRemoval";
-import { emptiedWithMore } from "@/lib/loadMore";
+import { focusAfterRemoval, focusLoadedRow } from "@/components/focusAfterRemoval";
+import { emptiedWithMore, firstNewRow } from "@/lib/loadMore";
 import { MY_SAVED_COFFEES, UNSAVE_COFFEE, fromPrice, type CoffeeCardData } from "@/lib/api";
 import { pick, t, type Locale } from "@/lib/i18n/dict";
 import { nextLoadKey } from "@/lib/retry";
@@ -14,6 +14,7 @@ import { SAVED_PAGE, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { Button, Card, Picture, SectionTitle } from "@/components/ui";
+import { RetryButton } from "@/components/RetryButton";
 
 type List = { total: number; nodes: CoffeeCardData[] };
 type State =
@@ -64,6 +65,8 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
           ? { ...cur, list: more.merge(cur.list, next), lastPage: next.nodes.length, more: "idle" }
           : cur,
       );
+      // The last page removes the button: focus goes to the first row it added (#510).
+      focusLoadedRow(firstNewRow(s.list.nodes, next.nodes));
     } catch {
       setS((cur) => (cur.state === "ready" ? { ...cur, more: "error" } : cur));
     }
@@ -110,17 +113,14 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
           <p role="alert" className="text-sm text-danger">
             {t(locale, "dash.error.generic")}
           </p>
-          <Button
-            type="button"
-            variant="secondary"
+          <RetryButton
+            locale={locale}
             size="sm"
-            onClick={() => {
+            onRetry={() => {
               setS({ state: "loading" });
               setAttempt(nextLoadKey);
             }}
-          >
-            {t(locale, "crash.retry")}
-          </Button>
+          />
         </div>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && !refilling && (
@@ -165,7 +165,8 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
                   type="button"
                   onClick={(e) => remove(c.id, e.currentTarget.closest("[data-row]"))}
                   data-row-action
-                  disabled={removing !== null}
+                  pending={removing === c.id}
+                  disabled={removing !== null && removing !== c.id}
                   aria-label={t(locale, "account.unsaveNamed", { name: c.name })}
                   variant="secondary" size="sm" className="shrink-0"
                 >
@@ -181,7 +182,7 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
           <Button
             type="button"
             onClick={() => void loadMore()}
-            disabled={s.more === "loading"}
+            pending={s.more === "loading"}
             variant="secondary"
           >
             {s.more === "loading" ? t(locale, "dash.loading") : t(locale, "account.moreSaved")}

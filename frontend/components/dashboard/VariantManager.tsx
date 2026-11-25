@@ -320,7 +320,8 @@ function VariantRow({
         <div className="flex gap-2 justify-self-end">
           <Button
             type="button"
-            disabled={busy || !dirty}
+            pending={busy}
+            disabled={!dirty}
             onClick={() => void save()}
             size="sm"
           >
@@ -466,7 +467,7 @@ function AddVariantForm({
         </label>
         <Button
           type="submit"
-          disabled={busy}
+          pending={busy}
           className="col-span-2 sm:col-span-1"
         >
           {t(locale, "cf.addVariant")}

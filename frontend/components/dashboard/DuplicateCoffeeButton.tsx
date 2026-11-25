@@ -33,7 +33,7 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
     <span className="inline-flex flex-col gap-1">
       <Button
         type="button"
-        disabled={busy}
+        pending={busy}
         onClick={() => void duplicate()}
         title={t(locale, "dash.duplicateHint")}
         variant="quiet" size="sm"

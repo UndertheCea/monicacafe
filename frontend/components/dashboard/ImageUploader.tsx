@@ -51,7 +51,7 @@ export function ImageUploader({
 }) {
   const { request } = useAuth();
   const input = useRef<HTMLInputElement>(null);
-  // One phase from file choice to the end of onUploaded; the button stays disabled throughout (#388).
+  // One phase from file choice to the end of onUploaded; the button stays busy throughout (#388, #510).
   const [phase, setPhase] = useState<"idle" | "preparing" | "uploading">("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<{ key: MessageKey; vars?: Record<string, number> } | null>(null);
@@ -117,7 +117,8 @@ export function ImageUploader({
       />
       <Button
         type="button"
-        disabled={disabled || busy}
+        pending={busy}
+        disabled={disabled}
         onClick={() => input.current?.click()}
         variant="secondary"
       >

@@ -118,3 +118,22 @@ test("components/dashboard/ui.tsx re-exports the primitives instead of defining 
   assert.ok(!src.includes("rounded-"));
   assert.match(src, /export \{ Button, Card, Field, Input, Select, Textarea \} from "@\/components\/ui"/);
 });
+
+test("buttonState: a pending button stays focusable and ignores activation (#510)", () => {
+  const cases = [
+    // pending, disabled, want
+    [false, undefined, { disabled: undefined, "aria-disabled": undefined, "aria-busy": undefined, ignore: false }],
+    [false, true, { disabled: true, "aria-disabled": undefined, "aria-busy": undefined, ignore: false }],
+    [true, undefined, { disabled: undefined, "aria-disabled": true, "aria-busy": true, ignore: true }],
+    // `disabled` waits until the work is over: turning it on now would drop focus just the same
+    [true, true, { disabled: undefined, "aria-disabled": true, "aria-busy": true, ignore: true }],
+  ];
+  for (const [pending, disabled, want] of cases) assert.deepEqual(ui.buttonState(pending, disabled), want, `${pending} ${disabled}`);
+});
+
+test("busy-only buttons use `pending`, never `disabled` (#510)", () => {
+  // A focused button that turns `disabled` drops focus to <body>. ("Cancel" / "No" beside a busy button may still be
+  // disabled: focus is on the busy one.)
+  assert.deepEqual(offenders(/(?<![-\w])disabled=\{\s*(s\.more === "loading"|more === "loading"|ordering|loadingMore)\s*(\}|\|\|)/), []);
+  assert.deepEqual(offenders(/type="submit"[^>]*(?<![-\w])disabled=\{busy/), []);
+});

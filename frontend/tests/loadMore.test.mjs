@@ -1,7 +1,7 @@
 // "Load more" with removals in flight (lib/loadMore.ts, #338). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LOAD_MORE_RETRIES, emptiedWithMore, loadMoreOffset, loadMoreStale, mergeLoaded } from "../lib/loadMore.ts";
+import { LOAD_MORE_RETRIES, emptiedWithMore, firstNewRow, loadMoreOffset, loadMoreStale, mergeLoaded } from "../lib/loadMore.ts";
 
 const n = (...ids) => ids.map((id) => ({ id }));
 
@@ -73,4 +73,15 @@ test("emptiedWithMore: an emptied page refills only while the server has more (#
     [0, 1, 10, 10, true],
   ];
   for (const [shown, total, last, size, want] of cases) assert.equal(emptiedWithMore(shown, total, last, size), want);
+});
+
+test("firstNewRow: the first row a load added, or null (#510)", () => {
+  const cases = [
+    [n("a", "b"), n("c", "d"), "c"],
+    [n("a", "b"), n("b", "c"), "c"], // an id already shown is skipped
+    [n("a"), n("a"), null],
+    [n("a"), [], null],
+    [[], n("x"), "x"],
+  ];
+  for (const [before, after, want] of cases) assert.equal(firstNewRow(before, after), want);
 });

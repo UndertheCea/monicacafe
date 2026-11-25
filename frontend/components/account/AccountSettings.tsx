@@ -175,7 +175,7 @@ function ProfileForm({ locale }: { locale: Locale }) {
         )}
       </Field>
       <div className="flex items-center gap-4">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" pending={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.save")}
         </Button>
         <Saved show={saved}>{t(locale, "account.saved")}</Saved>
@@ -297,7 +297,7 @@ function PasswordForm({ locale }: { locale: Locale }) {
         )}
       </Field>
       <div className="flex items-center gap-4">
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" pending={busy}>
           {busy ? t(locale, "account.saving") : t(locale, "account.changePassword")}
         </Button>
         <Saved show={done}>{t(locale, "account.passwordChanged")}</Saved>
@@ -347,7 +347,7 @@ function Sessions({ locale, onLeave }: { locale: Locale; onLeave: (leaving: bool
             ref={yesRef}
             type="button"
             onClick={onConfirm}
-            disabled={busy}
+            pending={busy}
             variant="danger"
           >
             {busy ? t(locale, "account.loggingOut") : t(locale, "account.logoutAllYes")}
@@ -406,7 +406,7 @@ function DownloadData({ locale }: { locale: Locale }) {
       <SectionTitle id="export-title">{t(locale, "account.export")}</SectionTitle>
       <p className="text-sm text-muted">{t(locale, "account.exportHint")}</p>
       {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
-      <Button type="button" variant="secondary" onClick={onDownload} disabled={busy} pending={busy}>
+      <Button type="button" variant="secondary" onClick={onDownload} pending={busy}>
         {busy ? t(locale, "account.exporting") : t(locale, "account.exportButton")}
       </Button>
     </section>
@@ -489,7 +489,7 @@ function DeleteAccount({ locale, onLeave }: { locale: Locale; onLeave: (leaving:
                 ref={yesRef}
                 type="button"
                 onClick={onConfirm}
-                disabled={busy}
+                pending={busy}
                 variant="danger"
               >
                 {busy ? t(locale, "account.delete.deleting") : t(locale, "account.delete.yes")}

@@ -54,3 +54,12 @@ export function mergeLoaded<T extends { id: string }>(
 export function emptiedWithMore(shown: number, total: number, lastPageSize: number, pageSize: number): boolean {
   return shown === 0 && total > 0 && lastPageSize >= pageSize;
 }
+
+/**
+ * The first row a "load more" added (#510): the first id in the list after the load that wasn't shown before it,
+ * or null when the page brought nothing new. Focus goes there when the button itself leaves (the last page).
+ */
+export function firstNewRow(before: readonly { id: string }[], after: readonly { id: string }[]): string | null {
+  const seen = new Set(before.map((r) => r.id));
+  return after.find((r) => !seen.has(r.id))?.id ?? null;
+}

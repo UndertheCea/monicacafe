@@ -93,6 +93,24 @@ func TestStockEdits(t *testing.T) {
 			_, err := s.UpdateVariant(ctx, "00000000-0000-0000-0000-000000000000", store.UpdateVariantParams{Stock: ip(1), ExpectedStock: ip(0)})
 			return err
 		}, store.ErrNotFound, 10},
+		{"available again", func() error {
+			on := true
+			_, err := s.UpdateVariant(ctx, v.ID, store.UpdateVariantParams{IsAvailable: &on})
+			return err
+		}, nil, 10},
+		// #514: a NT$0 row stored before #358 reads sold out everywhere, so it can't be bought either.
+		{"NT$0 can't be reserved", func() error {
+			if _, err := s.RawDB().Exec(ctx, `UPDATE variants SET price_twd = 0 WHERE id = $1`, v.ID); err != nil {
+				return err
+			}
+			return s.ReserveStock(ctx, v.ID, 1)
+		}, store.ErrInsufficientStock, 10},
+		{"NT$1 can", func() error {
+			if _, err := s.RawDB().Exec(ctx, `UPDATE variants SET price_twd = 1 WHERE id = $1`, v.ID); err != nil {
+				return err
+			}
+			return s.ReserveStock(ctx, v.ID, 1)
+		}, nil, 9},
 	}
 	for _, st := range steps {
 		err := st.run()

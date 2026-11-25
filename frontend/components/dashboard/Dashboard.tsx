@@ -27,7 +27,8 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { nextLoadKey } from "@/lib/retry";
 import { formatTWD } from "@/lib/utils";
-import { focusRowToggle } from "@/components/focusAfterRemoval";
+import { focusLoadedRow, focusRowToggle } from "@/components/focusAfterRemoval";
+import { firstNewRow } from "@/lib/loadMore";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { withoutCoffee } from "@/lib/dashboard/deleteCoffee";
 import { stockStatus } from "@/lib/dashboard/stockStatus";
@@ -134,10 +135,12 @@ export function Dashboard({ locale }: { locale: Locale }) {
   async function move(index: number, delta: number) {
     const before = shop.coffees;
     const nodes = moveItem(before.nodes, index, delta);
-    if (nodes === before.nodes) return;
+    if (nodes === before.nodes || ordering) return;
     setOrdering(true);
     setOrderError(null);
     editCoffees((c) => restoreOrder(c, nodes.map((n) => n.id)));
+    // A row moved to the top or bottom disables the arrow just pressed: focus its other arrow (#510).
+    focusRowToggle(before.nodes[index].id, "[data-move]");
     try {
       await request(REORDER_SHOP_COFFEES, { shopId: shop.id, coffeeIds: nodes.map((c) => c.id) });
     } catch (err) {
@@ -158,6 +161,8 @@ export function Dashboard({ locale }: { locale: Locale }) {
       if (!page) throw new Error("shop gone");
       editCoffees((c) => appendCoffeePage(c, page, deletedIds.current), page.nodes.length);
       setMore("idle");
+      // The last page removes the button: focus goes to the first coffee it added (#510).
+      focusLoadedRow(firstNewRow(shop.coffees.nodes, page.nodes.filter((n) => !deletedIds.current.has(n.id))));
     } catch {
       setMore("error");
     }
@@ -240,7 +245,9 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       <button
                         type="button"
                         className={ICON_BUTTON}
-                        disabled={ordering || i === 0}
+                        data-move
+                        disabled={i === 0}
+                        aria-disabled={ordering || undefined}
                         onClick={() => void move(i, -1)}
                         aria-label={t(locale, "dash.moveUp", { name: c.name })}
                         title={t(locale, "dash.moveUp", { name: c.name })}
@@ -250,7 +257,9 @@ export function Dashboard({ locale }: { locale: Locale }) {
                       <button
                         type="button"
                         className={ICON_BUTTON}
-                        disabled={ordering || i === lastIndex}
+                        data-move
+                        disabled={i === lastIndex}
+                        aria-disabled={ordering || undefined}
                         onClick={() => void move(i, 1)}
                         aria-label={t(locale, "dash.moveDown", { name: c.name })}
                         title={t(locale, "dash.moveDown", { name: c.name })}
@@ -348,7 +357,7 @@ export function Dashboard({ locale }: { locale: Locale }) {
             {more === "error" && <FormError>{t(locale, "dash.error.generic")}</FormError>}
             <Button
               type="button"
-              disabled={more === "loading"}
+              pending={more === "loading"}
               onClick={() => void loadMore()}
               variant="secondary"
             >

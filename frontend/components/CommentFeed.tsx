@@ -14,6 +14,7 @@ import { nextLoadKey } from "@/lib/retry";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTaipeiDate } from "@/lib/utils";
 import { Badge, Button, Card, SectionTitle } from "@/components/ui";
+import { RetryButton } from "@/components/RetryButton";
 
 type State =
   | { state: "loading" }
@@ -112,17 +113,14 @@ export function CommentFeed({
           <p role="alert" className="text-sm text-danger">
             {t(locale, "dash.error.generic")}
           </p>
-          <Button
-            type="button"
-            variant="secondary"
+          <RetryButton
+            locale={locale}
             size="sm"
-            onClick={() => {
+            onRetry={() => {
               setS({ state: "loading" });
               setAttempt(nextLoadKey);
             }}
-          >
-            {t(locale, "crash.retry")}
-          </Button>
+          />
         </div>
       )}
       {s.state === "ready" && s.page.nodes.length === 0 && !refilling && (

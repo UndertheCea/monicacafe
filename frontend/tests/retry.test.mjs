@@ -28,7 +28,7 @@ test("load error messages no longer tell people to refresh", () => {
 test("panels wire a retry button and no submit short-circuit", () => {
   const src = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
   for (const f of ["components/cart/CartView.tsx", "components/account/SavedCoffees.tsx", "components/CommentFeed.tsx", "components/admin/AdminScreen.tsx"]) {
-    assert.match(src(f), /crash\.retry/, f);
+    assert.match(src(f), /<RetryButton\b/, f); // the retry button (#512)
   }
   assert.doesNotMatch(src("components/admin/AdminScreen.tsx"), /if \(q === search\) return/);
 });

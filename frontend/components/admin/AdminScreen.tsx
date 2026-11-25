@@ -43,6 +43,7 @@ import {
   type TakenDownCoffee,
 } from "@/lib/moderationQueries";
 import { formatTaipeiDate } from "@/lib/utils";
+import { RetryButton } from "@/components/RetryButton";
 
 /**
  * The moderation screen (#225): open reports with their resolve actions,
@@ -175,9 +176,7 @@ function ListBody<T>({
     return (
       <div className="space-y-3">
         <FormError>{t(locale, "admin.loadError")}</FormError>
-        <Button type="button" variant="secondary" size="sm" onClick={onRetry}>
-          {t(locale, "crash.retry")}
-        </Button>
+        <RetryButton locale={locale} size="sm" onRetry={onRetry} />
       </div>
     );
   }

@@ -14,6 +14,7 @@ import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Button, Card, SectionTitle } from "@/components/ui";
 import { pluralKey } from "@/lib/plural";
 import { nextLoadKey } from "@/lib/retry";
+import { RetryButton } from "@/components/RetryButton";
 
 type List = { total: number; nodes: ShopSummary[] };
 type State =
@@ -110,17 +111,14 @@ export function FollowedShops({ locale }: { locale: Locale }) {
           <p role="alert" className="text-sm text-danger">
             {t(locale, "dash.error.generic")}
           </p>
-          <Button
-            type="button"
-            variant="secondary"
+          <RetryButton
+            locale={locale}
             size="sm"
-            onClick={() => {
+            onRetry={() => {
               setS({ state: "loading" });
               setAttempt(nextLoadKey);
             }}
-          >
-            {t(locale, "crash.retry")}
-          </Button>
+          />
         </div>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && !refilling && (

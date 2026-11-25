@@ -13,6 +13,7 @@ import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
 import { formatTWD } from "@/lib/utils";
 import { Button, Card, Select, SectionTitle } from "@/components/ui";
+import { RetryButton } from "@/components/RetryButton";
 
 type Load = { state: "loading" } | { state: "error" } | { state: "ready"; cart: CartData };
 type Problem = CartProblem;
@@ -68,16 +69,13 @@ export function CartView({ locale }: { locale: Locale }) {
     return (
       <div className="space-y-3">
         <p role="alert" className="text-danger">{t(locale, "cart.loadError")}</p>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => {
+        <RetryButton
+          locale={locale}
+          onRetry={() => {
             setLoad({ state: "loading" });
             setAttempt(nextLoadKey);
           }}
-        >
-          {t(locale, "crash.retry")}
-        </Button>
+        />
       </div>
     );
   }

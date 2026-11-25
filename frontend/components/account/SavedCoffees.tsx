@@ -14,6 +14,7 @@ import { SAVED_PAGE, hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "@/components/coffees/CoffeeTile";
 import { Button, Card, Picture, SectionTitle } from "@/components/ui";
+import { RetryButton } from "@/components/RetryButton";
 
 type List = { total: number; nodes: CoffeeCardData[] };
 type State =
@@ -112,17 +113,14 @@ export function SavedCoffees({ locale }: { locale: Locale }) {
           <p role="alert" className="text-sm text-danger">
             {t(locale, "dash.error.generic")}
           </p>
-          <Button
-            type="button"
-            variant="secondary"
+          <RetryButton
+            locale={locale}
             size="sm"
-            onClick={() => {
+            onRetry={() => {
               setS({ state: "loading" });
               setAttempt(nextLoadKey);
             }}
-          >
-            {t(locale, "crash.retry")}
-          </Button>
+          />
         </div>
       )}
       {s.state === "ready" && s.list.nodes.length === 0 && !refilling && (

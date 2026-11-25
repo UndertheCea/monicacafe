@@ -1,5 +1,5 @@
 import { ClientError, GraphQLClient } from "graphql-request";
-import { UNAVAILABLE, parseGraphQLErrors, rateLimitedFromStatus } from "./errors";
+import { UNAVAILABLE, parseGraphQLErrors, rateLimitedFromStatus, unavailableFromStatus } from "./errors";
 
 import { browserGraphqlUrl, serverGraphqlUrl } from "./endpoint";
 
@@ -94,6 +94,9 @@ export function toApiError(err: unknown): ApiError {
     // nginx's own 429 has no JSON body, so no `errors` to read (#214).
     const limited = err.response.errors ? undefined : rateLimitedFromStatus(err.response.status, err.response.headers?.get("retry-after"));
     if (limited) return new ApiError(limited.code, limited.message, undefined, limited.retryAfter);
+    // Likewise a 502 / 503 / 504 from the proxy is "can't reach the backend", not a bug (#527).
+    const down = err.response.errors ? undefined : unavailableFromStatus(err.response.status);
+    if (down) return new ApiError(down.code, down.message);
     const f = parseGraphQLErrors(err.response.errors);
     return new ApiError(f.code, f.message, f.field, f.retryAfter, f.available);
   }

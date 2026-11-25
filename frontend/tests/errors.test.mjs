@@ -11,6 +11,7 @@ import {
   rateLimitMessage,
   rateLimitedFromStatus,
   retryAfterSeconds,
+  unavailableFromStatus,
 } from "../lib/errors.ts";
 
 test("authErrorStatus", () => {
@@ -153,4 +154,10 @@ test("rateLimitedFromStatus: nginx's non-JSON 429 maps to RATE_LIMITED", () => {
     [200, undefined, undefined],
   ];
   for (const [status, retry, want] of cases) assert.deepEqual(rateLimitedFromStatus(status, retry), want, `${status} ${retry}`);
+});
+
+test("unavailableFromStatus: 502 / 503 / 504 read as UNAVAILABLE, nothing else does (#527)", () => {
+  const want = { code: UNAVAILABLE, message: "could not reach the server" };
+  for (const status of [502, 503, 504]) assert.deepEqual(unavailableFromStatus(status), want, String(status));
+  for (const status of [200, 400, 404, 429, 500, 501]) assert.equal(unavailableFromStatus(status), undefined, String(status));
 });

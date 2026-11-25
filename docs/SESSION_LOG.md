@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 69 — 2026-11-25 — Focus kept by busy and retry buttons, cart unit, NT$0 stock (four slices)
-PR: #PRNUM
+PR: #515
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-20), one pickable slice
 (#510). Three more real gaps found while building it or noted by Session 68's cart audit (#512–#514); nothing else filed.

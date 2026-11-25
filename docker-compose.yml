@@ -82,7 +82,7 @@ services:
   postgres:
     <<: *hardening
     mem_limit: 1g
-    image: postgres:17.11-alpine
+    image: postgres:17.12-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-monica}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-monica_secret}
@@ -120,7 +120,7 @@ services:
     <<: *hardening
     mem_limit: 256m
     cap_drop: [ALL]
-    image: postgres:17.11-alpine
+    image: postgres:17.12-alpine
     entrypoint: ["/bin/sh", "/monicacafe/scripts/migrate.sh"]
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-monica}:${POSTGRES_PASSWORD:-monica_secret}@postgres:5432/${POSTGRES_DB:-monicacafe}
@@ -158,7 +158,7 @@ services:
     <<: *hardening
     mem_limit: 1g
     profiles: ["search"]
-    image: getmeili/meilisearch:v1.56
+    image: getmeili/meilisearch:v1.57
     environment:
       MEILI_ENV: ${MEILI_ENV:-development}
       MEILI_MASTER_KEY: ${MEILI_KEY:-monica_meili_key}
@@ -180,7 +180,7 @@ services:
   seaweedfs:
     <<: *hardening
     mem_limit: 512m
-    image: chrislusf/seaweedfs:4.53
+    image: chrislusf/seaweedfs:4.54
     entrypoint: ["/bin/sh", "/seaweedfs.sh", "start"]
     environment:
       S3_BUCKET: ${S3_BUCKET:-media}
@@ -200,7 +200,7 @@ services:
   seaweedfs-init:
     <<: *hardening
     mem_limit: 256m
-    image: chrislusf/seaweedfs:4.53
+    image: chrislusf/seaweedfs:4.54
     entrypoint: ["/bin/sh", "/seaweedfs.sh", "init"]
     environment:
       S3_BUCKET: ${S3_BUCKET:-media}
@@ -364,7 +364,7 @@ services:
   nginx:
     <<: *hardening
     mem_limit: 128m
-    image: nginx:1.31.8-alpine
+    image: nginx:1.31.9-alpine
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # The official image renders /etc/nginx/templates/*.template with the

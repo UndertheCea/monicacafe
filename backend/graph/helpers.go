@@ -130,13 +130,19 @@ func isLoaderNotFound(err error) bool {
 	return errors.Is(err, dataloadgen.ErrNotFound) || errors.Is(err, store.ErrNotFound)
 }
 
-// issueTokens creates an access/refresh token pair and records the refresh token.
+// issueTokens creates an access/refresh token pair and records the refresh
+// token, for the token version u was read at: if sign-out-everywhere, a
+// password change or a suspension committed since, no session starts (#525).
 func (r *Resolver) issueTokens(ctx context.Context, u *store.User) (*model.AuthPayload, error) {
 	refresh, err := r.Auth.IssueRefreshToken(u.ID)
 	if err != nil {
 		return nil, fmt.Errorf("issue refresh token: %w", err)
 	}
-	if err := r.Store.SaveRefreshToken(ctx, u.ID, refresh.JTIHash, refresh.ExpiresAt); err != nil {
+	err = r.Store.StartSession(ctx, u.ID, u.TokenVersion, refresh.JTIHash, refresh.ExpiresAt)
+	if errors.Is(err, store.ErrStaleSession) || errors.Is(err, store.ErrNotFound) {
+		return nil, errUnauthenticated()
+	}
+	if err != nil {
 		return nil, fmt.Errorf("save refresh token: %w", err)
 	}
 	return r.authPayload(u, refresh.Token)

@@ -11,6 +11,8 @@
 # 3. A failing migration rolls back: nothing it created is left, nothing is recorded.
 # 4. Every migration has a baseline marker, false just before it runs and true
 #    after (#352), so MIGRATE_BASELINE works at any version.
+# 5. Migrations in a folder whose path has a space, a quote and a backslash
+#    apply (a checkout under "My Projects", #523).
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,6 +21,7 @@ base="${url%/*}"          # postgres://user:pw@host:port
 query=""
 case "$url" in *\?*) query="?${url#*\?}"; base="${url%%\?*}"; base="${base%/*}" ;; esac
 fresh="mig_selftest_fresh"
+odd="mig_selftest_path"
 old="mig_selftest_old"
 marks="mig_selftest_marks"
 admin="$base/postgres$query"
@@ -33,11 +36,11 @@ upto=$(basename "${migrations[total-2]}" | cut -c1-3)
 scratch=$(mktemp -d)
 cleanup() {
   rm -rf "$scratch"
-  psql "$admin" -X -q -c "DROP DATABASE IF EXISTS $fresh" -c "DROP DATABASE IF EXISTS $old" -c "DROP DATABASE IF EXISTS $marks" >/dev/null 2>&1 || true
+  psql "$admin" -X -q -c "DROP DATABASE IF EXISTS $fresh" -c "DROP DATABASE IF EXISTS $old" -c "DROP DATABASE IF EXISTS $marks" -c "DROP DATABASE IF EXISTS $odd" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 psql "$admin" -X -q -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS $fresh" -c "DROP DATABASE IF EXISTS $old" \
-  -c "DROP DATABASE IF EXISTS $marks" -c "CREATE DATABASE $fresh" -c "CREATE DATABASE $old" -c "CREATE DATABASE $marks" 2>/dev/null
+  -c "DROP DATABASE IF EXISTS $marks" -c "DROP DATABASE IF EXISTS $odd" -c "CREATE DATABASE $odd" -c "CREATE DATABASE $fresh" -c "CREATE DATABASE $old" -c "CREATE DATABASE $marks" 2>/dev/null
 
 fail=0
 ok() { echo "ok   $*"; }
@@ -111,5 +114,15 @@ for f in "${migrations[@]}"; do
   fi
 done
 (( marker_fail == 0 )) && ok "all $total baseline markers are false before their migration and true after"
+
+# 5 ─ an awkward checkout path (#523)
+oddir="$scratch/my proj's \\dir/migrations"
+mkdir -p "$oddir"
+cp "${migrations[@]}" "$oddir/"
+if MIGRATIONS_DIR="$oddir" DATABASE_URL="$(db $odd)" "$root/scripts/migrate.sh" >"$scratch/out" 2>&1 && [[ "$(count $odd)" == "$total" ]]; then
+  ok "migrations under a path with a space, a quote and a backslash apply"
+else
+  bad "path with a space / quote / backslash: $(cat "$scratch/out")"
+fi
 
 (( fail == 0 )) && echo "migrate self-test passed" || { echo "migrate self-test FAILED"; exit 1; }

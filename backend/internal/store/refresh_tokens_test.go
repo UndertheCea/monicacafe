@@ -233,3 +233,108 @@ func TestRevokeAllThenStaleReplay(t *testing.T) {
 		})
 	}
 }
+
+// TestRevokeAllWaitsForRotation (#525): a rotation in flight when "sign out
+// everywhere" runs can't leave its new token active. Before the fix the revoke
+// waited on the old token's row lock, then re-checked only the rows of its
+// snapshot, so the successor inserted by the rotation stayed usable.
+func TestRevokeAllWaitsForRotation(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	exp := time.Now().Add(time.Hour)
+
+	u, err := s.CreateUser(ctx, "race-"+suffix+"@example.test", "x", "race")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveRefreshToken(ctx, u.ID, "race-old-"+suffix, exp); err != nil {
+		t.Fatal(err)
+	}
+
+	rotated := make(chan struct{})
+	release := make(chan struct{})
+	rotateDone := make(chan error, 1)
+	go func() {
+		rotateDone <- s.InTx(ctx, func(tx *store.Store) error {
+			if err := tx.RotateRefreshToken(ctx, "race-old-"+suffix, u.ID, "race-new-"+suffix, exp, time.Second); err != nil {
+				close(rotated)
+				return err
+			}
+			close(rotated)
+			<-release // hold the rotation open while the revoke starts
+			return nil
+		})
+	}()
+	<-rotated
+
+	revokeDone := make(chan error, 1)
+	go func() { revokeDone <- s.RevokeUserRefreshTokens(ctx, u.ID) }()
+	select {
+	case err := <-revokeDone:
+		t.Fatalf("revoke finished while the rotation was still open (err %v)", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	close(release)
+	if err := <-rotateDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-revokeDone; err != nil {
+		t.Fatal(err)
+	}
+
+	var active int
+	if err := s.QueryRowForTest(ctx, `SELECT count(*) FROM refresh_tokens WHERE user_id = $1 AND revoked_at IS NULL`, u.ID).Scan(&active); err != nil {
+		t.Fatal(err)
+	}
+	if active != 0 {
+		t.Errorf("%d refresh tokens still active after revoking every session, want 0", active)
+	}
+}
+
+// TestStartSession (#525): a session starts only for the token version the
+// caller read; one read before a revoke-all is refused and saves nothing.
+func TestStartSession(t *testing.T) {
+	s := testStore(t)
+	ctx := context.Background()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	exp := time.Now().Add(time.Hour)
+
+	err := s.InTx(ctx, func(tx *store.Store) error {
+		u, err := tx.CreateUser(ctx, "session-"+suffix+"@example.test", "x", "s")
+		if err != nil {
+			return err
+		}
+		v := u.TokenVersion
+		if err := tx.RevokeUserRefreshTokens(ctx, u.ID); err != nil {
+			return err
+		}
+		cases := []struct {
+			name    string
+			userID  string
+			version int
+			hash    string
+			wantErr error
+		}{
+			{"version read before the revoke", u.ID, v, "stale-" + suffix, store.ErrStaleSession},
+			{"current version", u.ID, v + 1, "fresh-" + suffix, nil},
+			{"unknown user", "00000000-0000-0000-0000-000000000000", 0, "ghost-" + suffix, store.ErrNotFound},
+		}
+		for _, c := range cases {
+			if err := tx.StartSession(ctx, c.userID, c.version, c.hash, exp); !errors.Is(err, c.wantErr) {
+				return fmt.Errorf("%s: err = %v, want %v", c.name, err, c.wantErr)
+			}
+			var n int
+			if err := tx.QueryRowForTest(ctx, `SELECT count(*) FROM refresh_tokens WHERE token_hash = $1`, c.hash).Scan(&n); err != nil {
+				return err
+			}
+			if want := map[bool]int{true: 1, false: 0}[c.wantErr == nil]; n != want {
+				return fmt.Errorf("%s: %d rows saved, want %d", c.name, n, want)
+			}
+		}
+		return errRollback
+	})
+	if !errors.Is(err, errRollback) {
+		t.Fatal(err)
+	}
+}

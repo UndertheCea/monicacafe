@@ -132,11 +132,45 @@ func (s *Store) PromoteToSeller(ctx context.Context, userID string) error {
 // ─── Refresh tokens ───────────────────────────────────────────────────────────
 
 // SaveRefreshToken records an issued refresh token by the hash of its JTI.
+// It holds the user row FOR SHARE, so it can't interleave with
+// RevokeUserRefreshTokens (#525). Sessions start through StartSession, which
+// also checks the token version; this one is for tests and fixtures.
 func (s *Store) SaveRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error {
-	_, err := s.db.Exec(ctx, `
-		INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
-		userID, tokenHash, expiresAt)
-	return mapErr(err)
+	return s.InTx(ctx, func(tx *Store) error {
+		var one int
+		if err := tx.db.QueryRow(ctx, `SELECT 1 FROM users WHERE id = $1 FOR SHARE`, userID).Scan(&one); err != nil {
+			return mapErr(err)
+		}
+		_, err := tx.db.Exec(ctx, `
+			INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+			userID, tokenHash, expiresAt)
+		return mapErr(err)
+	})
+}
+
+// StartSession records the refresh token of a new session (login, register,
+// password change) for a user read at tokenVersion. If the version has moved
+// since (a password change, sign-out-everywhere or suspension committed after
+// the caller read the user), nothing is saved and ErrStaleSession is returned:
+// otherwise a login that checked the old password a moment before the change
+// would keep a session the change was meant to end (#525). The user row is held
+// FOR SHARE until commit, so a concurrent revoke waits for this insert and then
+// revokes it.
+func (s *Store) StartSession(ctx context.Context, userID string, tokenVersion int, tokenHash string, expiresAt time.Time) error {
+	return s.InTx(ctx, func(tx *Store) error {
+		var current int
+		err := tx.db.QueryRow(ctx, `SELECT token_version FROM users WHERE id = $1 FOR SHARE`, userID).Scan(&current)
+		if err != nil {
+			return mapErr(err)
+		}
+		if current != tokenVersion {
+			return ErrStaleSession
+		}
+		_, err = tx.db.Exec(ctx, `
+			INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+			userID, tokenHash, expiresAt)
+		return mapErr(err)
+	})
 }
 
 // RotateRefreshToken consumes the refresh token with hash oldHash and records
@@ -152,8 +186,17 @@ func (s *Store) SaveRefreshToken(ctx context.Context, userID, tokenHash string, 
 //
 // userID (from the verified token claims) must match the row's owner, or
 // ErrNotFound is returned.
+//
+// The user row is held FOR SHARE first (#525): a RevokeUserRefreshTokens that
+// started earlier is waited for, and then the old token reads as revoked; one
+// that starts later waits for this commit and then sees the successor. Without
+// it, a revoke whose snapshot predates the successor's insert left it active.
 func (s *Store) RotateRefreshToken(ctx context.Context, oldHash, userID, newHash string, newExpiresAt time.Time, grace time.Duration) error {
 	return s.InTx(ctx, func(tx *Store) error {
+		var one int
+		if err := tx.db.QueryRow(ctx, `SELECT 1 FROM users WHERE id = $1 FOR SHARE`, userID).Scan(&one); err != nil {
+			return mapErr(err)
+		}
 		var (
 			id, owner       string
 			expiresAt, now  time.Time
@@ -260,14 +303,19 @@ func (s *Store) RevokeRefreshToken(ctx context.Context, tokenHash, userID string
 // of an older token in a chain must read as "revoked" (refused), not as theft —
 // otherwise it would end the session issued right after, e.g. the one that just
 // changed the password.
+//
+// The user row is locked first and the version bumped before the tokens are
+// revoked (#525): rotations and new sessions hold the row FOR SHARE until they
+// commit, so the revoking UPDATE (a fresh snapshot under READ COMMITTED) sees
+// every token they added, and a session started for the old version is refused.
 func (s *Store) RevokeUserRefreshTokens(ctx context.Context, userID string) error {
 	return s.InTx(ctx, func(tx *Store) error {
-		if _, err := tx.db.Exec(ctx, `
-			UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, now()), replaced_by = NULL
-			WHERE user_id = $1 AND (revoked_at IS NULL OR replaced_by IS NOT NULL)`, userID); err != nil {
+		if _, err := tx.db.Exec(ctx, `UPDATE users SET token_version = token_version + 1 WHERE id = $1`, userID); err != nil {
 			return mapErr(err)
 		}
-		_, err := tx.db.Exec(ctx, `UPDATE users SET token_version = token_version + 1 WHERE id = $1`, userID)
+		_, err := tx.db.Exec(ctx, `
+			UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, now()), replaced_by = NULL
+			WHERE user_id = $1 AND (revoked_at IS NULL OR replaced_by IS NOT NULL)`, userID)
 		return mapErr(err)
 	})
 }

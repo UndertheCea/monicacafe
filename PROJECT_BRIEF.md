@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-25 (after Session 70)
+Last updated: 2026-11-25 (after Session 71)
 
 ---
 
@@ -37,7 +37,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–028, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
+| DB schema + migrations 001–029, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
 | Coffee listing details: provenance (#116–#120), brew method (#122–#127), harvest year (#129–#134) on the API, forms, coffee page + JSON-LD; cup profile removed (#189); `minAltitudeM` / brew / harvest filters in the API only (#167) | Done |
@@ -78,8 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 70**: the coffee gallery no longer stays locked after the 8th photo fills it (#520); search NFKC-normalises the
-query, so full-width `Ｇｕｊｉ` from a zh-TW IME and combining accents find Guji / Nariño and their synonyms (#521).
+**Session 71**: sign-out-everywhere / password change can't miss a refresh token minted at the same moment (#525); login
+failure limits reserved before bcrypt (#526); 502 / 503 / 504 read as unavailable (#527); `SITE_URL` sub-path kept in
+canonical / JSON-LD (#528); 8 s timeout on server-side GraphQL (#529); `migrate.sh` from odd paths (#523); prune indexes (#524).
 
 ## Current focus
 
@@ -89,7 +90,7 @@ query, so full-width `Ｇｕｊｉ` from a zh-TW IME and combining accents find 
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–70 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–71 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

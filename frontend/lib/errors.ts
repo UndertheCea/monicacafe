@@ -197,3 +197,14 @@ export function rateLimitedFromStatus(status: number, retryAfter?: unknown): Api
   if (secs) out.retryAfter = secs;
   return out;
 }
+
+/**
+ * The error for an HTTP 502 / 503 / 504 whose body has no GraphQL errors: the
+ * proxy or an upstream answered with an HTML page because the backend is down
+ * or slow. It reads the same as a network failure (UNAVAILABLE, see unavailable()
+ * in lib/graphql.ts). Any other status returns undefined (#527).
+ */
+export function unavailableFromStatus(status: number): ApiErrorFields | undefined {
+  if (status !== 502 && status !== 503 && status !== 504) return undefined;
+  return { code: UNAVAILABLE, message: "could not reach the server" };
+}

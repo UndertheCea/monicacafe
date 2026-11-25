@@ -91,16 +91,22 @@ func (r *Resolver) rehashPassword(ctx context.Context, u *store.User, password s
 	}
 }
 
-// checkKeys refuses when any limiter's bucket for its key is empty, without
-// spending a token (the caller spends on the outcomes it counts).
-func checkKeys(emailKey, emailIPKey string, email, emailIP *ratelimit.Limiter) error {
-	if ok, retry := email.Check(emailKey); !ok {
-		return errRateLimited(retry)
+// reserveKeys spends one token from each limiter before the slow work starts,
+// so parallel requests can't all pass a check before any is charged (#526). If
+// either refuses, the token already taken is refunded. The caller keeps the
+// reservation for outcomes it counts and calls the returned release otherwise.
+func reserveKeys(emailKey, emailIPKey string, email, emailIP *ratelimit.Limiter) (release func(), err error) {
+	if ok, retry := email.Allow(emailKey); !ok {
+		return nil, errRateLimited(retry)
 	}
-	if ok, retry := emailIP.Check(emailIPKey); !ok {
-		return errRateLimited(retry)
+	if ok, retry := emailIP.Allow(emailIPKey); !ok {
+		email.Refund(emailKey)
+		return nil, errRateLimited(retry)
 	}
-	return nil
+	return func() {
+		email.Refund(emailKey)
+		emailIP.Refund(emailIPKey)
+	}, nil
 }
 
 func allowKey(l *ratelimit.Limiter, key string) error {

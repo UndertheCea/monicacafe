@@ -1,11 +1,15 @@
 import { ClientError, GraphQLClient } from "graphql-request";
-import { UNAVAILABLE, parseGraphQLErrors, rateLimitedFromStatus } from "./errors";
+import { UNAVAILABLE, parseGraphQLErrors, rateLimitedFromStatus, unavailableFromStatus } from "./errors";
 
+import { timeoutFetch } from "./fetch-timeout";
 import { browserGraphqlUrl, serverGraphqlUrl } from "./endpoint";
 
 // Server code talks to the backend directly (GRAPHQL_URL_INTERNAL, e.g.
 // http://backend:4000/graphql inside docker compose); the browser calls
 // /graphql on the page's own origin, behind nginx (lib/endpoint.ts, #210).
+// The server-side clients use timeoutFetch (8 s, lib/fetch-timeout.ts, #529) so a hung
+// backend fails with UNAVAILABLE instead of hanging the render; a TimeoutError is not a
+// ClientError, so toApiError already maps it to UNAVAILABLE.
 const env = {
   nodeEnv: process.env.NODE_ENV,
   publicUrl: process.env.NEXT_PUBLIC_GRAPHQL_URL,
@@ -14,6 +18,7 @@ const env = {
 const endpoint = typeof window === "undefined" ? serverGraphqlUrl(env) : browserGraphqlUrl(env, window.location.origin);
 
 export const gqlClient = new GraphQLClient(endpoint, {
+  ...(typeof window === "undefined" ? { fetch: timeoutFetch } : {}),
   credentials: "include",
   // Catalogue data changes often in Stage 1; never serve stale lists.
   cache: "no-store",
@@ -22,7 +27,7 @@ export const gqlClient = new GraphQLClient(endpoint, {
 /** Server-side client that passes the visitor's address on as X-Forwarded-For (for the API's per-IP limits). */
 export function forwardingClient(xff: string | undefined) {
   if (!xff) return gqlClient;
-  return new GraphQLClient(endpoint, { headers: { "X-Forwarded-For": xff }, cache: "no-store" });
+  return new GraphQLClient(endpoint, { headers: { "X-Forwarded-For": xff }, cache: "no-store", fetch: timeoutFetch });
 }
 
 /**
@@ -32,7 +37,7 @@ export function forwardingClient(xff: string | undefined) {
  * attached to an answer that is shared. The fetch itself isn't cached: Next
  * would store any HTTP 200, and GraphQL errors arrive as 200 (#361).
  */
-export const catalogueClient = new GraphQLClient(endpoint, { cache: "no-store" });
+export const catalogueClient = new GraphQLClient(endpoint, { cache: "no-store", fetch: timeoutFetch });
 
 /**
  * Client carrying the viewer's access token. The auth BFF also passes the
@@ -94,6 +99,9 @@ export function toApiError(err: unknown): ApiError {
     // nginx's own 429 has no JSON body, so no `errors` to read (#214).
     const limited = err.response.errors ? undefined : rateLimitedFromStatus(err.response.status, err.response.headers?.get("retry-after"));
     if (limited) return new ApiError(limited.code, limited.message, undefined, limited.retryAfter);
+    // Likewise a 502 / 503 / 504 from the proxy is "can't reach the backend", not a bug (#527).
+    const down = err.response.errors ? undefined : unavailableFromStatus(err.response.status);
+    if (down) return new ApiError(down.code, down.message);
     const f = parseGraphQLErrors(err.response.errors);
     return new ApiError(f.code, f.message, f.field, f.retryAfter, f.available);
   }

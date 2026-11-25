@@ -32,10 +32,15 @@ export interface ShareInput {
 
 const OG_LOCALE: Record<ShareLocale, string> = { "zh-TW": "zh_TW", en: "en_US" };
 
-/** Absolute http(s) URL for `src` against `base`, or null for anything else. */
+/**
+ * Absolute http(s) URL for `src` against `base`, or null for anything else. A
+ * root-relative `src` ("/x", not "//host") is appended to `base` so a path prefix
+ * in SITE_URL ("https://x.com/tw") is kept, as the sitemap does (#528).
+ */
 export function absoluteUrl(src: string, base: string): string | null {
   try {
-    const u = new URL(src, base + "/");
+    const rootRelative = src.startsWith("/") && !src.startsWith("//");
+    const u = rootRelative ? new URL(base.replace(/\/+$/, "") + src) : new URL(src, base + "/");
     return u.protocol === "http:" || u.protocol === "https:" ? u.href : null;
   } catch {
     return null;

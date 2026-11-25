@@ -252,17 +252,26 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	}
 	// Failed passwords are counted per account (a ceiling across all IPs, so a
 	// botnet can't keep guessing one password) and per account + IP (#213).
-	// Only failures spend tokens: an attacker can't lock the owner out from
-	// one address, and needs several addresses to reach the account-wide
+	// Only failures keep their tokens: an attacker can't lock the owner out
+	// from one address, and needs several addresses to reach the account-wide
 	// ceiling. Unknown emails are counted the same way, so the limit doesn't
-	// reveal which accounts exist.
+	// reveal which accounts exist. The tokens are reserved before bcrypt
+	// (parallel guesses would otherwise all pass a check before any is charged,
+	// #526) and refunded on every outcome that is not a failed guess: success,
+	// a suspended account, a database error.
 	emailIP := loginEmailIPKey(ctx, email)
-	if err := checkKeys(email, emailIP, r.Limits.LoginEmail, r.Limits.LoginEmailIP); err != nil {
+	release, err := reserveKeys(email, emailIP, r.Limits.LoginEmail, r.Limits.LoginEmailIP)
+	if err != nil {
 		return nil, err
 	}
+	keep := false
+	defer func() {
+		if !keep {
+			release()
+		}
+	}()
 	failed := func() (*model.AuthPayload, error) {
-		r.Limits.LoginEmail.Allow(email)
-		r.Limits.LoginEmailIP.Allow(emailIP)
+		keep = true
 		return nil, invalid
 	}
 	u, err := r.Store.UserByEmail(ctx, email)

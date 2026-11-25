@@ -2,6 +2,8 @@ package ratelimit
 
 import (
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -241,5 +243,92 @@ func TestCeilSecond(t *testing.T) {
 		if got := ceilSecond(c.in); got != c.want {
 			t.Errorf("ceilSecond(%v) = %v; want %v", c.in, got, c.want)
 		}
+	}
+}
+
+func TestLimiterRefund(t *testing.T) {
+	rule := Rule{Burst: 3, Per: time.Hour}
+	cases := []struct {
+		name    string
+		spend   int
+		refunds int
+		want    int // tokens available afterwards
+	}{
+		{"restores exactly one", 3, 1, 1},
+		{"restores two", 3, 2, 2},
+		{"never exceeds burst", 1, 5, 3},
+		{"refund of unknown key is harmless", 0, 2, 3},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			clk := &fakeClock{t: time.Unix(1000, 0)}
+			l := newWithClock(rule, clk.now)
+			for range c.spend {
+				l.Allow("k")
+			}
+			for range c.refunds {
+				l.Refund("k")
+			}
+			got := 0
+			for ok, _ := l.Allow("k"); ok && got < 10; ok, _ = l.Allow("k") {
+				got++
+			}
+			if got != c.want {
+				t.Errorf("available = %d, want %d", got, c.want)
+			}
+		})
+	}
+	t.Run("nil limiter and unknown key", func(t *testing.T) {
+		var nl *Limiter
+		nl.Refund("x")
+		l := New(rule)
+		l.Refund("never-seen")
+		if l.Len() != 0 {
+			t.Errorf("Refund created a bucket: Len = %d", l.Len())
+		}
+	})
+}
+
+func TestLimiterReserveRefundConcurrent(t *testing.T) {
+	for _, burst := range []int{1, 3, 10} {
+		t.Run(strconv.Itoa(burst), func(t *testing.T) {
+			clk := &fakeClock{t: time.Unix(1000, 0)}
+			l := newWithClock(Rule{Burst: burst, Per: time.Hour}, clk.now)
+			const workers = 200
+			var held, maxHeld, admitted atomic.Int64
+			var wg sync.WaitGroup
+			start := make(chan struct{})
+			for i := range workers {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+					if ok, _ := l.Allow("acct"); !ok {
+						return
+					}
+					admitted.Add(1)
+					n := held.Add(1)
+					for {
+						m := maxHeld.Load()
+						if n <= m || maxHeld.CompareAndSwap(m, n) {
+							break
+						}
+					}
+					time.Sleep(5 * time.Millisecond) // the slow password check
+					held.Add(-1)
+					if i%2 == 0 { // "success": give the token back
+						l.Refund("acct")
+					}
+				}()
+			}
+			close(start)
+			wg.Wait()
+			if got := maxHeld.Load(); got > int64(burst) {
+				t.Errorf("%d reservations held at once, burst is %d", got, burst)
+			}
+			if admitted.Load() < int64(burst) {
+				t.Errorf("admitted %d, want at least burst %d", admitted.Load(), burst)
+			}
+		})
 	}
 }

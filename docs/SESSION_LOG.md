@@ -15,6 +15,45 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 71 — 2026-11-25 — Audit: revoke-all vs rotation, login limit race, gateway errors (seven slices)
+PR: #530
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
+Three Sonnet audits: backend auth / middleware / ratelimit / config (two: #525, #526), frontend shops / map / SEO / graphql
+client (three: #527–#529), ops: nginx / compose / scripts / migrations / CI (two: #523, #524). Sonnet sub-agents built
+#526 and #527–#529 in worktrees; reviewed and cherry-picked.
+
+### Shipped (one line per slice: area — what — key files)
+- #525 backend — `RevokeUserRefreshTokens` locks the user row and bumps `token_version` before revoking; `RotateRefreshToken`
+  and `SaveRefreshToken` hold the row `FOR SHARE`, so a rotation in flight is waited for and its successor revoked (before:
+  the revoke's snapshot missed it). New sessions go through `StartSession`, which refuses a version that moved since the user
+  was read (`ErrStaleSession` → UNAUTHENTICATED). `TestRevokeAllWaitsForRotation`, `TestStartSession` (both
+  fail without the fix).
+- #526 backend — `Limiter.Refund`; `Login` reserves on `LoginEmail` / `LoginEmailIP` before bcrypt (`reserveKeys`) and
+  refunds on success / suspended / DB error, so parallel guesses can't all pass a check first. Concurrency table test.
+- #527 frontend — `unavailableFromStatus` (502 / 503 / 504 without GraphQL errors → UNAVAILABLE) used by `toApiError`.
+- #528 frontend — `absoluteUrl` appends a root-relative path to `SITE_URL` with its sub-path, like the sitemap.
+- #529 frontend — `lib/fetch-timeout.ts`: server-side GraphQL clients abort after 8 s (`AbortSignal.timeout`, combined with a
+  caller signal); the browser client is unchanged.
+- #523 cross-cutting — `migrate.sh` splits lists on newlines and escapes the `\i` path; self-test step 5 runs from
+  `my proj's \dir/` (fails without the fix).
+- #524 backend — migration 029: indexes on `refresh_tokens.expires_at` and `cart_items.updated_at` (prune batches no longer
+  end in a full scan; EXPLAIN shows the index); marker + `ExpectedMigration` bumped.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16);
+  `migrate_selftest.sh` passes (and fails on step 5 with the old `migrate.sh`).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (444), `next build`; `check_brief.sh`, `docker compose config`.
+- Not run here: compose stack, smoke and Playwright (no image builds in this sandbox); CI `stack` runs them. #526 has no
+  graph-level parallel-login test (the limiter's reserve / refund is tested directly).
+
+### Decisions / deferred (anything the next session or the owner should know)
+- A login that loses the race with a password change / suspension answers UNAUTHENTICATED; the user signs in again.
+- `SaveRefreshToken` stays for tests and fixtures (no version check); production sessions use `StartSession`.
+- Audit notes not filed: `ErrWeakPassword` says "8–72 bytes" though the minimum counts characters; `IPRateLimit` puts
+  requests with no client IP in one bucket (only a non-TCP listener). No new questions. Stage 1 still waits on #199 / #200 /
+  #201; orders on #205.
+
 ## Session 70 — 2026-11-25 — Gallery lock after the 8th photo, full-width search (two slices)
 PR: #522
 

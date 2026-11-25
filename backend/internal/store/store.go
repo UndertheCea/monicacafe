@@ -36,6 +36,10 @@ var (
 	// ErrIsAdmin is returned when suspending an account that holds the ADMIN
 	// role: the role has to be revoked first (#485).
 	ErrIsAdmin = errors.New("store: account is an admin")
+	// ErrStaleSession is returned when a session is started for a token
+	// version that sign-out-everywhere, a password change or a suspension has
+	// since retired (#525).
+	ErrStaleSession = errors.New("store: token version changed")
 )
 
 // DB is the subset of pgx used by the store; satisfied by *pgxpool.Pool and pgx.Tx.

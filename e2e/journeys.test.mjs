@@ -134,6 +134,7 @@ describe("buyer", () => {
       // hands focus to the first row it added. One saved coffee is cloned into 13 so there is a second page,
       // and that page is held back so the busy state can be read.
       const real = [];
+      let saved; // the buyer's one saved coffee, from the first page (the real second page is empty)
       let release;
       const held = new Promise((r) => (release = r));
       await page.route("**/graphql", async (route) => {
@@ -141,7 +142,8 @@ describe("buyer", () => {
         if (!body.includes("MySavedCoffees")) return route.fallback();
         const res = await route.fetch();
         const json = await res.json();
-        const node = json.data.me.savedCoffees.nodes[0];
+        saved ??= json.data.me.savedCoffees.nodes[0];
+        const node = saved;
         const clone = (i) => ({ ...node, id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}` });
         const offset = JSON.parse(body).variables.offset;
         if (offset > 0) await held;
@@ -155,10 +157,11 @@ describe("buyer", () => {
         const more = page.getByRole("button", { name: "Load more saved coffees" });
         await more.focus();
         await page.keyboard.press("Enter");
-        await page.locator('button[aria-busy="true"]').filter({ hasText: "Loading" }).waitFor();
+        const busy = page.locator('button[aria-busy="true"]').filter({ hasText: "Loading" });
+        await busy.waitFor();
         assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-busy")), "true", "focus stays on the busy button");
         release();
-        await more.waitFor({ state: "detached" });
+        await busy.waitFor({ state: "detached" });
         await page.waitForFunction(
           () => document.activeElement?.getAttribute("data-row") === "00000000-0000-4000-8000-000000000012",
           null,

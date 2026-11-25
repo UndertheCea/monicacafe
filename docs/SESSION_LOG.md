@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 70 — 2026-11-25 — Gallery lock after the 8th photo, full-width search (two slices)
-PR: #TBD
+PR: #522
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-20), nothing pickable. Two
 Sonnet audits: frontend coffee pages / /coffees / uploader / account (one: #520), backend listings / search / sitemap /

@@ -14,6 +14,8 @@ package search
 import (
 	"strings"
 	"unicode"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // MaxAlternatives caps how many alternatives one search word expands to
@@ -165,27 +167,16 @@ func Expand(word string) []string {
 // punctuation removed ("Yirga-Cheffe," and "yirgacheffe" are one key).
 func key(s string) string {
 	var b strings.Builder
-	for _, r := range Traditional(s) {
-		if f, ok := accentFold[r]; ok {
-			r = f
-		}
+	// NFKD splits accents off their letters (whether typed precomposed or not) and
+	// folds full-width Latin; the marks are then dropped (#521).
+	for _, r := range norm.NFKD.String(Traditional(s)) {
 		switch {
-		case unicode.IsSpace(r), unicode.IsPunct(r):
+		case unicode.IsSpace(r), unicode.IsPunct(r), unicode.Is(unicode.Mn, r):
 			continue
 		}
 		b.WriteRune(unicode.ToLower(r))
 	}
 	return b.String()
-}
-
-var accentFold = map[rune]rune{
-	'á': 'a', 'à': 'a', 'â': 'a', 'ä': 'a', 'ã': 'a',
-	'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-	'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
-	'ó': 'o', 'ò': 'o', 'ô': 'o', 'ö': 'o', 'õ': 'o',
-	'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
-	'ñ': 'n', 'ç': 'c',
-	'Á': 'a', 'É': 'e', 'Í': 'i', 'Ó': 'o', 'Ú': 'u', 'Ñ': 'n',
 }
 
 // Traditional replaces the simplified characters that coffee listings use

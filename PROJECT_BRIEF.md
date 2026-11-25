@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-25 (after Session 69)
+Last updated: 2026-11-25 (after Session 70)
 
 ---
 
@@ -78,9 +78,8 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 69**: busy buttons keep keyboard focus (`pending` = `aria-disabled`, never `disabled`) and the last "load more" focuses
-the first new row (#510); "Try again" keeps focus in its section (`RetryButton`, #512); the header cart count says 包 (#513);
-`ReserveStock` refuses NT$0 options (#514). The new e2e focus step first runs in CI.
+**Session 70**: the coffee gallery no longer stays locked after the 8th photo fills it (#520); search NFKC-normalises the
+query, so full-width `Ｇｕｊｉ` from a zh-TW IME and combining accents find Guji / Nariño and their synonyms (#521).
 
 ## Current focus
 
@@ -90,7 +89,7 @@ the first new row (#510); "Try again" keeps focus in its section (`RetryButton`,
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–69 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–70 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
@@ -151,7 +150,7 @@ Open questions for the owner (answer by commenting on the issue):
 - **Comment pages by offset, not cursor** — "load more" dedupes by id; the dashboard coffee list pages the same way (#49).
 - **Duplicate copies details + options, never photos or comments** — image keys are scoped to the source coffee (#54).
 - **Search synonyms = a curated Go table (#269)**: each word ORs its group (≤ 8 patterns, one `ILIKE ANY`), words AND; the
-  frontend reads the same expansion from `searchTerms` (#274). **Data export (#270)** = one SQL snapshot of own rows, no secrets.
+  frontend reads the same expansion from `searchTerms` (#274). The query is NFKC'd, stored text is not (#521). **Data export (#270)** = one SQL snapshot of own rows, no secrets.
 - **Keyword search = Postgres ILIKE per word (AND)** — no new infra; Meilisearch (Stage 3) can replace it (#66).
 - **`Comment.coffee` is nullable** — a comment can outlive its coffee's publication; non-owners get null rather
   than a draft (#69). `User.comments` is empty, not an error, for other viewers (#71).

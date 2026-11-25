@@ -5,7 +5,7 @@ import { dashWriteError, type DashWriteError } from "@/lib/dashboard/writeError"
 import { toApiError } from "@/lib/graphql";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { UPDATE_COFFEE, type EditableCoffee } from "@/lib/dashboard/queries";
-import { MAX_COFFEE_IMAGES, appendImage, moveItem, removeAt } from "@/lib/dashboard/upload";
+import { MAX_COFFEE_IMAGES, appendImage, galleryLocked, moveItem, removeAt } from "@/lib/dashboard/upload";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { focusAfterRemoval, focusRowToggle } from "@/components/focusAfterRemoval";
 import { ImageUploader } from "./ImageUploader";
@@ -31,7 +31,7 @@ export function CoffeeGallery({
   useEffect(() => {
     latest.current = urls;
   }, [urls]);
-  const locked = busy || uploading;
+  const locked = galleryLocked(busy, uploading, urls.length);
   const list = useRef<HTMLOListElement>(null);
   const rowOf = (src: string) =>
     Array.from(list.current?.children ?? []).find((r) => r.getAttribute("data-row") === src);

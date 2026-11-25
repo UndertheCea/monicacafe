@@ -116,3 +116,18 @@ test("appendImage adds to the latest list, once, up to the limit", () => {
   assert.deepEqual(appendImage(["a"], "a"), ["a"]);
   assert.deepEqual(appendImage(["a", "b"], "c", 2), ["a", "b"]);
 });
+
+test("galleryLocked: a save or a visible uploader's upload locks; a full gallery's stale busy doesn't (#520)", async () => {
+  const { galleryLocked, MAX_COFFEE_IMAGES } = await import("../lib/dashboard/upload.ts");
+  const cases = [
+    // saving, uploading, count, want
+    [false, false, 3, false],
+    [true, false, 3, true],
+    [false, true, 3, true],
+    [false, true, MAX_COFFEE_IMAGES - 1, true],
+    [false, true, MAX_COFFEE_IMAGES, false],
+    [true, true, MAX_COFFEE_IMAGES, true],
+  ];
+  for (const [saving, uploading, count, want] of cases)
+    assert.equal(galleryLocked(saving, uploading, count), want, `${saving}/${uploading}/${count}`);
+});

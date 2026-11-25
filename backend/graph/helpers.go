@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vikstrous/dataloadgen"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/underthecea/monicacafe/backend/graph/model"
 	"github.com/underthecea/monicacafe/backend/internal/auth"
@@ -1021,7 +1022,9 @@ const (
 // (nil for a blank one). Duplicates are dropped case-insensitively; the caps
 // keep a query from turning into dozens of ILIKE scans.
 func searchTerms(s string) ([]string, error) {
-	s = strings.TrimSpace(s)
+	// NFKC: a zh-TW IME in full-width mode types "Ｇｕｊｉ", and a paste may carry
+	// a combining accent; both should match the stored "Guji" / "Nariño" (#521).
+	s = strings.TrimSpace(norm.NFKC.String(s))
 	if utf8.RuneCountInString(s) > maxSearchLen {
 		return nil, errBadInput("search", fmt.Sprintf("search must be at most %d characters", maxSearchLen))
 	}

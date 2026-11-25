@@ -15,6 +15,31 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 70 — 2026-11-25 — Gallery lock after the 8th photo, full-width search (two slices)
+PR: #522
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-20), nothing pickable. Two
+Sonnet audits: frontend coffee pages / /coffees / uploader / account (one: #520), backend listings / search / sitemap /
+similar / worker / storage / migrations 020–028 (one: #521). Nothing else filed.
+
+### Shipped (one line per slice: area — what — key files)
+- #520 frontend — the 8th photo fills the gallery, which unmounts `ImageUploader` in the same render as its end of upload, so
+  `onBusyChange(false)` never ran and ← / → / Remove stayed locked until a reload. The uploader reports the end on unmount,
+  and `galleryLocked(saving, uploading, count)` (`lib/dashboard/upload.ts`, tested) ignores an uploader the gallery hides.
+- #521 backend — `searchTerms` NFKC-normalises the query (zh-TW IME full-width `Ｇｕｊｉ`, combining accents, ideographic
+  spaces); `search.key` uses NFKD and drops combining marks instead of the precomposed `accentFold` table. Table cases in
+  `TestSearchTerms` and `TestExpand`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (438), `next build`; `check_brief.sh`, `docker compose config`.
+- Not run here: compose stack, smoke and Playwright (no image builds in this sandbox); CI `stack` runs them. The gallery fix
+  has no browser test (filling 8 photos in e2e costs 8 uploads); the pure lock rule is unit-tested.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Only the query is normalised: seller text stored with full-width Latin still matches only a full-width query. Rare; not filed.
+- No new questions. Stage 1 still waits on #199 / #200 / #201; orders on #205.
+
 ## Session 69 — 2026-11-25 — Focus kept by busy and retry buttons, cart unit, NT$0 stock (four slices)
 PR: #515
 

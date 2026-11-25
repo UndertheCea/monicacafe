@@ -22,6 +22,10 @@ func TestExpand(t *testing.T) {
 		{"simplified with no group still folds", "厌氧发酵", []string{"厌氧发酵", "厭氧發酵"}},
 		{"mainland name of a country", "肯尼亚", []string{"肯尼亚", "肯尼亞", "Kenya", "肯亞"}},
 		{"tasting note", "茉莉", []string{"茉莉", "Jasmine", "茉莉花"}},
+		// #521: accents typed as combining marks fold like precomposed ones, and full-width Latin finds its group.
+		{"combining accent folded", "Narin\u0303o", []string{"Narin\u0303o", "Nariño", "Narino", "納里尼奧", "娜玲珠"}},
+		{"full-width latin", "Ｇｕｊｉ", []string{"Ｇｕｊｉ", "Guji", "古吉"}},
+		{"other accents fold too", "Nyéri", []string{"Nyéri", "Nyeri", "涅里"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

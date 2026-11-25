@@ -307,6 +307,11 @@ func TestSearchTerms(t *testing.T) {
 		{"a b c d e f g h i", nil, true},
 		{strings.Repeat("咖", 100), []string{strings.Repeat("咖", 100)}, false},
 		{strings.Repeat("咖", 101), nil, true},
+		// NFKC (#521): full-width Latin from a zh-TW IME, a combining accent, an ideographic space.
+		{"Ｇｕｊｉ", []string{"Guji"}, false},
+		{"Narin\u0303o", []string{"Nariño"}, false},
+		{"\u3000Costa\u3000Rica\u3000", []string{"Costa", "Rica"}, false},
+		{"耶加雪菲　淺焙", []string{"耶加雪菲", "淺焙"}, false},
 	}
 	for _, tc := range cases {
 		got, err := searchTerms(tc.in)

@@ -119,6 +119,22 @@ func (l *Limiter) Allow(key string) (bool, time.Duration) {
 	return l.take(key, true)
 }
 
+// Refund gives back one token that Allow spent, never filling the bucket past
+// its burst. Use it to undo a reservation (spend first, refund on the outcomes
+// that should not count), which is atomic where Check-then-Allow is not (#526).
+// A refund for a key that is not tracked (never spent, swept or evicted: its
+// bucket is full again anyway) does nothing.
+func (l *Limiter) Refund(key string) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if b, ok := l.buckets[key]; ok {
+		b.tokens = min(float64(l.rule.Burst), b.tokens+1)
+	}
+}
+
 // Check reports whether key's bucket has a token, without spending it. Pair it
 // with Allow to charge only some outcomes, e.g. failed logins (#213).
 func (l *Limiter) Check(key string) (bool, time.Duration) {

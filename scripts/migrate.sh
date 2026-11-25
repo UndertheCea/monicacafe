@@ -111,6 +111,7 @@ baseline_marker() {
     026) echo "EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'touch_coffee_from_variant' AND prosrc LIKE '%to_jsonb(NEW)%')" ;;
     027) echo "to_regclass('public.stock_holds') IS NOT NULL" ;;
     028) echo "EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_coffees_updated_at' AND pg_get_triggerdef(oid) ILIKE '%IS DISTINCT FROM new.*%')" ;;
+    029) echo "to_regclass('public.idx_cart_items_updated_at') IS NOT NULL" ;;
     *) return 1 ;;
   esac
 }

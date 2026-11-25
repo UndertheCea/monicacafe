@@ -37,7 +37,7 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 | Area | State |
 |---|---|
-| DB schema + migrations 001–028, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
+| DB schema + migrations 001–029, tracked in `schema_migrations` and applied on every `docker compose up` (`scripts/migrate.sh`) | Done (#209) |
 | Go store (pgx) + GraphQL API for Stage 1 | Done — incl. variant CRUD, delete draft / duplicate coffee |
 | Auth (JWT + refresh rotation with 20 s replay grace; BFF cookie flow in Next) | Done — per-device logout + "sign out everywhere" (#73, #74); expired tokens pruned hourly; only a 401 signs out, hiccups retry (#228); no refresh call without the `mc_s` hint (#234) |
 | Coffee listing details: provenance (#116–#120), brew method (#122–#127), harvest year (#129–#134) on the API, forms, coffee page + JSON-LD; cup profile removed (#189); `minAltitudeM` / brew / harvest filters in the API only (#167) | Done |

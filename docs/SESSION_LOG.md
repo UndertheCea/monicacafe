@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 71 — 2026-11-25 — Audit: revoke-all vs rotation, login limit race, gateway errors (seven slices)
-PR: #TBD
+PR: #530
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
 Three Sonnet audits: backend auth / middleware / ratelimit / config (two: #525, #526), frontend shops / map / SEO / graphql

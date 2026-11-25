@@ -190,6 +190,22 @@ test("bagCountKey: one bag is singular, everything else plural", () => {
   assert.equal(t("en", bagCountKey("nav.cartCount", 3), { n: 3 }), "Cart, 3 bags");
 });
 
+test("the header and the cart count the same unit in both languages (#513)", () => {
+  const cases = [
+    // locale, n, unit both strings must end with
+    ["zh-TW", 1, "1 包"],
+    ["zh-TW", 3, "3 包"],
+    ["en", 1, "1 bag"],
+    ["en", 3, "3 bags"],
+  ];
+  for (const [locale, n, unit] of cases) {
+    for (const base of ["cart.itemCount", "nav.cartCount"]) {
+      const s = t(locale, bagCountKey(base, n), { n });
+      assert.ok(s.endsWith(unit), `${locale} ${base} ${n}: ${s}`);
+    }
+  }
+});
+
 test("cartLineName: the coffee's name, else grind and weight", () => {
   const variant = { weightG: 200 };
   const cases = [

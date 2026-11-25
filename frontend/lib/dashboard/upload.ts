@@ -97,3 +97,11 @@ export function removeAt<T>(list: readonly T[], index: number): T[] {
 export function appendImage(list: readonly string[], item: string, max = MAX_COFFEE_IMAGES): string[] {
   return list.includes(item) || list.length >= max ? [...list] : [...list, item];
 }
+
+/**
+ * Whether the gallery's arrows and Remove are locked: while a gallery save runs, or while an upload runs in the
+ * uploader. A full gallery shows no uploader, so its last reported "busy" can't hold the lock (#520).
+ */
+export function galleryLocked(saving: boolean, uploading: boolean, count: number, max = MAX_COFFEE_IMAGES): boolean {
+  return saving || (uploading && count < max);
+}

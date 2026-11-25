@@ -59,6 +59,13 @@ export function ImageUploader({
   useEffect(() => {
     onBusyChange?.(busy);
   }, [busy, onBusyChange]);
+  // Unmounted mid-upload (the 8th photo fills the gallery, which then hides the uploader): the effect above never
+  // reports the end, so say it here, or the parent stays locked until a reload (#520).
+  const busyChange = useRef(onBusyChange);
+  useEffect(() => {
+    busyChange.current = onBusyChange;
+  }, [onBusyChange]);
+  useEffect(() => () => busyChange.current?.(false), []);
 
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const chosen = e.target.files?.[0];

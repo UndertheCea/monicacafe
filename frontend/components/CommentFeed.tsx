@@ -6,7 +6,8 @@ import { AuthorBadge } from "@/components/coffees/AuthorBadge";
 import { CommentBody } from "@/components/coffees/CommentBody";
 import { DeleteCommentButton } from "@/components/coffees/CommentForm";
 import { useLoadMore } from "@/components/useLoadMore";
-import { emptiedWithMore } from "@/lib/loadMore";
+import { focusLoadedRow } from "@/components/focusAfterRemoval";
+import { emptiedWithMore, firstNewRow } from "@/lib/loadMore";
 import { COMMENT_LIST_PAGE, commentCoffeeHref, hasMoreComments, withEditedComment, withoutComment } from "@/lib/comments";
 import type { CommentPage } from "@/lib/dashboard/queries";
 import { nextLoadKey } from "@/lib/retry";
@@ -71,6 +72,8 @@ export function CommentFeed({
           ? { ...cur, page: more.merge(cur.page, next), lastPage: next.nodes.length, more: "idle" }
           : cur,
       );
+      // The last page removes the button: focus goes to the first row it added (#510).
+      focusLoadedRow(firstNewRow(s.page.nodes, next.nodes));
     } catch {
       setS((cur) => (cur.state === "ready" ? { ...cur, more: "error" } : cur));
     }
@@ -183,7 +186,7 @@ export function CommentFeed({
             )}
             <Button
               type="button"
-              disabled={s.more === "loading"}
+              pending={s.more === "loading"}
               onClick={() => void loadMore()}
               variant="secondary"
             >

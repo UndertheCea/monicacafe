@@ -7,6 +7,8 @@ import { query } from "@/lib/graphql";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { CommentItem } from "./CommentItem";
 import { Button } from "@/components/ui";
+import { focusLoadedRow } from "@/components/focusAfterRemoval";
+import { firstNewRow } from "@/lib/loadMore";
 
 /**
  * Comments after the server-rendered first page. Fetches anonymously (comments
@@ -90,6 +92,8 @@ export function MoreComments({
       const page = r.coffee?.comments ?? [];
       setExtra((prev) => appendComments(prev, page));
       setLastPage(page.length);
+      // The last page removes the button: focus goes to the first comment it added (#510).
+      focusLoadedRow(firstNewRow(shown, page));
       try {
         window.history.replaceState(
           withLoadedComments(window.history.state, coffeeId, appendComments(shown, page).length),
@@ -125,7 +129,7 @@ export function MoreComments({
           <Button
             type="button"
             onClick={() => void loadMore()}
-            disabled={busy}
+            pending={busy}
             variant="secondary"
           >
             {busy ? t(locale, "comments.loadingMore") : t(locale, "comments.more")}

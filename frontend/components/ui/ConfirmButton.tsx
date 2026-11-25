@@ -66,7 +66,7 @@ export function ConfirmButton({
         ref={rest}
         variant={variant}
         size={size}
-        disabled={disabled || busy}
+        disabled={disabled}
         pending={busy}
         className={className}
         onClick={() => setConfirming(true)}

@@ -139,7 +139,7 @@ export function AuthForm({ mode, locale }: { mode: Mode; locale: Locale }) {
           />
         )}
       </Field>
-      <Button type="submit" disabled={busy} full>
+      <Button type="submit" pending={busy} full>
         {busy ? t(locale, "auth.submitting") : t(locale, mode === "login" ? "auth.submitLogin" : "auth.submitRegister")}
       </Button>
       <p className="text-center text-sm text-muted">

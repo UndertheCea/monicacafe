@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
-import { focusAfterRemoval } from "@/components/focusAfterRemoval";
+import { focusAfterRemoval, focusLoadedRow } from "@/components/focusAfterRemoval";
+import { firstNewRow } from "@/lib/loadMore";
 import { ReasonPrompt } from "@/components/admin/ReasonPrompt";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { nextLoadKey, submitSearch } from "@/lib/retry";
@@ -118,6 +119,8 @@ function useAdminList<T extends { id: string }>(fetchPage: (offset: number) => P
     try {
       const p = await fetchPage(list.nodes.length);
       setList((cur) => mergeAdminPage(cur, p, gen, generation.current));
+      // The last page removes the button: focus goes to the first row it added (#510).
+      if (gen === generation.current) focusLoadedRow(firstNewRow(list.nodes, p.nodes));
     } catch {
       // Keep what is shown; the button stays for another try.
       if (gen === generation.current) setMoreFailed(true);
@@ -446,6 +449,7 @@ function UsersSection({ locale, onModerated, version }: { locale: Locale; onMode
               {nodes.map((u) => (
                 <SuspendRow
                   key={u.id}
+                  rowId={u.id}
                   locale={locale}
                   suspended={u.suspended}
                   canAct={u.role !== "ADMIN"}
@@ -515,6 +519,7 @@ function ShopsSection({ locale, onModerated, version }: { locale: Locale; onMode
               {nodes.map((s) => (
                 <SuspendRow
                   key={s.id}
+                  rowId={s.id}
                   locale={locale}
                   suspended={s.suspended}
                   canAct
@@ -556,6 +561,7 @@ function ShopsSection({ locale, onModerated, version }: { locale: Locale; onMode
 
 /** A user or shop row: its own cells, then status and suspend / reinstate (reason required). */
 function SuspendRow({
+  rowId,
   locale,
   cells,
   suspended,
@@ -565,6 +571,8 @@ function SuspendRow({
   onCancel,
   onConfirm,
 }: {
+  /** `data-row`, so "load more" can focus the first row it added (#510). */
+  rowId: string;
   locale: Locale;
   cells: ReactNode;
   suspended: boolean;
@@ -578,7 +586,7 @@ function SuspendRow({
   const back = useReturnFocus(acting, trigger);
   return (
     <>
-      <tr>
+      <tr data-row={rowId}>
         {cells}
         <td className={tdCls}>
           <Badge tone={suspended ? "danger" : "soft"}>{t(locale, suspended ? "admin.suspended" : "admin.active")}</Badge>

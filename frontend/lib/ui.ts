@@ -97,3 +97,25 @@ export function describedBy(id: string, hasHint: boolean, hasError: boolean): st
   const parts = [hasError && ids.error, hasHint && ids.hint].filter(Boolean);
   return parts.length ? parts.join(" ") : undefined;
 }
+
+/**
+ * The attributes a `<Button>` gets from `pending` and `disabled` (#510). A busy button stays focusable: a focused
+ * `<button>` that turns `disabled` drops focus to `<body>` (WCAG 2.4.3), so `pending` sets `aria-disabled` +
+ * `aria-busy` instead and the button ignores clicks and implicit form submission (`ignore`). `disabled` stays for
+ * buttons that can't be used for another reason (nothing typed, first row can't move up) and applies once the
+ * work is over.
+ */
+export function buttonState(pending: boolean, disabled: boolean | undefined): {
+  disabled: boolean | undefined;
+  "aria-disabled": true | undefined;
+  "aria-busy": true | undefined;
+  ignore: boolean;
+} {
+  // While pending, `disabled` waits: turning it on now would drop focus just the same.
+  return {
+    disabled: (!pending && disabled) || undefined,
+    "aria-disabled": pending || undefined,
+    "aria-busy": pending || undefined,
+    ignore: pending,
+  };
+}

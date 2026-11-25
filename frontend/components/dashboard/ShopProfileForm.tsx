@@ -318,7 +318,8 @@ function ProfileEditor({
       <div className="flex flex-wrap items-center gap-4">
         <Button
           type="submit"
-          disabled={busy || !dirty}
+          pending={busy}
+          disabled={!dirty}
         >
           {busy ? t(locale, "cf.saving") : t(locale, "cf.saveDetails")}
         </Button>

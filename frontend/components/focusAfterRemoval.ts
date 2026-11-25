@@ -77,12 +77,31 @@ export function focusAfterRemoval(row: Element | null | undefined): void {
  * After a row's control swapped for another (Unpublish -> Publish, #488): once the update has settled, put focus on
  * the row's `data-row-toggle` control if focus was lost. A visitor who moved on keeps their place.
  */
-export function focusRowToggle(rowId: string): void {
+export function focusRowToggle(rowId: string, control = "[data-row-toggle]"): void {
   if (typeof window === "undefined") return;
   requestAnimationFrame(() => {
     if (!focusLost()) return;
-    const row = Array.from(document.querySelectorAll(ROW)).find((r) => r.getAttribute("data-row") === rowId);
-    const el = row?.querySelector<HTMLElement>("[data-row-toggle]:not([disabled])");
+    const el = findRow(rowId)?.querySelector<HTMLElement>(`${control}:not([disabled])`);
     el?.focus();
+  });
+}
+
+function findRow(rowId: string): Element | undefined {
+  return Array.from(document.querySelectorAll(ROW)).find((r) => r.getAttribute("data-row") === rowId);
+}
+
+/**
+ * After a "load more" (#510): the button keeps focus while it works, but the last page removes it. Once the new rows
+ * are on screen, if focus was lost, put it on the first newly loaded row (made focusable, not tabbable), so the
+ * next Tab continues from the rows just added instead of the top of the page. `rowId` comes from `firstNewRow`.
+ */
+export function focusLoadedRow(rowId: string | null): void {
+  if (!rowId || typeof window === "undefined") return;
+  requestAnimationFrame(() => {
+    if (!focusLost()) return;
+    const row = findRow(rowId);
+    if (!(row instanceof HTMLElement)) return;
+    if (!row.hasAttribute("tabindex")) row.setAttribute("tabindex", "-1");
+    row.focus();
   });
 }

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useLoadMore } from "@/components/useLoadMore";
-import { focusAfterRemoval } from "@/components/focusAfterRemoval";
-import { emptiedWithMore } from "@/lib/loadMore";
+import { focusAfterRemoval, focusLoadedRow } from "@/components/focusAfterRemoval";
+import { emptiedWithMore, firstNewRow } from "@/lib/loadMore";
 import { MY_FOLLOWED_SHOPS, UNFOLLOW_SHOP, type ShopSummary } from "@/lib/api";
 import { FOLLOWED_PAGE } from "@/lib/follows";
 import { t, type Locale } from "@/lib/i18n/dict";
@@ -64,6 +64,8 @@ export function FollowedShops({ locale }: { locale: Locale }) {
           ? { ...cur, list: more.merge(cur.list, next), lastPage: next.nodes.length, more: "idle" }
           : cur,
       );
+      // The last page removes the button: focus goes to the first row it added (#510).
+      focusLoadedRow(firstNewRow(s.list.nodes, next.nodes));
     } catch {
       setS((cur) => (cur.state === "ready" ? { ...cur, more: "error" } : cur));
     }
@@ -151,7 +153,8 @@ export function FollowedShops({ locale }: { locale: Locale }) {
                 type="button"
                 onClick={(e) => unfollow(sh.id, e.currentTarget.closest("[data-row]"))}
                 data-row-action
-                disabled={removing !== null}
+                pending={removing === sh.id}
+                disabled={removing !== null && removing !== sh.id}
                 aria-label={t(locale, "account.unfollowNamed", { name: sh.name })}
                 variant="secondary" size="sm" className="shrink-0"
               >
@@ -166,7 +169,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
           <Button
             type="button"
             onClick={() => void loadMore()}
-            disabled={s.more === "loading"}
+            pending={s.more === "loading"}
             variant="secondary"
           >
             {s.more === "loading" ? t(locale, "dash.loading") : t(locale, "account.moreFollowed")}

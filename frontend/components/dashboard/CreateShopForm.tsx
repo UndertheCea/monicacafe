@@ -154,7 +154,7 @@ export function CreateShopForm({ locale, onCreated }: { locale: Locale; onCreate
         <div className="sm:col-span-2">
           <Button
             type="submit"
-            disabled={busy}
+            pending={busy}
           >
             {busy ? t(locale, "auth.submitting") : t(locale, "dash.createShop")}
           </Button>

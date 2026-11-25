@@ -47,7 +47,7 @@ function LanguageForm({ locale, nextUrl }: { locale: Locale; nextUrl: string }) 
     >
       <input type="hidden" name="locale" value={next} />
       <input type="hidden" name="next" value={nextUrl} />
-      <Button type="submit" aria-label={t(locale, "lang.toggleAria")} disabled={pending} variant="secondary">
+      <Button type="submit" aria-label={t(locale, "lang.toggleAria")} pending={pending} variant="secondary">
         <span lang={next === "en" ? "en" : "zh-Hant"}>{t(locale, "lang.toggle")}</span>
       </Button>
     </form>

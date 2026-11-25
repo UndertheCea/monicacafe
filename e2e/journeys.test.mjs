@@ -129,6 +129,53 @@ describe("buyer", () => {
       await page.getByRole("button", { name: "Delete my account" }).waitFor();
       assert.equal(await focused(), "Delete my account");
     });
+    await step(page, "busy-buttons-keep-focus", async () => {
+      // #510: a busy button is aria-disabled, not disabled, so keyboard focus stays on it; the last "load more"
+      // hands focus to the first row it added. One saved coffee is cloned into 13 so there is a second page,
+      // and that page is held back so the busy state can be read.
+      const real = [];
+      let release;
+      const held = new Promise((r) => (release = r));
+      await page.route("**/graphql", async (route) => {
+        const body = route.request().postData() ?? "";
+        if (!body.includes("MySavedCoffees")) return route.fallback();
+        const res = await route.fetch();
+        const json = await res.json();
+        const node = json.data.me.savedCoffees.nodes[0];
+        const clone = (i) => ({ ...node, id: `00000000-0000-4000-8000-${String(i).padStart(12, "0")}` });
+        const offset = JSON.parse(body).variables.offset;
+        if (offset > 0) await held;
+        const nodes = offset === 0 ? [node, ...Array.from({ length: 11 }, (_, i) => clone(i + 1))] : [clone(12)];
+        real.push(offset);
+        json.data.me.savedCoffees = { total: 13, nodes };
+        await route.fulfill({ response: res, json });
+      });
+      try {
+        await page.goto("/account");
+        const more = page.getByRole("button", { name: "Load more saved coffees" });
+        await more.focus();
+        await page.keyboard.press("Enter");
+        await page.locator('button[aria-busy="true"]').filter({ hasText: "Loading" }).waitFor();
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute("aria-busy")), "true", "focus stays on the busy button");
+        release();
+        await more.waitFor({ state: "detached" });
+        await page.waitForFunction(
+          () => document.activeElement?.getAttribute("data-row") === "00000000-0000-4000-8000-000000000012",
+          null,
+          { timeout: 5000 },
+        );
+        assert.deepEqual(real, [0, 12]);
+      } finally {
+        await page.unroute("**/graphql");
+      }
+      // A busy Save keeps focus too: pressing it from the keyboard, focus is still there once it's saved.
+      await page.goto("/account");
+      const save = page.getByRole("button", { name: "Save", exact: true }).first();
+      await save.focus();
+      await page.keyboard.press("Enter");
+      await page.getByText("Saved.", { exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), "Save", "focus stays on Save");
+    });
     await step(page, "download-my-data", async () => {
       await page.goto("/account");
       const [download] = await Promise.all([

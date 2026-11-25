@@ -83,7 +83,7 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
         </label>
         <Button
           type="button"
-          disabled={busy}
+          pending={busy}
           onClick={() => void submit()}
         >
           {t(locale, busy ? "auth.submitting" : "auth.submitLogin")}

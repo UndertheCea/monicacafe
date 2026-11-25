@@ -41,6 +41,9 @@ No session PR open (only dependabot's), no owner answers on questions (none upda
   `node --check` on the e2e file.
 - Not run here: compose stack, smoke and Playwright. A Docker daemon started, but image builds can't reach the Go / npm
   proxies from inside containers (the sandbox's proxy CA). CI `stack` is the first run of `busy-buttons-keep-focus`.
+- CI caught two faults in it: focus was looked for one frame after the update, before React's commit (now `rescueFocus`
+  watches the page for 2 s; checked with a late commit and a late `disabled` in Chromium), and the routed second page
+  cloned the real, empty page. Re-checked locally with `next start` + routed auth / GraphQL: focus lands on the new row.
 
 ### Decisions / deferred (anything the next session or the owner should know)
 - A busy button is never `disabled`: `pending` wins over `disabled` until the work ends (a disabled focused button loses

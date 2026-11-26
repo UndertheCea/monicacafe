@@ -20,9 +20,13 @@ before(async () => {
   s = await newVisitor(browser);
   b = await newVisitor(browser);
 });
+// The browser closes even when the check fails: an open Chromium keeps the run alive until CI's timeout (#541).
 after(async () => {
-  for (const v of [s, b]) assert.deepEqual(v?.page.errors ?? [], [], "uncaught page errors");
-  await browser?.close();
+  try {
+    for (const v of [s, b]) assert.deepEqual(v?.page.errors ?? [], [], "uncaught page errors");
+  } finally {
+    await browser?.close();
+  }
 });
 
 describe("seller", () => {

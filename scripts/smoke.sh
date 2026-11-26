@@ -16,6 +16,12 @@ BASE_URL="${BASE_URL:-http://localhost}"
 API_URL="${API_URL:-$BASE_URL}"
 fail=0
 
+# Neither helper may fail: under `set -e` + pipefail a failed curl or a grep with no match would end the script at
+# `x=$(gql … | field …)` without a FAIL line (#545). An empty result is reported by the checks below instead.
+gql() { # token json-body
+  curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' ${1:+-H "Authorization: Bearer $1"} -d "$2" || true
+}
+field() { { grep -o "\"$1\":\"[^\"]*\"" || true; } | head -1 | cut -d'"' -f4; }
 check_status() { # path expected
   local code
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$1") || code="000"
@@ -110,7 +116,7 @@ html_escape() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g' <<<"
 detail_check() { # path graphql-query
   local html name
   html=$(curl -s --max-time 15 -w '\n%{http_code}' "$BASE_URL$1") || html="000"
-  name=$(curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' -d "$2" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
+  name=$(gql "" "$2" | field name)
   if [[ "${html##*$'\n'}" == "200" && -n "$name" && "$html" == *"$(html_escape "$name")"* \
         && "$html" == *'property="og:url"'* && "$html" == *'rel="canonical"'* ]]; then
     echo "ok   200 $1 (\"$name\", og + canonical)"
@@ -511,10 +517,6 @@ fi
 # End to end: a throwaway seller opens a shop, gets a presigned URL, uploads a
 # file through nginx and reads it back from the public URL. This leaves a
 # "smoke…" user and shop behind (fine for a dev stack; SMOKE_UPLOAD=0 skips it).
-gql() { # token json-body
-  curl -s --max-time 15 "$API_URL/graphql" -H 'Content-Type: application/json' ${1:+-H "Authorization: Bearer $1"} -d "$2"
-}
-field() { grep -o "\"$1\":\"[^\"]*\"" | head -1 | cut -d'"' -f4; }
 if [[ "${SMOKE_UPLOAD:-1}" != "0" ]]; then
   run="smoke$(date +%s)$RANDOM"
   token=$(gql "" "$(printf '{"query":"mutation($in: RegisterInput!) { register(input: $in) { accessToken } }","variables":{"in":{"email":"%s@example.com","password":"smoke-test-pw","displayName":"Smoke"}}}' "$run")" | field accessToken)

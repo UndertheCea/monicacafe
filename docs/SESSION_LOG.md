@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 72 — 2026-11-26 — Audit: createShop vs suspension, rate-limit waits, blank provenance (six slices)
-PR: #PRNUM
+PR: #537
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
 Three Sonnet audits: backend comments / reports / moderation / cart / jobs / ECPay (one: #534), frontend dashboard / cart /

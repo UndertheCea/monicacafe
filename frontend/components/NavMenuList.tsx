@@ -23,7 +23,8 @@ export function NavMenuList({
   returnTo,
 }: {
   locale: Locale;
-  /** On /menu, the page it was opened from (#416): sign-in and the language switch go back there. */
+  /** The page sign-in and the language switch go back to: on /menu the page it was opened from (#416), in the
+   * drawer the current path + query (#538). Defaults to the pathname alone. */
   returnTo?: string | null;
   onNavigate?: () => void;
   /** 3 under the drawer's h2 title; 2 on the /menu page (under its h1). */

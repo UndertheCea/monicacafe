@@ -112,8 +112,9 @@ export function ShopMap({
     };
   }, [pins, zoomIn, zoomOut, closePopup]);
 
+  // isolate (#539): the hint's z-index only has to clear Leaflet's panes, never the sticky header.
   return (
-    <div className="relative overflow-hidden rounded-box ring-1 ring-line">
+    <div className="relative isolate overflow-hidden rounded-box ring-1 ring-line">
       <div ref={el} role="region" aria-label={ariaLabel} className="z-0 h-[50vh] min-h-[320px] sm:h-[60vh] w-full bg-paper" />
       {touch && status === "ready" && (
         <p className="pointer-events-none absolute inset-x-0 top-0 z-[500] bg-white/90 px-3 py-1 text-center text-xs text-muted">

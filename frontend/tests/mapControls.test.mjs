@@ -27,3 +27,10 @@ test("every Leaflet map translates its zoom control and hides the attribution fl
   const map = readFileSync(new URL("../components/map/ShopMap.tsx", import.meta.url), "utf8");
   assert.match(map, /leaflet-popup-close-button/);
 });
+
+// #539: the touch hint (z-500) stays inside the map's own stacking context, below the sticky header.
+test("the map wrapper isolates its layers", () => {
+  const src = readFileSync(new URL("../components/map/ShopMap.tsx", import.meta.url), "utf8");
+  assert.match(src, /className="relative isolate overflow-hidden/);
+});
+

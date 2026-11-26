@@ -526,6 +526,25 @@ func envExample(t *testing.T) map[string]string {
 	return out
 }
 
+// Every variable Load reads is documented in .env.example, commented out or
+// not (CLAUDE.md rule 6; PORT was missing, #546).
+func TestEnvExampleDocumentsEveryLoadedVar(t *testing.T) {
+	src, err := os.ReadFile("config.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := regexp.MustCompile(`\b(?:get|getOrEmpty)\("([A-Z][A-Z0-9_]*)"`).FindAllStringSubmatch(string(src), -1)
+	if len(read) < 20 {
+		t.Fatalf("found only %d variables in config.go; has the get() pattern changed?", len(read))
+	}
+	env := envExample(t)
+	for _, m := range read {
+		if _, ok := env[m[1]]; !ok {
+			t.Errorf(".env.example doesn't document %s, which config.Load reads", m[1])
+		}
+	}
+}
+
 // Copying .env.example to a server and only setting APP_ENV=production must
 // not start: each exposure setting in the file is refused on its own (#287).
 // TRUSTED_PROXIES is the exception: its example is the tight compose list.

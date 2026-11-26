@@ -2,6 +2,7 @@
 // details" rule and the /admin screen. Pure, only pure sibling imports, so `npm test`
 // can load this file directly.
 
+import { rateLimitMessage, type RateLimitMessage } from "./errors.ts";
 import { hasInvisibleChars } from "./textInput.ts";
 
 /** The backend's error code for text with a phone number, email, link or LINE / IG / FB ID. */
@@ -87,6 +88,17 @@ export function adminErrorKey(
   if (code === "BAD_USER_INPUT") return "admin.error.state";
   if (code === "NOT_FOUND") return "admin.error.gone";
   return "admin.error.generic";
+}
+
+/** Message for a failed admin action, with the wait when the admin acted too often (#533). */
+export function adminError(
+  code: string,
+  field?: string,
+  reason?: string,
+  retryAfter?: number,
+): RateLimitMessage | { key: ReturnType<typeof adminErrorKey>; vars?: undefined } {
+  if (code === "RATE_LIMITED") return rateLimitMessage(retryAfter);
+  return { key: adminErrorKey(code, field, reason) };
 }
 
 /** The fields of a report the admin list needs to link to its target. */

@@ -1,7 +1,7 @@
 // Duplicate-coffee helpers (lib/dashboard/duplicateCoffee.ts). Run with `npm test`.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_COFFEE_NAME, copyName, duplicateCoffeeErrorKey } from "../lib/dashboard/duplicateCoffee.ts";
+import { MAX_COFFEE_NAME, MAX_COFFEES_PER_SHOP, copyName, duplicateCoffeeError, duplicateCoffeeErrorKey } from "../lib/dashboard/duplicateCoffee.ts";
 
 test("copyName appends the suffix and fits the API limit", () => {
   const cases = [
@@ -23,4 +23,11 @@ test("duplicateCoffeeErrorKey maps API codes", () => {
   assert.equal(duplicateCoffeeErrorKey("NOT_FOUND"), "cf.notYours");
   assert.equal(duplicateCoffeeErrorKey("RATE_LIMITED"), "dash.error.generic");
   assert.equal(duplicateCoffeeErrorKey("LIMIT_REACHED"), "dash.error.coffeeLimit");
+});
+
+test("duplicateCoffeeError keeps the wait when the seller duplicated too often (#532)", () => {
+  assert.deepEqual(duplicateCoffeeError("RATE_LIMITED", 120), { key: "error.rateLimitedMin.other", vars: { n: 2 } });
+  assert.deepEqual(duplicateCoffeeError("LIMIT_REACHED"), { key: "dash.error.coffeeLimit", vars: { max: MAX_COFFEES_PER_SHOP } });
+  assert.deepEqual(duplicateCoffeeError("SHOP_SUSPENDED").key, "dash.error.shopSuspended");
+  assert.equal(duplicateCoffeeError("NOT_FOUND").key, "cf.notYours");
 });

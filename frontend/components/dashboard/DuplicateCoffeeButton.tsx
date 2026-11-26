@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { MAX_COFFEES_PER_SHOP, copyName, duplicateCoffeeErrorKey } from "@/lib/dashboard/duplicateCoffee";
+import { copyName, duplicateCoffeeError } from "@/lib/dashboard/duplicateCoffee";
+import type { DashWriteError } from "@/lib/dashboard/writeError";
 import { DUPLICATE_COFFEE } from "@/lib/dashboard/queries";
 import { toApiError } from "@/lib/graphql";
-import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
+import { t, type Locale } from "@/lib/i18n/dict";
 import { FormError } from "./ui";
 import { Button } from "@/components/ui";
 
@@ -15,7 +16,7 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
   const { request } = useAuth();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<MessageKey | null>(null);
+  const [error, setError] = useState<DashWriteError | null>(null);
 
   async function duplicate() {
     setBusy(true);
@@ -24,7 +25,8 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
       const r = await request(DUPLICATE_COFFEE, { id: coffeeId, name: copyName(name, t(locale, "dash.copySuffix")) });
       router.push(`/dashboard/coffees/${r.duplicateCoffee.id}`);
     } catch (err) {
-      setError(duplicateCoffeeErrorKey(toApiError(err).code));
+      const e = toApiError(err);
+      setError(duplicateCoffeeError(e.code, e.retryAfter));
       setBusy(false);
     }
   }
@@ -40,7 +42,7 @@ export function DuplicateCoffeeButton({ coffeeId, name, locale }: { coffeeId: st
       >
         {t(locale, busy ? "dash.duplicating" : "dash.duplicate")}
       </Button>
-      {error && <FormError>{t(locale, error, { max: MAX_COFFEES_PER_SHOP })}</FormError>}
+      {error && <FormError>{t(locale, error.key, error.vars)}</FormError>}
     </span>
   );
 }

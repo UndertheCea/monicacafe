@@ -1,6 +1,7 @@
 // Pure helpers for "Duplicate" on the dashboard (duplicateCoffee mutation).
 import type { MessageKey } from "../i18n/dict";
 import { moderationBlockKey } from "./takedown.ts";
+import { dashWriteError, type DashWriteError } from "./writeError.ts";
 
 /** Longest coffee name the API accepts, in characters (code points). */
 export const MAX_COFFEE_NAME = 120;
@@ -26,4 +27,9 @@ export function duplicateCoffeeErrorKey(code: string): MessageKey {
   if (code === "LIMIT_REACHED") return "dash.error.coffeeLimit";
   if (code === "NOT_FOUND" || code === "FORBIDDEN") return "cf.notYours";
   return "dash.error.generic";
+}
+
+/** Message for a failed duplicateCoffee, with the wait when the seller duplicated too often (#532). */
+export function duplicateCoffeeError(code: string, retryAfter?: number): DashWriteError {
+  return dashWriteError(code, retryAfter) ?? { key: duplicateCoffeeErrorKey(code), vars: { max: MAX_COFFEES_PER_SHOP } };
 }

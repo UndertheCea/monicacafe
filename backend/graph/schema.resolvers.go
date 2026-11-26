@@ -531,6 +531,10 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 
 	var sh *store.Shop
 	err = r.Store.InTx(ctx, func(tx *store.Store) error {
+		// A suspension racing this request must not miss the new shop (#534).
+		if err := tx.LockCurrentUser(ctx, c.UserID, c.TokenVersion); err != nil {
+			return err
+		}
 		var err error
 		sh, err = tx.CreateShop(ctx, store.CreateShopParams{
 			OwnerID: c.UserID, Slug: slug, Name: name, Description: desc, City: city,
@@ -546,7 +550,7 @@ func (r *mutationResolver) CreateShop(ctx context.Context, input model.CreateSho
 		}
 		return nil, errConflict("slug", "this shop URL is already taken")
 	}
-	if errors.Is(err, store.ErrInvalidReference) {
+	if errors.Is(err, store.ErrInvalidReference) || errors.Is(err, store.ErrStaleSession) || errors.Is(err, store.ErrNotFound) {
 		return nil, errUnauthenticated()
 	}
 	if err != nil {

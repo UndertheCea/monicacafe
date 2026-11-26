@@ -173,6 +173,26 @@ func (s *Store) StartSession(ctx context.Context, userID string, tokenVersion in
 	})
 }
 
+// LockCurrentUser holds the user row FOR SHARE until the transaction ends and
+// returns ErrStaleSession unless the account is still at tokenVersion and not
+// suspended. A write that must not outlive a suspension (createShop, #534)
+// calls it first: SetUserSuspended updates the row and bumps the version, so
+// it either commits before (and this refuses) or waits for this transaction
+// (and then finds what it created). ErrNotFound for an unknown user.
+func (s *Store) LockCurrentUser(ctx context.Context, userID string, tokenVersion int) error {
+	var current int
+	var suspended bool
+	err := s.db.QueryRow(ctx, `SELECT token_version, suspended_at IS NOT NULL FROM users WHERE id = $1 FOR SHARE`,
+		userID).Scan(&current, &suspended)
+	if err != nil {
+		return mapErr(err)
+	}
+	if suspended || current != tokenVersion {
+		return ErrStaleSession
+	}
+	return nil
+}
+
 // RotateRefreshToken consumes the refresh token with hash oldHash and records
 // its successor (newHash) in one transaction, using auth.ClassifyRefresh to
 // decide what the presented token allows:

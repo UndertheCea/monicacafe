@@ -15,6 +15,39 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 73 — 2026-11-26 — Audit: drawer sign-in query, map hint, e2e hangs and waits, backup ping (six slices)
+PR: #TBD
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
+Three Sonnet audits: backend storage / jobs / saves / follows / loaders / platform (none), frontend shell / i18n / map / a11y
+(three: #538–#540), ops: compose / scripts / CI / e2e / docs (three: #541–#543).
+
+### Shipped (one line per slice: area — what — key files)
+- #538 frontend — NavDrawer reads the search params (under Suspense) and passes `pageWithQuery(pathname, search)` as the
+  list's `returnTo`, so drawer Log in / Register return to `/coffees?q=…&page=2`; `pageWithQuery` also backs
+  `loginHrefFrom` / `menuHref`. Cases in `tests/navMenu.test.mjs`.
+- #539 frontend — ShopMap's wrapper is `isolate`, so the z-500 two-finger hint no longer paints over the sticky header.
+- #540 frontend — `map.subtitle`: 瀏覽台灣各地的烘豆師與咖啡店 / Browse roasters and cafés across Taiwan (the map never uses
+  location); a test keeps "near you" / 附近 out of `map.*`.
+- #541 cross-cutting — e2e journeys / cart close the browser in a `finally` after the page-error check (a failure used to
+  hang `stack` until its 25-min timeout); `--test-timeout=300000` per test.
+- #542 cross-cutting — e2e a11y / layout wait for the new-coffee form's Name field (`loaded(page, label)`) instead of
+  scanning the "Loading…" skeleton.
+- #543 cross-cutting — backup ping: `curl -m 5 --retry 3 --retry-max-time 15` (≤ ~20 s, inside the 30 s
+  `stop_grace_period`); `backup_selftest.sh` checks the cap.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (452), `next build`; `check_brief.sh`, `docker compose config`,
+  `backup_selftest.sh`.
+- Not run here: compose stack, smoke and Playwright (no image builds in this sandbox); CI `stack` runs the changed e2e files.
+  The map hint's stacking was not checked on a real phone.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Audit notes not filed: `PORT` isn't in `.env.example` (compose pins it to 4000); smoke.sh exits without a FAIL line if a
+  register call is rate-limited; `branch-cleanup.yml` would delete a brand-new branch with no commits. No new questions.
+  Stage 1 still waits on #199 / #200 / #201; orders on #205.
+
 ## Session 72 — 2026-11-26 — Audit: createShop vs suspension, rate-limit waits, blank provenance (six slices)
 PR: #537
 

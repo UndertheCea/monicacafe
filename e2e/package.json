@@ -7,7 +7,7 @@
     "test": "node --test --test-concurrency=1 --test-timeout=300000 \"*.test.mjs\""
   },
   "dependencies": {
-    "axe-core": "4.14.0",
+    "axe-core": "4.14.1",
     "playwright": "1.65.1"
   }
 }

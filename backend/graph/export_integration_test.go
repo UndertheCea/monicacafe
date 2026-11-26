@@ -97,6 +97,20 @@ func TestMyDataExport(t *testing.T) {
 	if cs := sh["coffees"].([]any); len(cs) != 1 || cs[0].(map[string]any)["published"] != true {
 		t.Errorf("seller coffees: %v", sh["coffees"])
 	}
+	// Ordinary coffees and options have null archive / takedown stamps (#536).
+	for _, c := range sh["coffees"].([]any) {
+		cm := c.(map[string]any)
+		for _, k := range []string{"archivedAt", "takenDownAt"} {
+			if v, present := cm[k]; !present || v != nil {
+				t.Errorf("coffee %s: %v (present %v), want null", k, v, present)
+			}
+		}
+		for _, o := range cm["options"].([]any) {
+			if v, present := o.(map[string]any)["archivedAt"]; !present || v != nil {
+				t.Errorf("option archivedAt: %v (present %v), want null", v, present)
+			}
+		}
+	}
 	if strings.Contains(raw, "買家留言") || strings.Contains(raw, "exb+") {
 		t.Errorf("seller export contains the buyer's data:\n%s", raw)
 	}
@@ -124,7 +138,29 @@ func TestMyDataExport(t *testing.T) {
 	if f := doc["followedShops"].([]any); len(f) != 1 || f[0].(map[string]any)["shopName"] != nil {
 		t.Errorf("followedShops after suspension: %v", f)
 	}
+	// An archived option and a taken-down coffee show their timestamps (#536).
+	if _, err := pool.Exec(t.Context(), `UPDATE variants SET is_available = false, archived_at = now() WHERE id = $1`, variantID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(t.Context(), `UPDATE coffees SET removed_at = now() WHERE id = $1`, coffeeID); err != nil {
+		t.Fatal(err)
+	}
 	doc, _ = export(seller)
+	sc := doc["shop"].(map[string]any)["coffees"].([]any)[0].(map[string]any)
+	if sc["takenDownAt"] == nil || sc["archivedAt"] != nil {
+		t.Errorf("taken-down coffee stamps: takenDownAt=%v archivedAt=%v", sc["takenDownAt"], sc["archivedAt"])
+	}
+	archived, live := 0, 0
+	for _, o := range sc["options"].([]any) {
+		if o.(map[string]any)["archivedAt"] != nil {
+			archived++
+		} else {
+			live++
+		}
+	}
+	if archived != 1 {
+		t.Errorf("archived options: %d, want 1 (live %d)", archived, live)
+	}
 	if cm := doc["comments"].([]any); len(cm) != 1 || cm[0].(map[string]any)["coffeeName"] == nil {
 		t.Errorf("seller's comment on their own draft lost its name: %v", cm)
 	}

@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 73 — 2026-11-26 — Audit: drawer sign-in query, map hint, e2e hangs and waits, backup ping (six slices)
-PR: #TBD
+PR: #544
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
 Three Sonnet audits: backend storage / jobs / saves / follows / loaders / platform (none), frontend shell / i18n / map / a11y

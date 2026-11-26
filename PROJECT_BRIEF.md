@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-25 (after Session 71)
+Last updated: 2026-11-26 (after Session 72)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. `tests/palett
 
 ## Last session
 
-**Session 71**: sign-out-everywhere / password change can't miss a refresh token minted at the same moment (#525); login
-failure limits reserved before bcrypt (#526); 502 / 503 / 504 read as unavailable (#527); `SITE_URL` sub-path kept in
-canonical / JSON-LD (#528); 8 s timeout on server-side GraphQL (#529); `migrate.sh` from odd paths (#523); prune indexes (#524).
+**Session 72**: createShop locks the user row so a racing suspension can't miss the new shop (#534); blank-looking producer /
+region refused on create (#531); dashboard Delete / Duplicate and /admin actions show the rate-limit wait (#532, #533);
+password minimum counts the trimmed text like the API (#535); export flags archived / taken-down listings (#536).
 
 ## Current focus
 
@@ -90,7 +90,7 @@ canonical / JSON-LD (#528); 8 s timeout on server-side GraphQL (#529); `migrate.
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–71 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–72 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

@@ -30,6 +30,7 @@ cat >"$tmp/bin/curl" <<'EOF'
 #!/bin/sh
 for a in "$@"; do last=$a; done
 echo "$last" >>"${FAKE_PINGS:?}"
+echo "$*" >>"$FAKE_PINGS.args"
 EOF
 chmod +x "$tmp/bin/pg_dump" "$tmp/bin/curl"
 
@@ -108,6 +109,8 @@ kill -TERM "$pid"
 rc=0; wait "$pid" || rc=$?
 [ "$rc" = 143 ] || fail "SIGTERM should exit 143, got $rc: $(cat "$tmp/err")"
 grep -qx 'http://ping.invalid/x/fail' "$tmp/pings" || fail "no /fail ping after SIGTERM: $(cat "$tmp/pings" 2>&1)"
+# The ping's retries must end inside the compose stop_grace_period (30 s, #543): 5 s attempts, none after 15 s.
+grep -q -- '-m 5 .*--retry-max-time 15 ' "$tmp/pings.args" || fail "the ping has no time cap: $(cat "$tmp/pings.args")"
 [ -z "$(ls -A "$tmp/tmpdir")" ] || fail "the work dir was left behind: $(ls -A "$tmp/tmpdir")"
 [ -z "$(find "$tmp/store" -maxdepth 1 -name '.*.partial')" ] || fail "a .partial was left in the target"
 [ "$(count)" = 8 ] || fail "SIGTERM changed the stored dumps ($(count))"

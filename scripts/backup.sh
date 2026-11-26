@@ -62,7 +62,9 @@ ping() { # $1: "" (success) or "/fail"; best effort
   [ -n "${BACKUP_PING_URL:-}" ] || return 0
   url="${BACKUP_PING_URL%/}$1"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsS -m 10 --retry 3 -o /dev/null "$url" || say "warning: ping $1 failed"
+    # At most ~20 s in all (5 s attempts, no retry after 15 s), inside the backup service's 30 s
+    # stop_grace_period, so a docker stop still gets its /fail ping out (#543).
+    curl -fsS -m 5 --retry 3 --retry-max-time 15 -o /dev/null "$url" || say "warning: ping $1 failed"
   elif command -v wget >/dev/null 2>&1; then
     wget -q -T 10 -O /dev/null "$url" || say "warning: ping $1 failed"
   else

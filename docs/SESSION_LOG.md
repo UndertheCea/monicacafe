@@ -15,6 +15,32 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 74 — 2026-11-26 — Audit: smoke failures, documented env vars, branch cleanup (three slices)
+PR: #548
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
+Three Sonnet audits found no confirmed bugs: backend auth / cart / stock / listing queries, frontend public pages / SEO /
+URL helpers, ops (nginx, compose, Dockerfiles, migrate / restore / seed scripts, migrations vs Go limits). Shipped the
+three notes Session 73 left unfiled, as new issues. Fewer than six on purpose: no busywork.
+
+### Shipped (one line per slice: area — what — key files)
+- #545 cross-cutting — `scripts/smoke.sh`: `gql` and `field` can't fail (curl error / grep no match swallowed), so under
+  `set -e` + pipefail a refused register prints `FAIL upload: …` instead of ending the script; `detail_check` uses them too.
+- #546 cross-cutting — `.env.example` documents `PORT` (commented; compose fixes it to 4000); `TestEnvExampleDocumentsEveryLoadedVar`
+  checks every `get` / `getOrEmpty` key in `config.go` is in `.env.example` (fails without the line).
+- #547 cross-cutting — `branch-cleanup.yml` merged-only mode: a 0-ahead branch is deleted only if a merged PR came from it.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (452), `next build`; `check_brief.sh`, `docker compose config`.
+- smoke.sh: `bash -n` and the helpers checked in isolation (missing field, API down → empty, no exit); the full run is CI `stack`.
+- branch-cleanup: YAML parse + `bash -n` on the run block only; the manual workflow wasn't dispatched.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Audit notes not filed: flavour notes stored in full-width form don't match an NFKC'd search (by design, #521); a price
+  filter with "sold out only" can't match (the UI doesn't offer that pair); `SOURCE_COMMIT` (build-only) isn't in
+  `.env.example`. No new questions. Stage 1 still waits on #199 / #200 / #201; orders on #205.
+
 ## Session 73 — 2026-11-26 — Audit: drawer sign-in query, map hint, e2e hangs and waits, backup ping (six slices)
 PR: #544
 

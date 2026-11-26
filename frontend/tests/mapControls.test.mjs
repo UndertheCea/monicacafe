@@ -34,3 +34,11 @@ test("the map wrapper isolates its layers", () => {
   assert.match(src, /className="relative isolate overflow-hidden/);
 });
 
+// #540: the map never uses the visitor's location, so its copy doesn't promise "near you".
+test("map copy doesn't promise a nearby view", () => {
+  for (const l of LOCALES) {
+    for (const [k, v] of Object.entries(DICTS[l])) {
+      if (k.startsWith("map.")) assert.doesNotMatch(v, /near you|nearby|附近/i, `${l} ${k}`);
+    }
+  }
+});

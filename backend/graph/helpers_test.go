@@ -652,6 +652,9 @@ func TestCleanProvenance(t *testing.T) {
 		{"100 runes", s(strings.Repeat("咖", 100)), nil, strings.Repeat("咖", 100), "", ""},
 		{"producer too long", s(strings.Repeat("a", 101)), nil, "", "", "producer"},
 		{"region too long", nil, s(strings.Repeat("區", 101)), "", "", "region"},
+		{"producer only a joiner", s("\u200d"), nil, "", "", "producer"},
+		{"region only a combining mark", nil, s(" \u0301 "), "", "", "region"},
+		{"accented producer", s("Jose\u0301"), nil, "Jose\u0301", "", ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			p, r, err := cleanProvenance(tt.producer, tt.region)

@@ -62,7 +62,8 @@ const pages = [
   ["account", "/account", { client: true }],
   ["dashboard", "/dashboard", { client: true }],
   ["shop profile", "/dashboard/shop", { client: true }],
-  ["new coffee", "/dashboard/coffees/new"],
+  // Client-rendered too: scan the form, not its "Loading…" placeholder (#542).
+  ["new coffee", "/dashboard/coffees/new", { client: true, ready: "Name *" }],
   ["edit coffee", () => editPath, { client: true }],
 ];
 
@@ -76,7 +77,7 @@ describe("axe: no serious or critical violations", () => {
         const bad = await step(page, `a11y-${label}`, async () => {
           await page.goto(typeof path === "function" ? path() : path);
           await page.waitForLoadState("networkidle");
-          if (opts.client) await loaded(page);
+          if (opts.client) await loaded(page, opts.ready);
           return audit(page, label);
         });
         assert.equal(bad.length, 0, report(label, bad));

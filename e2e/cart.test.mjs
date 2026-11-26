@@ -11,9 +11,13 @@ before(async () => {
   browser = await launch();
   b = await newVisitor(browser);
 });
+// The browser closes even when the check fails (#541).
 after(async () => {
-  assert.deepEqual(b?.page.errors ?? [], [], "uncaught page errors");
-  await browser?.close();
+  try {
+    assert.deepEqual(b?.page.errors ?? [], [], "uncaught page errors");
+  } finally {
+    await browser?.close();
+  }
 });
 
 /** The header's cart link, named "Cart, 1 bag" / "Cart, N bags" (#322). */

@@ -6,7 +6,7 @@ import { Suspense, useState, useSyncExternalStore } from "react";
 import { t, type Locale } from "@/lib/i18n/dict";
 import { Drawer } from "./Drawer";
 import { NavMenuList } from "./NavMenuList";
-import { menuHref } from "@/lib/navMenu";
+import { menuHref, pageWithQuery } from "@/lib/navMenu";
 import { ICON_BUTTON } from "@/lib/ui";
 
 const noSubscribe = () => () => {};
@@ -31,6 +31,19 @@ function MenuLink({ locale, href }: { locale: Locale; href: string }) {
 function MenuLinkWithSearch({ locale, pathname }: { locale: Locale; pathname: string }) {
   const search = useSearchParams().toString();
   return <MenuLink locale={locale} href={menuHref(pathname, search)} />;
+}
+
+function NavMenuListWithSearch({
+  locale,
+  pathname,
+  onNavigate,
+}: {
+  locale: Locale;
+  pathname: string;
+  onNavigate: () => void;
+}) {
+  const search = useSearchParams().toString();
+  return <NavMenuList locale={locale} onNavigate={onNavigate} returnTo={pageWithQuery(pathname, search)} />;
 }
 
 /**
@@ -86,7 +99,10 @@ export function NavDrawer({ locale }: { locale: Locale }) {
         closeLabel={t(locale, "nav.menuClose")}
       >
         <nav aria-label={t(locale, "nav.menuTitle")}>
-          <NavMenuList locale={locale} onNavigate={() => setOpen(false)} />
+          {/* The list reads the query too (#538), so sign-in returns to the same filtered page. */}
+          <Suspense fallback={<NavMenuList locale={locale} onNavigate={() => setOpen(false)} />}>
+            <NavMenuListWithSearch locale={locale} pathname={pathname} onNavigate={() => setOpen(false)} />
+          </Suspense>
         </nav>
       </Drawer>
     </>

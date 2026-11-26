@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Browser journeys + accessibility checks against a running stack (CI job `stack`, #263 / #264).",
   "scripts": {
-    "test": "node --test --test-concurrency=1 \"*.test.mjs\""
+    "test": "node --test --test-concurrency=1 --test-timeout=300000 \"*.test.mjs\""
   },
   "dependencies": {
     "axe-core": "4.14.0",

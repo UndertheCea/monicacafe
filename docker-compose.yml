@@ -284,7 +284,7 @@ services:
       dockerfile: backup.Dockerfile
     command: ["sh", "/monicacafe/scripts/backup_loop.sh"]
     # A tiny init as PID 1 forwards SIGTERM; backup_loop.sh and backup.sh stop a running
-    # dump on it and ping /fail (#381). The grace period covers that ping's retries.
+    # dump on it and ping /fail (#381). The grace period covers that ping's retries (≤ ~20 s, #543).
     init: true
     stop_grace_period: 30s
     environment:

@@ -104,8 +104,18 @@ export function authHref(path: "/login" | "/register", from: string | null | und
  * without a leading "?". Same-site rules as authHref.
  */
 export function loginHrefFrom(pathname: string, search: string | null | undefined): string {
+  return authHref("/login", pageWithQuery(pathname, search));
+}
+
+/**
+ * The current page as a path plus its query (`/coffees?q=x&page=2`), with no
+ * trailing "?" when there is none. `search` as for loginHrefFrom. The drawer
+ * passes it as the page sign-in returns to (#538), so a filtered or paged
+ * list comes back as it was.
+ */
+export function pageWithQuery(pathname: string, search: string | null | undefined): string {
   const q = (search ?? "").replace(/^\?/, "");
-  return authHref("/login", q ? `${pathname}?${q}` : pathname);
+  return q ? `${pathname}?${q}` : pathname;
 }
 
 /**
@@ -115,8 +125,7 @@ export function loginHrefFrom(pathname: string, search: string | null | undefine
  * that isn't a same-site path. `search` as for loginHrefFrom.
  */
 export function menuHref(pathname: string, search?: string | null): string {
-  const q = (search ?? "").replace(/^\?/, "");
-  const from = q ? `${pathname}?${q}` : pathname;
+  const from = pageWithQuery(pathname, search);
   if (!pathname.startsWith("/") || pathname.startsWith("//") || from === "/" || pathname === "/menu") return "/menu";
   return `/menu?from=${encodeURIComponent(from)}`;
 }

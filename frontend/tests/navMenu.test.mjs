@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { authHref, loginHrefFrom, menuFrom, menuHref, NAV_HOME, showSignInLink, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
+import { authHref, loginHrefFrom, menuFrom, menuHref, NAV_HOME, pageWithQuery, showSignInLink, NAV_LANGUAGE_LABEL, navMenu } from "../lib/navMenu.ts";
 import { t } from "../lib/i18n/dict.ts";
 
 const flat = (sections) =>
@@ -138,4 +138,23 @@ test("auth pages never nest in ?next= (#463)", () => {
   assert.equal(menuFrom("/login?next=%2Fcart"), "/login?next=%2Fcart");
   assert.equal(authHref("/login", menuFrom("/login?next=%2Fcart")), "/login");
   assert.equal(authHref("/register", menuFrom("/register?next=%2Fa")), "/register");
+});
+
+// #538: the drawer's sign-in links return to the page with its query.
+test("pageWithQuery: path plus query, no trailing ?", () => {
+  const cases = [
+    ["/coffees", "q=ethiopia&page=2", "/coffees?q=ethiopia&page=2"],
+    ["/coffees", "?page=2", "/coffees?page=2"],
+    ["/coffees", "", "/coffees"],
+    ["/coffees", "?", "/coffees"],
+    ["/shops", null, "/shops"],
+    ["/", undefined, "/"],
+  ];
+  for (const [path, search, want] of cases) assert.equal(pageWithQuery(path, search), want, `${path} ${search}`);
+  assert.equal(authHref("/register", pageWithQuery("/coffees", "q=x")), "/register?next=%2Fcoffees%3Fq%3Dx");
+});
+
+test("the drawer passes the current query to the menu list", () => {
+  const src = readFileSync(new URL("../components/NavDrawer.tsx", import.meta.url), "utf8");
+  assert.match(src, /returnTo=\{pageWithQuery\(pathname, search\)\}/);
 });

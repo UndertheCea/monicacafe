@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 74 — 2026-11-26 — Audit: smoke failures, documented env vars, branch cleanup (three slices)
-PR: #TBD
+PR: #548
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
 Three Sonnet audits found no confirmed bugs: backend auth / cart / stock / listing queries, frontend public pages / SEO /

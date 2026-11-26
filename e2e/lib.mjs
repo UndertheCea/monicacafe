@@ -99,9 +99,13 @@ export async function makePng(page) {
   return png;
 }
 
-/** Waits for the client-rendered dashboard / form views to finish loading. */
-export async function loaded(page) {
+/**
+ * Waits for the client-rendered dashboard / form views to finish loading. Waiting for "Loading…" to detach passes
+ * at once when it hasn't rendered yet, so `label` (a field the finished view has) makes the wait positive (#542).
+ */
+export async function loaded(page, label) {
   await page.getByText("Loading…").first().waitFor({ state: "detached" });
+  if (label) await page.getByLabel(label).first().waitFor();
 }
 
 /** Opens a shop from the dashboard (the account must have none yet). */

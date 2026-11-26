@@ -29,7 +29,7 @@ before(async () => {
 });
 after(() => browser?.close());
 
-// [label, path (or a function returning it), the page is client-rendered]
+// [label, path (or a function returning it), the page is client-rendered (true, or a label its finished view has, #542)]
 const pages = [
   ["home", "/"],
   ["coffees", "/coffees"],
@@ -42,7 +42,7 @@ const pages = [
   ["account", "/account", true],
   ["dashboard", "/dashboard", true],
   ["shop profile", "/dashboard/shop", true],
-  ["new coffee", "/dashboard/coffees/new"],
+  ["new coffee", "/dashboard/coffees/new", "Name *"],
   ["cart", "/cart", true],
 ];
 
@@ -52,7 +52,7 @@ describe("no horizontal scrolling at 390 px", () => {
       await step(page, `layout-${label}`, async () => {
         await page.goto(typeof path === "function" ? path() : path);
         await page.waitForLoadState("networkidle");
-        if (client) await loaded(page);
+        if (client) await loaded(page, typeof client === "string" ? client : undefined);
         const m = await page.evaluate(() => ({
           client: document.documentElement.clientWidth,
           scroll: document.documentElement.scrollWidth,

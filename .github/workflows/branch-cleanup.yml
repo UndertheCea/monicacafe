@@ -4,7 +4,8 @@ name: Branch cleanup
 # 2. Run manually (Actions → Branch cleanup → Run workflow) to clean up older
 #    branches:
 #      - leave "branches" empty to delete every branch already fully merged
-#        into the default branch;
+#        into the default branch through a merged PR (a branch with no commits
+#        of its own and no merged PR is kept: it may have just been created);
 #      - or list branches (space-separated) to delete them. A listed branch
 #        that still has commits not in the default branch is archived first
 #        as the tag `archive/<branch>`, so nothing is lost and it can be
@@ -103,6 +104,16 @@ jobs:
               echo "::warning::'$b' not found"; continue
             fi
             ahead=$(gh api "repos/$REPO/compare/$DEFAULT_BRANCH...$sha" --jq .ahead_by)
+
+            # 0 ahead is also a branch that was just created and has no commits yet (#547):
+            # in merged-only mode, delete it only if a merged PR came from it.
+            if [[ "$ahead" == "0" && "$mode" == merged-only ]]; then
+              merged=$(gh api "repos/$REPO/pulls?state=closed&head=${REPO%%/*}:$b&per_page=100" \
+                --jq '[.[] | select(.merged_at != null)] | length')
+              if [[ "$merged" == "0" ]]; then
+                echo "Keeping '$b' (no merged PR came from it; it may be new)"; continue
+              fi
+            fi
 
             if [[ "$ahead" != "0" ]]; then
               if [[ "$mode" == merged-only ]]; then

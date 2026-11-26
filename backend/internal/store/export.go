@@ -11,7 +11,9 @@ import (
 // its coffees and options. Secrets (password hash, token hashes, token
 // version) and other people's data (who handled a report, who acted in the
 // audit log, other users' comments) are left out on purpose; a test checks
-// the keys. One statement, so the document is one consistent snapshot.
+// the keys. Coffees and options carry archivedAt, coffees also takenDownAt
+// (an admin takedown), so the export shows why a listing is gone (#536).
+// One statement, so the document is one consistent snapshot.
 //
 // Names of things the user can no longer see (another shop's draft, archived
 // or taken-down coffee, a suspended shop) are null: the ids stay, so the rows
@@ -62,10 +64,10 @@ SELECT jsonb_build_object(
           'flavorNotes', c.flavor_notes, 'producer', c.producer, 'region', c.region,
           'altitudeMinM', c.altitude_min_m, 'altitudeMaxM', c.altitude_max_m,
           'brewMethod', c.brew_method, 'harvestYear', c.harvest_year, 'imageUrls', c.image_urls,
-          'published', c.is_published, 'createdAt', c.created_at, 'updatedAt', c.updated_at,
+          'published', c.is_published, 'archivedAt', c.archived_at, 'takenDownAt', c.removed_at, 'createdAt', c.created_at, 'updatedAt', c.updated_at,
           'options', COALESCE((SELECT jsonb_agg(jsonb_build_object(
               'grind', v.grind, 'weightG', v.weight_g, 'priceTwd', v.price_twd, 'stock', v.stock,
-              'available', v.is_available) ORDER BY v.created_at, v.id)
+              'available', v.is_available, 'archivedAt', v.archived_at) ORDER BY v.created_at, v.id)
             FROM variants v WHERE v.coffee_id = c.id), '[]'::jsonb)
         ) ORDER BY c.shop_position, c.created_at, c.id)
         FROM coffees c

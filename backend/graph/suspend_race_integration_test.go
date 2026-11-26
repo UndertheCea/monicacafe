@@ -112,3 +112,74 @@ func TestOwnerWriteRacingSuspension(t *testing.T) {
 		t.Error("updateShop landed on a suspended shop")
 	}
 }
+
+// TestCreateShopRacingSuspension: a createShop that passed tokenGate before an
+// admin's suspension committed must not leave a live shop for the suspended
+// owner (#534). The suspension is held open in a transaction (the user row
+// update and version bump SetUserSuspended makes); createShop must wait for it
+// and then be refused, with no shop created.
+func TestCreateShopRacingSuspension(t *testing.T) {
+	url, pool := newTestServer(t)
+	ctx := context.Background()
+	run := fmt.Sprintf("%d", time.Now().UnixNano())
+	seller, auth := register(t, url, "shoprace+"+run+"@example.com")
+
+	conn, err := pgx.Connect(ctx, os.Getenv("TEST_DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(ctx)
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `UPDATE users SET suspended_at = now(), token_version = token_version + 1 WHERE id = $1`,
+		auth.User.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan any, 1)
+	go func() {
+		r := seller.do(`mutation($in: CreateShopInput!) { createShop(input: $in) { id } }`,
+			map[string]any{"in": map[string]any{"slug": "shoprace-" + run, "name": "競態店 " + run, "description": "", "city": "台南市"}}, nil)
+		var code any
+		if len(r.Errors) > 0 {
+			code = r.Errors[0].Extensions["code"]
+		}
+		done <- code
+	}()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var waiting int
+		if err := pool.QueryRow(ctx, `SELECT count(*) FROM pg_stat_activity
+			WHERE datname = current_database() AND wait_event_type = 'Lock'`).Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+		if waiting > 0 {
+			break
+		}
+		select {
+		case code := <-done:
+			t.Fatalf("createShop finished (code %v) without waiting for the suspension", code)
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("createShop never waited on the user row")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if code := <-done; code != graph.CodeUnauthenticated {
+		t.Errorf("code = %v, want %s", code, graph.CodeUnauthenticated)
+	}
+	var shops int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM shops WHERE owner_id = $1`, auth.User.ID).Scan(&shops); err != nil {
+		t.Fatal(err)
+	}
+	if shops != 0 {
+		t.Errorf("a suspended user got %d shop(s)", shops)
+	}
+}

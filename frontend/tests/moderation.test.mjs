@@ -9,6 +9,7 @@ import {
   CONTACT_INFO_CODE,
   REPORT_NOTE_MAX,
   REPORT_REASONS,
+  adminError,
   adminErrorKey,
   appendRows,
   auditActionKey,
@@ -251,4 +252,11 @@ test("reportErrorKey / adminErrorKey: text refused for invisible characters says
   assert.equal(adminErrorKey("BAD_USER_INPUT", "reason", "spam‮"), "form.error.badChars");
   assert.equal(adminErrorKey("BAD_USER_INPUT", "reason", "spam"), "admin.error.state");
   assert.equal(adminErrorKey("BAD_USER_INPUT", "resolution", "spam​"), "admin.error.state");
+});
+
+test("adminError keeps the wait when the admin acted too often (#533)", () => {
+  assert.deepEqual(adminError("RATE_LIMITED", undefined, "spam", 45), { key: "error.rateLimitedSec.other", vars: { n: 45 } });
+  assert.deepEqual(adminError("RATE_LIMITED"), { key: "error.rateLimitedMin.one", vars: { n: 1 } });
+  assert.deepEqual(adminError("NOT_FOUND"), { key: "admin.error.gone" });
+  assert.deepEqual(adminError("BAD_USER_INPUT", "reason", "a\u200bb"), { key: "form.error.badChars" });
 });

@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { Button, Field, Input } from "@/components/ui";
 import { toApiError } from "@/lib/graphql";
 import { t, type Locale, type MessageKey } from "@/lib/i18n/dict";
-import { MODERATION_REASON_MAX, adminErrorKey, moderationReasonProblem } from "@/lib/moderation";
+import { MODERATION_REASON_MAX, adminError, moderationReasonProblem } from "@/lib/moderation";
 
 /** A reason field with Confirm / Cancel, shown under the row being acted on. */
 export function ReasonPrompt({
@@ -37,7 +37,7 @@ export function ReasonPrompt({
       await onConfirm(reason.trim());
     } catch (err) {
       const e2 = toApiError(err);
-      setError({ key: adminErrorKey(e2.code, e2.field, reason.trim()) });
+      setError(adminError(e2.code, e2.field, reason.trim(), e2.retryAfter));
       setBusy(false);
     }
   }

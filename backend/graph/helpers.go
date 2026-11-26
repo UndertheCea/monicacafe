@@ -605,20 +605,35 @@ func requireCoffeeEssentials(varietyID *string, producer, region string, altitud
 	return nil
 }
 
+// A value that renders blank (only joiners or combining marks) is refused
+// like updateCoffee refuses it, rather than passing as "given" (#531).
 func cleanProvenance(producer, region *string) (string, string, error) {
 	var p, rg string
 	var err error
 	if producer != nil {
-		if p, err = cleanText("producer", *producer, 0, maxProvenanceText); err != nil {
+		if p, err = cleanProvenanceText("producer", *producer); err != nil {
 			return "", "", err
 		}
 	}
 	if region != nil {
-		if rg, err = cleanText("region", *region, 0, maxProvenanceText); err != nil {
+		if rg, err = cleanProvenanceText("region", *region); err != nil {
 			return "", "", err
 		}
 	}
 	return p, rg, nil
+}
+
+// cleanProvenanceText trims one optional provenance text: "" means not given,
+// anything else must draw something.
+func cleanProvenanceText(field, s string) (string, error) {
+	v, err := cleanText(field, s, 0, maxProvenanceText)
+	if err != nil {
+		return "", err
+	}
+	if v != "" && !hasVisibleRune(v) {
+		return "", errBadInput(field, field+" must contain visible text")
+	}
+	return v, nil
 }
 
 // copyName appends suffix to name, trimming the end of name (by runes, then

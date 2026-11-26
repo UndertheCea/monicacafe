@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 72 — 2026-11-26 — Audit: createShop vs suspension, rate-limit waits, blank provenance (six slices)
+PR: #537
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
+Three Sonnet audits: backend comments / reports / moderation / cart / jobs / ECPay (one: #534), frontend dashboard / cart /
+admin / account / i18n (three: #532, #533, #535), backend seller writes / uploads / validation / export (one: #531, plus the
+export note that became #536). A Sonnet sub-agent built #536; reviewed and committed.
+
+### Shipped (one line per slice: area — what — key files)
+- #534 backend — `store.LockCurrentUser` holds the user row FOR SHARE in createShop's transaction and refuses a moved token
+  version or a suspended account (UNAUTHENTICATED). Before: the shop INSERT's FK lock (KEY SHARE) didn't wait for
+  `SetUserSuspended`, whose shop UPDATE missed the uncommitted shop. `TestCreateShopRacingSuspension` (fails without the fix).
+- #531 backend — `cleanProvenanceText`: createCoffee refuses a producer / region of only joiners / combining marks, like
+  updateCoffee (#419). Cases in `TestCleanProvenance`.
+- #532 frontend — `deleteCoffeeError` / `duplicateCoffeeError` go through `dashWriteError`, so RATE_LIMITED shows the wait.
+- #533 frontend — `adminError` (lib/moderation.ts) for `ReasonPrompt`: RATE_LIMITED shows the wait.
+- #535 frontend — `passwordLengthOk` counts the trimmed password for the minimum (byte cap on the raw one); new
+  `tests/password.test.mjs`.
+- #536 backend — export: coffees carry `archivedAt` / `takenDownAt`, options `archivedAt`; `TestMyDataExport` checks them.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (448), `next build`; `check_brief.sh`, `docker compose config`.
+- Not run here: compose stack, smoke and Playwright (no image builds in this sandbox); CI `stack` runs them. The rate-limit
+  messages are tested in the pure helpers only.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- A createShop that loses the race with a suspension / password change answers UNAUTHENTICATED; the client refreshes.
+- Audit notes not filed: admin unpublish / restore of an archived coffee says "no change"; open reports on a comment stay
+  open after the comment is deleted (by design, migration 019: reports outlive targets). No new questions. Stage 1 still
+  waits on #199 / #200 / #201; orders on #205.
+
 ## Session 71 — 2026-11-25 — Audit: revoke-all vs rotation, login limit race, gateway errors (seven slices)
 PR: #530
 

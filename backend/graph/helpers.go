@@ -920,11 +920,14 @@ func (r *Resolver) ownedVariant(ctx context.Context, c *auth.Claims, variantID s
 	return v, co.ShopID, nil
 }
 
+// validateCoords refuses coordinates out of range, and NaN (#549): gqlgen parses the
+// JSON string "NaN" as a Float, every comparison with NaN is false, and the DB CHECK
+// from migration 003 would then fail the update as INTERNAL instead of a field error.
 func validateCoords(lat, lng *float64) error {
-	if lat != nil && (*lat < -90 || *lat > 90) {
+	if lat != nil && (math.IsNaN(*lat) || *lat < -90 || *lat > 90) {
 		return errBadInput("lat", "lat must be between -90 and 90")
 	}
-	if lng != nil && (*lng < -180 || *lng > 180) {
+	if lng != nil && (math.IsNaN(*lng) || *lng < -180 || *lng > 180) {
 		return errBadInput("lng", "lng must be between -180 and 180")
 	}
 	return nil

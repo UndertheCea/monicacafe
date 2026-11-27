@@ -99,6 +99,22 @@ test("one-line notes have no full stop (#552 E)", () => {
   }
 });
 
+test("no dictionary string ends with a colon: a note never leads into markup after it (#561)", () => {
+  for (const [locale, dict] of Object.entries(DICTS)) {
+    const bad = Object.entries(dict)
+      .filter(([, v]) => /[:：]$/.test(v))
+      .map(([k]) => k);
+    assert.deepEqual(bad, [], locale);
+  }
+});
+
+test("page titles mean the same in both languages (#561)", () => {
+  // 精選 ("featured") on a list that isn't curated was a claim the English didn't make.
+  assert.equal(DICTS["zh-TW"]["shops.title"], "店家");
+  assert.equal(DICTS.en["shops.title"], "Shops");
+  assert.equal(DICTS["zh-TW"]["img.galleryTitle"], "照片");
+});
+
 test("the full-stop rule's helpers see sentences the way the copy guide means", () => {
   const cases = [
     ["購物車是空的。", 1],

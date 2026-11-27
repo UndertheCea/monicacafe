@@ -250,7 +250,8 @@ function ProfileEditor({
           )}
         </Field>
         <p className="text-xs text-muted sm:col-span-2">
-          {t(locale, "shop.slugFixed")} <span className="font-mono">/shops/{shop.slug}</span>
+          {t(locale, "shop.slugFixed")}
+          <span className="block font-mono">/shops/{shop.slug}</span>
         </p>
       </Card>
 

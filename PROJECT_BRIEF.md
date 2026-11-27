@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-27 (after Session 75)
+Last updated: 2026-11-27 (after Session 76)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. Rules for any
 
 ## Last session
 
-**Session 75**: three audits (backend Go-vs-DB limits / pagination / errors, frontend i18n / cart, docs drift) found two gaps:
-`updateShop` let NaN coordinates through to the DB CHECK as INTERNAL (#549), and the root layout's fallback description
-was a hard-coded mixed zh/en string, now `t()` per locale (#550).
+**Session 76**: three audits (store SQL vs migrations, backend moderation / comments, frontend dashboard / account) found two
+gaps: seven foreign keys had no usable index, so parent deletes scanned child tables (migration 030 + a test that fails on any
+unindexed FK, #555), and "Saved" stayed visible after a further edit (#556).
 
 ## Current focus
 
@@ -90,7 +90,7 @@ was a hard-coded mixed zh/en string, now `t()` per locale (#550).
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–75 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–76 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

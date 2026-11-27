@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 76 — 2026-11-27 — Audit: foreign-key indexes, "Saved" status on edit (two slices)
-PR: #PRNUM
+PR: #557
 
 No session PR open (only dependabot's), no owner answers on questions (none since 2026-11-15; #552 has no comments), nothing
 pickable. Three Sonnet audits: store SQL vs migrations (one: #555), backend moderation / comments / reports / account deletion /

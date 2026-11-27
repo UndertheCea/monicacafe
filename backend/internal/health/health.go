@@ -25,7 +25,7 @@ import (
 // a forgotten bump. Readiness asks whether *this* migration is recorded in
 // schema_migrations (not whether it is the newest), so during a rolling deploy
 // old instances stay ready against a database that is already ahead of them.
-const ExpectedMigration = "029_prune_indexes"
+const ExpectedMigration = "030_foreign_key_indexes"
 
 // Status of one check.
 type Status string

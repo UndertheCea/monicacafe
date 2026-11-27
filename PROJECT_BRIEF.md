@@ -31,7 +31,7 @@ takes a commission on each sale).
 with black type and nothing else. No yellow / amber, no dark "black and yellow" blocks, no gradients. The
 wordmark is a heavy, italic, lowercase "moni cafe" in the style of the *motors coffee* sign (#110). Coffees
 without a photo get a SEY-style solid tile in a soft Radix colour (steps 4–8): on cards it carries the coffee's words once,
-in the seller's case (#111, #294); on the coffee page it is plain. `tests/palette.test.mjs` keeps colour utilities out.
+in the seller's case (#111, #294); on the coffee page it is plain. Rules for any visual change: `docs/FRONTEND_DESIGN.md` (#553).
 
 ## Status
 
@@ -115,6 +115,7 @@ Open questions for the owner (answer by commenting on the issue):
 | #293 | Home roaster's exact map pin | warning text only | yes |
 | #306 | Ideas from the roaster UI/UX review | build none | yes |
 | #307 | Blends / several varieties per listing | one origin, "Mixed" variety | yes |
+| #552 | Unslop polish A–H (home band, tile strength, radii, weights, copy, photo-less tile, note case, label line) | E only (copy) | yes |
 
 ## Decisions (why it looks like this)
 

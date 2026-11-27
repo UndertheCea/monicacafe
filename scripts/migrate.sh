@@ -112,6 +112,7 @@ baseline_marker() {
     027) echo "to_regclass('public.stock_holds') IS NOT NULL" ;;
     028) echo "EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_coffees_updated_at' AND pg_get_triggerdef(oid) ILIKE '%IS DISTINCT FROM new.*%')" ;;
     029) echo "to_regclass('public.idx_cart_items_updated_at') IS NOT NULL" ;;
+    030) echo "to_regclass('public.idx_audit_log_actor_id') IS NOT NULL" ;;
     *) return 1 ;;
   esac
 }

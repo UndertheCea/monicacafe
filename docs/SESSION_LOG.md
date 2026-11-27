@@ -15,6 +15,34 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 76 — 2026-11-27 — Audit: foreign-key indexes, "Saved" status on edit (two slices)
+PR: #557
+
+No session PR open (only dependabot's), no owner answers on questions (none since 2026-11-15; #552 has no comments), nothing
+pickable. Three Sonnet audits: store SQL vs migrations (one: #555), backend moderation / comments / reports / account deletion /
+cmd/admin (no bugs), frontend dashboard / account / admin / cart (one cosmetic: #556). Two slices on purpose: no busywork.
+
+### Shipped (one line per slice: area — what — key files)
+- #555 backend — migration 030: indexes for `variants.coffee_id` (004 dropped it; 020's is partial), `refresh_tokens.replaced_by`
+  and `.user_id` (was live-only), `reports.reporter_id` / `handled_by`, `coffees.removed_by`, `audit_log.actor_id`;
+  `store.TestEveryForeignKeyIndexed` fails on any FK without an index on its leading columns (failed with 7 before 030);
+  `migrate.sh` marker for 030; `health.ExpectedMigration` bumped.
+- #556 frontend — `lib/savedStatus.ts` `savedAfterEdit`: display name (ProfileForm) and the option's on-sale checkbox clear
+  "Saved" on edit like the other fields; `tests/savedStatus.test.mjs`.
+- CI fix (no issue) — e2e `badges`: the buyer's reload goes through `gotoUntilShown` like #504 / #506; this PR's first `stack`
+  run timed out waiting for the seller's reply after a plain reload (stack-logs artifact not downloadable from this sandbox).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16);
+  `scripts/migrate_selftest.sh` (all 30 markers).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (461), `next build`; `check_brief.sh`, `docker compose config`.
+- Not run here: compose stack, smoke and Playwright (no image builds in this sandbox); CI `stack` covers them.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Audit notes not filed: open reports on a comment deleted by its author / account deletion stay in the queue with "target
+  gone" (by design, 019: the report outlives the comment); an admin can reinstate a shop whose owner is still suspended
+  (an admin's explicit act, audited); the admin removed-coffees list has no index (tiny list). No new questions.
+
 ## Session 75 — 2026-11-27 — Audit: NaN shop coordinates, locale-aware fallback description (two slices)
 PR: #551
 

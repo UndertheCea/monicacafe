@@ -26,6 +26,7 @@ import { CoffeeGallery } from "./CoffeeGallery";
 import { DeleteCoffeeButton } from "./DeleteCoffeeButton";
 import { GRINDS } from "./NewCoffeeForm";
 import { SignInAgain } from "./SignInAgain";
+import { savedAfterEdit } from "@/lib/savedStatus";
 import { useSellerSession, useUnsavedChanges } from "./useSellerSession";
 import { LoginNeeded, LoadFailed, Notice } from "./ui";
 import { VARIANT_PROBLEM_KEY } from "./variantProblemKey";
@@ -294,7 +295,7 @@ function VariantRow({
             onChange={(e) => {
               setPrice(e.target.value);
               fe.clearField("price");
-              setSaved(false);
+              setSaved(savedAfterEdit(saved, price, e.target.value));
             }}
             className="mt-1"
           />
@@ -308,13 +309,21 @@ function VariantRow({
             onChange={(e) => {
               setStock(e.target.value);
               fe.clearField("stock");
-              setSaved(false);
+              setSaved(savedAfterEdit(saved, stock, e.target.value));
             }}
             className="mt-1"
           />
         </label>
         <label className="flex items-center gap-2 text-sm text-ink sm:pb-2">
-          <input type="checkbox" checked={onSale} onChange={(e) => setOnSale(e.target.checked)} className="h-4 w-4 accent-ink" />
+          <input
+            type="checkbox"
+            checked={onSale}
+            onChange={(e) => {
+              setOnSale(e.target.checked);
+              setSaved(savedAfterEdit(saved, onSale, e.target.checked));
+            }}
+            className="h-4 w-4 accent-ink"
+          />
           {t(locale, "cf.available")}
         </label>
         <div className="flex gap-2 justify-self-end">

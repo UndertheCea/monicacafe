@@ -218,7 +218,8 @@ describe("buyer", () => {
       await s.page.getByText(sellerText).waitFor();
     });
     await step(b.page, "badges", async () => {
-      await b.page.reload();
+      // Same stale first load as #504: the buyer's reload once lacked the seller's reply (#557's CI run).
+      await gotoUntilShown(b.page, coffeeUrl, sellerText);
       const item = (text) => b.page.getByRole("listitem").filter({ hasText: text }).last();
       await item(sellerText).getByText("Roaster", { exact: true }).waitFor();
       assert.equal(await item(buyerText).getByText("Roaster", { exact: true }).count(), 0);

@@ -7,7 +7,7 @@ import type { SearchMatch } from "@/lib/searchMatch";
 import { formatTWD } from "@/lib/utils";
 import { CoffeeTile } from "./CoffeeTile";
 import { Badge, Card, Picture } from "@/components/ui";
-import { pluralKey } from "@/lib/plural";
+import { cardCount } from "@/lib/plural";
 
 export function CoffeeCard({
   coffee,
@@ -20,6 +20,7 @@ export function CoffeeCard({
   match?: SearchMatch | null;
 }) {
   const price = fromPrice(coffee);
+  const comments = cardCount(locale, "coffees.comments", coffee.commentCount);
   const img = coffee.imageUrls[0];
   const country = pick(locale, coffee.originCountry.nameZh, coffee.originCountry.nameEn);
   const process = pick(locale, coffee.processingMethod.nameZh, coffee.processingMethod.nameEn);
@@ -100,7 +101,7 @@ export function CoffeeCard({
           <span className={price === null ? "text-sm text-muted" : "text-base font-bold text-ink"}>
             {price === null ? t(locale, "coffees.soldOut") : t(locale, "coffees.from", { price: formatTWD(price) })}
           </span>
-          <span className="text-xs text-muted">{t(locale, pluralKey("coffees.comments", coffee.commentCount), { n: coffee.commentCount })}</span>
+          {comments && <span className="text-xs text-muted">{comments}</span>}
         </div>
       </div>
     </Card>

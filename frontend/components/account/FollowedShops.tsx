@@ -12,7 +12,7 @@ import { t, type Locale } from "@/lib/i18n/dict";
 import { hasMoreSaved, withoutSaved } from "@/lib/saved";
 import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Button, Card, SectionTitle } from "@/components/ui";
-import { pluralKey } from "@/lib/plural";
+import { cardCount, pluralKey } from "@/lib/plural";
 import { nextLoadKey } from "@/lib/retry";
 import { RetryButton } from "@/components/RetryButton";
 
@@ -144,7 +144,7 @@ export function FollowedShops({ locale }: { locale: Locale }) {
                   {sh.name}
                 </Link>
                 <p className="truncate text-sm text-muted">
-                  {[sh.city, t(locale, pluralKey("shops.coffeesCount", sh.coffeeCount), { n: sh.coffeeCount })].filter(Boolean).join(" · ")}
+                  {[sh.city, cardCount(locale, "shops.coffeesCount", sh.coffeeCount)].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <Button

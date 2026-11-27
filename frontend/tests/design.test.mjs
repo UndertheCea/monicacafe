@@ -136,3 +136,9 @@ test("the design guide exists and CLAUDE.md points to it", () => {
   assert.match(guide, /unslop\W{0,4} by Damir Sokolovsky/, "CC BY 4.0 credit");
   assert.match(readFileSync(join(root, "..", "CLAUDE.md"), "utf8"), /docs\/FRONTEND_DESIGN\.md/);
 });
+
+test("the /coffees filter's search placeholder fits its sidebar field (#562)", () => {
+  // The sidebar field is about 14 zh characters / 24 Latin ones wide at 16 px; keep well inside it.
+  assert.ok([...DICTS["zh-TW"]["filter.searchPlaceholder"]].length <= 8);
+  assert.ok(DICTS.en["filter.searchPlaceholder"].length <= 22);
+});

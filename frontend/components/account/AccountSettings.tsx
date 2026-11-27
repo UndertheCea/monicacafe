@@ -28,6 +28,7 @@ import { Button, Field, Input, SectionTitle, useFormErrors } from "@/components/
 import { FormSummary, fieldMessage } from "@/components/FormSummary";
 import { placeError } from "@/lib/formErrors";
 import { CARD, FIELD_LABEL } from "@/lib/ui";
+import { savedAfterEdit } from "@/lib/savedStatus";
 
 type Msg = { key: MessageKey; vars?: Record<string, number> };
 
@@ -168,6 +169,7 @@ function ProfileForm({ locale }: { locale: Locale }) {
             value={name}
             onChange={(e) => {
               setName(e.target.value);
+              setSaved(savedAfterEdit(saved, name, e.target.value));
               fe.clearField("displayName");
             }}
             autoComplete="nickname"

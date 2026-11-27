@@ -20,14 +20,18 @@ const wordmarkFont = Inter_Tight({
   style: ["italic"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: pageTitle(),
-    template: pageTitle("%s"),
-  },
-  description: "探索台灣烘豆師的精品咖啡 · Discover specialty coffee from Taiwan's roasters.",
-  keywords: ["精品咖啡", "咖啡豆", "台灣烘豆", "specialty coffee", "Taiwan roasters"],
-};
+// The fallback description for pages without their own follows the reader's language (#550).
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  return {
+    title: {
+      default: pageTitle(),
+      template: pageTitle("%s"),
+    },
+    description: t(locale, "site.description"),
+    keywords: t(locale, "site.keywords"),
+  };
+}
 
 export default async function RootLayout({
   children,

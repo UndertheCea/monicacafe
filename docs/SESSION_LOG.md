@@ -29,6 +29,8 @@ cmd/admin (no bugs), frontend dashboard / account / admin / cart (one cosmetic: 
   `migrate.sh` marker for 030; `health.ExpectedMigration` bumped.
 - #556 frontend — `lib/savedStatus.ts` `savedAfterEdit`: display name (ProfileForm) and the option's on-sale checkbox clear
   "Saved" on edit like the other fields; `tests/savedStatus.test.mjs`.
+- CI fix (no issue) — e2e `badges`: the buyer's reload goes through `gotoUntilShown` like #504 / #506; this PR's first `stack`
+  run timed out waiting for the seller's reply after a plain reload (stack-logs artifact not downloadable from this sandbox).
 
 ### Verification (what ran and passed; what was NOT tested and why)
 - Backend: gofmt, build, vet, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16);

@@ -81,7 +81,7 @@ export default async function MapPage() {
           // grid-cols-1 + min-w-0: a long shop name must not stretch the column past the viewport (#294).
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {cityGroups(pins).map(({ city, count, shops, more }) => (
-              <Card key={city} className="min-w-0 p-5">
+              <Card key={city} className="min-w-0 p-4">
                 <Label as="h3" className="mb-3 text-ink!">
                   {city} <span className="font-normal text-muted">({count})</span>
                 </Label>

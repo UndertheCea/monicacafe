@@ -65,7 +65,7 @@ export function FilterPanel({ summary, title, closeLabel, children }: Props) {
             className={`${toggleCls} peer-checked:[&>span]:rotate-180 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink`}
           >
             {summary}
-            <span aria-hidden="true" className="text-muted transition">
+            <span aria-hidden="true" className="text-muted transition-transform">
               ▾
             </span>
           </label>

@@ -101,7 +101,7 @@ export function CoffeeDetailView({
           </p>
         )}
 
-        <Card as="dl" className="mt-6 grid grid-cols-2 gap-4 p-5">
+        <Card as="dl" className="mt-6 grid grid-cols-2 gap-4 p-6">
           {facts.map(([label, value]) => (
             <div key={label}>
               <Label as="dt">{label}</Label>

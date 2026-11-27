@@ -140,7 +140,7 @@ export function ImageUploader({
           aria-valuenow={progress}
           className="mt-2 h-1.5 w-40 overflow-hidden rounded-full bg-line"
         >
-          <div className="h-full bg-ink transition-[width]" style={{ width: `${progress}%` }} />
+          <div className="h-full w-full origin-left bg-ink transition-transform" style={{ transform: `scaleX(${progress / 100})` }} />
         </div>
       )}
       <p className="mt-1 text-xs text-muted">{t(locale, "img.hint", { mb: MAX_SOURCE_BYTES / MB, px: MAX_IMAGE_SIDE })}</p>

@@ -43,6 +43,13 @@ test("motion: no transition-all, hover scale, bounce, ping or spin; pulse only u
   assert.deepEqual(offenders(/(?:^|[\s"'`:])(?:[a-z-]+:)*scale-(?:10[1-9]|11\d|12\d|1[3-9]\d)\b/), []);
   assert.deepEqual(offenders(/\banimate-(?:bounce|ping|spin)\b/), []);
   assert.deepEqual(offenders(/(?<!motion-safe:)\banimate-pulse\b/), []);
+  // By name only (#560): a bare `transition` animates whatever changes, and layout properties never animate.
+  assert.deepEqual(offenders(/(?:^|[\s"'`:])transition(?=[\s"'`]|$)/), []);
+  assert.deepEqual(offenders(/\btransition-\[[^\]]*\b(?:width|height|top|left|right|bottom|margin|padding)\b/), []);
+});
+
+test("cards and panels share one padding: p-4 in lists, p-6 for panels (#560)", () => {
+  assert.deepEqual(offenders(/(?:^|[\s"'`:])p-5(?=[\s"'`]|$)/), []);
 });
 
 test("heavy and italic type belong to the wordmark only", () => {

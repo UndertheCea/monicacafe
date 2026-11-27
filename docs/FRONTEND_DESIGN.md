@@ -41,7 +41,7 @@ If a change makes a screen that would still fit after you swap "Moni Cafe" for a
   `FIELD_LABEL`) instead of new heading styles.
 - Uppercase tracked labels come only from the `LABEL` recipe (`.label-caps`, the SEY-style origin line). Chinese is
   never spaced out (`:lang(zh)` resets it). Don't invent other uppercase labels.
-- Numbers use one format: `formatTWD` for prices ("NT$450"), grouped thousands, `tabular-nums` where figures line up
+- Numbers use one format: `NT$` + `formatTWD` for prices ("NT$1,200"), grouped thousands, `tabular-nums` where figures line up
   in a column (prices, counts, altitude).
 - Small text never gets negative letter spacing.
 

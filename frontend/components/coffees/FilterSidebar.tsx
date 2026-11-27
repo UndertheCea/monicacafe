@@ -39,7 +39,7 @@ export function FilterSidebar({ locale, filter, sort, origins, varieties, method
   const counted = (name: string, n: number) => t(locale, "filter.optionCount", { name, n });
 
   return (
-    <form method="get" action="/coffees" className={`${CARD} space-y-5 p-5 group-open:p-0 group-open:ring-0`}>
+    <form method="get" action="/coffees" className={`${CARD} space-y-5 p-6 group-open:p-0 group-open:ring-0`}>
       {/* Below md the drawer (or the no-JS toggle) already says "Filters". */}
       <h2 className="hidden text-base font-bold text-ink md:block">{t(locale, "filter.title")}</h2>
 

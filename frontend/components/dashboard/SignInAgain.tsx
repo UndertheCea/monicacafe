@@ -47,7 +47,7 @@ export function SignInAgain({ locale, email: knownEmail }: { locale: Locale; ema
     <section
       role="alert"
       aria-labelledby="signin-again-title"
-      className="space-y-3 rounded-box bg-white p-5 ring-2 ring-ink"
+      className="space-y-3 rounded-box bg-white p-6 ring-2 ring-ink"
     >
       <h2 id="signin-again-title" className="font-bold text-ink">
         {t(locale, "dash.sessionLost")}

@@ -43,3 +43,12 @@ test("rateLimitMessage renders singular and plural English", () => {
     assert.equal(t("en", m.key, m.vars), want, String(s));
   }
 });
+
+test("cardCount: cards print a count only above zero (#552 E, #559)", async () => {
+  const { cardCount } = await import("../lib/plural.ts");
+  assert.equal(cardCount("en", "coffees.comments", 0), null);
+  assert.equal(cardCount("zh-TW", "coffees.comments", 0), null);
+  assert.equal(cardCount("en", "coffees.comments", 1), "1 comment");
+  assert.equal(cardCount("en", "shops.coffeesCount", 4), "4 coffees");
+  assert.equal(cardCount("zh-TW", "coffees.comments", 2), t("zh-TW", "coffees.comments.other", { n: 2 }));
+});

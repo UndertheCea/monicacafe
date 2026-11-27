@@ -100,7 +100,7 @@ describe("axe: cart", () => {
       const empty = await step(page, "a11y-cart-empty", async () => {
         await page.goto("/cart");
         await page.waitForLoadState("networkidle");
-        await page.getByText("Your cart is empty.").waitFor();
+        await page.getByText("Your cart is empty").waitFor();
         return audit(page, "cart (empty)");
       });
       assert.equal(empty.length, 0, report("cart (empty)", empty));

@@ -15,6 +15,37 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 77 — 2026-11-27 — #552 E (copy, zero counts) on its safe default; design-guide conformance (five slices)
+PR: #563
+
+No session PR open (only dependabot's), no owner answers on questions (none since 2026-11-15). #552 E (a) is a safe default the
+issue says a scheduled session may build, so it became #558 / #559. One Sonnet audit of the code against
+`docs/FRONTEND_DESIGN.md` (rules the tests don't check) gave #560–#562. Five slices on purpose: no busywork.
+
+### Shipped (one line per slice: area — what — key files)
+- #558 frontend — no "！" in the dictionary (four strings rewritten, allow-list gone) and no full stop on any one-sentence string
+  in either locale (257 strings; `…Body` / `….body` / `site.*` prose and multi-sentence strings keep theirs);
+  `tests/design.test.mjs` enforces both; e2e text matches updated (the account "Saved" check now targets the status line).
+- #559 frontend — `cardCount()` in `lib/plural.ts`: coffee cards drop "0 則留言", followed-shop rows drop "0 coffees"; test.
+- #560 frontend — buttons / icon buttons / chips transition colours by name, the chevron transform, the upload bar scales with
+  `scaleX` (no width animation); `p-5` cards → `p-4` / `p-6`; test bans bare `transition`, layout transitions and `p-5`.
+- #561 frontend — `shops.title` 精選店家 → 店家 (the English said Shops; the list isn't curated), `img.galleryTitle` 照片,
+  slug note without a trailing colon; test: no dict string ends with a colon.
+- #562 frontend — /coffees filter placeholder 名稱、產地、風味 / "Name, origin, flavor" (was cut mid-word at 1440 px).
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend (unchanged): gofmt, build, vet, `go test ./...`, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (PostgreSQL 16).
+- Frontend (Node 22): tsc, lint, `npm test` (468), `next build`; `check_brief.sh`, `docker compose config`.
+- Local stack without nginx / S3 (Go API + `next start` + seed): screenshots of /coffees, a coffee page, /shops, /map at 390 and
+  1440 px; the filter placeholder measured in Chromium (scrollWidth == clientWidth, both locales, both widths).
+- Not run here: compose stack, smoke and Playwright (no image builds); CI `stack` covers them, incl. the changed e2e strings.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- "One-line note" = a string with exactly one sentence end, at the end. English strings of two sentences ("Couldn't load. Please
+  try again.") keep their stops even where the zh-TW is one sentence.
+- Audit notes not filed: other placeholders are examples on dashboard forms and fit; `ShopLogo` is round (avatar, not on the
+  guide's pill list) and error headings use one-off classes: matters for #552 C / D. No new questions.
+
 ## Session 76 — 2026-11-27 — Audit: foreign-key indexes, "Saved" status on edit (two slices)
 PR: #557
 

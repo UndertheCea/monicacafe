@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-27 (after Session 76)
+Last updated: 2026-11-27 (after Session 77)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. Rules for any
 
 ## Last session
 
-**Session 76**: three audits (store SQL vs migrations, backend moderation / comments, frontend dashboard / account) found two
-gaps: seven foreign keys had no usable index, so parent deletes scanned child tables (migration 030 + a test that fails on any
-unindexed FK, #555), and "Saved" stayed visible after a further edit (#556).
+**Session 77**: #552 E built on its safe default: no "！" and no full stop on one-line notes in either language (#558), no zero
+counts on cards (#559). An audit against the design guide fixed bare / width transitions and off-scale card padding (#560),
+zh / en drift (精選店家 → 店家, #561) and a clipped filter placeholder (#562); tests now check each rule.
 
 ## Current focus
 
@@ -90,7 +90,7 @@ unindexed FK, #555), and "Saved" stayed visible after a further edit (#556).
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–76 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–77 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
@@ -115,7 +115,7 @@ Open questions for the owner (answer by commenting on the issue):
 | #293 | Home roaster's exact map pin | warning text only | yes |
 | #306 | Ideas from the roaster UI/UX review | build none | yes |
 | #307 | Blends / several varieties per listing | one origin, "Mixed" variety | yes |
-| #552 | Unslop polish A–H (home band, tile strength, radii, weights, copy, photo-less tile, note case, label line) | E only (copy) | yes |
+| #552 | Unslop polish A–H (home band, tile strength, radii, weights, copy, photo-less tile, note case, label line) | E only (built) | yes |
 
 ## Decisions (why it looks like this)
 

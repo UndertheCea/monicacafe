@@ -43,6 +43,13 @@ test("motion: no transition-all, hover scale, bounce, ping or spin; pulse only u
   assert.deepEqual(offenders(/(?:^|[\s"'`:])(?:[a-z-]+:)*scale-(?:10[1-9]|11\d|12\d|1[3-9]\d)\b/), []);
   assert.deepEqual(offenders(/\banimate-(?:bounce|ping|spin)\b/), []);
   assert.deepEqual(offenders(/(?<!motion-safe:)\banimate-pulse\b/), []);
+  // By name only (#560): a bare `transition` animates whatever changes, and layout properties never animate.
+  assert.deepEqual(offenders(/(?:^|[\s"'`:])transition(?=[\s"'`]|$)/), []);
+  assert.deepEqual(offenders(/\btransition-\[[^\]]*\b(?:width|height|top|left|right|bottom|margin|padding)\b/), []);
+});
+
+test("cards and panels share one padding: p-4 in lists, p-6 for panels (#560)", () => {
+  assert.deepEqual(offenders(/(?:^|[\s"'`:])p-5(?=[\s"'`]|$)/), []);
 });
 
 test("heavy and italic type belong to the wordmark only", () => {
@@ -69,16 +76,56 @@ test("no hype words or unverifiable claims in either language", () => {
   }
 });
 
-// Strings that still end with "!" / "！" when this test was added; #552 option E removes them. Never add a key here.
-const KNOWN_EXCLAIMS = new Set(["account.noComments", "comments.empty", "dash.noCoffees", "report.done"]);
-
-test("no new exclamation marks in interface text", () => {
+test("no exclamation marks in interface text (#552 E)", () => {
   for (const [locale, dict] of Object.entries(DICTS)) {
     const bad = Object.entries(dict)
-      .filter(([k, v]) => /[!！]/.test(v) && !KNOWN_EXCLAIMS.has(k))
+      .filter(([, v]) => /[!！]/.test(v))
       .map(([k]) => k);
     assert.deepEqual(bad, [], locale);
   }
+});
+
+// One sentence = exactly one sentence end, and it is the last character. Paragraph copy (`…Body`, `….body`) and the
+// meta description (`site.*`) are prose and keep theirs; strings of two or more sentences keep every stop.
+const sentenceEnds = (v) => (v.match(/[。！？]|[.!?](?=\s|$)/g) || []).length;
+const isProse = (k) => /Body$|\.body$|^site\./.test(k);
+
+test("one-line notes have no full stop (#552 E)", () => {
+  for (const [locale, dict] of Object.entries(DICTS)) {
+    const bad = Object.entries(dict)
+      .filter(([k, v]) => !isProse(k) && sentenceEnds(v) === 1 && /(。|[^.]\.)$/.test(v))
+      .map(([k]) => k);
+    assert.deepEqual(bad, [], locale);
+  }
+});
+
+test("no dictionary string ends with a colon: a note never leads into markup after it (#561)", () => {
+  for (const [locale, dict] of Object.entries(DICTS)) {
+    const bad = Object.entries(dict)
+      .filter(([, v]) => /[:：]$/.test(v))
+      .map(([k]) => k);
+    assert.deepEqual(bad, [], locale);
+  }
+});
+
+test("page titles mean the same in both languages (#561)", () => {
+  // 精選 ("featured") on a list that isn't curated was a claim the English didn't make.
+  assert.equal(DICTS["zh-TW"]["shops.title"], "店家");
+  assert.equal(DICTS.en["shops.title"], "Shops");
+  assert.equal(DICTS["zh-TW"]["img.galleryTitle"], "照片");
+});
+
+test("the full-stop rule's helpers see sentences the way the copy guide means", () => {
+  const cases = [
+    ["購物車是空的。", 1],
+    ["購物車載入失敗，請再試一次", 0],
+    ["Couldn't load your cart. Please try again.", 2],
+    ["Wait…", 0],
+    ["Rated 4.5 by tasters", 0],
+  ];
+  for (const [v, n] of cases) assert.equal(sentenceEnds(v), n, v);
+  assert.ok(isProse("home.why1Body") && isProse("notFound.body") && isProse("site.description"));
+  assert.ok(!isProse("cart.empty"));
 });
 
 test("the design guide exists and CLAUDE.md points to it", () => {
@@ -88,4 +135,10 @@ test("the design guide exists and CLAUDE.md points to it", () => {
   }
   assert.match(guide, /unslop\W{0,4} by Damir Sokolovsky/, "CC BY 4.0 credit");
   assert.match(readFileSync(join(root, "..", "CLAUDE.md"), "utf8"), /docs\/FRONTEND_DESIGN\.md/);
+});
+
+test("the /coffees filter's search placeholder fits its sidebar field (#562)", () => {
+  // The sidebar field is about 14 zh characters / 24 Latin ones wide at 16 px; keep well inside it.
+  assert.ok([...DICTS["zh-TW"]["filter.searchPlaceholder"]].length <= 8);
+  assert.ok(DICTS.en["filter.searchPlaceholder"].length <= 22);
 });

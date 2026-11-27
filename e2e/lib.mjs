@@ -164,7 +164,7 @@ export async function addSeededToCart(page, quantity = 1) {
   await page.goto(SEEDED_COFFEE_PATH);
   await page.getByLabel("Quantity").selectOption(String(quantity));
   await page.getByRole("button", { name: "Add to cart" }).click();
-  await page.getByText("Added to your cart.").waitFor();
+  await page.getByText("Added to your cart").waitFor();
 }
 
 /** Logs in through the UI. */

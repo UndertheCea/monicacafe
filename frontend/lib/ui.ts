@@ -11,7 +11,7 @@ export type ButtonVariant = "primary" | "secondary" | "quiet" | "danger";
 export type ButtonSize = "md" | "sm";
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
 /** md is 44 px tall (the tap-target minimum, #231); sm is 36 px, for dense rows inside a list. */
 const BUTTON_SIZES: Record<ButtonSize, string> = {
@@ -45,7 +45,7 @@ export function buttonClass({
 
 /** A round icon-only button (☰, ×, ↑ / ↓): 44 × 44 px, outlined. */
 export const ICON_BUTTON =
-  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink transition hover:border-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-line";
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line bg-white text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-line";
 
 /**
  * Text inputs, selects and textareas. 44 px tall; the border turns red when `aria-invalid` is set, so a field marked

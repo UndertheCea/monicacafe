@@ -180,7 +180,7 @@ describe("buyer", () => {
       const save = page.getByRole("button", { name: "Save", exact: true }).first();
       await save.focus();
       await page.keyboard.press("Enter");
-      await page.getByText("Saved.", { exact: true }).waitFor();
+      await page.getByRole("status").filter({ hasText: /^Saved$/ }).first().waitFor();
       assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), "Save", "focus stays on Save");
     });
     await step(page, "download-my-data", async () => {
@@ -237,7 +237,7 @@ describe("buyer", () => {
       await b.page.keyboard.press("End");
       await b.page.keyboard.type(" (edited)");
       await mine.getByRole("button", { name: "Save" }).click();
-      await mine.getByText("Your comment was updated.").waitFor({ state: "attached" });
+      await mine.getByText("Your comment was updated").waitFor({ state: "attached" });
       await focusOn("Edit");
     });
   });

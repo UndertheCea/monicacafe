@@ -54,7 +54,7 @@ export function FilterChips({ locale, chips, names, clearHref }: Props) {
               <Link
                 href={c.href}
                 aria-label={t(locale, "chip.remove", { label })}
-                className="inline-flex items-center min-h-11 gap-1.5 rounded-full border border-line bg-white px-3 text-sm text-ink transition hover:border-ink"
+                className="inline-flex items-center min-h-11 gap-1.5 rounded-full border border-line bg-white px-3 text-sm text-ink transition-colors hover:border-ink"
               >
                 {label}
                 <span aria-hidden="true" className="text-muted">

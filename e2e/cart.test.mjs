@@ -57,7 +57,7 @@ describe("cart", () => {
       await page.getByText("Add to your cart now; checkout opens soon").waitFor();
       await page.getByLabel("Quantity").selectOption("2");
       await page.getByRole("button", { name: "Add to cart" }).click();
-      await page.getByText("Added to your cart.").waitFor();
+      await page.getByText("Added to your cart").waitFor();
       await headerCart(page, 2).waitFor();
       // The picker now offers what is left: 20 in stock minus 2 in the cart.
       assert.equal(await page.getByLabel("Quantity").locator("option").count(), 18);
@@ -75,7 +75,7 @@ describe("cart", () => {
     });
     await step(page, "cart-remove", async () => {
       await page.getByRole("button", { name: "Remove" }).click();
-      await page.getByText("Your cart is empty.").waitFor();
+      await page.getByText("Your cart is empty").waitFor();
       await headerCart(page, 0).waitFor();
     });
   });

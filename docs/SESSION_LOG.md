@@ -15,6 +15,30 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 75 — 2026-11-27 — Audit: NaN shop coordinates, locale-aware fallback description (two slices)
+PR: #TBD
+
+No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
+Three Sonnet audits: backend Go validation vs DB CHECKs / pagination tie-breaks / time / sentinel mapping (one: #549),
+frontend i18n / cart / error codes / query-schema drift (one: #550), docs vs code drift and CI references (none).
+Two slices on purpose: no busywork.
+
+### Shipped (one line per slice: area — what — key files)
+- #549 backend — `validateCoords` refuses NaN (gqlgen parses the JSON string "NaN" as a Float; range comparisons were all
+  false, so the migration 003 CHECK failed the update as INTERNAL). `TestValidateCoords` (fails without the fix).
+- #550 frontend — `app/layout.tsx` uses `generateMetadata`: fallback description / keywords from `site.description` /
+  `site.keywords` in the reader's language instead of a hard-coded zh/en string; case in `tests/fonts.test.mjs`.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).
+- Frontend (Node 22 locally): tsc, lint, `npm test` (453), `next build`; `check_brief.sh`, `docker compose config`.
+- Not run here: compose stack, smoke and Playwright (no image builds in this sandbox); CI `stack` covers them.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- Audit notes not filed: `mapErr` doesn't map 23514 (check violation), so any future validation gap surfaces as INTERNAL;
+  kept on purpose, since the log line is what reveals the gap. `ErrInsufficientStock` / `ErrDuplicateLine` have no resolver
+  mapping yet; their only callers are the Stage 2 order code (waits on #205). The brief is at 249 / 250 lines. No new questions.
+
 ## Session 74 — 2026-11-26 — Audit: smoke failures, documented env vars, branch cleanup (three slices)
 PR: #548
 

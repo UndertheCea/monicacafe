@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 75 — 2026-11-27 — Audit: NaN shop coordinates, locale-aware fallback description (two slices)
-PR: #TBD
+PR: #551
 
 No session PR open (only dependabot's), no owner answers on questions (none updated since 2026-11-15), nothing pickable.
 Three Sonnet audits: backend Go validation vs DB CHECKs / pagination tie-breaks / time / sentinel mapping (one: #549),

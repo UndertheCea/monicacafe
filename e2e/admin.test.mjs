@@ -47,17 +47,17 @@ describe("moderation", { skip: GRANT ? false : "set E2E_GRANT_ADMIN to the cmd/a
       const dialog = s.page.getByRole("dialog", { name: "Report comment" });
       await dialog.getByLabel("Spam or advertising").check();
       await dialog.getByRole("button", { name: "Send report" }).click();
-      await dialog.getByText("Thanks. An admin will look at it soon.").waitFor();
+      await dialog.getByText("Thanks, an admin will look at it soon").waitFor();
       // #509: focus moves from the vanished submit button to the thanks.
       await s.page.waitForFunction(
         (want) => document.activeElement?.textContent?.trim() === want,
-        "Thanks. An admin will look at it soon.",
+        "Thanks, an admin will look at it soon",
         { timeout: 5000 },
       );
     });
     await step(s.page, "mod-not-admin", async () => {
       await s.page.goto("/admin");
-      await s.page.getByText("This page is for admins only.").waitFor();
+      await s.page.getByText("This page is for admins only").waitFor();
       assert.equal(await s.page.getByText(badText).count(), 0, "a non-admin sees no reports");
     });
 

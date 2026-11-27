@@ -69,16 +69,40 @@ test("no hype words or unverifiable claims in either language", () => {
   }
 });
 
-// Strings that still end with "!" / "！" when this test was added; #552 option E removes them. Never add a key here.
-const KNOWN_EXCLAIMS = new Set(["account.noComments", "comments.empty", "dash.noCoffees", "report.done"]);
-
-test("no new exclamation marks in interface text", () => {
+test("no exclamation marks in interface text (#552 E)", () => {
   for (const [locale, dict] of Object.entries(DICTS)) {
     const bad = Object.entries(dict)
-      .filter(([k, v]) => /[!！]/.test(v) && !KNOWN_EXCLAIMS.has(k))
+      .filter(([, v]) => /[!！]/.test(v))
       .map(([k]) => k);
     assert.deepEqual(bad, [], locale);
   }
+});
+
+// One sentence = exactly one sentence end, and it is the last character. Paragraph copy (`…Body`, `….body`) and the
+// meta description (`site.*`) are prose and keep theirs; strings of two or more sentences keep every stop.
+const sentenceEnds = (v) => (v.match(/[。！？]|[.!?](?=\s|$)/g) || []).length;
+const isProse = (k) => /Body$|\.body$|^site\./.test(k);
+
+test("one-line notes have no full stop (#552 E)", () => {
+  for (const [locale, dict] of Object.entries(DICTS)) {
+    const bad = Object.entries(dict)
+      .filter(([k, v]) => !isProse(k) && sentenceEnds(v) === 1 && /(。|[^.]\.)$/.test(v))
+      .map(([k]) => k);
+    assert.deepEqual(bad, [], locale);
+  }
+});
+
+test("the full-stop rule's helpers see sentences the way the copy guide means", () => {
+  const cases = [
+    ["購物車是空的。", 1],
+    ["購物車載入失敗，請再試一次", 0],
+    ["Couldn't load your cart. Please try again.", 2],
+    ["Wait…", 0],
+    ["Rated 4.5 by tasters", 0],
+  ];
+  for (const [v, n] of cases) assert.equal(sentenceEnds(v), n, v);
+  assert.ok(isProse("home.why1Body") && isProse("notFound.body") && isProse("site.description"));
+  assert.ok(!isProse("cart.empty"));
 });
 
 test("the design guide exists and CLAUDE.md points to it", () => {

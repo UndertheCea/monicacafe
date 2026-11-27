@@ -28,6 +28,10 @@ Two slices on purpose: no busywork.
   false, so the migration 003 CHECK failed the update as INTERNAL). `TestValidateCoords` (fails without the fix).
 - #550 frontend — `app/layout.tsx` uses `generateMetadata`: fallback description / keywords from `site.description` /
   `site.keywords` in the reader's language instead of a hard-coded zh/en string; case in `tests/fonts.test.mjs`.
+- #553 frontend (owner request, after merge of #551, PR of its own) — `docs/FRONTEND_DESIGN.md`: design guide adapted from
+  unslop (CC BY 4.0); CLAUDE.md rule 11 points to it; `tests/design.test.mjs` bans emoji, `transition-all` / hover scale /
+  stray animation, heavy or italic type outside the wordmark, off-grid px values, hype words and new "!" strings.
+  Owner question #552 (unslop audit options A–H) filed from a local run of the stack with screenshots.
 
 ### Verification (what ran and passed; what was NOT tested and why)
 - Backend: gofmt, build, vet, `go test ./...`, and `go test -race ./...` against a fresh `scripts/test_db.sh` DB (local PostgreSQL 16).

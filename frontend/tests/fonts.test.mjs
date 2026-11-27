@@ -17,3 +17,10 @@ test("smooth scrolling is opt-in for motion and off during navigation", () => {
   assert.doesNotMatch(css, /@apply scroll-smooth;/);
   assert.match(css, /motion-safe:scroll-smooth/);
 });
+
+test("the layout's fallback description and keywords come from t() (#550)", () => {
+  assert.match(layout, /description: t\(locale, "site\.description"\)/);
+  assert.match(layout, /keywords: t\(locale, "site\.keywords"\)/);
+  assert.doesNotMatch(layout, /export const metadata/);
+  assert.doesNotMatch(layout, /Discover specialty coffee|精品咖啡/);
+});

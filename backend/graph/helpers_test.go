@@ -1091,3 +1091,39 @@ func TestEmptyCoffeeUpdate(t *testing.T) {
 		}
 	}
 }
+
+// #549: NaN and infinities are refused here, not by the DB CHECK as INTERNAL.
+func TestValidateCoords(t *testing.T) {
+	f := func(v float64) *float64 { return &v }
+	nan, inf := math.NaN(), math.Inf(1)
+	cases := []struct {
+		name      string
+		lat, lng  *float64
+		wantField string
+	}{
+		{"none", nil, nil, ""},
+		{"taipei", f(25.03), f(121.56), ""},
+		{"edges", f(-90), f(180), ""},
+		{"lat high", f(90.01), f(121), "lat"},
+		{"lng low", f(25), f(-180.5), "lng"},
+		{"lat NaN", f(nan), f(121), "lat"},
+		{"lng NaN", f(25), f(nan), "lng"},
+		{"lat +Inf", f(inf), f(121), "lat"},
+		{"lng -Inf", f(25), f(-inf), "lng"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateCoords(tc.lat, tc.lng)
+			if tc.wantField == "" {
+				if err != nil {
+					t.Fatalf("err = %v; want nil", err)
+				}
+				return
+			}
+			var ae *apiError
+			if !errors.As(err, &ae) || ae.code != CodeBadInput || ae.field != tc.wantField {
+				t.Fatalf("err = %#v; want BAD_USER_INPUT on %q", err, tc.wantField)
+			}
+		})
+	}
+}

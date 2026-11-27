@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 77 — 2026-11-27 — #552 E (copy, zero counts) on its safe default; design-guide conformance (five slices)
-PR: #PR
+PR: #563
 
 No session PR open (only dependabot's), no owner answers on questions (none since 2026-11-15). #552 E (a) is a safe default the
 issue says a scheduled session may build, so it became #558 / #559. One Sonnet audit of the code against

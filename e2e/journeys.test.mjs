@@ -259,18 +259,6 @@ describe("without JavaScript", () => {
         await v.page.getByText("NT$480").first().waitFor();
         await v.page.getByText("Bright and floral").first().waitFor();
       });
-      await step(v.page, "nojs-shop-map-link", async () => {
-        // The seed shop has a pin: the Google Maps link and JSON-LD hasMap are in the HTML (#293, #564, #567).
-        await v.page.goto("/shops/demo-roastery");
-        const link = v.page.getByRole("link", { name: /^Open in Google Maps/ });
-        await link.waitFor();
-        assert.equal(await link.getAttribute("href"), "https://www.google.com/maps/search/?api=1&query=25.0553%2C121.5103");
-        assert.equal(await link.getAttribute("target"), "_blank");
-        assert.match(await link.getAttribute("rel"), /noopener/);
-        const ld = await v.page.locator('script[type="application/ld+json"]').allTextContents();
-        const store = ld.map((j) => JSON.parse(j)).find((d) => d["@type"] === "Store");
-        assert.equal(store?.hasMap, "https://www.google.com/maps/search/?api=1&query=25.0553%2C121.5103", "Store JSON-LD has hasMap");
-      });
       await step(v.page, "nojs-signin-link", async () => {
         // Auth never resolves without JS, so the sign-in link must be in the HTML (#372).
         const link = v.page.getByRole("link", { name: "Log in to add to cart" });
@@ -283,6 +271,18 @@ describe("without JavaScript", () => {
         await link.waitFor();
         assert.match(await link.getAttribute("href"), /^\/login\?next=/);
         await v.page.getByRole("link", { name: "Log in to save" }).waitFor();
+      });
+      await step(v.page, "nojs-shop-map-link", async () => {
+        // Last: it leaves the coffee page the steps above read. The seed shop has a pin: the Google Maps link and JSON-LD hasMap are in the HTML (#293, #564, #567).
+        await v.page.goto("/shops/demo-roastery");
+        const link = v.page.getByRole("link", { name: /^Open in Google Maps/ });
+        await link.waitFor();
+        assert.equal(await link.getAttribute("href"), "https://www.google.com/maps/search/?api=1&query=25.0553%2C121.5103");
+        assert.equal(await link.getAttribute("target"), "_blank");
+        assert.match(await link.getAttribute("rel"), /noopener/);
+        const ld = await v.page.locator('script[type="application/ld+json"]').allTextContents();
+        const store = ld.map((j) => JSON.parse(j)).find((d) => d["@type"] === "Store");
+        assert.equal(store?.hasMap, "https://www.google.com/maps/search/?api=1&query=25.0553%2C121.5103", "Store JSON-LD has hasMap");
       });
     } finally {
       await v.ctx.close();

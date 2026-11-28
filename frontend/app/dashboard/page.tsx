@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NeedsJs } from "@/components/NeedsJs";
 import { Dashboard } from "@/components/dashboard/Dashboard";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -17,6 +18,7 @@ export default async function DashboardPage() {
     <Page className="py-10">
     <div className="mx-auto max-w-5xl">
       <PageTitle className="mb-6">{t(locale, "dash.title")}</PageTitle>
+      <NeedsJs locale={locale} />
       <Dashboard locale={locale} />
     </div>
     </Page>

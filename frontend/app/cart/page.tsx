@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NeedsJs } from "@/components/NeedsJs";
 import { CartView } from "@/components/cart/CartView";
 import { Page } from "@/components/Page";
 import { PageTitle } from "@/components/ui";
@@ -16,6 +17,7 @@ export default async function CartPage() {
     <Page className="py-10">
       <div className="mx-auto max-w-2xl">
         <PageTitle id="cart-heading" tabIndex={-1} className="mb-6">{t(locale, "cart.title")}</PageTitle>
+        <NeedsJs locale={locale} />
         <CartView locale={locale} />
       </div>
     </Page>

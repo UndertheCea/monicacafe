@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-28 (after Session 78)
+Last updated: 2026-11-28 (after Session 79)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. Rules for any
 
 ## Last session
 
-**Session 78**: the owner answered #293: exact pins stay, and buyers get Google Maps directions. Shop pages (#564) and /map
-popups (#565) link the pin to Google Maps; sellers can paste a Google Maps link to set the pin, and the form says the point is
-public (#566); Store JSON-LD carries `hasMap`, e2e checks the link (#567). Map popup links are ink, not Leaflet blue.
+**Session 79**: no pickable slice, so three audits found eight real defects (#569–#576): cart line controls name the option,
+signed-in-only pages say they need JavaScript, smoke's spoof check needs the app's 429, CI runs the worker container, nginx `/health`
+headers, `Report.comment` loader, the reference cache serves its old lists when a reload fails, cart sweep refuses a tiny max age.
 
 ## Current focus
 
@@ -90,7 +90,7 @@ public (#566); Store JSON-LD carries `hasMap`, e2e checks the link (#567). Map p
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–78 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–79 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch

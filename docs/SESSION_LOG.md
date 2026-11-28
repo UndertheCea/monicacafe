@@ -15,6 +15,38 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 79 — 2026-11-28 — audit fixes: cart a11y, no-JS pages, smoke / CI / nginx, backend resilience (eight slices)
+PR: #PR
+
+No session PR open (only dependabot's), no owner answers (#552's only comment is a session's). No pickable slice, so three Sonnet
+audits (backend, frontend, cross-cutting) looked for real defects; eight were confirmed in the code and filed as #569–#576. Audit
+items left out on purpose: tests for already-correct pure helpers (busywork), `CommentForm`'s `?next=` dropping a query the page
+doesn't have, and the self-suspend id spelling (still refused, by the admin check).
+
+### Shipped (one line per slice: area — what — key files)
+- #569 frontend — `cartLineName()` is "coffee · grind · N g", so two options of one coffee get different control names; test.
+- #570 frontend — `components/NeedsJs.tsx` `<noscript>` ("This page needs JavaScript", `common.needsJs`) on /cart, /account,
+  /dashboard, /admin, which showed "Loading…" forever without JS; `tests/needsJs.test.mjs`; e2e no-JS step on /cart.
+- #571 cross-cutting — smoke's spoofed X-Forwarded-For check paces under nginx's auth zone (0.3 s) and passes only on a 429
+  with Retry-After (the app's limiter); nginx's own 429 used to make it pass with the per-IP limit broken.
+- #572 cross-cutting — CI `stack` starts the `worker` profile container last and waits for its healthcheck; failure logs and
+  tear-down include the profile.
+- #573 cross-cutting — nginx `/health` forwards Host / X-Real-IP / X-Forwarded-* + HTTP/1.1 like `/graphql`.
+- #574 backend — `store.CommentsByIDs` + `CommentByID` loader for `Report.comment` (was one query per report) (Sonnet sub-agent).
+- #575 backend — `refCache` builds snapshots outside the lock, warm readers never wait, a failed reload serves the old snapshot
+  (warning, retry after 10 s); cold still errors; table test with an injected loader + clock, `-race` test for non-blocking reads.
+- #576 backend — `PruneStaleCartLines` refuses maxAge < 1 s (would have matched every line); DB-free table test.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend: gofmt, build, vet, `go test ./...`, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (PostgreSQL 17 in Docker).
+- Frontend: tsc, lint, `npm test` (476), `next build`; `check_brief.sh`, `docker compose config`; `nginx -t` in the pinned image.
+- Not run here: `docker compose up --build` (backend `go mod download` fails the sandbox's TLS proxy), so smoke, Playwright and
+  the new worker step run only in CI `stack`.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- The reference cache may serve lists up to refTTL + a failed-reload streak old; the tables are migration-seeded, so stale is safe.
+- No new questions.
+
 ## Session 78 — 2026-11-28 — #293 answered: Google Maps directions for shop pins (four slices)
 PR: #568
 

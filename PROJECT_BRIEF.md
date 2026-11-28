@@ -8,7 +8,7 @@ The order of the work ahead, and why, is in [`docs/ROADMAP.md`](docs/ROADMAP.md)
 Rewrite "Status", "Last session" and "Current focus" every session; keep this file under 250 lines
 (`scripts/check_brief.sh` enforces it in CI).
 
-Last updated: 2026-11-27 (after Session 77)
+Last updated: 2026-11-28 (after Session 78)
 
 ---
 
@@ -78,9 +78,9 @@ in the seller's case (#111, #294); on the coffee page it is plain. Rules for any
 
 ## Last session
 
-**Session 77**: #552 E built on its safe default: no "！" and no full stop on one-line notes in either language (#558), no zero
-counts on cards (#559). An audit against the design guide fixed bare / width transitions and off-scale card padding (#560),
-zh / en drift (精選店家 → 店家, #561) and a clipped filter placeholder (#562); tests now check each rule.
+**Session 78**: the owner answered #293: exact pins stay, and buyers get Google Maps directions. Shop pages (#564) and /map
+popups (#565) link the pin to Google Maps; sellers can paste a Google Maps link to set the pin, and the form says the point is
+public (#566); Store JSON-LD carries `hasMap`, e2e checks the link (#567). Map popup links are ink, not Leaflet blue.
 
 ## Current focus
 
@@ -90,7 +90,7 @@ zh / en drift (精選店家 → 店家, #561) and a clipped filter placeholder (
    using `ReserveStock` in the order transaction and River for hold expiry. **#12** (commission) and **#201** (legal) gate
    payouts and launch.
 2. **Hosting waits on #199** (HTTPS compose #219, blocked; checklist in `docs/DEPLOY.md`). Then a `worker` service.
-3. No pickable slice left. Sessions 43, 45–77 audited / fixed the code; stage 1 waits on
+3. No pickable slice left. Sessions 43, 45–78 audited / fixed the code; stage 1 waits on
    #219, #223, #226. Orders wait on #205; they take stock with `ReserveLines` (refuses non-public coffees, #326) and give it back with `ReleaseHold` (River job).
 4. Production: `TRUSTED_PROXIES` to the real proxies only; never publish :3000 / :4000 / :9100 (the BFF trusts X-Real-IP);
    `DB_MAX_CONNS` × API instances below `max_connections`; map tile provider (#10); owner: secret scanning + a branch
@@ -112,7 +112,6 @@ Open questions for the owner (answer by commenting on the issue):
 | #204 | English URLs (/en/…), bilingual seller text | keep cookie, one field | yes |
 | #205 | Multi-shop orders, shipping, stock (Stage 2) | one checkout, order per shop | **no** |
 | #292 | Small Stage 2 rules: 1 exact stock shown (2–4 built on the defaults) | "In stock", number only ≤ 5 | **no** |
-| #293 | Home roaster's exact map pin | warning text only | yes |
 | #306 | Ideas from the roaster UI/UX review | build none | yes |
 | #307 | Blends / several varieties per listing | one origin, "Mixed" variety | yes |
 | #552 | Unslop polish A–H (home band, tile strength, radii, weights, copy, photo-less tile, note case, label line) | E only (built) | yes |
@@ -245,6 +244,7 @@ Open questions for the owner (answer by commenting on the issue):
   seller out for 10 minutes; both need email verification / reset. Integration tests leave rows, so they get their own DB
   (`scripts/test_db.sh`). **Containers (#309)**: postgres, nginx, seaweedfs, redis, meilisearch and backup keep root and their
   capabilities (their entrypoints chown / drop privileges; untested without Docker); images pinned by tag; no CodeQL / SBOM yet.
+- **Exact pins + Google Maps directions (owner, #293)**: a link built from the stored point, never a seller URL; pasted links give only the point (#564–#567).
 - **Thumbnails are derived, never stored (#235)**: `<key>.thumb.webp` sits next to its original, is kept exactly while the
   original is referenced and can't be saved as a URL; cards fall back to the original. Only anonymous catalogue data (filter
   options, home, sitemap) is cached for 60 s; anything carrying a viewer's cookie or IP is not.

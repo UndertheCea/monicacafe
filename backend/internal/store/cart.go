@@ -189,6 +189,11 @@ func (s *Store) PruneStaleCartLines(ctx context.Context, maxAge time.Duration, b
 	if batch <= 0 {
 		return 0, errors.New("store: prune batch must be positive")
 	}
+	// Under a second the interval rounds to "0 seconds" (or goes negative) and
+	// every line would match (#576).
+	if maxAge < time.Second {
+		return 0, errors.New("store: prune max age must be at least 1s")
+	}
 	interval := fmt.Sprintf("%d seconds", int64(maxAge.Seconds()))
 	var total int64
 	for {

@@ -20,8 +20,10 @@ type Loaders struct {
 	ShopByID *dataloadgen.Loader[string, *store.Shop]
 	// ShopByOwner answers User.shop (#283): a comment list asking every
 	// author for their shop is one query, however many aliases ask.
-	ShopByOwner          *dataloadgen.Loader[string, *store.Shop]
-	CoffeeByID           *dataloadgen.Loader[string, *store.Coffee]
+	ShopByOwner *dataloadgen.Loader[string, *store.Shop]
+	CoffeeByID  *dataloadgen.Loader[string, *store.Coffee]
+	// CommentByID answers Report.comment: a report queue is one query.
+	CommentByID          *dataloadgen.Loader[string, *store.Comment]
 	VariantsByCoffeeID   *dataloadgen.Loader[string, []*store.Variant]
 	CommentCountByCoffee *dataloadgen.Loader[string, int]
 	CoffeeCountByShop    *dataloadgen.Loader[string, int]
@@ -49,6 +51,7 @@ func NewLoaders(st *store.Store) *Loaders {
 		ShopByID:    dataloadgen.NewMappedLoader(st.ShopsByIDs, dataloadgen.WithWait(loaderWait)),
 		ShopByOwner: dataloadgen.NewMappedLoader(st.ShopsByOwnerIDs, dataloadgen.WithWait(loaderWait)),
 		CoffeeByID:  dataloadgen.NewMappedLoader(st.CoffeesByIDs, dataloadgen.WithWait(loaderWait)),
+		CommentByID: dataloadgen.NewMappedLoader(st.CommentsByIDs, dataloadgen.WithWait(loaderWait)),
 		VariantsByCoffeeID: dataloadgen.NewLoader(func(ctx context.Context, ids []string) ([][]*store.Variant, []error) {
 			m, err := st.VariantsByCoffeeIDs(ctx, ids)
 			out := make([][]*store.Variant, len(ids))

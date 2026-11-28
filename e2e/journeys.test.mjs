@@ -284,6 +284,13 @@ describe("without JavaScript", () => {
         const store = ld.map((j) => JSON.parse(j)).find((d) => d["@type"] === "Store");
         assert.equal(store?.hasMap, "https://www.google.com/maps/search/?api=1&query=25.0553%2C121.5103", "Store JSON-LD has hasMap");
       });
+      await step(v.page, "nojs-cart-needs-js", async () => {
+        // Signed-in-only pages never leave "Loading…" without JS, so they say so (#570). Read from the
+        // served HTML: Playwright's javaScriptEnabled: false still parses <noscript> as scripting-on (raw
+        // text), so the notice is never "visible" here although a real no-JS browser shows it.
+        const res = await v.page.goto("/cart");
+        assert.match(await res.text(), /<noscript><p[^>]*>This page needs JavaScript<\/p><\/noscript>/);
+      });
     } finally {
       await v.ctx.close();
     }

@@ -206,13 +206,19 @@ test("the header and the cart count the same unit in both languages (#513)", () 
   }
 });
 
-test("cartLineName: the coffee's name, else grind and weight", () => {
+test("cartLineName: the coffee's name and option, else grind and weight", () => {
   const variant = { weightG: 200 };
   const cases = [
-    [{ coffee: { name: "Yirgacheffe" }, variant }, "Yirgacheffe"],
-    [{ coffee: null, variant }, "Whole bean · 200 g"],
+    [{ coffee: { name: "Yirgacheffe" }, variant }, "Whole bean", "Yirgacheffe · Whole bean · 200 g"],
+    [{ coffee: null, variant }, "Whole bean", "Whole bean · 200 g"],
   ];
-  for (const [l, want] of cases) assert.equal(cartLineName(l, "Whole bean"), want);
+  for (const [l, grind, want] of cases) assert.equal(cartLineName(l, grind), want);
+  // Two options of one coffee must not share a name (#569).
+  const coffee = { name: "Guji" };
+  const a = cartLineName({ coffee, variant: { weightG: 250 } }, "Whole bean");
+  const b = cartLineName({ coffee, variant: { weightG: 500 } }, "Ground");
+  const c = cartLineName({ coffee, variant: { weightG: 500 } }, "Whole bean");
+  assert.equal(new Set([a, b, c]).size, 3);
 });
 
 test("orphanProblem", () => {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NeedsJs } from "@/components/NeedsJs";
 import { AccountSettings } from "@/components/account/AccountSettings";
 import { t } from "@/lib/i18n/dict";
 import { getLocale } from "@/lib/i18n/server";
@@ -15,6 +16,7 @@ export default async function AccountPage() {
     <Page className="py-10">
     <div className="mx-auto max-w-2xl">
       <PageTitle className="mb-6">{t(locale, "account.title")}</PageTitle>
+      <NeedsJs locale={locale} />
       <AccountSettings locale={locale} />
     </div>
     </Page>

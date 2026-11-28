@@ -111,3 +111,24 @@ func TestPruneStaleCartLinesBatches(t *testing.T) {
 		}
 	}
 }
+
+// A max age under one second would match every line; it is refused before
+// any query, so this needs no database (#576).
+func TestPruneStaleCartLinesRefusesTinyMaxAge(t *testing.T) {
+	cases := []struct {
+		name   string
+		maxAge time.Duration
+	}{
+		{"zero", 0},
+		{"negative", -time.Hour},
+		{"under a second", 500 * time.Millisecond},
+	}
+	s := &store.Store{}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if n, err := s.PruneStaleCartLines(context.Background(), tc.maxAge, 100); err == nil || n != 0 {
+				t.Fatalf("PruneStaleCartLines(%v) = %d, %v; want 0 and an error", tc.maxAge, n, err)
+			}
+		})
+	}
+}

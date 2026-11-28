@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { NeedsJs } from "@/components/NeedsJs";
 import { AdminScreen } from "@/components/admin/AdminScreen";
 import { Page } from "@/components/Page";
 import { PageTitle } from "@/components/ui";
@@ -17,6 +18,7 @@ export default async function AdminPage() {
   return (
     <Page className="py-10">
       <PageTitle className="mb-6">{t(locale, "admin.title")}</PageTitle>
+      <NeedsJs locale={locale} />
       <AdminScreen locale={locale} />
     </Page>
   );

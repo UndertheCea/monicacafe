@@ -77,3 +77,8 @@ test("parseMapsLink: short links can't be read here; anything else without a poi
     assert.equal(parseMapsLink(s), null, s);
   }
 });
+
+test("map popup and attribution links are ink, not Leaflet's blue", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.leaflet-container \.leaflet-popup-content a,\s*\.leaflet-container \.leaflet-control-attribution a \{\s*color: var\(--color-ink\);/);
+});

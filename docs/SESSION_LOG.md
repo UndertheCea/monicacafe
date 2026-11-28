@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 78 — 2026-11-28 — #293 answered: Google Maps directions for shop pins (four slices)
-PR: #PRNUM
+PR: #568
 
 No session PR open (only dependabot's). The owner answered #293 (2026-11-27): exact pins are fine, and sellers can "share their
 Google Maps link" with a "show on map" button for navigation. Recorded as (a) + a platform-built Google Maps link, #293 closed,

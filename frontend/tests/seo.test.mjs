@@ -167,6 +167,7 @@ test("shopJsonLd describes a Store in Taiwan with geo and the listed coffees", (
   assert.deepEqual(ld.image, ["https://moni.cafe/media/shops/1/banner.jpg", "https://moni.cafe/media/shops/1/logo.png"]);
   assert.deepEqual(ld.address, { "@type": "PostalAddress", addressCountry: "TW", addressLocality: "台中市" });
   assert.deepEqual(ld.geo, { "@type": "GeoCoordinates", latitude: 24.1477, longitude: 120.6736 });
+  assert.equal(ld.hasMap, "https://www.google.com/maps/search/?api=1&query=24.1477%2C120.6736");
   assert.equal(ld.hasOfferCatalog, undefined);
 });
 
@@ -187,9 +188,9 @@ test("shopCoffeesJsonLd lists coffees as an ItemList without offers (#355)", () 
 
 test("shopJsonLd leaves out what the shop doesn't have", () => {
   const cases = [
-    { name: "no coords", patch: { lat: null, lng: null }, absent: ["geo"] },
-    { name: "one coord", patch: { lat: 24.1, lng: undefined }, absent: ["geo"] },
-    { name: "out of range", patch: { lat: 124.1, lng: 120 }, absent: ["geo"] },
+    { name: "no coords", patch: { lat: null, lng: null }, absent: ["geo", "hasMap"] },
+    { name: "one coord", patch: { lat: 24.1, lng: undefined }, absent: ["geo", "hasMap"] },
+    { name: "out of range", patch: { lat: 124.1, lng: 120 }, absent: ["geo", "hasMap"] },
     { name: "no images", patch: { logoUrl: null, bannerUrl: null }, absent: ["logo", "image"] },
     { name: "bad image scheme", patch: { logoUrl: "javascript:alert(1)", bannerUrl: null }, absent: ["logo", "image"] },
     { name: "no description", patch: { description: "   " }, absent: ["description"] },

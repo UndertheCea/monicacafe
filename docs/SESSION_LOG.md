@@ -16,7 +16,7 @@ PR: #<number>
 -->
 
 ## Session 79 — 2026-11-28 — audit fixes: cart a11y, no-JS pages, smoke / CI / nginx, backend resilience (eight slices)
-PR: #PR
+PR: #577
 
 No session PR open (only dependabot's), no owner answers (#552's only comment is a session's). No pickable slice, so three Sonnet
 audits (backend, frontend, cross-cutting) looked for real defects; eight were confirmed in the code and filed as #569–#576. Audit

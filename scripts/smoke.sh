@@ -617,22 +617,29 @@ fi
 # X-Real-IP headers must not give each login attempt a fresh per-IP budget
 # (RATE_LIMIT_LOGIN_IP, default 20/1m). Distinct emails, so the per-email limit
 # can't be what stops it. Last, because it spends this address's login budget.
+# Paced under nginx's own auth zone (5 r/s, #214), and only a 429 carrying
+# Retry-After counts: that is the app's limiter, nginx's 429 has none (#571).
 # Skipped when BASE_URL bypasses nginx (nothing overwrites X-Real-IP there).
 if [[ "$BASE_URL" == "$API_URL" ]]; then
-  sp_code=""; sp_n=0
-  while (( sp_n < ${SMOKE_LOGIN_IP_BURST:-20} + 1 )); do
+  sp_code=""; sp_n=0; sp_retry=""
+  while (( sp_n < ${SMOKE_LOGIN_IP_BURST:-20} + 5 )); do  # +5: the bucket refills (1 per 3 s) while we pace
     sp_n=$((sp_n + 1))
     fake="203.0.113.$((sp_n % 250 + 1))"
-    sp_code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X POST -H 'Content-Type: application/json' \
+    sp_headers=$(curl -s -D - -o /dev/null --max-time 15 -X POST -H 'Content-Type: application/json' \
       -H "X-Forwarded-For: $fake" -H "X-Real-IP: $fake" \
       -d "$(printf '{"email":"smokespoof%s%s@example.com","password":"wrong-password"}' "$RANDOM" "$sp_n")" \
-      "$BASE_URL/api/auth/login" || echo 000)
+      "$BASE_URL/api/auth/login" | tr -d '\r' || true)
+    sp_code=$(awk 'NR == 1 { print $2 }' <<<"$sp_headers")
+    sp_retry=$(grep -i '^retry-after: [0-9]' <<<"$sp_headers" || true)
     [[ "$sp_code" == "429" ]] && break
+    sleep 0.3
   done
-  if [[ "$sp_code" == "429" ]]; then
-    echo "ok   spoofed X-Forwarded-For / X-Real-IP don't reset the login limit (429 after $sp_n)"
+  if [[ "$sp_code" == "429" && -n "$sp_retry" ]]; then
+    echo "ok   spoofed X-Forwarded-For / X-Real-IP don't reset the login limit (app 429 after $sp_n)"
+  elif [[ "$sp_code" == "429" ]]; then
+    echo "FAIL spoofed client addresses: 429 after $sp_n without Retry-After, so nginx answered, not the app's per-IP login limit"; fail=1
   else
-    echo "FAIL spoofed client addresses: $sp_n logins with made-up addresses, last → $sp_code (want 429)"; fail=1
+    echo "FAIL spoofed client addresses: $sp_n logins with made-up addresses, last → ${sp_code:-000} (want 429)"; fail=1
   fi
 fi
 

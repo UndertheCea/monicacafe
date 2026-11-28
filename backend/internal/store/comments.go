@@ -35,6 +35,28 @@ func (s *Store) CommentByID(ctx context.Context, id string) (*Comment, error) {
 	return scanComment(s.db.QueryRow(ctx, `SELECT `+commentColumns+` FROM comments WHERE id = $1`, id))
 }
 
+// CommentsByIDs batch-fetches comments keyed by ID; ids that do not exist are
+// absent from the map. Empty input runs no query.
+func (s *Store) CommentsByIDs(ctx context.Context, ids []string) (map[string]*Comment, error) {
+	out := make(map[string]*Comment, len(ids))
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := s.db.Query(ctx, `SELECT `+commentColumns+` FROM comments WHERE id = ANY($1::uuid[])`, ids)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		c, err := scanComment(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[c.ID] = c
+	}
+	return out, mapErr(rows.Err())
+}
+
 // UpdateCommentBody replaces a comment's text and sets edited_at. Text equal
 // to the current body changes nothing (edited_at stays as it was). Returns
 // ErrNotFound if the comment does not exist.

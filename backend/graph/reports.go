@@ -321,8 +321,8 @@ func (r *Resolver) reportComment(ctx context.Context, obj *model.Report) (*model
 	if obj.TargetType != model.ReportTargetTypeComment {
 		return nil, nil
 	}
-	cm, err := r.Store.CommentByID(ctx, obj.TargetID)
-	if errors.Is(err, store.ErrNotFound) {
+	cm, err := r.loadersFor(ctx).CommentByID.Load(ctx, obj.TargetID)
+	if isLoaderNotFound(err) {
 		return nil, nil
 	}
 	if err != nil {

@@ -66,6 +66,7 @@ export default async function MapPage() {
         failedLabel={t(locale, "map.loadFailed")}
         twoFingersLabel={t(locale, "map.twoFingers")}
         controlLabels={mapControlLabels(locale)}
+        openInMaps={{ label: t(locale, "shops.openInMaps"), newTab: t(locale, "common.newTab") }}
       />
 
       {/* Text list: the accessible, no-JS equivalent of the map. */}

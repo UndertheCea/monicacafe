@@ -175,12 +175,14 @@ export function bagCountKey(base: "cart.itemCount" | "nav.cartCount", n: number)
 }
 
 /**
- * What a line's controls call it for screen readers: the coffee's name, or
- * "grind · N g" when the coffee is no longer on the site. `grind` is the
- * already translated grind label.
+ * What a line's controls call it for screen readers: "coffee · grind · N g",
+ * or "grind · N g" when the coffee is no longer on the site. The option is
+ * always there, so two lines of one coffee get different names (#569).
+ * `grind` is the already translated grind label.
  */
 export function cartLineName(line: Pick<CartLine, "coffee" | "variant">, grind: string): string {
-  return line.coffee ? line.coffee.name : `${grind} · ${line.variant.weightG} g`;
+  const option = `${grind} · ${line.variant.weightG} g`;
+  return line.coffee ? `${line.coffee.name} · ${option}` : option;
 }
 
 /** "N" for the header's cart link: 99+ beyond two digits; "" for an empty cart. */

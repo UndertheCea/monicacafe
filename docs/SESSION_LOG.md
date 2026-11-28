@@ -15,6 +15,39 @@ PR: #<number>
 ### Decisions / deferred (anything the next session or the owner should know)
 -->
 
+## Session 78 — 2026-11-28 — #293 answered: Google Maps directions for shop pins (four slices)
+PR: #568
+
+No session PR open (only dependabot's). The owner answered #293 (2026-11-27): exact pins are fine, and sellers can "share their
+Google Maps link" with a "show on map" button for navigation. Recorded as (a) + a platform-built Google Maps link, #293 closed,
+and four slices opened and built (#564–#567). No other owner answers (#552's only comment is a session's). Four on purpose: no busywork.
+
+### Shipped (one line per slice: area — what — key files)
+- #564 frontend — `lib/directions.ts` `googleMapsUrl()` (Google's documented `maps/search/?api=1&query=lat%2Clng`, null without a
+  usable pin); "Open in Google Maps" under the city on `/shops/[slug]`, new tab, 44 px, screen-reader "(opens in a new tab)"
+  (`common.newTab`).
+- #565 frontend — the same link in each /map popup (DOM nodes, no HTML strings); `globals.css` keeps popup + attribution links ink
+  (Leaflet's unlayered `#0078A8` beat Tailwind's layered `text-ink`, so popup shop names were blue too).
+- #566 frontend — `parseMapsLink()`: place `!3d!4d` (before the `@` view centre), `q` / `query` / `ll` / `center` / `destination`,
+  bare "lat, lng" (NFKC), range-checked, 6 decimals; short links (`maps.app.goo.gl`) → a message to copy the full URL. New "Paste
+  a Google Maps link" field on the shop profile fills lat / lng and moves the pin; the URL is never saved. Location card says the
+  point is public and suggests a nearby landmark for home roasters.
+- #567 cross-cutting — Store JSON-LD `hasMap` next to `geo`; e2e: the seed shop's link + `hasMap` without JS, no link on a shop
+  without a pin.
+
+### Verification (what ran and passed; what was NOT tested and why)
+- Backend (unchanged): gofmt, build, vet, `go test ./...`, `go test -race ./...` against a fresh `scripts/test_db.sh` DB (PostgreSQL 17 in Docker).
+- Frontend: tsc, lint, `npm test` (474), `next build`; `check_brief.sh`, `docker compose config`.
+- Local stack (compose Postgres + seed, Go API, `next start`, /graphql routed by Playwright): shop page link at 390 / 1440 px,
+  /map popup (ink), dashboard: short link message, a place URL fills 25.033964 / 121.564468, save, the new shop shows the link.
+- Not run here: `docker compose up --build` (image builds can't verify the sandbox's TLS proxy for `go mod download`), smoke and
+  Playwright; CI `stack` covers them, incl. the new e2e steps. OSM tiles are blocked here, so maps render without tiles.
+
+### Decisions / deferred (anything the next session or the owner should know)
+- The directions link is built by the platform from stored coordinates, never a seller-pasted URL: sellers still can't link out,
+  and a pasted link is only read for its point. Google Maps is used for directions only; the map tiles stay OSM (#10).
+- Short links can't be expanded in the browser (no CORS) and we don't fetch URLs server-side; sellers copy the full URL instead.
+
 ## Session 77 — 2026-11-27 — #552 E (copy, zero counts) on its safe default; design-guide conformance (five slices)
 PR: #563
 

@@ -29,6 +29,7 @@ import { placeError } from "@/lib/formErrors";
 import { isContactInfoError } from "@/lib/moderation";
 import { shopNameErrorKey, textInputErrorKey } from "@/lib/textInput";
 import { FIELD_LABEL } from "@/lib/ui";
+import { parseMapsLink } from "@/lib/directions";
 
 // Leaflet touches `window`; load the picker on the client only.
 const LocationPicker = dynamic(() => import("./LocationPicker").then((m) => m.LocationPicker), { ssr: false });
@@ -144,6 +145,8 @@ function ProfileEditor({
   const [city, setCity] = useState(shop.city);
   const [lat, setLat] = useState(shop.lat === null ? "" : String(shop.lat));
   const [lng, setLng] = useState(shop.lng === null ? "" : String(shop.lng));
+  // A pasted Google Maps link fills lat / lng (#566); only the point is kept, the link itself is never sent.
+  const [mapsLink, setMapsLink] = useState("");
   const [busy, setBusy] = useState(false);
   const fe = useFormErrors<ShopField>("shop-profile", ORDER);
   const [saved, setSaved] = useState(false);
@@ -161,6 +164,18 @@ function ProfileEditor({
   const dirty = Object.keys(patch).length > 0;
   useUnsavedChanges(dirty && !busy, t(locale, "dash.unsavedConfirm"));
   const outsideTaiwan = picked !== null && !inTaiwan(picked);
+  const fromLink = mapsLink.trim() ? parseMapsLink(mapsLink) : null;
+  const linkStatus = !mapsLink.trim() ? null : fromLink === "short" ? "short" : fromLink ? "set" : "none";
+  const onMapsLink = (v: string) => {
+    setMapsLink(v);
+    const c = v.trim() ? parseMapsLink(v) : null;
+    if (c && c !== "short") {
+      setLat(String(c.lat));
+      setLng(String(c.lng));
+      edited("lat");
+      fe.clearField("lng");
+    }
+  };
   const edited = (f: ShopField) => {
     setSaved(false);
     fe.clearField(f);
@@ -259,7 +274,34 @@ function ProfileEditor({
         <div>
           <SectionTitle>{t(locale, "shop.location")}</SectionTitle>
           <p className="mt-1 text-sm text-muted">{t(locale, "shop.locationHint")}</p>
+          <p className="mt-1 text-sm text-muted">{t(locale, "shop.locationPublic")}</p>
         </div>
+        <label className={FIELD_LABEL}>
+          {t(locale, "shop.mapsLink")}
+          <Input
+            inputMode="url"
+            spellCheck={false}
+            autoComplete="off"
+            value={mapsLink}
+            onChange={(e) => onMapsLink(e.target.value)}
+            aria-describedby="shop-maps-link-hint shop-maps-link-status"
+            className="mt-1"
+          />
+        </label>
+        <p id="shop-maps-link-hint" className="-mt-2 text-xs text-muted">{t(locale, "shop.mapsLinkHint")}</p>
+        <p
+          id="shop-maps-link-status"
+          role="status"
+          className={`-mt-2 text-sm ${linkStatus === "set" ? "text-ink" : "text-danger"} ${linkStatus ? "" : "sr-only"}`}
+        >
+          {linkStatus === "set"
+            ? t(locale, "shop.mapsLinkSet")
+            : linkStatus === "short"
+              ? t(locale, "shop.mapsLinkShort")
+              : linkStatus === "none"
+                ? t(locale, "shop.mapsLinkNone")
+                : ""}
+        </p>
         <LocationPicker
           value={picked}
           onPick={(c) => {

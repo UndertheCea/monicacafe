@@ -90,3 +90,10 @@
     transform: translateX(0);
   }
 }
+
+/* Leaflet's own stylesheet (unlayered) colours every map link #0078A8, which beats Tailwind's layered utilities:
+   popup and attribution links stay ink like the rest of the site (#565). */
+.leaflet-container .leaflet-popup-content a,
+.leaflet-container .leaflet-control-attribution a {
+  color: var(--color-ink);
+}

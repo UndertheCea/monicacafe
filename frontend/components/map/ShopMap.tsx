@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { hasCoords, type ShopPin } from "@/lib/api";
 import type { MapControlLabels } from "@/lib/mapControls";
+import { googleMapsUrl } from "@/lib/directions";
 
 // Taiwan main island, used when there are no pins to fit.
 const TAIWAN_CENTER: [number, number] = [23.7, 120.96];
@@ -24,6 +25,7 @@ export function ShopMap({
   failedLabel,
   twoFingersLabel,
   controlLabels: { zoomIn, zoomOut, closePopup },
+  openInMaps: { label: openInMapsLabel, newTab },
 }: {
   pins: ShopPin[];
   ariaLabel: string;
@@ -33,6 +35,8 @@ export function ShopMap({
   twoFingersLabel: string;
   /** Leaflet's zoom buttons and popup close button, translated (#363). */
   controlLabels: MapControlLabels;
+  /** The popup's Google Maps link (#293, #565): its text and the screen-reader "(opens in a new tab)". */
+  openInMaps: { label: string; newTab: string };
 }) {
   const el = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("loading");
@@ -85,6 +89,23 @@ export function ShopMap({
           city.textContent = p.city;
           city.className = "text-xs text-muted";
           popup.append(link, city);
+          // Directions (owner on #293): Google Maps at the stored point, built by us, never seller text.
+          const maps = googleMapsUrl(p);
+          if (maps) {
+            const go = document.createElement("a");
+            go.href = maps;
+            go.target = "_blank";
+            go.rel = "noopener noreferrer";
+            go.className = "inline-flex min-h-11 items-center text-xs text-ink underline underline-offset-4 hover:no-underline";
+            go.textContent = openInMapsLabel;
+            const hint = document.createElement("span");
+            hint.className = "sr-only";
+            hint.textContent = newTab;
+            go.append(hint);
+            const row = document.createElement("div");
+            row.append(go);
+            popup.append(row);
+          }
 
           L.marker([p.lat, p.lng], { icon, title: p.name, alt: p.name, keyboard: true })
             .bindPopup(popup)
@@ -110,7 +131,7 @@ export function ShopMap({
       cancelled = true;
       map?.remove();
     };
-  }, [pins, zoomIn, zoomOut, closePopup]);
+  }, [pins, zoomIn, zoomOut, closePopup, openInMapsLabel, newTab]);
 
   // isolate (#539): the hint's z-index only has to clear Leaflet's panes, never the sticky header.
   return (

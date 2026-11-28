@@ -22,6 +22,7 @@ import { ShopLogo } from "@/components/shops/ShopLogo";
 import { Page } from "@/components/Page";
 import { Card, PageTitle, Picture, SectionTitle } from "@/components/ui";
 import { pluralKey } from "@/lib/plural";
+import { googleMapsUrl } from "@/lib/directions";
 
 type Params = Promise<{ slug: string }>;
 
@@ -101,6 +102,8 @@ export default async function ShopPage({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const base = siteBase(process.env.SITE_URL);
   const jsonLd = shopJsonLd(shop, base);
+  // Owner on #293: buyers open the pin in Google Maps to navigate there (built from the stored point, #564).
+  const mapsUrl = googleMapsUrl(shop);
   const coffeesLd = shopCoffeesJsonLd(shop.coffees.nodes, base, (at.page - 1) * PAGE_SIZE);
 
   return (
@@ -123,6 +126,19 @@ export default async function ShopPage({
           <div className={shop.bannerUrl ? "sm:pt-14" : ""}>
             <PageTitle>{shop.name}</PageTitle>
             {shop.city && <p className="text-sm text-muted">{shop.city}</p>}
+            {mapsUrl && (
+              <p className="text-sm">
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center text-ink underline underline-offset-4 hover:no-underline"
+                >
+                  {t(locale, "shops.openInMaps")}
+                  <span className="sr-only">{t(locale, "common.newTab")}</span>
+                </a>
+              </p>
+            )}
             <FollowButton shopId={shop.id} slug={shop.slug} followerCount={shop.followerCount} locale={locale} />
             <ReportButton targetType="SHOP" targetId={shop.id} shopId={shop.id} locale={locale} />
           </div>

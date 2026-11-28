@@ -1,6 +1,8 @@
 // Share-card (Open Graph / Twitter) and canonical metadata for the public pages.
-// Pure, no imports, so `npm test` can load it; pages pass the result to Next's
+// Pure (one pure sibling import), so `npm test` can load it; pages pass the result to Next's
 // generateMetadata.
+
+import { googleMapsUrl } from "./directions.ts";
 
 export type ShareLocale = "zh-TW" | "en";
 
@@ -231,6 +233,9 @@ export function shopJsonLd(s: JsonLdShop, base: string): Record<string, unknown>
     Math.abs(lat) <= 90 && Math.abs(lng) <= 180
   ) {
     ld.geo = { "@type": "GeoCoordinates", latitude: lat, longitude: lng };
+    // The same Google Maps link buyers see on the page (#293, #567).
+    const map = googleMapsUrl({ lat, lng });
+    if (map) ld.hasMap = map;
   }
   return ld;
 }
